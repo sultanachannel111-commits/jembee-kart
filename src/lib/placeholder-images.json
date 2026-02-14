@@ -1,0 +1,52 @@
+{
+  "placeholderImages": [
+    {
+      "id": "product1",
+      "description": "Modern wireless headphones",
+      "imageUrl": "https://images.unsplash.com/photo-1583394838336-acd977736f90?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxoZWFkcGhvbmVzfGVufDB8fHx8MTc3MDgxNjEwNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "headphones"
+    },
+    {
+      "id": "product2",
+      "description": "A stylish smartwatch",
+      "imageUrl": "https://images.unsplash.com/photo-1725137801173-1698d4cca0cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8c21hcnR3YXRjaHxlbnwwfHx8fDE3NzA4MjUyMzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "smartwatch"
+    },
+    {
+      "id": "product3",
+      "description": "A powerful portable speaker",
+      "imageUrl": "https://images.unsplash.com/photo-1517816428104-797678c7cf0c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzcGVha2VyfGVufDB8fHx8MTc3MDg1MTczNXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "speaker"
+    },
+    {
+      "id": "product4",
+      "description": "A comfortable ergonomic mouse",
+      "imageUrl": "https://images.unsplash.com/photo-1605773527852-c546a8584ea3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjb21wdXRlciUyMG1vdXNlfGVufDB8fHx8MTc3MDgzNTA3OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "computer mouse"
+    },
+    {
+      "id": "product5",
+      "description": "A sleek mechanical keyboard",
+      "imageUrl": "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxrZXlib2FyZHxlbnwwfHx8fDE3NzA4MzMxMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "keyboard"
+    },
+    {
+      "id": "product6",
+      "description": "A high-resolution monitor",
+      "imageUrl": "https://images.unsplash.com/photo-1614624532983-4ce03382d63d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtb25pdG9yfGVufDB8fHx8MTc3MDgzMzExOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "monitor"
+    },
+    {
+      "id": "product7",
+      "description": "A versatile USB-C hub",
+      "imageUrl": "https://images.unsplash.com/photo-1760376789487-994070337c76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx1c2IlMjBodWJ8ZW58MHx8fHwxNzcwODE2NTk4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "usb hub"
+    },
+    {
+      "id": "product8",
+      "description": "A fast-charging power bank",
+      "imageUrl": "https://images.unsplash.com/photo-1585995603413-eb35b5f4a50b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwb3dlciUyMGJhbmt8ZW58MHx8fHwxNzcwODY4NjIyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "power bank"
+    }
+  ]
+}
