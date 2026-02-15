@@ -1,4 +1,3 @@
-import "./globals.css";
 import "@/styles/glass-theme.css";
 
 export default function RootLayout({
