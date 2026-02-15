@@ -1,0 +1,53 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Header } from "@/components/header";
+import { getDocs, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchOrders() {
+      if (!db) return;
+
+      const snapshot = await getDocs(collection(db, "orders"));
+
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setOrders(data);
+      setLoading(false);
+    }
+
+    fetchOrders();
+  }, []);
+
+  return (
+    <div className="min-h-screen">
+      <Header />
+      <div className="container mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">My Orders</h1>
+
+        {loading && <p>Loading...</p>}
+
+        {!loading && orders.length === 0 && (
+          <p>No orders found.</p>
+        )}
+
+        {orders.map((order: any) => (
+          <div key={order.id} className="border p-4 mb-4 rounded">
+            <p><strong>Order ID:</strong> {order.orderId}</p>
+            <p><strong>Name:</strong> {order.customerName}</p>
+            <p><strong>Status:</strong> {order.status}</p>
+            <p><strong>Price:</strong> ${order.productDetails?.price}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
