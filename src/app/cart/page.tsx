@@ -35,6 +35,15 @@ export default function CartPage() {
       return;
     }
 
+    const itemsToCheckout = cart.filter((item) =>
+      selected.includes(item.id)
+    );
+
+    localStorage.setItem(
+      "checkoutItems",
+      JSON.stringify(itemsToCheckout)
+    );
+
     router.push("/checkout");
   };
 
@@ -52,7 +61,6 @@ export default function CartPage() {
             key={item.id}
             className="flex items-center gap-4 border p-4 mb-4 rounded"
           >
-            {/* ✅ Checkbox Added */}
             <input
               type="checkbox"
               checked={selected.includes(item.id)}
@@ -90,7 +98,6 @@ export default function CartPage() {
             </h2>
 
             <div className="flex gap-4">
-              {/* ✅ Buy Selected Button */}
               <Button onClick={handleCheckout}>
                 Buy Selected
               </Button>
