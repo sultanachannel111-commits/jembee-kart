@@ -15,6 +15,7 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
 
+  // Load selected items from localStorage
   useEffect(() => {
     const stored = localStorage.getItem("checkoutItems");
     if (stored) {
@@ -22,6 +23,7 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  // Calculate total
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -29,19 +31,17 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = () => {
     if (!name || !address) {
-      alert("Please fill all details");
       return;
     }
 
     // Clear cart
     clearCart();
 
-    // Remove checkout items
+    // Remove checkout storage
     localStorage.removeItem("checkoutItems");
 
-    alert("Order Placed Successfully 🎉");
-
-    router.push("/orders");
+    // Redirect to success page
+    router.push("/order-success");
   };
 
   return (
@@ -57,27 +57,33 @@ export default function CheckoutPage() {
           <>
             {/* Order Summary */}
             <div className="mb-6 border p-4 rounded">
-              <h2 className="font-semibold mb-4">Order Summary</h2>
+              <h2 className="font-semibold mb-3">Order Summary</h2>
 
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between mb-3"
+                  className="flex justify-between items-center mb-2"
                 >
-                  <div>
-                    <p className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-12 h-12">
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.name}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                    <span>
                       {item.name} x {item.quantity}
-                    </p>
+                    </span>
                   </div>
 
-                  <p>₹{item.price * item.quantity}</p>
+                  <span>₹{item.price * item.quantity}</span>
                 </div>
               ))}
 
               <hr className="my-3" />
-              <p className="font-bold text-lg">
-                Total: ₹{total}
-              </p>
+              <p className="font-bold text-lg">Total: ₹{total}</p>
             </div>
 
             {/* Customer Details */}
