@@ -1,21 +1,70 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+"use server";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-};
+import { z } from "zod";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { redirect } from "next/navigation";
 
-const app = getApps().length > 0 
-  ? getApp() 
-  : initializeApp(firebaseConfig);
+/* =========================
+   ORDER VALIDATION SCHEMA
+========================= */
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+const orderSchema = z.object({
+  customerName: z.string().min(1),
+  customerPhone: z.string().min(1),
+  shippingAddress: z.string().min(5), // 10 mat rakho abhi
+  productId: z.string(),
+  sellerId: z.string().optional(),   // optional kar diya
+  userId: z.string().optional(),     // optional kar diya
+  productDetails: z.object({
+    name: z.string(),
+    price: z.number(),
+    imageUrl: z.string(),
+  }),
+});
 
-export { app, auth, db };
+/* =========================
+   PLACE ORDER ACTION
+========================= */
+
+export async function placeOrderAction(values: any) {
+  const validated = orderSchema.safeParse(values);
+
+  if (!validated.success) {
+    console.log("Validation Error:", validated.error);
+    return { error: "Invalid data provided." };
+  }
+
+  try {
+    const data = validated.data;
+
+    const orderId =
+      "JM-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+    const newOrder = {
+      orderId,
+      userId: data.userId || "guest",
+      productId: data.productId,
+      sellerId: data.sellerId || "admin",
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      shippingAddress: data.shippingAddress,
+      productDetails: data.productDetails,
+      status: "Confirmed",
+      createdAt: serverTimestamp(),
+    };
+
+    if (!db) {
+      return { error: "Database not initialized." };
+    }
+
+    await addDoc(collection(db, "orders"), newOrder);
+
+    redirect(`/order-confirmation/${data.productId}`);
+  } catch (error) {
+    console.error("Order Error:", error);
+    return {
+      error: "There was a problem placing your order.",
+    };
+  }
+}
