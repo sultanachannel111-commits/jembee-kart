@@ -12,10 +12,10 @@ import { redirect } from "next/navigation";
 const orderSchema = z.object({
   customerName: z.string().min(1),
   customerPhone: z.string().min(1),
-  shippingAddress: z.string().min(5), // 10 mat rakho abhi
+  shippingAddress: z.string().min(5),
   productId: z.string(),
-  sellerId: z.string().optional(),   // optional kar diya
-  userId: z.string().optional(),     // optional kar diya
+  sellerId: z.string().optional(),
+  userId: z.string().optional(),
   productDetails: z.object({
     name: z.string(),
     price: z.number(),
@@ -67,4 +67,13 @@ export async function placeOrderAction(values: any) {
       error: "There was a problem placing your order.",
     };
   }
+}
+
+/* =========================
+   DUMMY OPTIMIZER FIX
+   (Build error fix ke liye)
+========================= */
+
+export async function optimizeProductListingAction() {
+  return { data: null };
 }
