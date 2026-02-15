@@ -1,70 +1,81 @@
+"use client";
+
 import { Header } from "@/components/header";
-import { getProducts } from "@/lib/data";
-import { ProductCard } from "@/components/product-card";
-import { Product } from "@/lib/definitions";
-import { unstable_noStore as noStore } from "next/cache";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
-export default async function Home() {
-  noStore();
-
-  let products: Product[] = [];
-
-  try {
-    products = await getProducts();
-  } catch (error) {
-    console.error("Failed to fetch products:", error);
-  }
+export default function HomePage() {
+  const router = useRouter();
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-gray-100 pb-20">
       <Header />
 
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-8 md:px-6">
+      <div className="p-4 space-y-5">
 
-          {/* Heading */}
-          <h1 className="text-3xl font-bold tracking-tight mb-4 font-headline">
-            Featured Products
-          </h1>
+        {/* 🔍 Search Bar */}
+        <div>
+          <input
+            type="text"
+            placeholder="Search for Products"
+            className="w-full p-3 rounded-xl border bg-white shadow-sm"
+          />
+        </div>
 
-          {/* Orders Page Button */}
-          <div className="mb-6">
-            <a
-              href="/orders"
-              className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-            >
-              Go to Orders Page
-            </a>
-          </div>
-
-          {/* Products Grid */}
-          {products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product: Product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center rounded-lg border border-dashed shadow-sm min-h-[400px]">
-              <div className="text-center py-16 text-muted-foreground">
-                <h2 className="text-2xl font-semibold">
-                  No products yet!
-                </h2>
-                <p className="mt-2">
-                  Check back later for amazing deals or set up your Firebase project.
-                </p>
+        {/* 🗂 Categories */}
+        <div className="flex gap-6 overflow-x-auto pb-2">
+          {["Fashion", "Mobiles", "Beauty", "Electronics", "Home"].map((cat) => (
+            <div key={cat} className="flex flex-col items-center min-w-[70px]">
+              <div className="w-16 h-16 bg-white rounded-full shadow flex items-center justify-center text-xl">
+                📦
               </div>
+              <p className="text-xs mt-2 text-center">{cat}</p>
             </div>
-          )}
-
+          ))}
         </div>
-      </main>
 
-      <footer className="py-6 border-t bg-card">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Jembee Kart. All rights reserved.
+        {/* 🎯 Banner Slider */}
+        <div className="relative w-full h-40 rounded-xl overflow-hidden">
+          <Image
+            src="https://images.unsplash.com/photo-1606813907291-d86efa9b94db"
+            alt="banner"
+            fill
+            className="object-cover"
+          />
         </div>
-      </footer>
+
+        {/* 🛍 Product Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {[1,2,3,4].map((item) => (
+            <div
+              key={item}
+              className="bg-white rounded-xl shadow p-3 cursor-pointer"
+              onClick={() => router.push("/product")}
+            >
+              <div className="relative w-full h-32">
+                <Image
+                  src="https://images.unsplash.com/photo-1600185365483-26d7a4cc7519"
+                  alt="product"
+                  fill
+                  className="object-cover rounded"
+                />
+              </div>
+
+              <p className="text-sm font-semibold mt-2">Product Name</p>
+              <p className="text-blue-600 font-bold">₹999</p>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* 📱 Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3">
+        <button onClick={() => router.push("/")}>🏠 Home</button>
+        <button onClick={() => router.push("/categories")}>📂 Categories</button>
+        <button onClick={() => router.push("/orders")}>👤 Account</button>
+        <button onClick={() => router.push("/cart")}>🛒 Cart</button>
+      </div>
     </div>
   );
 }
