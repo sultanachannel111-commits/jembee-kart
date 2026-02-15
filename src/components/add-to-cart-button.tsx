@@ -1,21 +1,30 @@
 "use client";
 
-import { useCart } from "@/providers/cart-provider";
 import { Product } from "@/lib/definitions";
+import { useCart } from "@/providers/cart-provider";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
-export default function AddToCartButton({ product }: { product: Product }) {
+interface Props {
+  product: Product;
+}
+
+export default function AddToCartButton({ product }: Props) {
   const { addToCart } = useCart();
+  const { toast } = useToast();
 
   function handleAdd() {
     addToCart(product);
+
+    toast({
+      title: "Added to Cart 🛒",
+      description: `${product.name} has been added successfully.`,
+    });
   }
 
   return (
-    <button
-      onClick={handleAdd}
-      className="bg-primary text-white px-4 py-2 rounded-md"
-    >
+    <Button onClick={handleAdd} className="w-full">
       Add to Cart
-    </button>
+    </Button>
   );
 }
