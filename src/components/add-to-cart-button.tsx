@@ -1,20 +1,21 @@
 "use client";
 
-import { addToCart } from "@/lib/cart";
-import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
+import { useCart } from "@/providers/cart-provider";
+import { Product } from "@/lib/definitions";
 
-export default function AddToCartButton({ product }: any) {
+export default function AddToCartButton({ product }: { product: Product }) {
+  const { addToCart } = useCart();
 
   function handleAdd() {
     addToCart(product);
-    alert("Product added to cart 🛒");
   }
 
   return (
-    <Button onClick={handleAdd} variant="outline" className="w-full mb-4">
-      <ShoppingCart className="mr-2 h-4 w-4" />
+    <button
+      onClick={handleAdd}
+      className="bg-primary text-white px-4 py-2 rounded-md"
+    >
       Add to Cart
-    </Button>
+    </button>
   );
 }
