@@ -30,18 +30,11 @@ export default function CartPage() {
   );
 
   const handleCheckout = () => {
-    // ❌ Alert removed
-    if (selected.length === 0) {
-      return;
-    }
-
-    const itemsToCheckout = cart.filter((item) =>
-      selected.includes(item.id)
-    );
+    if (selected.length === 0) return; // 👈 bas return
 
     localStorage.setItem(
       "checkoutItems",
-      JSON.stringify(itemsToCheckout)
+      JSON.stringify(selectedItems)
     );
 
     router.push("/checkout");
@@ -100,7 +93,7 @@ export default function CartPage() {
             <div className="flex gap-4">
               <Button
                 onClick={handleCheckout}
-                disabled={selected.length === 0}   {/* 🔥 button auto disable */}
+                disabled={selected.length === 0}
               >
                 Buy Selected
               </Button>
