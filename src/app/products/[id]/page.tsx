@@ -1,74 +1,51 @@
-"use client";
-
-import { useParams } from "next/navigation";
+import Image from "next/image";
 
 export default function ProductPage() {
-  const params = useParams();
-  const productId = params?.id;
+  const phone = "917061369212";
 
-  // Dummy Product (Baad me Firestore se fetch kar sakte ho)
-  const product = {
-    id: productId,
-    name: "Premium Sneakers",
-    price: 999,
-    image:
-      "https://images.unsplash.com/photo-1528701800489-20be3c1a9d84?q=80&w=1200&auto=format&fit=crop",
-    description:
-      "High quality premium sneakers with stylish design and maximum comfort.",
-  };
-
-  const whatsappNumber = "917061369212"; // ✅ YOUR NUMBER
-
-  const message = `
-Hello JEMBEE STORE 👋
-
-I want to order this product:
-
-🛍 Product: ${product.name}
-💰 Price: ₹${product.price}
-🆔 Product ID: ${product.id}
-
-Please confirm availability.
-`;
+  const message = encodeURIComponent(
+    "Hello JEMBEE STORE 👋\n\nI want to order:\nProduct: Premium Sneakers\nPrice: ₹999\n\nPlease confirm availability."
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 p-6">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-white/60 backdrop-blur-xl shadow-2xl rounded-3xl p-6 md:p-10 max-w-5xl w-full grid md:grid-cols-2 gap-8">
 
         {/* Product Image */}
-        <div className="bg-white p-6 rounded-2xl shadow-xl">
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full rounded-xl object-cover"
+        <div className="flex items-center justify-center">
+          <Image
+            src="https://images.unsplash.com/photo-1542291026-7eec264c27ff"
+            alt="Premium Sneakers"
+            width={500}
+            height={500}
+            className="rounded-2xl shadow-lg"
           />
         </div>
 
         {/* Product Details */}
-        <div className="bg-white p-8 rounded-2xl shadow-xl backdrop-blur-lg">
-          <h1 className="text-4xl font-bold mb-4">
-            {product.name}
+        <div className="flex flex-col justify-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">
+            Premium Sneakers
           </h1>
 
           <p className="text-2xl text-green-600 font-semibold mb-4">
-            ₹{product.price}
+            ₹999
           </p>
 
-          <p className="text-gray-600 mb-6">
-            {product.description}
+          <p className="text-gray-700 mb-6">
+            High quality premium sneakers with stylish design and maximum comfort.
+            Lightweight material with durable sole.
           </p>
 
           <a
-            href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-              message
-            )}`}
+            href={`https://wa.me/${phone}?text=${message}`}
             target="_blank"
-            className="block text-center bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition duration-300 shadow-lg"
+            className="bg-green-600 hover:bg-green-700 transition text-white px-6 py-3 rounded-xl text-center font-semibold shadow-lg"
           >
             Order on WhatsApp 🚀
           </a>
 
-          <p className="text-sm text-gray-400 mt-4">
+          <p className="text-sm text-gray-500 mt-4">
             100% Genuine | Fast Response | Secure WhatsApp Order
           </p>
         </div>
