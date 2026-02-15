@@ -1,80 +1,77 @@
-import { getProductById } from '@/lib/data';
-import { notFound } from 'next/navigation';
-import { Header } from '@/components/header';
-import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
-import { Star } from 'lucide-react';
-import OrderForm from '@/components/order-form';
-import AddToCartButton from '@/components/add-to-cart-button';
-import { unstable_noStore as noStore } from 'next/cache';
+"use client";
 
-export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-    noStore();
-    const product = await getProductById(params.id);
+import { useParams } from "next/navigation";
+import { Header } from "@/components/header";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
-    if (!product) {
-        notFound();
-    }
+export default function ProductDetailPage() {
+  const params = useParams();
+  const productId = params.id;
 
-    return (
-        <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1 py-8 md:py-12">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-                        <div className="flex items-start">
-                            <Card className="overflow-hidden w-full shadow-lg">
-                                <div className="aspect-square relative">
-                                    <Image
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        fill
-                                        className="object-cover"
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                    />
-                                </div>
-                            </Card>
-                        </div>
+  const product = {
+    id: productId,
+    name: "Premium Sneakers",
+    price: 999,
+    image:
+      "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519",
+    description:
+      "High quality premium sneakers with comfortable sole.",
+  };
 
-                        <div className="flex flex-col gap-4">
-                            <h1 className="text-3xl md:text-4xl font-bold font-headline">
-                                {product.name}
-                            </h1>
+  const handleWhatsAppOrder = () => {
+    const phoneNumber = "91706136922";
 
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-0.5 text-primary">
-                                    <Star className="w-5 h-5 fill-current" />
-                                    <Star className="w-5 h-5 fill-current" />
-                                    <Star className="w-5 h-5 fill-current" />
-                                    <Star className="w-5 h-5 fill-current" />
-                                    <Star className="w-5 h-5 fill-muted stroke-primary" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">
-                                    (123 ratings)
-                                </span>
-                            </div>
+    const message = `Hello,
+I want to order:
 
-                            <p className="text-4xl font-bold text-primary">
-                                ${product.price.toFixed(2)}
-                            </p>
+Product: ${product.name}
+Price: ₹${product.price}
+Product ID: ${product.id}
 
-                            <Card className="bg-white/50">
-                                <CardContent className="p-6">
-                                    <p className="text-foreground/80 leading-relaxed">
-                                        {product.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
+Please confirm availability.`;
 
-                            {/* CART + BUY SECTION */}
-                            <div className="mt-4 space-y-4">
-                                <AddToCartButton product={product} />
-                                <OrderForm product={product} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
+    window.open(
+      `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
+      "_blank"
     );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <div className="container mx-auto p-6 grid md:grid-cols-2 gap-8">
+        <div className="relative w-full h-80">
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover rounded-lg"
+          />
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-bold mb-3">
+            {product.name}
+          </h1>
+
+          <p className="text-xl text-green-600 font-semibold mb-4">
+            ₹{product.price}
+          </p>
+
+          <p className="text-gray-600 mb-6">
+            {product.description}
+          </p>
+
+          <Button
+            className="w-full bg-green-600 hover:bg-green-700"
+            onClick={handleWhatsAppOrder}
+          >
+            Order on WhatsApp
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
