@@ -23,6 +23,25 @@ const orderSchema = z.object({
 });
 
 /* =========================
+   OPTIMIZE PRODUCT ACTION
+========================= */
+
+export async function optimizeProductListingAction(input: any) {
+  try {
+    return {
+      data: {
+        title: input?.currentTitle || "",
+        description: input?.currentDescription || "",
+      },
+    };
+  } catch (error) {
+    return {
+      error: "Failed to optimize product listing.",
+    };
+  }
+}
+
+/* =========================
    PLACE ORDER ACTION
 ========================= */
 
