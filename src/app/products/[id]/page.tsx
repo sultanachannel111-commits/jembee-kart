@@ -1,57 +1,77 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Header } from "@/components/header";
-import { Button } from "@/components/ui/button";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
-export default function ProductDetailPage() {
+export default function ProductPage() {
   const params = useParams();
-  const productId = params.id;
+  const productId = params?.id;
 
+  // Dummy Product (Baad me Firestore se fetch kar sakte ho)
   const product = {
     id: productId,
     name: "Premium Sneakers",
     price: 999,
+    image:
+      "https://images.unsplash.com/photo-1528701800489-20be3c1a9d84?q=80&w=1200&auto=format&fit=crop",
+    description:
+      "High quality premium sneakers with stylish design and maximum comfort.",
   };
 
-  const handleOrder = async () => {
-    const orderRef = await addDoc(collection(db, "orders"), {
-      orderId: "ORD-" + Date.now(),
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      status: "Pending",
-      createdAt: serverTimestamp(),
-    });
+  const whatsappNumber = "917061369212"; // ✅ YOUR NUMBER
 
-    const phone = "91706136922";
+  const message = `
+Hello JEMBEE STORE 👋
 
-    const message = `Hello,
-Order ID: ${orderRef.id}
-Product: ${product.name}
-Price: ₹${product.price}`;
+I want to order this product:
 
-    window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
-  };
+🛍 Product: ${product.name}
+💰 Price: ₹${product.price}
+🆔 Product ID: ${product.id}
+
+Please confirm availability.
+`;
 
   return (
-    <div>
-      <Header />
-      <div className="p-10">
-        <h1 className="text-3xl font-bold">{product.name}</h1>
-        <p className="text-xl">₹{product.price}</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 p-6">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
 
-        <Button
-          className="mt-5 bg-green-600"
-          onClick={handleOrder}
-        >
-          Order on WhatsApp
-        </Button>
+        {/* Product Image */}
+        <div className="bg-white p-6 rounded-2xl shadow-xl">
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full rounded-xl object-cover"
+          />
+        </div>
+
+        {/* Product Details */}
+        <div className="bg-white p-8 rounded-2xl shadow-xl backdrop-blur-lg">
+          <h1 className="text-4xl font-bold mb-4">
+            {product.name}
+          </h1>
+
+          <p className="text-2xl text-green-600 font-semibold mb-4">
+            ₹{product.price}
+          </p>
+
+          <p className="text-gray-600 mb-6">
+            {product.description}
+          </p>
+
+          <a
+            href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+              message
+            )}`}
+            target="_blank"
+            className="block text-center bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition duration-300 shadow-lg"
+          >
+            Order on WhatsApp 🚀
+          </a>
+
+          <p className="text-sm text-gray-400 mt-4">
+            100% Genuine | Fast Response | Secure WhatsApp Order
+          </p>
+        </div>
       </div>
     </div>
   );
