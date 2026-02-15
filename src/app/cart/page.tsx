@@ -4,14 +4,39 @@ import { useCart } from "@/providers/cart-provider";
 import { Header } from "@/components/header";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const { cart, removeFromCart, clearCart } = useCart();
+  const [selected, setSelected] = useState<string[]>([]);
+  const router = useRouter();
 
-  const total = cart.reduce(
+  const toggleSelect = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    );
+  };
+
+  const selectedItems = cart.filter((item) =>
+    selected.includes(item.id)
+  );
+
+  const total = selectedItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+
+  const handleCheckout = () => {
+    if (selected.length === 0) {
+      alert("Select at least one product");
+      return;
+    }
+
+    router.push("/checkout");
+  };
 
   return (
     <div className="min-h-screen">
@@ -27,6 +52,13 @@ export default function CartPage() {
             key={item.id}
             className="flex items-center gap-4 border p-4 mb-4 rounded"
           >
+            {/* ✅ Checkbox Added */}
+            <input
+              type="checkbox"
+              checked={selected.includes(item.id)}
+              onChange={() => toggleSelect(item.id)}
+            />
+
             <div className="relative w-20 h-20">
               <Image
                 src={item.imageUrl}
@@ -54,12 +86,19 @@ export default function CartPage() {
         {cart.length > 0 && (
           <div className="mt-6">
             <h2 className="text-xl font-bold mb-4">
-              Total: ₹{total}
+              Selected Total: ₹{total}
             </h2>
 
-            <Button onClick={clearCart} variant="secondary">
-              Clear Cart
-            </Button>
+            <div className="flex gap-4">
+              {/* ✅ Buy Selected Button */}
+              <Button onClick={handleCheckout}>
+                Buy Selected
+              </Button>
+
+              <Button onClick={clearCart} variant="secondary">
+                Clear Cart
+              </Button>
+            </div>
           </div>
         )}
       </div>
