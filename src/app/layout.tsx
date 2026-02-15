@@ -1,5 +1,11 @@
-import "./globals.css";           // Tailwind load hoga
-import "@/styles/glass-theme.css"; // Glass effect
+import type { Metadata } from "next";
+import "./globals.css";
+import Header from "@/components/header";
+
+export const metadata: Metadata = {
+  title: "JEMBEE STORE",
+  description: "Premium WhatsApp Based Store",
+};
 
 export default function RootLayout({
   children,
@@ -8,7 +14,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+
+        {/* Header */}
+        <Header />
+
+        {/* Page Content */}
+        <main className="pt-6">
+          {children}
+        </main>
+
+      </body>
     </html>
   );
 }
