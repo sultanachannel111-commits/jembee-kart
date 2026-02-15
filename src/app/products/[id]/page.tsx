@@ -2,8 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { Header } from "@/components/header";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -13,64 +14,44 @@ export default function ProductDetailPage() {
     id: productId,
     name: "Premium Sneakers",
     price: 999,
-    image:
-      "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519",
-    description:
-      "High quality premium sneakers with comfortable sole.",
   };
 
-  const handleWhatsAppOrder = () => {
-    const phoneNumber = "91706136922";
+  const handleOrder = async () => {
+    const orderRef = await addDoc(collection(db, "orders"), {
+      orderId: "ORD-" + Date.now(),
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      status: "Pending",
+      createdAt: serverTimestamp(),
+    });
+
+    const phone = "91706136922";
 
     const message = `Hello,
-I want to order:
-
+Order ID: ${orderRef.id}
 Product: ${product.name}
-Price: ₹${product.price}
-Product ID: ${product.id}
-
-Please confirm availability.`;
+Price: ₹${product.price}`;
 
     window.open(
-      `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
+      `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
       "_blank"
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       <Header />
+      <div className="p-10">
+        <h1 className="text-3xl font-bold">{product.name}</h1>
+        <p className="text-xl">₹{product.price}</p>
 
-      <div className="container mx-auto p-6 grid md:grid-cols-2 gap-8">
-        <div className="relative w-full h-80">
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            className="object-cover rounded-lg"
-          />
-        </div>
-
-        <div>
-          <h1 className="text-3xl font-bold mb-3">
-            {product.name}
-          </h1>
-
-          <p className="text-xl text-green-600 font-semibold mb-4">
-            ₹{product.price}
-          </p>
-
-          <p className="text-gray-600 mb-6">
-            {product.description}
-          </p>
-
-          <Button
-            className="w-full bg-green-600 hover:bg-green-700"
-            onClick={handleWhatsAppOrder}
-          >
-            Order on WhatsApp
-          </Button>
-        </div>
+        <Button
+          className="mt-5 bg-green-600"
+          onClick={handleOrder}
+        >
+          Order on WhatsApp
+        </Button>
       </div>
     </div>
   );
