@@ -1,4 +1,5 @@
-import "@/styles/glass-theme.css";
+import "./globals.css";           // Tailwind load hoga
+import "@/styles/glass-theme.css"; // Glass effect
 
 export default function RootLayout({
   children,
@@ -6,10 +7,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html>
-      <body className="bg-gradient-to-br from-blue-50 to-purple-100">
-        {children}
-      </body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
   );
 }
