@@ -1,46 +1,15 @@
-import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/providers/auth-provider";
-import { CartProvider } from "@/providers/cart-provider"; // 👈 ADD THIS
-import { Toaster } from "@/components/ui/toaster";
-import { cn } from "@/lib/utils";
-
-export const metadata: Metadata = {
-  title: "Jembee Kart",
-  description: "A modern ecommerce platform",
-};
+import "@/styles/glass-theme.css";
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-
-      <body
-        className={cn(
-          "min-h-screen bg-background font-body antialiased"
-        )}
-      >
-        <AuthProvider>
-          <CartProvider> {/* 👈 CART WRAP */}
-            {children}
-            <Toaster />
-          </CartProvider>
-        </AuthProvider>
+    <html>
+      <body className="bg-gradient-to-br from-blue-50 to-purple-100">
+        {children}
       </body>
     </html>
   );
