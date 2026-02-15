@@ -1,17 +1,24 @@
-const orderSchema = z.object({
-  customerName: z.string().min(1, "Name is required"),
-  customerPhone: z.string().min(1, "Phone is required"),
-  shippingAddress: z.string().min(5, "Please enter full address"),
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-  productId: z.string().min(1),
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-  // Testing ke liye optional kar diya
-  sellerId: z.string().optional(),
-  userId: z.string().optional(),
+let app;
+let auth;
+let db;
 
-  productDetails: z.object({
-    name: z.string(),
-    price: z.coerce.number(), // string ko number bana dega automatically
-    imageUrl: z.string().optional(),
-  }),
-});
+if (typeof window !== "undefined" && firebaseConfig.apiKey) {
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+export { app, auth, db };
