@@ -1,47 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCart } from "@/providers/cart-provider";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { useCart } from "@/providers/cart-provider";
+import { useState } from "react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function CheckoutPage() {
+  const { cart, clearCart } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
-  const { clearCart } = useCart();
 
-  const [items, setItems] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Load selected items from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem("checkoutItems");
-    if (stored) {
-      setItems(JSON.parse(stored));
-    }
-  }, []);
-
-  // Calculate total
-  const total = items.reduce(
+  const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  const handlePlaceOrder = () => {
-    if (!name || !address) {
-      return;
-    }
+  const handlePlaceOrder = async () => {
+    if (!name || !address) return;
 
-    // Clear cart
+    if (!db || !user) return;
+
+    setLoading(true);
+
+    const orderData = {
+      userId: user.uid,
+      customerName: name,
+      shippingAddress: address,
+      items: cart,
+      totalAmount: total,
+      status: "Confirmed",
+      createdAt: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(collection(db, "orders"), orderData);
+
     clearCart();
 
-    // Remove checkout storage
-    localStorage.removeItem("checkoutItems");
-
-    // Redirect to success page
-    router.push("/order-success");
+    router.push(`/order-success?id=${docRef.id}`);
   };
 
   return (
@@ -51,42 +54,22 @@ export default function CheckoutPage() {
       <div className="container mx-auto p-6 max-w-xl">
         <h1 className="text-3xl font-bold mb-6">Checkout</h1>
 
-        {items.length === 0 ? (
-          <p>No items selected.</p>
+        {cart.length === 0 ? (
+          <p>Your cart is empty.</p>
         ) : (
           <>
-            {/* Order Summary */}
-            <div className="mb-6 border p-4 rounded">
-              <h2 className="font-semibold mb-3">Order Summary</h2>
-
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex justify-between items-center mb-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-12 h-12">
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.name}
-                        fill
-                        className="object-cover rounded"
-                      />
-                    </div>
-                    <span>
-                      {item.name} x {item.quantity}
-                    </span>
-                  </div>
-
+            <div className="mb-6">
+              <h2 className="font-semibold mb-2">Order Summary</h2>
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between mb-2">
+                  <span>{item.name} x {item.quantity}</span>
                   <span>₹{item.price * item.quantity}</span>
                 </div>
               ))}
-
-              <hr className="my-3" />
-              <p className="font-bold text-lg">Total: ₹{total}</p>
+              <hr className="my-2" />
+              <p className="font-bold">Total: ₹{total}</p>
             </div>
 
-            {/* Customer Details */}
             <div className="space-y-4">
               <input
                 type="text"
@@ -103,8 +86,12 @@ export default function CheckoutPage() {
                 onChange={(e) => setAddress(e.target.value)}
               />
 
-              <Button onClick={handlePlaceOrder} className="w-full">
-                Place Order
+              <Button
+                onClick={handlePlaceOrder}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? "Placing Order..." : "Place Order"}
               </Button>
             </div>
           </>
