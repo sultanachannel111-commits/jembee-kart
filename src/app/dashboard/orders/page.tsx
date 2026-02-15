@@ -11,7 +11,6 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Button } from "@/components/ui/button";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -40,26 +39,59 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
-  // ✅ STATUS UPDATE
+  // ✅ STATUS UPDATE + AUTO WHATSAPP
   const handleStatusChange = async (
-    orderId: string,
+    order: any,
     newStatus: string
   ) => {
     if (!db) return;
 
-    const orderRef = doc(db, "orders", orderId);
+    const orderRef = doc(db, "orders", order.id);
 
     await updateDoc(orderRef, {
       status: newStatus,
     });
 
+    // Update UI instantly
     setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId
-          ? { ...order, status: newStatus }
-          : order
+      prev.map((o) =>
+        o.id === order.id
+          ? { ...o, status: newStatus }
+          : o
       )
     );
+
+    // 🚚 Auto WhatsApp when Shipped
+    if (newStatus === "Shipped") {
+      const message = `Hello ${order.customerName},
+
+Your order ${order.orderId} has been shipped 🚚
+
+Tracking ID: ${
+        order.trackingId || "Will be updated soon"
+      }
+
+Thank you for shopping with us ❤️`;
+
+      window.open(
+        `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+    }
+
+    // 🎉 Auto WhatsApp when Delivered
+    if (newStatus === "Delivered") {
+      const message = `Hello ${order.customerName},
+
+Your order ${order.orderId} has been delivered 🎉
+
+We hope you love your purchase ❤️`;
+
+      window.open(
+        `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+    }
   };
 
   // ✅ TRACKING UPDATE
@@ -74,23 +106,21 @@ export default function AdminOrdersPage() {
     await updateDoc(orderRef, {
       trackingId: trackingId,
     });
-
-    alert("Tracking ID Updated");
   };
 
-  // ✅ STATUS COLOR
+  // 🎨 STATUS COLOR
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Pending":
-        return "bg-yellow-100 text-yellow-600";
+        return "bg-yellow-100 text-yellow-700";
       case "Confirmed":
-        return "bg-blue-100 text-blue-600";
+        return "bg-blue-100 text-blue-700";
       case "Shipped":
-        return "bg-purple-100 text-purple-600";
+        return "bg-purple-100 text-purple-700";
       case "Delivered":
-        return "bg-green-100 text-green-600";
+        return "bg-green-100 text-green-700";
       default:
-        return "bg-gray-100 text-gray-600";
+        return "bg-gray-100 text-gray-700";
     }
   };
 
@@ -100,19 +130,19 @@ export default function AdminOrdersPage() {
 
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">
-          Admin Order Management
+          📦 Admin Order Management
         </h1>
 
         {loading && <p>Loading orders...</p>}
 
-        {orders.length === 0 && !loading && (
+        {!loading && orders.length === 0 && (
           <p>No orders found.</p>
         )}
 
         {orders.map((order) => (
           <div
             key={order.id}
-            className="bg-white p-6 rounded-xl shadow mb-6"
+            className="bg-white p-6 rounded-2xl shadow-lg mb-6"
           >
             {/* Basic Info */}
             <div className="flex justify-between flex-wrap gap-4">
@@ -123,18 +153,16 @@ export default function AdminOrdersPage() {
                 <p><strong>Total:</strong> ₹{order.total}</p>
               </div>
 
-              <div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
-                    order.status
-                  )}`}
-                >
-                  {order.status}
-                </span>
-              </div>
+              <span
+                className={`px-4 py-1 rounded-full text-sm font-semibold ${getStatusColor(
+                  order.status
+                )}`}
+              >
+                {order.status}
+              </span>
             </div>
 
-            {/* Products List */}
+            {/* Products */}
             <div className="mt-4 border-t pt-4">
               <h3 className="font-semibold mb-2">
                 Purchased Products:
@@ -153,12 +181,12 @@ export default function AdminOrdersPage() {
               ))}
             </div>
 
-            {/* Status Update */}
+            {/* Controls */}
             <div className="mt-4 flex flex-wrap gap-4">
               <select
                 value={order.status}
                 onChange={(e) =>
-                  handleStatusChange(order.id, e.target.value)
+                  handleStatusChange(order, e.target.value)
                 }
                 className="border p-2 rounded"
               >
