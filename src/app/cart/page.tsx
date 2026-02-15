@@ -30,8 +30,8 @@ export default function CartPage() {
   );
 
   const handleCheckout = () => {
+    // ❌ Alert removed
     if (selected.length === 0) {
-      alert("Select at least one product");
       return;
     }
 
@@ -98,7 +98,10 @@ export default function CartPage() {
             </h2>
 
             <div className="flex gap-4">
-              <Button onClick={handleCheckout}>
+              <Button
+                onClick={handleCheckout}
+                disabled={selected.length === 0}   {/* 🔥 button auto disable */}
+              >
                 Buy Selected
               </Button>
 
