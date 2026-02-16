@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
 import "./globals.css";
+import Header from "@/components/header";
 
-export const metadata: Metadata = {
-  title: "Jembee Store",
-  description: "Premium WhatsApp Based Store by Jembee",
+export const metadata = {
+  title: "JEMBEE STORE",
+  description: "Premium WhatsApp Based Store",
 };
 
 export default function RootLayout({
@@ -13,17 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        className="
-          min-h-screen 
-          bg-gradient-to-br 
-          from-gray-50 
-          via-white 
-          to-gray-100 
-          text-gray-900 
-          antialiased
-        "
-      >
+      <body className="bg-gradient-to-br from-gray-50 to-gray-200">
+        <Header />
         {children}
       </body>
     </html>
