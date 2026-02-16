@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/components/header";
 
 export default function DashboardOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -11,16 +10,14 @@ export default function DashboardOrdersPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6">Dashboard Orders</h1>
+    <div className="min-h-screen">
+      <div className="max-w-6xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">Dashboard Orders</h1>
 
         {orders.length === 0 ? (
-          <p className="text-gray-500">No orders yet.</p>
+          <p className="text-gray-500">No orders found.</p>
         ) : (
-          <div>Orders Table</div>
+          <div>Orders List</div>
         )}
       </div>
     </div>
