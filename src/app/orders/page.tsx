@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/components/header";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
