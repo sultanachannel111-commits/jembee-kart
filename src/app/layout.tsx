@@ -1,9 +1,11 @@
-import Header from "@/components/header";
-import "./globals.css";
+// src/app/layout.tsx
 
-export const metadata = {
-  title: "JEMBEE STORE",
-  description: "Premium WhatsApp Based Store",
+import "./globals.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "JEMBEE KART",
+  description: "Premium WhatsApp Based Shopping Experience",
 };
 
 export default function RootLayout({
@@ -13,8 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900">
-        <Header />
+      <body className="bg-[#f1f3f6] text-gray-900">
         {children}
       </body>
     </html>
