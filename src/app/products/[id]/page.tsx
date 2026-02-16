@@ -1,54 +1,82 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useParams } from "next/navigation";
+
+const products = [
+  {
+    id: "1",
+    name: "Premium Sneakers",
+    price: 999,
+    images: [
+      "https://images.unsplash.com/photo-1606813907291-d86efa9b94db",
+      "https://images.unsplash.com/photo-1584735175315-9d5df23860e6",
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff",
+      "https://images.unsplash.com/photo-1519741497674-611481863552",
+    ],
+    description: "High quality stylish sneakers for daily wear.",
+  },
+];
 
 export default function ProductPage() {
-  const phone = "917061369212";
+  const { id } = useParams();
+  const product = products.find((p) => p.id === id);
 
-  const message = encodeURIComponent(
-    "Hello JEMBEE STORE 👋\n\nI want to order:\nProduct: Premium Sneakers\nPrice: ₹999\n\nPlease confirm availability."
+  const [selectedImage, setSelectedImage] = useState(
+    product?.images[0]
   );
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="bg-white/60 backdrop-blur-xl shadow-2xl rounded-3xl p-6 md:p-10 max-w-5xl w-full grid md:grid-cols-2 gap-8">
+  if (!product) return <div className="p-10">Product not found</div>;
 
-        {/* Product Image */}
-        <div className="flex items-center justify-center">
-          <Image
-            src="https://images.unsplash.com/photo-1542291026-7eec264c27ff"
-            alt="Premium Sneakers"
-            width={500}
-            height={500}
-            className="rounded-2xl shadow-lg"
+  const whatsappLink = `https://wa.me/917061369212?text=I want to order ${product.name}`;
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 grid md:grid-cols-2 gap-10">
+
+      {/* Image Section */}
+      <div>
+        <div className="overflow-hidden rounded-xl border shadow-lg">
+          <img
+            src={selectedImage}
+            alt={product.name}
+            className="w-full h-[400px] object-cover transition-transform duration-500 hover:scale-125 cursor-zoom-in"
           />
         </div>
 
-        {/* Product Details */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Premium Sneakers
-          </h1>
-
-          <p className="text-2xl text-green-600 font-semibold mb-4">
-            ₹999
-          </p>
-
-          <p className="text-gray-700 mb-6">
-            High quality premium sneakers with stylish design and maximum comfort.
-            Lightweight material with durable sole.
-          </p>
-
-          <a
-            href={`https://wa.me/${phone}?text=${message}`}
-            target="_blank"
-            className="bg-green-600 hover:bg-green-700 transition text-white px-6 py-3 rounded-xl text-center font-semibold shadow-lg"
-          >
-            Order on WhatsApp 🚀
-          </a>
-
-          <p className="text-sm text-gray-500 mt-4">
-            100% Genuine | Fast Response | Secure WhatsApp Order
-          </p>
+        {/* Thumbnails */}
+        <div className="flex gap-4 mt-4">
+          {product.images.map((img, index) => (
+            <img
+              key={index}
+              src={img}
+              onClick={() => setSelectedImage(img)}
+              className={`w-20 h-20 object-cover rounded-lg border cursor-pointer ${
+                selectedImage === img
+                  ? "border-yellow-500"
+                  : "border-gray-300"
+              }`}
+            />
+          ))}
         </div>
+      </div>
+
+      {/* Details Section */}
+      <div>
+        <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+
+        <p className="text-2xl text-green-600 font-semibold mb-4">
+          ₹{product.price}
+        </p>
+
+        <p className="text-gray-600 mb-6">{product.description}</p>
+
+        <a
+          href={whatsappLink}
+          target="_blank"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg shadow-lg transition"
+        >
+          Order on WhatsApp
+        </a>
       </div>
     </div>
   );
