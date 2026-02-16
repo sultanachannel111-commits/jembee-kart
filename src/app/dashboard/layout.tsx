@@ -1,7 +1,6 @@
-"use client";
+// src/app/dashboard/layout.tsx
 
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, Package, LogOut } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -10,80 +9,30 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen flex bg-gray-100">
-
+      
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
+      <aside className="w-64 bg-black text-white p-6">
+        <h2 className="text-xl font-bold mb-8 text-green-400">
+          JEMBEE ADMIN
+        </h2>
 
-        {/* Logo */}
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold">
-            JEMBEE <span className="text-green-600">ADMIN</span>
-          </h2>
-        </div>
-
-        {/* Menu */}
-        <nav className="flex-1 p-4 space-y-2">
-
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition"
-          >
-            <LayoutDashboard size={18} />
+        <nav className="space-y-4">
+          <Link href="/dashboard" className="block hover:text-green-400">
             Dashboard
           </Link>
 
-          <Link
-            href="/dashboard/orders"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition"
-          >
-            <ShoppingCart size={18} />
-            Orders
-          </Link>
-
-          <Link
-            href="/product-optimizer"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition"
-          >
-            <Package size={18} />
+          <Link href="/dashboard/products" className="block hover:text-green-400">
             Products
           </Link>
 
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t">
-          <Link
-            href="/"
-            className="flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition"
-          >
-            <LogOut size={18} />
-            Exit Admin
+          <Link href="/dashboard/orders" className="block hover:text-green-400">
+            Orders
           </Link>
-        </div>
-
+        </nav>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-
-        {/* Top Bar */}
-        <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
-          <h1 className="text-lg font-semibold">Admin Dashboard</h1>
-
-          <Link
-            href="/"
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            Go to Store
-          </Link>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 p-6">
-          {children}
-        </main>
-
-      </div>
+      {/* Content */}
+      <main className="flex-1 p-8">{children}</main>
     </div>
   );
 }
