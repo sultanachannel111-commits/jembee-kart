@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  doc,
-} from "firebase/firestore";
-import AdminProtect from "@/components/AdminProtect";
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
+  const [category, setCategory] = useState("Mobiles");
+  const [description, setDescription] = useState("");
+
+  /* ---------------- FETCH PRODUCTS ---------------- */
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const fetchProducts = async () => {
     const snapshot = await getDocs(collection(db, "products"));
@@ -26,139 +26,116 @@ export default function AdminDashboard() {
     setProducts(data);
   };
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const addProduct = async () => {
-    if (!name || !price) return alert("Fill all fields");
+  /* ---------------- ADD PRODUCT ---------------- */
+  const handleAddProduct = async () => {
+    if (!name || !price || !image || !category) {
+      alert("Fill all fields");
+      return;
+    }
 
     await addDoc(collection(db, "products"), {
       name,
       price: Number(price),
       image,
-      sales: 0,
+      category,
+      description,
       createdAt: new Date(),
     });
+
+    alert("Product Added Successfully");
 
     setName("");
     setPrice("");
     setImage("");
+    setDescription("");
+
     fetchProducts();
   };
-
-  const deleteProduct = async (id: string) => {
-    await deleteDoc(doc(db, "products", id));
-    fetchProducts();
-  };
-
-  const totalSales = products.reduce(
-    (acc, p) => acc + (p.sales || 0),
-    0
-  );
-
-  const totalRevenue = products.reduce(
-    (acc, p) => acc + (p.sales || 0) * p.price,
-    0
-  );
 
   return (
-    <AdminProtect>
-      <div className="min-h-screen bg-gray-100 p-6">
+    <div className="max-w-6xl mx-auto p-6">
 
-        <h1 className="text-3xl font-bold mb-6">
-          Admin Dashboard
-        </h1>
+      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
-        {/* Analytics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded shadow">
-            <p>Total Products</p>
-            <h2 className="text-2xl font-bold">
-              {products.length}
-            </h2>
-          </div>
+      {/* ADD PRODUCT */}
+      <div className="bg-white p-6 rounded-xl shadow mb-10">
 
-          <div className="bg-white p-4 rounded shadow">
-            <p>Total Sales</p>
-            <h2 className="text-2xl font-bold">
-              {totalSales}
-            </h2>
-          </div>
+        <h2 className="text-xl font-semibold mb-4">Add Product</h2>
 
-          <div className="bg-white p-4 rounded shadow">
-            <p>Total Revenue</p>
-            <h2 className="text-2xl font-bold">
-              ₹{totalRevenue}
-            </h2>
-          </div>
-        </div>
+        <input
+          type="text"
+          placeholder="Product Name"
+          className="w-full border p-3 rounded mb-3"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
 
-        {/* Add Product */}
-        <div className="bg-white p-6 rounded shadow mb-8">
-          <h2 className="text-xl font-semibold mb-4">
-            Add Product
-          </h2>
+        <input
+          type="number"
+          placeholder="Price"
+          className="w-full border p-3 rounded mb-3"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
 
-          <input
-            placeholder="Product Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="border p-2 mr-2"
-          />
+        <input
+          type="text"
+          placeholder="Image URL"
+          className="w-full border p-3 rounded mb-3"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
+        />
 
-          <input
-            placeholder="Price"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            className="border p-2 mr-2"
-          />
+        {/* CATEGORY */}
+        <select
+          className="w-full border p-3 rounded mb-3"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option>Mobiles</option>
+          <option>Fashion</option>
+          <option>Electronics</option>
+          <option>Beauty</option>
+          <option>Shoes</option>
+          <option>Watches</option>
+          <option>Home</option>
+          <option>Grocery</option>
+        </select>
 
-          <input
-            placeholder="Image URL"
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            className="border p-2 mr-2"
-          />
+        {/* DESCRIPTION */}
+        <textarea
+          placeholder="Product Description"
+          className="w-full border p-3 rounded mb-3"
+          rows={4}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
 
-          <button
-            onClick={addProduct}
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
-            Add
-          </button>
-        </div>
-
-        {/* Product List */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white p-4 rounded shadow"
-            >
-              <img
-                src={product.image}
-                className="h-40 w-full object-cover rounded"
-              />
-
-              <h3 className="font-bold mt-2">
-                {product.name}
-              </h3>
-
-              <p>₹{product.price}</p>
-              <p>Sales: {product.sales || 0}</p>
-
-              <button
-                onClick={() => deleteProduct(product.id)}
-                className="mt-3 bg-red-500 text-white px-3 py-1 rounded"
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-
+        <button
+          onClick={handleAddProduct}
+          className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600"
+        >
+          Add Product
+        </button>
       </div>
-    </AdminProtect>
+
+      {/* PRODUCT LIST */}
+      <div className="grid md:grid-cols-3 gap-6">
+        {products.map((product) => (
+          <div key={product.id} className="bg-white p-4 rounded-xl shadow">
+            <img
+              src={product.image}
+              className="h-40 w-full object-cover rounded mb-3"
+            />
+            <h3 className="font-semibold">{product.name}</h3>
+            <p className="text-blue-600 font-bold">₹{product.price}</p>
+            <p className="text-sm text-gray-500">
+              {product.category}
+            </p>
+          </div>
+        ))}
+      </div>
+
+    </div>
   );
 }
