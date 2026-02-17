@@ -44,12 +44,16 @@ export default function HomePage() {
   /* ---------------- FETCH PRODUCTS ---------------- */
   useEffect(() => {
     const fetchProducts = async () => {
-      const snapshot = await getDocs(collection(db, "products"));
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setProducts(data);
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setProducts(data);
+      } catch (error) {
+        console.log("Error fetching products:", error);
+      }
     };
 
     fetchProducts();
@@ -167,7 +171,7 @@ export default function HomePage() {
             key={product.id}
             className="bg-white p-3 rounded-xl shadow hover:shadow-xl transition"
           >
-            <Link href={`/products/${product.id}`}>
+            <Link href={`/product/${product.id}`}>
               <div className="cursor-pointer">
                 <img
                   src={product.image || "/placeholder.png"}
