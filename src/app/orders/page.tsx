@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    delivered: 0,
+    cancelled: 0,
+    totalAmount: 0,
+  });
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -32,6 +40,30 @@ export default function OrdersPage() {
       }));
 
       setOrders(data);
+
+      // 🔥 CALCULATE STATS
+      let total = data.length;
+      let pending = 0;
+      let delivered = 0;
+      let cancelled = 0;
+      let totalAmount = 0;
+
+      data.forEach((order: any) => {
+        totalAmount += order.price || 0;
+
+        if (order.status === "Pending") pending++;
+        if (order.status === "Delivered") delivered++;
+        if (order.status === "Cancelled") cancelled++;
+      });
+
+      setStats({
+        total,
+        pending,
+        delivered,
+        cancelled,
+        totalAmount,
+      });
+
       setLoading(false);
     };
 
@@ -48,8 +80,35 @@ export default function OrdersPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
+      <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+
+      {/* 🔥 STATS SECTION */}
+      <div className="grid md:grid-cols-4 gap-6 mb-10">
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Total Orders</p>
+          <h2 className="text-2xl font-bold">{stats.total}</h2>
+        </div>
+
+        <div className="bg-yellow-100 p-6 rounded-xl shadow">
+          <p className="text-yellow-600">Pending</p>
+          <h2 className="text-2xl font-bold">{stats.pending}</h2>
+        </div>
+
+        <div className="bg-green-100 p-6 rounded-xl shadow">
+          <p className="text-green-600">Delivered</p>
+          <h2 className="text-2xl font-bold">{stats.delivered}</h2>
+        </div>
+
+        <div className="bg-blue-100 p-6 rounded-xl shadow">
+          <p className="text-blue-600">Total Spent</p>
+          <h2 className="text-2xl font-bold">₹{stats.totalAmount}</h2>
+        </div>
+
+      </div>
+
+      {/* 🔥 ORDER LIST */}
       {orders.length === 0 ? (
         <p className="text-gray-500">No orders found.</p>
       ) : (
@@ -59,25 +118,33 @@ export default function OrdersPage() {
               key={order.id}
               className="bg-white p-6 rounded-xl shadow"
             >
-              <h2 className="font-semibold text-lg">
-                {order.productName}
-              </h2>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-semibold">
+                  {order.productName}
+                </h2>
+
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold
+                    ${
+                      order.status === "Pending"
+                        ? "bg-yellow-100 text-yellow-600"
+                        : order.status === "Delivered"
+                        ? "bg-green-100 text-green-600"
+                        : order.status === "Cancelled"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                >
+                  {order.status}
+                </span>
+              </div>
 
               <p className="text-blue-600 font-bold">
                 ₹{order.price}
               </p>
 
-              {/* 🔥 STATUS LOGIC */}
-              <p className="mt-2 font-semibold">
-                Status:{" "}
-                {order.trackingId && order.trackingId !== ""
-                  ? order.status
-                  : "Pending"}
-              </p>
-
-              {/* 🔥 SHOW TRACKING ONLY IF AVAILABLE */}
-              {order.trackingId && order.trackingId !== "" && (
-                <p className="text-sm text-gray-600 mt-1">
+              {order.trackingId && (
+                <p className="text-sm text-gray-600 mt-2">
                   Tracking ID: {order.trackingId}
                 </p>
               )}
@@ -92,6 +159,7 @@ export default function OrdersPage() {
           ))}
         </div>
       )}
+
     </div>
   );
 }
