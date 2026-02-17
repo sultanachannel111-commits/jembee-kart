@@ -30,7 +30,7 @@ export default function HomePage() {
     {
       name: "Shoes",
       image:
-        "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=200&q=80",
+        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80",
     },
     {
       name: "Watches",
@@ -90,11 +90,11 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [bannerIndex, setBannerIndex] = useState(0);
 
-  /* ---------------- BANNER SLIDER ---------------- */
+  /* ---------------- BANNERS ---------------- */
   const banners = [
     "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80",
   ];
 
   useEffect(() => {
@@ -126,46 +126,47 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="bg-[#f1f3f6] min-h-screen">
 
       {/* HEADER */}
-      <div className="bg-yellow-400 px-4 py-3 shadow flex flex-col md:flex-row items-center gap-3 md:gap-6">
-        <h1 className="font-bold text-xl md:text-2xl">
-          JEMBEE KART
-        </h1>
+      <div className="bg-yellow-400 px-4 py-3 shadow sticky top-0 z-50">
+        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6 max-w-7xl mx-auto">
+          <h1 className="font-bold text-xl md:text-2xl">
+            JEMBEE KART
+          </h1>
 
-        <input
-          type="text"
-          placeholder="Search for products, brands and more..."
-          className="px-4 py-2 rounded w-full md:w-1/2 outline-none"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+          <input
+            type="text"
+            placeholder="Search for products, brands and more..."
+            className="px-4 py-2 rounded w-full md:w-1/2 outline-none shadow-sm focus:ring-2 focus:ring-yellow-600"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* BANNER */}
-      <div className="p-4">
+      <div className="max-w-7xl mx-auto p-4">
         <img
           src={banners[bannerIndex]}
-          className="w-full h-48 md:h-72 object-cover rounded-xl transition-opacity duration-700"
+          className="w-full h-52 md:h-80 object-cover rounded-xl transition-all duration-700"
         />
       </div>
 
-      {/* CATEGORY ROW */}
-      <div className="px-4 overflow-x-auto">
+      {/* CATEGORY */}
+      <div className="max-w-7xl mx-auto px-4 overflow-x-auto">
         <div className="flex gap-6 py-4 min-w-max">
           {["All", ...categories.map((c) => c.name)].map((catName) => {
-            const cat =
-              categories.find((c) => c.name === catName);
+            const cat = categories.find((c) => c.name === catName);
 
             return (
               <div
                 key={catName}
                 onClick={() => setSelectedCategory(catName)}
-                className="cursor-pointer text-center group"
+                className="cursor-pointer text-center"
               >
                 <div
-                  className={`w-16 h-16 rounded-full overflow-hidden shadow-md flex items-center justify-center transition-all duration-300
+                  className={`w-16 h-16 rounded-full overflow-hidden shadow-md transition-all duration-300
                   ${
                     selectedCategory === catName
                       ? "ring-2 ring-yellow-500 scale-110"
@@ -173,7 +174,9 @@ export default function HomePage() {
                   }`}
                 >
                   {catName === "All" ? (
-                    <span className="text-xl">🛍</span>
+                    <div className="flex items-center justify-center h-full text-xl">
+                      🛍
+                    </div>
                   ) : (
                     <img
                       src={cat?.image}
@@ -191,11 +194,11 @@ export default function HomePage() {
       </div>
 
       {/* PRODUCTS */}
-      <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-4 gap-6">
         {filteredProducts.map((product) => (
           <div
             key={product.id}
-            className="bg-white p-3 rounded-xl shadow hover:shadow-xl hover:scale-105 transition duration-300"
+            className="bg-white p-3 rounded-xl shadow hover:shadow-xl hover:-translate-y-1 transition duration-300"
           >
             <img
               src={product.image}
@@ -205,13 +208,14 @@ export default function HomePage() {
             <h2 className="mt-2 font-semibold">
               {product.name}
             </h2>
+
             <p className="text-blue-600 font-bold">
               ₹{product.price}
             </p>
 
             <button
               onClick={() => orderOnWhatsApp(product.name)}
-              className="mt-3 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition"
+              className="mt-3 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 active:scale-95 transition"
             >
               Order on WhatsApp
             </button>
