@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function HomePage() {
   const whatsappNumber = "917061369212";
@@ -50,43 +52,8 @@ export default function HomePage() {
     },
   ];
 
-  /* ---------------- PRODUCTS ---------------- */
-  const products = [
-    {
-      id: 1,
-      name: "iPhone 14",
-      price: 69999,
-      category: "Mobiles",
-      image:
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=500&q=80",
-    },
-    {
-      id: 2,
-      name: "Running Shoes",
-      price: 1999,
-      category: "Shoes",
-      image:
-        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80",
-    },
-    {
-      id: 3,
-      name: "Smart Watch",
-      price: 2499,
-      category: "Watches",
-      image:
-        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=500&q=80",
-    },
-    {
-      id: 4,
-      name: "T-Shirt",
-      price: 799,
-      category: "Fashion",
-      image:
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=500&q=80",
-    },
-  ];
-
   /* ---------------- STATES ---------------- */
+  const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -98,6 +65,7 @@ export default function HomePage() {
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80",
   ];
 
+  /* ---------------- AUTO SLIDER ---------------- */
   useEffect(() => {
     const interval = setInterval(() => {
       setBannerIndex((prev) => (prev + 1) % banners.length);
@@ -105,21 +73,40 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  /* ---------------- FETCH PRODUCTS FROM FIRESTORE ---------------- */
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setProducts(data);
+      } catch (error) {
+        console.log("Error fetching products:", error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   /* ---------------- FILTER ---------------- */
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = products.filter((product: any) => {
     const matchCategory =
       selectedCategory === "All" ||
       product.category === selectedCategory;
 
     const matchSearch = product.name
-      .toLowerCase()
+      ?.toLowerCase()
       .includes(search.toLowerCase());
 
     return matchCategory && matchSearch;
   });
 
-  const orderOnWhatsApp = (productName: string) => {
-    const message = `Hello, I want to order ${productName}`;
+  /* ---------------- WHATSAPP ---------------- */
+  const orderOnWhatsApp = (product: any) => {
+    const message = `Hello, I want to order ${product.name} - ₹${product.price}`;
     window.open(
       `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
       "_blank"
@@ -213,7 +200,7 @@ export default function HomePage() {
 
       {/* PRODUCTS */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => (
+        {filteredProducts.map((product: any) => (
           <div
             key={product.id}
             className="bg-white p-3 rounded-xl shadow hover:shadow-xl hover:-translate-y-1 transition duration-300"
@@ -232,7 +219,7 @@ export default function HomePage() {
             </p>
 
             <button
-              onClick={() => orderOnWhatsApp(product.name)}
+              onClick={() => orderOnWhatsApp(product)}
               className="mt-3 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 active:scale-95 transition"
             >
               Order on WhatsApp
