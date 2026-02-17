@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 export default function HomePage() {
   const whatsappNumber = "917061369212";
@@ -130,18 +131,35 @@ export default function HomePage() {
 
       {/* HEADER */}
       <div className="bg-yellow-400 px-4 py-3 shadow sticky top-0 z-50">
-        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 max-w-7xl mx-auto">
+
           <h1 className="font-bold text-xl md:text-2xl">
             JEMBEE KART
           </h1>
 
-          <input
-            type="text"
-            placeholder="Search for products, brands and more..."
-            className="px-4 py-2 rounded w-full md:w-1/2 outline-none shadow-sm focus:ring-2 focus:ring-yellow-600"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+
+            <input
+              type="text"
+              placeholder="Search for products..."
+              className="px-4 py-2 rounded w-full md:w-72 outline-none shadow-sm focus:ring-2 focus:ring-yellow-600"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            <Link href="/auth?role=customer">
+              <button className="bg-white text-black px-4 py-2 rounded shadow hover:bg-gray-100 transition">
+                Login
+              </button>
+            </Link>
+
+            <Link href="/auth?role=seller">
+              <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition">
+                Seller
+              </button>
+            </Link>
+
+          </div>
         </div>
       </div>
 
