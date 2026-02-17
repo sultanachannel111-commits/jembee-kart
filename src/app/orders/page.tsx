@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -18,10 +23,9 @@ export default function OrdersPage() {
   });
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
+    const auth = getAuth();
 
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setLoading(false);
         return;
@@ -51,9 +55,13 @@ export default function OrdersPage() {
       data.forEach((order: any) => {
         totalAmount += order.price || 0;
 
-        if (order.status === "Pending") pending++;
-        if (order.status === "Delivered") delivered++;
-        if (order.status === "Cancelled") cancelled++;
+        if (!order.trackingId || order.trackingId === "") {
+          pending++;
+        } else if (order.status === "Delivered") {
+          delivered++;
+        } else if (order.status === "Cancelled") {
+          cancelled++;
+        }
       });
 
       setStats({
@@ -65,15 +73,15 @@ export default function OrdersPage() {
       });
 
       setLoading(false);
-    };
+    });
 
-    fetchOrders();
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading Orders...
       </div>
     );
   }
@@ -84,7 +92,7 @@ export default function OrdersPage() {
       <h1 className="text-3xl font-bold mb-8">My Orders</h1>
 
       {/* 🔥 STATS SECTION */}
-      <div className="grid md:grid-cols-4 gap-6 mb-10">
+      <div className="grid md:grid-cols-5 gap-6 mb-10">
 
         <div className="bg-white p-6 rounded-xl shadow">
           <p className="text-gray-500">Total Orders</p>
@@ -101,6 +109,11 @@ export default function OrdersPage() {
           <h2 className="text-2xl font-bold">{stats.delivered}</h2>
         </div>
 
+        <div className="bg-red-100 p-6 rounded-xl shadow">
+          <p className="text-red-600">Cancelled</p>
+          <h2 className="text-2xl font-bold">{stats.cancelled}</h2>
+        </div>
+
         <div className="bg-blue-100 p-6 rounded-xl shadow">
           <p className="text-blue-600">Total Spent</p>
           <h2 className="text-2xl font-bold">₹{stats.totalAmount}</h2>
@@ -110,7 +123,9 @@ export default function OrdersPage() {
 
       {/* 🔥 ORDER LIST */}
       {orders.length === 0 ? (
-        <p className="text-gray-500">No orders found.</p>
+        <p className="text-gray-500 text-lg">
+          No orders found.
+        </p>
       ) : (
         <div className="space-y-6">
           {orders.map((order: any) => (
@@ -125,17 +140,19 @@ export default function OrdersPage() {
 
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-semibold
-                    ${
-                      order.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-600"
-                        : order.status === "Delivered"
-                        ? "bg-green-100 text-green-600"
-                        : order.status === "Cancelled"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                  ${
+                    !order.trackingId || order.trackingId === ""
+                      ? "bg-yellow-100 text-yellow-600"
+                      : order.status === "Delivered"
+                      ? "bg-green-100 text-green-600"
+                      : order.status === "Cancelled"
+                      ? "bg-red-100 text-red-600"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
                 >
-                  {order.status}
+                  {!order.trackingId || order.trackingId === ""
+                    ? "Pending"
+                    : order.status}
                 </span>
               </div>
 
@@ -143,11 +160,22 @@ export default function OrdersPage() {
                 ₹{order.price}
               </p>
 
-              {order.trackingId && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Tracking ID: {order.trackingId}
+              {/* Tracking */}
+              <div className="mt-2">
+                <p className="text-sm text-gray-600">
+                  Tracking ID:
                 </p>
-              )}
+
+                {order.trackingId ? (
+                  <p className="font-semibold">
+                    {order.trackingId}
+                  </p>
+                ) : (
+                  <p className="text-gray-400">
+                    Pending...
+                  </p>
+                )}
+              </div>
 
               <p className="text-sm text-gray-400 mt-2">
                 Ordered on:{" "}
