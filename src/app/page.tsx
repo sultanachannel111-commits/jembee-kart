@@ -10,46 +10,14 @@ export default function HomePage() {
 
   /* ---------------- CATEGORIES ---------------- */
   const categories = [
-    {
-      name: "Mobiles",
-      image:
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Fashion",
-      image:
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Electronics",
-      image:
-        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Beauty",
-      image:
-        "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Shoes",
-      image:
-        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Watches",
-      image:
-        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Home",
-      image:
-        "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      name: "Grocery",
-      image:
-        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80",
-    },
+    { name: "Mobiles", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=200&q=80" },
+    { name: "Fashion", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=200&q=80" },
+    { name: "Electronics", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=200&q=80" },
+    { name: "Beauty", image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=200&q=80" },
+    { name: "Shoes", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80" },
+    { name: "Watches", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=200&q=80" },
+    { name: "Home", image: "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=200&q=80" },
+    { name: "Grocery", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80" },
   ];
 
   /* ---------------- STATES ---------------- */
@@ -73,19 +41,15 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  /* ---------------- FETCH PRODUCTS FROM FIRESTORE ---------------- */
+  /* ---------------- FETCH PRODUCTS ---------------- */
   useEffect(() => {
     const fetchProducts = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "products"));
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setProducts(data);
-      } catch (error) {
-        console.log("Error fetching products:", error);
-      }
+      const snapshot = await getDocs(collection(db, "products"));
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setProducts(data);
     };
 
     fetchProducts();
@@ -135,7 +99,7 @@ export default function HomePage() {
             />
 
             <Link href="/auth?role=customer">
-              <button className="bg-white text-black px-4 py-2 rounded shadow hover:bg-gray-100 transition">
+              <button className="bg-white px-4 py-2 rounded shadow hover:bg-gray-100 transition">
                 Login
               </button>
             </Link>
@@ -154,7 +118,7 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto p-4">
         <img
           src={banners[bannerIndex]}
-          className="w-full h-52 md:h-80 object-cover rounded-xl transition-all duration-700"
+          className="w-full h-52 md:h-80 object-cover rounded-xl"
         />
       </div>
 
@@ -171,7 +135,7 @@ export default function HomePage() {
                 className="cursor-pointer text-center"
               >
                 <div
-                  className={`w-16 h-16 rounded-full overflow-hidden shadow-md transition-all duration-300
+                  className={`w-16 h-16 rounded-full overflow-hidden shadow-md transition
                   ${
                     selectedCategory === catName
                       ? "ring-2 ring-yellow-500 scale-110"
@@ -189,9 +153,7 @@ export default function HomePage() {
                     />
                   )}
                 </div>
-                <p className="text-sm mt-2 font-medium">
-                  {catName}
-                </p>
+                <p className="text-sm mt-2 font-medium">{catName}</p>
               </div>
             );
           })}
@@ -203,24 +165,28 @@ export default function HomePage() {
         {filteredProducts.map((product: any) => (
           <div
             key={product.id}
-            className="bg-white p-3 rounded-xl shadow hover:shadow-xl hover:-translate-y-1 transition duration-300"
+            className="bg-white p-3 rounded-xl shadow hover:shadow-xl transition"
           >
-            <img
-              src={product.image}
-              className="h-40 w-full object-cover rounded-lg"
-            />
+            <Link href={`/products/${product.id}`}>
+              <div className="cursor-pointer">
+                <img
+                  src={product.image || "/placeholder.png"}
+                  className="h-40 w-full object-cover rounded-lg hover:scale-105 transition"
+                />
 
-            <h2 className="mt-2 font-semibold">
-              {product.name}
-            </h2>
+                <h2 className="mt-2 font-semibold">
+                  {product.name}
+                </h2>
 
-            <p className="text-blue-600 font-bold">
-              ₹{product.price}
-            </p>
+                <p className="text-blue-600 font-bold">
+                  ₹{product.price}
+                </p>
+              </div>
+            </Link>
 
             <button
               onClick={() => orderOnWhatsApp(product)}
-              className="mt-3 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 active:scale-95 transition"
+              className="mt-3 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition"
             >
               Order on WhatsApp
             </button>
