@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function HomePage() {
@@ -24,22 +24,6 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [bannerIndex, setBannerIndex] = useState(0);
-
-  /* ---------------- BANNERS ---------------- */
-  const banners = [
-    "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80",
-  ];
-
-  /* ---------------- AUTO SLIDER ---------------- */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 3500);
-    return () => clearInterval(interval);
-  }, []);
 
   /* ---------------- FETCH PRODUCTS ---------------- */
   useEffect(() => {
@@ -72,13 +56,43 @@ export default function HomePage() {
     return matchCategory && matchSearch;
   });
 
-  /* ---------------- WHATSAPP ---------------- */
-  const orderOnWhatsApp = (product: any) => {
-    const message = `Hello, I want to order ${product.name} - ₹${product.price}`;
-    window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
+  /* ---------------- ORDER FUNCTION ---------------- */
+  const orderOnWhatsApp = async (product: any) => {
+    try {
+      // 🔥 Save Order in Firestore
+      await addDoc(collection(db, "orders"), {
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        status: "Pending",
+        trackingId: "",
+        createdAt: new Date(),
+      });
+
+      // 🔥 Send Email Alert API
+      await fetch("/api/send-mail", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productName: product.name,
+          price: product.price,
+        }),
+      });
+
+      // 🔥 Open WhatsApp
+      const message = `Hello, I want to order ${product.name} - ₹${product.price}`;
+      window.open(
+        `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+
+      alert("Order Placed Successfully ✅");
+    } catch (error) {
+      console.log(error);
+      alert("Order Failed ❌");
+    }
   };
 
   return (
@@ -93,7 +107,6 @@ export default function HomePage() {
           </h1>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
-
             <input
               type="text"
               placeholder="Search for products..."
@@ -113,54 +126,43 @@ export default function HomePage() {
                 Seller
               </button>
             </Link>
-
           </div>
         </div>
-      </div>
-
-      {/* BANNER */}
-      <div className="max-w-7xl mx-auto p-4">
-        <img
-          src={banners[bannerIndex]}
-          className="w-full h-52 md:h-80 object-cover rounded-xl"
-        />
       </div>
 
       {/* CATEGORY */}
       <div className="max-w-7xl mx-auto px-4 overflow-x-auto">
         <div className="flex gap-6 py-4 min-w-max">
-          {["All", ...categories.map((c) => c.name)].map((catName) => {
-            const cat = categories.find((c) => c.name === catName);
-
-            return (
+          {["All", ...categories.map((c) => c.name)].map((catName) => (
+            <div
+              key={catName}
+              onClick={() => setSelectedCategory(catName)}
+              className="cursor-pointer text-center"
+            >
               <div
-                key={catName}
-                onClick={() => setSelectedCategory(catName)}
-                className="cursor-pointer text-center"
+                className={`w-16 h-16 rounded-full overflow-hidden shadow-md transition
+                ${
+                  selectedCategory === catName
+                    ? "ring-2 ring-yellow-500 scale-110"
+                    : "hover:scale-110"
+                }`}
               >
-                <div
-                  className={`w-16 h-16 rounded-full overflow-hidden shadow-md transition
-                  ${
-                    selectedCategory === catName
-                      ? "ring-2 ring-yellow-500 scale-110"
-                      : "hover:scale-110"
-                  }`}
-                >
-                  {catName === "All" ? (
-                    <div className="flex items-center justify-center h-full text-xl">
-                      🛍
-                    </div>
-                  ) : (
-                    <img
-                      src={cat?.image}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <p className="text-sm mt-2 font-medium">{catName}</p>
+                {catName === "All" ? (
+                  <div className="flex items-center justify-center h-full text-xl">
+                    🛍
+                  </div>
+                ) : (
+                  <img
+                    src={
+                      categories.find((c) => c.name === catName)?.image
+                    }
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
-            );
-          })}
+              <p className="text-sm mt-2 font-medium">{catName}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -174,14 +176,12 @@ export default function HomePage() {
             <Link href={`/product/${product.id}`}>
               <div className="cursor-pointer">
                 <img
-                  src={product.image || "/placeholder.png"}
+                  src={product.image}
                   className="h-40 w-full object-cover rounded-lg hover:scale-105 transition"
                 />
-
                 <h2 className="mt-2 font-semibold">
                   {product.name}
                 </h2>
-
                 <p className="text-blue-600 font-bold">
                   ₹{product.price}
                 </p>
