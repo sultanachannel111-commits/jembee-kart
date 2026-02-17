@@ -5,107 +5,160 @@ import { auth, db } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
   const router = useRouter();
 
+  const [isLogin, setIsLogin] = useState(true);
+  const [role, setRole] = useState<"seller" | "customer">("customer");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState("customer");
 
-  // SIGNUP
-  const handleSignup = async () => {
-    try {
-      const userCredential =
-        await createUserWithEmailAndPassword(auth, email, password);
-
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email,
-        role,
-      });
-
-      alert("Signup Successful");
-      router.push("/");
-    } catch (error: any) {
-      alert(error.message);
+  const handleAuth = async () => {
+    if (!email || !password) {
+      alert("Please fill all fields");
+      return;
     }
-  };
 
-  // LOGIN
-  const handleLogin = async () => {
     try {
-      const userCredential =
+      if (isLogin) {
+        // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
 
-      const userDoc = await getDoc(
-        doc(db, "users", userCredential.user.uid)
-      );
-
-      const userRole = userDoc.data()?.role;
-
-      if (userRole === "seller") {
-        router.push("/admin/dashboard");
+        if (role === "seller") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/");
+        }
       } else {
-        router.push("/");
+        // SIGNUP
+        const userCredential =
+          await createUserWithEmailAndPassword(
+            auth,
+            email,
+            password
+          );
+
+        // Save role in Firestore
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          email,
+          role,
+          createdAt: new Date(),
+        });
+
+        if (role === "seller") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/");
+        }
       }
     } catch (error: any) {
       alert(error.message);
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Enter your email first");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset link sent to your email");
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-96">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {isLogin ? "Login" : "Signup"}
+    <div className="min-h-screen flex items-center justify-center bg-[#f1f3f6]">
+
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+
+        <h2 className="text-2xl font-bold text-center mb-6">
+          {isLogin ? "Login" : "Create Account"}
         </h2>
 
+        {/* ROLE SELECT */}
+        <div className="flex gap-4 mb-4 justify-center">
+          <button
+            onClick={() => setRole("customer")}
+            className={`px-4 py-2 rounded ${
+              role === "customer"
+                ? "bg-yellow-400"
+                : "bg-gray-200"
+            }`}
+          >
+            Customer
+          </button>
+
+          <button
+            onClick={() => setRole("seller")}
+            className={`px-4 py-2 rounded ${
+              role === "seller"
+                ? "bg-yellow-400"
+                : "bg-gray-200"
+            }`}
+          >
+            Seller
+          </button>
+        </div>
+
+        {/* EMAIL */}
         <input
           type="email"
-          placeholder="Email"
-          className="w-full mb-3 p-3 border rounded"
+          placeholder="Enter Email"
+          className="w-full mb-4 px-4 py-2 border rounded"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
+        {/* PASSWORD */}
         <input
           type="password"
-          placeholder="Password"
-          className="w-full mb-3 p-3 border rounded"
+          placeholder="Enter Password"
+          className="w-full mb-2 px-4 py-2 border rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {!isLogin && (
-          <select
-            className="w-full mb-3 p-3 border rounded"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
+        {/* FORGOT PASSWORD */}
+        {isLogin && (
+          <p
+            onClick={handleForgotPassword}
+            className="text-sm text-red-500 cursor-pointer mb-4"
           >
-            <option value="customer">Customer</option>
-            <option value="seller">Seller</option>
-          </select>
+            Forgot Password?
+          </p>
         )}
 
+        {/* LOGIN / SIGNUP BUTTON */}
         <button
-          onClick={isLogin ? handleLogin : handleSignup}
-          className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+          onClick={handleAuth}
+          className="w-full bg-yellow-400 py-2 rounded font-semibold hover:bg-yellow-500 transition"
         >
-          {isLogin ? "Login" : "Signup"}
+          {isLogin ? "Login" : "Sign Up"}
         </button>
 
-        <p
-          className="text-center mt-4 cursor-pointer text-blue-600"
-          onClick={() => setIsLogin(!isLogin)}
-        >
+        {/* TOGGLE */}
+        <p className="text-center mt-4 text-sm">
           {isLogin
-            ? "Don't have account? Signup"
-            : "Already have account? Login"}
+            ? "Don't have an account?"
+            : "Already have an account?"}
+          <span
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-blue-600 cursor-pointer ml-1"
+          >
+            {isLogin ? "Sign Up" : "Login"}
+          </span>
         </p>
+
       </div>
     </div>
   );
