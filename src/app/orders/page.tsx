@@ -31,46 +31,51 @@ export default function OrdersPage() {
         return;
       }
 
-      const q = query(
-        collection(db, "orders"),
-        where("userId", "==", user.uid)
-      );
+      try {
+        const q = query(
+          collection(db, "orders"),
+          where("userId", "==", user.uid)
+        );
 
-      const snapshot = await getDocs(q);
+        const snapshot = await getDocs(q);
 
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      setOrders(data);
+        setOrders(data);
 
-      // 🔥 CALCULATE STATS
-      let total = data.length;
-      let pending = 0;
-      let delivered = 0;
-      let cancelled = 0;
-      let totalAmount = 0;
+        // 🔥 CLEAN STATS LOGIC
+        let total = data.length;
+        let pending = 0;
+        let delivered = 0;
+        let cancelled = 0;
+        let totalAmount = 0;
 
-      data.forEach((order: any) => {
-        totalAmount += order.price || 0;
+        data.forEach((order: any) => {
+          totalAmount += Number(order.price || 0);
 
-        if (!order.trackingId || order.trackingId === "") {
-          pending++;
-        } else if (order.status === "Delivered") {
-          delivered++;
-        } else if (order.status === "Cancelled") {
-          cancelled++;
-        }
-      });
+          if (order.status === "Cancelled") {
+            cancelled++;
+          } else if (order.status === "Delivered") {
+            delivered++;
+          } else {
+            pending++;
+          }
+        });
 
-      setStats({
-        total,
-        pending,
-        delivered,
-        cancelled,
-        totalAmount,
-      });
+        setStats({
+          total,
+          pending,
+          delivered,
+          cancelled,
+          totalAmount,
+        });
+
+      } catch (error) {
+        console.log("Order fetch error:", error);
+      }
 
       setLoading(false);
     });
@@ -80,114 +85,115 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-xl">
-        Loading Orders...
+      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
+        Loading your orders...
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6">
 
-      <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+      <div className="max-w-6xl mx-auto">
 
-      {/* 🔥 STATS SECTION */}
-      <div className="grid md:grid-cols-5 gap-6 mb-10">
+        <h1 className="text-3xl font-bold text-pink-600 mb-8">
+          My Orders 💖
+        </h1>
 
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Total Orders</p>
-          <h2 className="text-2xl font-bold">{stats.total}</h2>
+        {/* STATS */}
+        <div className="grid md:grid-cols-5 gap-6 mb-10">
+
+          <div className="bg-white p-6 rounded-2xl shadow-md">
+            <p className="text-gray-500">Total Orders</p>
+            <h2 className="text-2xl font-bold">{stats.total}</h2>
+          </div>
+
+          <div className="bg-yellow-100 p-6 rounded-2xl shadow-md">
+            <p className="text-yellow-700 font-medium">Pending</p>
+            <h2 className="text-2xl font-bold">{stats.pending}</h2>
+          </div>
+
+          <div className="bg-green-100 p-6 rounded-2xl shadow-md">
+            <p className="text-green-700 font-medium">Delivered</p>
+            <h2 className="text-2xl font-bold">{stats.delivered}</h2>
+          </div>
+
+          <div className="bg-red-100 p-6 rounded-2xl shadow-md">
+            <p className="text-red-700 font-medium">Cancelled</p>
+            <h2 className="text-2xl font-bold">{stats.cancelled}</h2>
+          </div>
+
+          <div className="bg-purple-100 p-6 rounded-2xl shadow-md">
+            <p className="text-purple-700 font-medium">Total Spent</p>
+            <h2 className="text-2xl font-bold">₹{stats.totalAmount}</h2>
+          </div>
+
         </div>
 
-        <div className="bg-yellow-100 p-6 rounded-xl shadow">
-          <p className="text-yellow-600">Pending</p>
-          <h2 className="text-2xl font-bold">{stats.pending}</h2>
-        </div>
+        {/* ORDER LIST */}
+        {orders.length === 0 ? (
+          <div className="bg-white p-10 rounded-2xl shadow text-center">
+            <p className="text-gray-500 text-lg">
+              You haven't placed any orders yet.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {orders.map((order: any) => (
+              <div
+                key={order.id}
+                className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition"
+              >
+                <div className="flex justify-between items-center mb-3">
 
-        <div className="bg-green-100 p-6 rounded-xl shadow">
-          <p className="text-green-600">Delivered</p>
-          <h2 className="text-2xl font-bold">{stats.delivered}</h2>
-        </div>
+                  <h2 className="text-lg font-semibold">
+                    {order.productName}
+                  </h2>
 
-        <div className="bg-red-100 p-6 rounded-xl shadow">
-          <p className="text-red-600">Cancelled</p>
-          <h2 className="text-2xl font-bold">{stats.cancelled}</h2>
-        </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-semibold
+                      ${
+                        order.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : order.status === "Delivered"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                  >
+                    {order.status}
+                  </span>
+                </div>
 
-        <div className="bg-blue-100 p-6 rounded-xl shadow">
-          <p className="text-blue-600">Total Spent</p>
-          <h2 className="text-2xl font-bold">₹{stats.totalAmount}</h2>
-        </div>
-
-      </div>
-
-      {/* 🔥 ORDER LIST */}
-      {orders.length === 0 ? (
-        <p className="text-gray-500 text-lg">
-          No orders found.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {orders.map((order: any) => (
-            <div
-              key={order.id}
-              className="bg-white p-6 rounded-xl shadow"
-            >
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-lg font-semibold">
-                  {order.productName}
-                </h2>
-
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold
-                  ${
-                    !order.trackingId || order.trackingId === ""
-                      ? "bg-yellow-100 text-yellow-600"
-                      : order.status === "Delivered"
-                      ? "bg-green-100 text-green-600"
-                      : order.status === "Cancelled"
-                      ? "bg-red-100 text-red-600"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {!order.trackingId || order.trackingId === ""
-                    ? "Pending"
-                    : order.status}
-                </span>
-              </div>
-
-              <p className="text-blue-600 font-bold">
-                ₹{order.price}
-              </p>
-
-              {/* Tracking */}
-              <div className="mt-2">
-                <p className="text-sm text-gray-600">
-                  Tracking ID:
+                <p className="text-pink-600 font-bold text-lg">
+                  ₹{order.price}
                 </p>
 
-                {order.trackingId ? (
-                  <p className="font-semibold">
-                    {order.trackingId}
-                  </p>
-                ) : (
-                  <p className="text-gray-400">
-                    Pending...
-                  </p>
-                )}
+                <div className="mt-3 text-sm text-gray-600">
+                  Tracking ID:{" "}
+                  {order.trackingId && order.trackingId !== "" ? (
+                    <span className="font-semibold">
+                      {order.trackingId}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">
+                      Pending...
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-gray-400 mt-2">
+                  Ordered on:{" "}
+                  {order.createdAt?.toDate
+                    ? order.createdAt.toDate().toLocaleString()
+                    : "N/A"}
+                </p>
+
               </div>
+            ))}
+          </div>
+        )}
 
-              <p className="text-sm text-gray-400 mt-2">
-                Ordered on:{" "}
-                {order.createdAt?.toDate
-                  ? order.createdAt.toDate().toLocaleString()
-                  : ""}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
+      </div>
     </div>
   );
 }
