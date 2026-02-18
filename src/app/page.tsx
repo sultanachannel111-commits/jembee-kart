@@ -6,6 +6,9 @@ import {
   collection,
   getDocs,
   addDoc,
+  doc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
@@ -55,7 +58,60 @@ export default function HomePage() {
     return matchCategory && matchSearch;
   });
 
-  /* PLACE ORDER */
+  /* ADD TO CART */
+  const addToCart = async (product: any) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      setMessage("Please login first 💖");
+      return;
+    }
+
+    const cartRef = doc(db, "cart", user.uid);
+    const cartSnap = await getDoc(cartRef);
+
+    let products = [];
+
+    if (cartSnap.exists()) {
+      products = cartSnap.data().products || [];
+
+      const index = products.findIndex(
+        (p: any) => p.productId === product.id
+      );
+
+      if (index > -1) {
+        products[index].quantity += 1;
+      } else {
+        products.push({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          quantity: 1,
+        });
+      }
+    } else {
+      products = [
+        {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          quantity: 1,
+        },
+      ];
+    }
+
+    await setDoc(cartRef, {
+      userId: user.uid,
+      products,
+    });
+
+    setMessage("Added to cart 🛒");
+  };
+
+  /* DIRECT ORDER */
   const placeOrder = async (product: any) => {
     try {
       const auth = getAuth();
@@ -107,15 +163,15 @@ export default function HomePage() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <Link href="/auth?role=customer">
-              <button className="bg-pink-500 text-white px-4 py-2 rounded-full shadow hover:bg-pink-600 transition">
-                Login
+            <Link href="/cart">
+              <button className="bg-purple-500 text-white px-4 py-2 rounded-full shadow hover:bg-purple-600 transition">
+                Cart 🛒
               </button>
             </Link>
 
-            <Link href="/auth?role=seller">
-              <button className="bg-purple-500 text-white px-4 py-2 rounded-full shadow hover:bg-purple-600 transition">
-                Seller
+            <Link href="/auth?role=customer">
+              <button className="bg-pink-500 text-white px-4 py-2 rounded-full shadow hover:bg-pink-600 transition">
+                Login
               </button>
             </Link>
           </div>
@@ -187,12 +243,24 @@ export default function HomePage() {
               ₹{product.price}
             </p>
 
-            <button
-              onClick={() => placeOrder(product)}
-              className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-2 rounded-full hover:opacity-90 transition"
-            >
-              Place Order 💕
-            </button>
+            <div className="flex gap-2 mt-3">
+
+              <button
+                onClick={() => addToCart(product)}
+                className="w-1/2 bg-purple-500 text-white py-2 rounded-full hover:bg-purple-600 transition"
+              >
+                Cart
+              </button>
+
+              <button
+                onClick={() => placeOrder(product)}
+                className="w-1/2 bg-pink-500 text-white py-2 rounded-full hover:bg-pink-600 transition"
+              >
+                Buy
+              </button>
+
+            </div>
+
           </div>
         ))}
       </div>
