@@ -64,11 +64,14 @@ export default function SellerOrdersPage() {
           let revenue = 0;
 
           data.forEach((order: any) => {
-            revenue += Number(order.price || 0);
-
             if (order.status === "Cancelled") cancelled++;
             else if (order.status === "Delivered") delivered++;
             else pending++;
+
+            // Revenue only from Paid or Delivered
+            if (order.status === "Paid" || order.status === "Delivered") {
+              revenue += Number(order.price || 0);
+            }
           });
 
           setStats({
@@ -90,25 +93,81 @@ export default function SellerOrdersPage() {
   }, [router]);
 
   /* 🔥 UPDATE STATUS */
-  const updateStatus = async (id: string, status: string) => {
-    await updateDoc(doc(db, "orders", id), {
+  const updateStatus = async (order: any, status: string) => {
+    await updateDoc(doc(db, "orders", order.id), {
       status,
+    });
+
+    // Send Email
+    await fetch("/api/send-order-mail", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customerEmail: order.customerEmail,
+        productName: order.productName,
+        price: order.price,
+        status,
+        trackingId: order.trackingId || "",
+      }),
     });
   };
 
-  /* 🔥 ADD TRACKING */
-  const addTracking = async (id: string) => {
-    const trackingId = trackingInput[id];
+  /* 💰 VERIFY PAYMENT */
+  const verifyPayment = async (order: any) => {
+    await updateDoc(doc(db, "orders", order.id), {
+      status: "Paid",
+    });
+
+    // 📩 Send Email
+    await fetch("/api/send-order-mail", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customerEmail: order.customerEmail,
+        productName: order.productName,
+        price: order.price,
+        status: "Paid",
+      }),
+    });
+
+    // 📲 WhatsApp Open
+    if (order.customerPhone) {
+      const text = `Your payment for ${order.productName} ₹${order.price} is verified ✅`;
+      window.open(
+        `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(text)}`
+      );
+    }
+  };
+
+  /* 🚚 ADD TRACKING */
+  const addTracking = async (order: any) => {
+    const trackingId = trackingInput[order.id];
     if (!trackingId) return;
 
-    await updateDoc(doc(db, "orders", id), {
+    await updateDoc(doc(db, "orders", order.id), {
       trackingId,
       status: "Shipped",
     });
 
+    await fetch("/api/send-order-mail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerEmail: order.customerEmail,
+        productName: order.productName,
+        price: order.price,
+        status: "Shipped",
+        trackingId,
+      }),
+    });
+
     setTrackingInput((prev) => ({
       ...prev,
-      [id]: "",
+      [order.id]: "",
     }));
   };
 
@@ -122,148 +181,98 @@ export default function SellerOrdersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-white p-6">
-
       <div className="max-w-7xl mx-auto">
 
         <h1 className="text-3xl font-bold text-purple-700 mb-8">
-          Seller Dashboard 🔐
+          Seller Dashboard 💼
         </h1>
 
-        {/* 🔥 STATS SECTION */}
+        {/* STATS */}
         <div className="grid md:grid-cols-5 gap-6 mb-10">
-
           <StatCard title="Total Orders" value={stats.total} />
           <StatCard title="Pending" value={stats.pending} />
           <StatCard title="Delivered" value={stats.delivered} />
           <StatCard title="Cancelled" value={stats.cancelled} />
           <StatCard title="Revenue" value={`₹${stats.revenue}`} />
-
         </div>
 
-        {/* 🔥 ORDER LIST */}
+        {/* ORDERS */}
         <div className="space-y-6">
+          {orders.map((order: any) => (
+            <div key={order.id} className="bg-white p-6 rounded-2xl shadow-lg">
 
-          {orders.length === 0 ? (
-            <div className="bg-white p-10 rounded-2xl shadow text-center">
-              No Orders Yet.
-            </div>
-          ) : (
-            orders.map((order: any) => (
-              <div
-                key={order.id}
-                className="bg-white p-6 rounded-2xl shadow-lg"
-              >
-                <div className="flex justify-between items-start mb-3">
-
-                  <div>
-                    <h2 className="font-semibold text-lg">
-                      {order.productName}
-                    </h2>
-
-                    <p className="text-purple-600 font-bold">
-                      ₹{order.price}
-                    </p>
-
-                    <p className="text-xs text-gray-500 mt-1">
-                      User ID: {order.userId}
-                    </p>
-
-                    <p className="text-xs text-gray-400 mt-1">
-                      Ordered on:{" "}
-                      {order.createdAt?.toDate
-                        ? order.createdAt.toDate().toLocaleString()
-                        : ""}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-semibold
-                      ${
-                        order.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : order.status === "Delivered"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "Cancelled"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-purple-100 text-purple-700"
-                      }`}
-                  >
-                    {order.status}
-                  </span>
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h2 className="font-semibold text-lg">
+                    {order.productName}
+                  </h2>
+                  <p className="text-purple-600 font-bold">
+                    ₹{order.price}
+                  </p>
                 </div>
 
-                {/* TRACKING SECTION */}
-                <div className="mt-4 flex flex-col md:flex-row gap-3">
-
-                  <input
-                    type="text"
-                    placeholder="Enter Tracking ID"
-                    className="border px-4 py-2 rounded-full"
-                    value={trackingInput[order.id] || ""}
-                    onChange={(e) =>
-                      setTrackingInput({
-                        ...trackingInput,
-                        [order.id]: e.target.value,
-                      })
-                    }
-                    disabled={
-                      order.status === "Delivered" ||
-                      order.status === "Cancelled"
-                    }
-                  />
-
-                  <button
-                    onClick={() => addTracking(order.id)}
-                    className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition disabled:opacity-50"
-                    disabled={
-                      order.status === "Delivered" ||
-                      order.status === "Cancelled"
-                    }
-                  >
-                    Add Tracking
-                  </button>
-
-                </div>
-
-                {/* ACTION BUTTONS */}
-                {order.status === "Pending" && (
-                  <div className="mt-4 flex gap-4">
-
-                    <button
-                      onClick={() =>
-                        updateStatus(order.id, "Delivered")
-                      }
-                      className="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600 transition"
-                    >
-                      Mark Delivered
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        updateStatus(order.id, "Cancelled")
-                      }
-                      className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 transition"
-                    >
-                      Cancel Order
-                    </button>
-
-                  </div>
-                )}
-
-                {/* TRACKING DISPLAY */}
-                {order.trackingId && (
-                  <div className="mt-3 text-sm text-gray-600">
-                    Tracking ID:{" "}
-                    <span className="font-semibold">
-                      {order.trackingId}
-                    </span>
-                  </div>
-                )}
-
+                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
+                  {order.status}
+                </span>
               </div>
-            ))
-          )}
 
+              {/* 💰 VERIFY PAYMENT BUTTON */}
+              {order.status === "Payment Pending" && (
+                <button
+                  onClick={() => verifyPayment(order)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600"
+                >
+                  Verify Payment 💰
+                </button>
+              )}
+
+              {/* 🚚 TRACKING */}
+              <div className="mt-4 flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Enter Tracking ID"
+                  className="border px-4 py-2 rounded-full"
+                  value={trackingInput[order.id] || ""}
+                  onChange={(e) =>
+                    setTrackingInput({
+                      ...trackingInput,
+                      [order.id]: e.target.value,
+                    })
+                  }
+                />
+                <button
+                  onClick={() => addTracking(order)}
+                  className="bg-purple-500 text-white px-4 py-2 rounded-full"
+                >
+                  Add Tracking
+                </button>
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="mt-4 flex gap-4">
+                <button
+                  onClick={() => updateStatus(order, "Delivered")}
+                  className="bg-green-500 text-white px-4 py-2 rounded-full"
+                >
+                  Mark Delivered
+                </button>
+
+                <button
+                  onClick={() => updateStatus(order, "Cancelled")}
+                  className="bg-red-500 text-white px-4 py-2 rounded-full"
+                >
+                  Cancel Order
+                </button>
+              </div>
+
+              {order.trackingId && (
+                <div className="mt-3 text-sm text-gray-600">
+                  Tracking ID: {order.trackingId}
+                </div>
+              )}
+
+            </div>
+          ))}
         </div>
 
       </div>
@@ -271,7 +280,7 @@ export default function SellerOrdersPage() {
   );
 }
 
-/* 🔥 STAT CARD COMPONENT */
+/* 🔥 STAT CARD */
 function StatCard({ title, value }: any) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-md">
