@@ -16,7 +16,9 @@ export default function CartPage() {
   const [items, setItems] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  /* 🔥 AUTH + FETCH CART */
   useEffect(() => {
     const auth = getAuth();
 
@@ -35,7 +37,10 @@ export default function CartPage() {
     return () => unsubscribe();
   }, []);
 
+  /* 🔥 UPDATE QUANTITY */
   const updateQuantity = async (index: number, change: number) => {
+    if (!userId) return;
+
     const updated = [...items];
     updated[index].quantity += change;
 
@@ -45,28 +50,54 @@ export default function CartPage() {
 
     setItems(updated);
 
-    await updateDoc(doc(db, "cart", userId!), {
+    await updateDoc(doc(db, "cart", userId), {
       products: updated,
     });
   };
 
+  /* 🔥 CHECKOUT WITH UPI PAYMENT */
   const checkout = async () => {
     if (!userId || items.length === 0) return;
 
-    for (let item of items) {
-      await addDoc(collection(db, "orders"), {
-        userId,
-        productName: item.name,
-        price: item.price * item.quantity,
-        status: "Pending",
-        trackingId: "",
-        createdAt: new Date(),
-      });
+    setLoading(true);
+
+    const totalAmount = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    try {
+      // 🔥 CREATE ORDERS WITH PAYMENT PENDING
+      for (let item of items) {
+        await addDoc(collection(db, "orders"), {
+          userId,
+          productName: item.name,
+          price: item.price * item.quantity,
+          quantity: item.quantity,
+          status: "Payment Pending",
+          paymentMethod: "UPI",
+          trackingId: "",
+          createdAt: new Date(),
+        });
+      }
+
+      // 🔥 CLEAR CART
+      await deleteDoc(doc(db, "cart", userId));
+      setItems([]);
+
+      // 🔥 GENERATE UPI LINK
+      const upiLink = `upi://pay?pa=yourupi@okaxis&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+
+      setMessage("Redirecting to UPI App 💰");
+
+      // 🔥 OPEN PAYMENT APP
+      window.location.href = upiLink;
+
+    } catch (error) {
+      setMessage("Payment Failed ❌");
     }
 
-    await deleteDoc(doc(db, "cart", userId));
-    setItems([]);
-    setMessage("Order placed successfully 💖");
+    setLoading(false);
   };
 
   const total = items.reduce(
@@ -75,73 +106,83 @@ export default function CartPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6">
 
-      <h1 className="text-3xl font-bold text-pink-600 mb-6">
-        My Cart 🛒
-      </h1>
+      <div className="max-w-5xl mx-auto">
 
-      {message && (
-        <div className="mb-4 text-green-600 font-semibold">
-          {message}
-        </div>
-      )}
+        <h1 className="text-3xl font-bold text-pink-600 mb-8">
+          My Cart 🛒
+        </h1>
 
-      {items.length === 0 ? (
-        <div className="bg-white p-10 rounded-xl shadow text-center">
-          Cart is empty.
-        </div>
-      ) : (
-        <div className="space-y-6">
-
-          {items.map((item, index) => (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-xl shadow flex justify-between items-center"
-            >
-              <div>
-                <h2 className="font-semibold">
-                  {item.name}
-                </h2>
-                <p className="text-pink-600 font-bold">
-                  ₹{item.price}
-                </p>
-                <p>Qty: {item.quantity}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => updateQuantity(index, 1)}
-                  className="bg-green-500 text-white px-3 py-1 rounded"
-                >
-                  +
-                </button>
-
-                <button
-                  onClick={() => updateQuantity(index, -1)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  -
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <div className="bg-white p-6 rounded-xl shadow">
-            <h2 className="text-xl font-bold">
-              Total: ₹{total}
-            </h2>
-
-            <button
-              onClick={checkout}
-              className="mt-4 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-full hover:opacity-90"
-            >
-              Checkout 💕
-            </button>
+        {message && (
+          <div className="mb-6 text-purple-600 font-semibold">
+            {message}
           </div>
+        )}
 
-        </div>
-      )}
+        {items.length === 0 ? (
+          <div className="bg-white p-10 rounded-2xl shadow text-center">
+            Your cart is empty 💕
+          </div>
+        ) : (
+          <div className="space-y-6">
+
+            {items.map((item, index) => (
+              <div
+                key={index}
+                className="bg-white p-6 rounded-2xl shadow flex flex-col md:flex-row justify-between items-center gap-4"
+              >
+                <div>
+                  <h2 className="font-semibold text-lg">
+                    {item.name}
+                  </h2>
+                  <p className="text-pink-600 font-bold">
+                    ₹{item.price}
+                  </p>
+                  <p className="text-gray-600">
+                    Quantity: {item.quantity}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => updateQuantity(index, 1)}
+                    className="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600"
+                  >
+                    +
+                  </button>
+
+                  <button
+                    onClick={() => updateQuantity(index, -1)}
+                    className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600"
+                  >
+                    -
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* 🔥 TOTAL + PAYMENT */}
+            <div className="bg-white p-8 rounded-2xl shadow">
+
+              <h2 className="text-2xl font-bold text-purple-700">
+                Total: ₹{total}
+              </h2>
+
+              <button
+                onClick={checkout}
+                disabled={loading}
+                className="mt-6 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-full hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {loading ? "Processing..." : "Pay with UPI 💰"}
+              </button>
+
+            </div>
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
