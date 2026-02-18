@@ -6,13 +6,18 @@ import {
   onSnapshot,
   updateDoc,
   doc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [trackingInput, setTrackingInput] = useState<{ [key: string]: string }>({});
+  const router = useRouter();
 
   const [stats, setStats] = useState({
     total: 0,
@@ -22,46 +27,67 @@ export default function SellerOrdersPage() {
     revenue: 0,
   });
 
-  /* 🔥 REALTIME FETCH */
+  /* 🔐 AUTH + ROLE CHECK */
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "orders"),
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+    const auth = getAuth();
 
-        setOrders(data);
-
-        let total = data.length;
-        let pending = 0;
-        let delivered = 0;
-        let cancelled = 0;
-        let revenue = 0;
-
-        data.forEach((order: any) => {
-          revenue += Number(order.price || 0);
-
-          if (order.status === "Cancelled") cancelled++;
-          else if (order.status === "Delivered") delivered++;
-          else pending++;
-        });
-
-        setStats({
-          total,
-          pending,
-          delivered,
-          cancelled,
-          revenue,
-        });
-
-        setLoading(false);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push("/auth?role=seller");
+        return;
       }
-    );
 
-    return () => unsubscribe();
-  }, []);
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if (!userDoc.exists() || userDoc.data().role !== "seller") {
+        router.push("/");
+        return;
+      }
+
+      setAuthorized(true);
+
+      /* 🔥 REALTIME ORDERS */
+      const unsubscribeOrders = onSnapshot(
+        collection(db, "orders"),
+        (snapshot) => {
+          const data = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+
+          setOrders(data);
+
+          let total = data.length;
+          let pending = 0;
+          let delivered = 0;
+          let cancelled = 0;
+          let revenue = 0;
+
+          data.forEach((order: any) => {
+            revenue += Number(order.price || 0);
+
+            if (order.status === "Cancelled") cancelled++;
+            else if (order.status === "Delivered") delivered++;
+            else pending++;
+          });
+
+          setStats({
+            total,
+            pending,
+            delivered,
+            cancelled,
+            revenue,
+          });
+
+          setLoading(false);
+        }
+      );
+
+      return () => unsubscribeOrders();
+    });
+
+    return () => unsubscribeAuth();
+  }, [router]);
 
   /* 🔥 UPDATE STATUS */
   const updateStatus = async (id: string, status: string) => {
@@ -86,10 +112,10 @@ export default function SellerOrdersPage() {
     }));
   };
 
-  if (loading) {
+  if (loading || !authorized) {
     return (
       <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
-        Loading Orders...
+        Checking Seller Access...
       </div>
     );
   }
@@ -100,17 +126,17 @@ export default function SellerOrdersPage() {
       <div className="max-w-7xl mx-auto">
 
         <h1 className="text-3xl font-bold text-purple-700 mb-8">
-          Seller Orders Dashboard 📦
+          Seller Dashboard 🔐
         </h1>
 
         {/* 🔥 STATS SECTION */}
         <div className="grid md:grid-cols-5 gap-6 mb-10">
 
           <StatCard title="Total Orders" value={stats.total} />
-          <StatCard title="Pending" value={stats.pending} color="yellow" />
-          <StatCard title="Delivered" value={stats.delivered} color="green" />
-          <StatCard title="Cancelled" value={stats.cancelled} color="red" />
-          <StatCard title="Revenue" value={`₹${stats.revenue}`} color="purple" />
+          <StatCard title="Pending" value={stats.pending} />
+          <StatCard title="Delivered" value={stats.delivered} />
+          <StatCard title="Cancelled" value={stats.cancelled} />
+          <StatCard title="Revenue" value={`₹${stats.revenue}`} />
 
         </div>
 
@@ -127,7 +153,7 @@ export default function SellerOrdersPage() {
                 key={order.id}
                 className="bg-white p-6 rounded-2xl shadow-lg"
               >
-                <div className="flex justify-between items-center mb-3">
+                <div className="flex justify-between items-start mb-3">
 
                   <div>
                     <h2 className="font-semibold text-lg">
@@ -164,7 +190,6 @@ export default function SellerOrdersPage() {
                   >
                     {order.status}
                   </span>
-
                 </div>
 
                 {/* TRACKING SECTION */}
@@ -247,7 +272,7 @@ export default function SellerOrdersPage() {
 }
 
 /* 🔥 STAT CARD COMPONENT */
-function StatCard({ title, value, color = "white" }: any) {
+function StatCard({ title, value }: any) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-md">
       <p className="text-gray-500">{title}</p>
