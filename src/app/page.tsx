@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
@@ -11,6 +11,7 @@ export default function HomePage() {
   const [clickedId, setClickedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const recognitionRef = useRef<any>(null);
 
   const categories = [
     "All",
@@ -20,6 +21,14 @@ export default function HomePage() {
     "Accessories",
     "Bags",
   ];
+
+  // 🔥 Normalize Function (Smart Search Core)
+  const normalize = (text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -55,10 +64,36 @@ export default function HomePage() {
     fetchProducts();
   }, []);
 
+  // 🎤 Voice Search
+  const startVoiceSearch = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Voice search not supported in this browser");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.start();
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setSearch(transcript);
+    };
+
+    recognitionRef.current = recognition;
+  };
+
+  // 🔎 Smart Filter
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
+    const normalizedProduct = normalize(product.name);
+    const normalizedSearch = normalize(search);
+
+    const matchesSearch =
+      normalizedProduct.includes(normalizedSearch);
 
     const matchesCategory =
       selectedCategory === "All" ||
@@ -83,8 +118,21 @@ export default function HomePage() {
               placeholder="Search for products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearch(search);
+                }
+              }}
               className="flex-1 outline-none text-sm"
             />
+
+            <button
+              onClick={startVoiceSearch}
+              className="text-gray-500 text-lg mr-2"
+            >
+              🎤
+            </button>
+
             <span className="text-gray-500 text-lg">🔍</span>
           </div>
         </div>
@@ -177,18 +225,10 @@ export default function HomePage() {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2 text-xs">
-        <div className="text-center">
-          🏠 <br /> Home
-        </div>
-        <div className="text-center">
-          📂 <br /> Categories
-        </div>
-        <div className="text-center">
-          👤 <br /> Account
-        </div>
-        <div className="text-center">
-          🛒 <br /> Cart
-        </div>
+        <div className="text-center">🏠 <br /> Home</div>
+        <div className="text-center">📂 <br /> Categories</div>
+        <div className="text-center">👤 <br /> Account</div>
+        <div className="text-center">🛒 <br /> Cart</div>
       </div>
     </>
   );
