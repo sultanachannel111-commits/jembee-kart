@@ -8,7 +8,7 @@ export async function GET() {
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
     const response = await fetch(
-      "https://sandbox.qikink.com/api/products",
+      "https://sandbox.qikink.com/api/catalog",
       {
         method: "GET",
         headers: {
