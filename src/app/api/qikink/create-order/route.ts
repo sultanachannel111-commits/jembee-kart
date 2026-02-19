@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  return NextResponse.json({
+    status: "API Working ✅",
+    message: "Use POST method to create order",
+  });
+}
+
 export async function POST() {
   try {
     const clientId = process.env.QIKINK_CLIENT_ID!;
@@ -28,7 +35,7 @@ export async function POST() {
           },
           order_items: [
             {
-              product_id: "63784036", 
+              product_id: "63784036",
               quantity: 1,
             },
           ],
@@ -42,7 +49,7 @@ export async function POST() {
 
   } catch (error) {
     return NextResponse.json(
-      { error: "Order failed" },
+      { error: "Order failed ❌" },
       { status: 500 }
     );
   }
