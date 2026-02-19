@@ -1,34 +1,37 @@
 import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const body = await req.json();
+    const clientId = process.env.QIKINK_CLIENT_ID!;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
+
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
     const response = await fetch(
-      "https://sandbox.qikink.com/api/v1/orders",
+      "https://sandbox.qikink.com/api/orders",
       {
         method: "POST",
         headers: {
-          ClientId: process.env.QIKINK_CLIENT_ID as string,
-          AccessToken: process.env.QIKINK_ACCESS_TOKEN as string,
+          Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order_id: body.order_id,
-          payment_mode: "prepaid",
+          order_id: "TEST12345",
           shipping_address: {
-            name: body.name,
-            address1: body.address,
-            city: body.city,
-            state: body.state,
-            pincode: body.pincode,
+            name: "Test Customer",
+            address1: "Test Street 123",
+            city: "Jamshedpur",
+            state: "Jharkhand",
+            pincode: "832110",
             country: "India",
-            phone: body.phone,
+            phone: "9999999999",
           },
-          order_items: body.items.map((item: any) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-          })),
+          order_items: [
+            {
+              product_id: "63784036", 
+              quantity: 1,
+            },
+          ],
         }),
       }
     );
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
 
   } catch (error) {
     return NextResponse.json(
-      { error: "Order creation failed" },
+      { error: "Order failed" },
       { status: 500 }
     );
   }
