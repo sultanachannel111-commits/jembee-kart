@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import Header from "@/components/Header";
+import Header from "@/components/header"; // ⚠ small h
 
 export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -61,7 +61,7 @@ export default function HomePage() {
     <>
       <Header />
 
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-white p-6">
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-white p-6 pb-24">
         <h1 className="text-3xl font-bold text-center text-pink-600 mb-8">
           JEMBEE KART 💖
         </h1>
@@ -75,9 +75,10 @@ export default function HomePage() {
               <img
                 src={product.image}
                 className="h-40 w-full object-cover rounded-xl"
+                alt={product.name}
               />
 
-              <h2 className="mt-3 font-semibold text-gray-700">
+              <h2 className="mt-3 font-semibold text-gray-700 line-clamp-2">
                 {product.name}
               </h2>
 
