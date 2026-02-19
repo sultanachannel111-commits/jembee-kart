@@ -15,13 +15,9 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const recognitionRef = useRef<any>(null);
 
-  // 🔥 Normalize for smart search
-  const normalize = (text: string) => {
-    return text
-      .toLowerCase()
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9]/g, "");
-  };
+  // 🔎 Smart normalize
+  const normalize = (text: string) =>
+    text.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -30,7 +26,6 @@ export default function HomePage() {
         const qikinkData = await res.json();
 
         const pricingSnap = await getDocs(collection(db, "productPricing"));
-
         const pricingMap: any = {};
         pricingSnap.forEach((doc) => {
           pricingMap[doc.id] = doc.data().sellingPrice;
@@ -39,6 +34,7 @@ export default function HomePage() {
         const mergedProducts = qikinkData.data.map((product: any) => ({
           id: product.id,
           name: product.name,
+          category: product.category || product.name.split(" ")[0],
           image: product.images?.[0] || "/placeholder.png",
           basePrice: product.product_price,
           finalPrice:
@@ -48,30 +44,21 @@ export default function HomePage() {
 
         setProducts(mergedProducts);
 
-        // 🔥 Dynamic Category Extract
-        const uniqueCategories = [
-          ...new Set(
-            mergedProducts.map((p: any) =>
-              p.name.split(" ")[0]
-            )
-          ),
-        ];
+        // 🔥 Extract unique categories
+        const unique = [...new Set(mergedProducts.map(p => p.category))];
 
-        const formattedCategories = [
+        const formatted = [
           {
             name: "All",
-            image:
-              "https://cdn-icons-png.flaticon.com/512/891/891462.png",
+            image: "https://cdn-icons-png.flaticon.com/512/891/891462.png",
           },
-          ...uniqueCategories.map((cat: string) => ({
+          ...unique.map((cat: string) => ({
             name: cat,
-            image:
-              "https://source.unsplash.com/100x100/?" + cat,
+            image: `https://source.unsplash.com/100x100/?${cat}`,
           })),
         ];
 
-        setCategories(formattedCategories);
-
+        setCategories(formatted);
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -88,49 +75,40 @@ export default function HomePage() {
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      alert("Voice search not supported");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IN";
     recognition.start();
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setSearch(transcript);
+      setSearch(event.results[0][0].transcript);
     };
 
     recognitionRef.current = recognition;
   };
 
-  // 🔎 Filter logic
+  // 🔎 Filter
   const filteredProducts = products.filter((product) => {
-    const normalizedProduct = normalize(product.name);
-    const normalizedSearch = normalize(search);
+    const matchSearch =
+      normalize(product.name).includes(normalize(search));
 
-    const matchesSearch =
-      normalizedProduct.includes(normalizedSearch);
-
-    const matchesCategory =
+    const matchCategory =
       selectedCategory === "All" ||
-      product.name
-        .toLowerCase()
-        .includes(selectedCategory.toLowerCase());
+      product.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    return matchSearch && matchCategory;
   });
 
   return (
     <>
       <Header />
 
-      <div className="min-h-screen bg-gray-100 pb-24">
+      <div className="min-h-screen bg-[#f1f3f6] pb-24">
 
-        {/* 🔎 Search Section */}
-        <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-4">
-          <div className="bg-white rounded-full flex items-center px-4 py-2 shadow-md">
+        {/* 🔍 Search */}
+        <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-4">
+          <div className="bg-white rounded-full flex items-center px-4 py-2 shadow">
             <input
               type="text"
               placeholder="Search products..."
@@ -148,34 +126,30 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 🔥 Category Section */}
+        {/* 🟣 Categories */}
         <div className="bg-white py-4 px-4">
-          <div className="flex gap-5 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-5 overflow-x-auto">
             {categories.map((cat) => (
               <div
                 key={cat.name}
-                onClick={() =>
-                  setSelectedCategory(cat.name)
-                }
-                className="flex flex-col items-center min-w-[80px] cursor-pointer transition-transform duration-200 hover:scale-105"
+                onClick={() => setSelectedCategory(cat.name)}
+                className="flex flex-col items-center min-w-[80px] cursor-pointer transition hover:scale-105"
               >
                 <div
-                  className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all duration-300
-                    ${
-                      selectedCategory === cat.name
-                        ? "border-pink-500 shadow-lg"
-                        : "border-gray-200"
-                    }`}
+                  className={`w-16 h-16 rounded-full overflow-hidden border-2 transition
+                  ${
+                    selectedCategory === cat.name
+                      ? "border-pink-500 shadow-md"
+                      : "border-gray-200"
+                  }`}
                 >
                   <img
                     src={cat.image}
-                    alt={cat.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
-
                 <p
-                  className={`text-xs mt-2 text-center ${
+                  className={`text-xs mt-2 ${
                     selectedCategory === cat.name
                       ? "text-pink-600 font-semibold"
                       : "text-gray-600"
@@ -188,9 +162,9 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 🔥 Banner */}
+        {/* 🎯 Banner */}
         <div className="px-4 py-3">
-          <div className="rounded-xl overflow-hidden shadow-md">
+          <div className="rounded-xl overflow-hidden shadow">
             <img
               src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab"
               className="w-full h-40 object-cover"
@@ -199,7 +173,7 @@ export default function HomePage() {
         </div>
 
         {/* 🔥 Best Products */}
-        <div className="px-4 mt-2 mb-3">
+        <div className="px-4 mb-3">
           <h2 className="text-lg font-bold">
             🔥 Best Products
           </h2>
@@ -207,13 +181,22 @@ export default function HomePage() {
 
         {/* 🛍 Products */}
         {loading ? (
-          <div className="text-center p-10">
-            Loading...
+          <div className="grid grid-cols-2 gap-4 p-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="bg-white p-3 rounded-xl animate-pulse"
+              >
+                <div className="h-40 bg-gray-200 rounded-lg" />
+                <div className="h-4 bg-gray-200 mt-3 rounded" />
+                <div className="h-4 bg-gray-200 mt-2 rounded w-1/2" />
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 p-4">
             {filteredProducts.map((product) => {
-              const boughtCount =
+              const bought =
                 100 + (product.id.charCodeAt(0) % 900);
 
               return (
@@ -230,19 +213,17 @@ export default function HomePage() {
                     {product.name}
                   </h2>
 
-                  <RatingStars
-                    productId={product.id}
-                  />
+                  <RatingStars productId={product.id} />
 
                   <p className="text-[11px] text-gray-400 mt-1">
-                    {boughtCount}+ bought
+                    {bought}+ bought
                   </p>
 
                   <p className="text-xs line-through text-gray-400 mt-1">
                     ₹{product.basePrice}
                   </p>
 
-                  <p className="text-lg font-bold text-black">
+                  <p className="text-lg font-bold">
                     ₹{product.finalPrice}
                   </p>
 
@@ -250,22 +231,19 @@ export default function HomePage() {
                     <button
                       onClick={() => {
                         setClickedId(product.id);
-                        setTimeout(
-                          () => setClickedId(null),
-                          300
-                        );
+                        setTimeout(() => setClickedId(null), 300);
                       }}
                       className={`flex-1 py-2 text-sm rounded transition
-                        ${
-                          clickedId === product.id
-                            ? "bg-gray-400 text-white"
-                            : "bg-yellow-500 text-white hover:opacity-90"
-                        }`}
+                      ${
+                        clickedId === product.id
+                          ? "bg-gray-400 text-white"
+                          : "bg-yellow-500 text-white"
+                      }`}
                     >
                       Add to Cart
                     </button>
 
-                    <button className="flex-1 py-2 text-sm bg-orange-500 text-white rounded hover:opacity-90">
+                    <button className="flex-1 py-2 text-sm bg-orange-500 text-white rounded">
                       Buy Now
                     </button>
                   </div>
@@ -274,22 +252,6 @@ export default function HomePage() {
             })}
           </div>
         )}
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2 text-xs">
-        <div className="text-center">
-          🏠 <br /> Home
-        </div>
-        <div className="text-center">
-          📂 <br /> Categories
-        </div>
-        <div className="text-center">
-          👤 <br /> Account
-        </div>
-        <div className="text-center">
-          🛒 <br /> Cart
-        </div>
       </div>
     </>
   );
