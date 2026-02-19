@@ -2,30 +2,21 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-
     const response = await fetch(
-      "https://sandbox.qikink.com/api/products",
+      "https://sandbox.qikink.com/api/v1/products",
       {
         method: "GET",
         headers: {
+          ClientId: process.env.QIKINK_CLIENT_ID as string,
+          AccessToken: process.env.QIKINK_ACCESS_TOKEN as string,
           "Content-Type": "application/json",
-          "ClientId": process.env.QIKINK_CLIENT_ID!,
-          "AccessToken": process.env.QIKINK_ACCESS_TOKEN!
         },
       }
     );
 
     const data = await response.json();
 
-    // Agar Qikink error bheje to woh bhi dikhe
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: response.status });
 
   } catch (error) {
     return NextResponse.json(
