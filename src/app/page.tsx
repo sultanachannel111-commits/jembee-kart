@@ -2,20 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 
 export default function HomePage() {
-  const whatsappNumber = "917061369212";
-
   const categories = [
     { name: "Mobiles", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=200&q=80" },
     { name: "Fashion", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=200&q=80" },
@@ -31,6 +22,7 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   /* FETCH PRODUCTS */
   useEffect(() => {
@@ -58,60 +50,7 @@ export default function HomePage() {
     return matchCategory && matchSearch;
   });
 
-  /* ADD TO CART */
-  const addToCart = async (product: any) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      setMessage("Please login first 💖");
-      return;
-    }
-
-    const cartRef = doc(db, "cart", user.uid);
-    const cartSnap = await getDoc(cartRef);
-
-    let products = [];
-
-    if (cartSnap.exists()) {
-      products = cartSnap.data().products || [];
-
-      const index = products.findIndex(
-        (p: any) => p.productId === product.id
-      );
-
-      if (index > -1) {
-        products[index].quantity += 1;
-      } else {
-        products.push({
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image,
-          quantity: 1,
-        });
-      }
-    } else {
-      products = [
-        {
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image,
-          quantity: 1,
-        },
-      ];
-    }
-
-    await setDoc(cartRef, {
-      userId: user.uid,
-      products,
-    });
-
-    setMessage("Added to cart 🛒");
-  };
-
-  /* DIRECT ORDER */
+  /* DIRECT QIKINK ORDER */
   const placeOrder = async (product: any) => {
     try {
       const auth = getAuth();
@@ -122,25 +61,48 @@ export default function HomePage() {
         return;
       }
 
-      await addDoc(collection(db, "orders"), {
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        userId: user.uid,
-        status: "Pending",
-        trackingId: "",
-        createdAt: new Date(),
+      setLoading(true);
+      setMessage("Sending order to Qikink... ⏳");
+
+      const response = await fetch("/api/qikink/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order_id: "ORDER" + Date.now(),
+          shipping_address: {
+            name: user.displayName || "Test Customer",
+            address1: "Road No 12A",
+            city: "Jamshedpur",
+            state: "Jharkhand",
+            pincode: "832110",
+            country: "India",
+            phone: "9999999999",
+          },
+          order_items: [
+            {
+              product_id: "63784036", // Temporary test ID
+              quantity: 1,
+            },
+          ],
+        }),
       });
 
-      setMessage("Order placed successfully 💕");
+      const data = await response.json();
+      console.log(data);
 
-      const text = `Hello, I want to order ${product.name} - ₹${product.price}`;
-      window.open(
-        `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,
-        "_blank"
-      );
+      if (response.ok) {
+        setMessage("Order Sent to Qikink ✅");
+      } else {
+        setMessage("Order Failed ❌");
+      }
+
+      setLoading(false);
+
     } catch (error) {
-      setMessage("Order failed ❌");
+      setLoading(false);
+      setMessage("Order Failed ❌");
     }
   };
 
@@ -163,15 +125,15 @@ export default function HomePage() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <Link href="/cart">
-              <button className="bg-purple-500 text-white px-4 py-2 rounded-full shadow hover:bg-purple-600 transition">
-                Cart 🛒
-              </button>
-            </Link>
-
             <Link href="/auth?role=customer">
               <button className="bg-pink-500 text-white px-4 py-2 rounded-full shadow hover:bg-pink-600 transition">
                 Login
+              </button>
+            </Link>
+
+            <Link href="/auth?role=seller">
+              <button className="bg-purple-500 text-white px-4 py-2 rounded-full shadow hover:bg-purple-600 transition">
+                Seller
               </button>
             </Link>
           </div>
@@ -243,27 +205,21 @@ export default function HomePage() {
               ₹{product.price}
             </p>
 
-            <div className="flex gap-2 mt-3">
-
-              <button
-                onClick={() => addToCart(product)}
-                className="w-1/2 bg-purple-500 text-white py-2 rounded-full hover:bg-purple-600 transition"
-              >
-                Cart
-              </button>
-
-              <button
-                onClick={() => placeOrder(product)}
-                className="w-1/2 bg-pink-500 text-white py-2 rounded-full hover:bg-pink-600 transition"
-              >
-                Buy
-              </button>
-
-            </div>
-
+            <button
+              onClick={() => placeOrder(product)}
+              disabled={loading}
+              className={`mt-3 w-full py-2 rounded-full text-white transition
+                ${loading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-gradient-to-r from-pink-500 to-purple-500 hover:opacity-90"
+                }`}
+            >
+              {loading ? "Processing..." : "Place Order 💕"}
+            </button>
           </div>
         ))}
       </div>
+
     </div>
   );
 }
