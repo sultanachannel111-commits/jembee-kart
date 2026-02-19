@@ -2,71 +2,103 @@
 
 import { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase";
+import { db } from "@/lib/firebase";
 
 export default function AdminDashboard() {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [qikinkProductId, setQikinkProductId] = useState("");
-  const [costPrice, setCostPrice] = useState("");
-  const [sellingPrice, setSellingPrice] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    qikinkProductId: "",
+    costPrice: "",
+    sellingPrice: "",
+  });
+
+  const handleChange = (e: any) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async () => {
-    if (!name || !sellingPrice) {
-      alert("Name aur Selling Price required hai");
+    if (!form.name || !form.sellingPrice) {
+      alert("Product Name aur Selling Price required hai");
       return;
     }
 
-    await addDoc(collection(db, "products"), {
-      name,
-      description,
-      imageUrl,
-      qikinkProductId,
-      costPrice: Number(costPrice),
-      sellingPrice: Number(sellingPrice),
-      isActive: true,
-      sellerId: "admin",
-      createdAt: serverTimestamp(),
-    });
+    try {
+      await addDoc(collection(db, "products"), {
+        name: form.name,
+        description: form.description,
+        imageUrl: form.imageUrl,
+        qikinkProductId: form.qikinkProductId,
+        costPrice: Number(form.costPrice),
+        sellingPrice: Number(form.sellingPrice),
+        isActive: true,
+        sellerId: "admin",
+        createdAt: serverTimestamp(),
+      });
 
-    alert("Product Added Successfully ✅");
+      alert("✅ Product Added Successfully");
 
-    setName("");
-    setDescription("");
-    setImageUrl("");
-    setQikinkProductId("");
-    setCostPrice("");
-    setSellingPrice("");
+      setForm({
+        name: "",
+        description: "",
+        imageUrl: "",
+        qikinkProductId: "",
+        costPrice: "",
+        sellingPrice: "",
+      });
+
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error adding product");
+    }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Admin Dashboard 🛍️</h1>
+    <div style={{ padding: 30 }}>
+      <h1>Admin Product Dashboard 🛍️</h1>
 
-      <input placeholder="Product Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)} /><br /><br />
+      <input
+        name="name"
+        placeholder="Product Name"
+        value={form.name}
+        onChange={handleChange}
+      /><br /><br />
 
-      <input placeholder="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)} /><br /><br />
+      <input
+        name="description"
+        placeholder="Description"
+        value={form.description}
+        onChange={handleChange}
+      /><br /><br />
 
-      <input placeholder="Image URL"
-        value={imageUrl}
-        onChange={(e) => setImageUrl(e.target.value)} /><br /><br />
+      <input
+        name="imageUrl"
+        placeholder="Image URL"
+        value={form.imageUrl}
+        onChange={handleChange}
+      /><br /><br />
 
-      <input placeholder="Qikink Product ID"
-        value={qikinkProductId}
-        onChange={(e) => setQikinkProductId(e.target.value)} /><br /><br />
+      <input
+        name="qikinkProductId"
+        placeholder="Qikink Product ID"
+        value={form.qikinkProductId}
+        onChange={handleChange}
+      /><br /><br />
 
-      <input placeholder="Cost Price"
-        value={costPrice}
-        onChange={(e) => setCostPrice(e.target.value)} /><br /><br />
+      <input
+        name="costPrice"
+        placeholder="Cost Price"
+        value={form.costPrice}
+        onChange={handleChange}
+      /><br /><br />
 
-      <input placeholder="Selling Price"
-        value={sellingPrice}
-        onChange={(e) => setSellingPrice(e.target.value)} /><br /><br />
+      <input
+        name="sellingPrice"
+        placeholder="Selling Price"
+        value={form.sellingPrice}
+        onChange={handleChange}
+      /><br /><br />
 
       <button onClick={handleSubmit}>
         Add Product
