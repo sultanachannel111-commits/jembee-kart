@@ -4,7 +4,7 @@ export async function GET() {
   try {
 
     const response = await fetch(
-      "https://sandbox.qikink.com/api/v1/catalog/products",
+      "https://sandbox.qikink.com/api/products",
       {
         method: "GET",
         headers: {
@@ -17,6 +17,7 @@ export async function GET() {
 
     const data = await response.json();
 
+    // Agar Qikink error bheje to woh bhi dikhe
     if (!response.ok) {
       return NextResponse.json(
         { error: data },
