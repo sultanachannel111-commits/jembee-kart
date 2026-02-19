@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
+import RatingStars from "@/components/RatingStars";
 
 export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export default function HomePage() {
     "Bags",
   ];
 
-  // 🔥 Normalize Function (Smart Search Core)
+  // 🔥 Normalize for smart search
   const normalize = (text: string) => {
     return text
       .toLowerCase()
@@ -87,7 +88,7 @@ export default function HomePage() {
     recognitionRef.current = recognition;
   };
 
-  // 🔎 Smart Filter
+  // 🔎 Filter logic
   const filteredProducts = products.filter((product) => {
     const normalizedProduct = normalize(product.name);
     const normalizedSearch = normalize(search);
@@ -110,7 +111,7 @@ export default function HomePage() {
 
       <div className="min-h-screen bg-gray-100 pb-24">
 
-        {/* Gradient Search */}
+        {/* Search Section */}
         <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-4">
           <div className="bg-white rounded-full flex items-center px-4 py-2 shadow-md">
             <input
@@ -174,51 +175,67 @@ export default function HomePage() {
           <div className="text-center p-10">Loading...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4 p-4">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white p-3 rounded-xl shadow"
-              >
-                <img
-                  src={product.image}
-                  className="h-40 w-full object-cover rounded-lg"
-                  alt={product.name}
-                />
+            {filteredProducts.map((product) => {
+              const boughtCount =
+                100 + (product.id.charCodeAt(0) % 900);
 
-                <h2 className="mt-2 text-sm font-medium line-clamp-2">
-                  {product.name}
-                </h2>
+              return (
+                <div
+                  key={product.id}
+                  className="bg-white p-3 rounded-xl shadow hover:shadow-lg transition"
+                >
+                  <img
+                    src={product.image}
+                    className="h-40 w-full object-cover rounded-lg"
+                    alt={product.name}
+                  />
 
-                <p className="text-xs line-through text-gray-400">
-                  ₹{product.basePrice}
-                </p>
+                  <h2 className="mt-2 text-sm font-medium line-clamp-2">
+                    {product.name}
+                  </h2>
 
-                <p className="text-lg font-bold text-black">
-                  ₹{product.finalPrice}
-                </p>
+                  {/* ⭐ Rating */}
+                  <RatingStars productId={product.id} />
 
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => {
-                      setClickedId(product.id);
-                      setTimeout(() => setClickedId(null), 300);
-                    }}
-                    className={`flex-1 py-2 text-sm rounded transition
-                    ${
-                      clickedId === product.id
-                        ? "bg-gray-400 text-white"
-                        : "bg-yellow-500 text-white"
-                    }`}
-                  >
-                    Add to Cart
-                  </button>
+                  {/* 🔥 Bought count */}
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {boughtCount}+ bought
+                  </p>
 
-                  <button className="flex-1 py-2 text-sm bg-orange-500 text-white rounded">
-                    Buy Now
-                  </button>
+                  <p className="text-xs line-through text-gray-400 mt-1">
+                    ₹{product.basePrice}
+                  </p>
+
+                  <p className="text-lg font-bold text-black">
+                    ₹{product.finalPrice}
+                  </p>
+
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        setClickedId(product.id);
+                        setTimeout(
+                          () => setClickedId(null),
+                          300
+                        );
+                      }}
+                      className={`flex-1 py-2 text-sm rounded transition
+                        ${
+                          clickedId === product.id
+                            ? "bg-gray-400 text-white"
+                            : "bg-yellow-500 text-white hover:opacity-90"
+                        }`}
+                    >
+                      Add to Cart
+                    </button>
+
+                    <button className="flex-1 py-2 text-sm bg-orange-500 text-white rounded hover:opacity-90">
+                      Buy Now
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
