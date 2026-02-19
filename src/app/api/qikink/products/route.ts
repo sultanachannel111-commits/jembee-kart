@@ -2,20 +2,13 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const clientId = process.env.QIKINK_CLIENT_ID;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Qikink credentials missing" },
-        { status: 500 }
-      );
-    }
+    const clientId = process.env.QIKINK_CLIENT_ID!;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
     const response = await fetch(
-      "https://sandbox.qikink.com/api/v1/catalog/products",
+      "https://sandbox.qikink.com/api/products",
       {
         method: "GET",
         headers: {
@@ -30,10 +23,8 @@ export async function GET() {
     return NextResponse.json(data, { status: response.status });
 
   } catch (error) {
-    console.error("Qikink API Error:", error);
-
     return NextResponse.json(
-      { error: "Failed to fetch Qikink products" },
+      { error: "Failed to fetch products" },
       { status: 500 }
     );
   }
