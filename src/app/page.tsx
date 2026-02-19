@@ -1,140 +1,94 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-} from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getAuth } from "firebase/auth";
 
 export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  /* 🔹 FETCH PRODUCTS */
   useEffect(() => {
     const fetchProducts = async () => {
-      const snapshot = await getDocs(collection(db, "products"));
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setProducts(data);
+      try {
+        // 1️⃣ Qikink Products
+        const res = await fetch("/api/qikink/products");
+        const qikinkData = await res.json();
+
+        if (!qikinkData?.data) {
+          setLoading(false);
+          return;
+        }
+
+        // 2️⃣ Firestore Pricing
+        const pricingSnap = await getDocs(collection(db, "productPricing"));
+
+        const pricingMap: any = {};
+        pricingSnap.forEach((doc) => {
+          pricingMap[doc.id] = doc.data().sellingPrice;
+        });
+
+        // 3️⃣ Merge Qikink + Firestore
+        const mergedProducts = qikinkData.data.map((product: any) => ({
+          id: product.id,
+          name: product.name,
+          image: product.images?.[0],
+          basePrice: product.product_price,
+          finalPrice:
+            pricingMap[product.id] ||
+            Number(product.product_price) + 150, // default margin
+        }));
+
+        setProducts(mergedProducts);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        setLoading(false);
+      }
     };
+
     fetchProducts();
   }, []);
 
-  /* 🔥 FINAL PLACE ORDER FUNCTION */
-  const placeOrder = async (product: any) => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (!user) {
-        setMessage("Please login first 💖");
-        return;
-      }
-
-      if (!product.qikinkProductId) {
-        setMessage("Qikink Product ID missing ❌");
-        return;
-      }
-
-      setMessage("Sending order to Qikink... ⏳");
-
-      // 1️⃣ Save order in Firestore
-      const orderRef = await addDoc(collection(db, "orders"), {
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        userId: user.uid,
-        status: "Processing",
-        createdAt: new Date(),
-      });
-
-      // 2️⃣ Send order to Qikink API
-      const response = await fetch("/api/qikink/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order_id: orderRef.id,
-          shipping_address: {
-            name: user.displayName || "Customer Name",
-            address1: "Test Address Line 1",
-            city: "Delhi",
-            state: "Delhi",
-            pincode: "110001",
-            country: "India",
-            phone: "9999999999",
-          },
-          order_items: [
-            {
-              product_id: product.qikinkProductId,
-              quantity: 1,
-            },
-          ],
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error("Qikink order failed");
-      }
-
-      // 3️⃣ Update order status
-      await updateDoc(doc(db, "orders", orderRef.id), {
-        status: "Confirmed",
-        qikinkResponse: data,
-      });
-
-      setMessage("Order placed successfully 💕");
-    } catch (error) {
-      console.error(error);
-      setMessage("Order failed ❌");
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading products...
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold text-center mb-6 text-pink-600">
-        JEMBEE KART 💖
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-white p-6">
+      <h1 className="text-3xl font-bold text-center text-pink-600 mb-8">
+        JEMBEE 💖
       </h1>
 
-      {message && (
-        <p className="text-center text-lg font-semibold mb-4">
-          {message}
-        </p>
-      )}
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        {products.map((product: any) => (
+        {products.map((product) => (
           <div
             key={product.id}
-            className="bg-white p-4 rounded-xl shadow-md"
+            className="bg-white p-4 rounded-2xl shadow hover:shadow-xl transition"
           >
             <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="h-40 w-full object-cover rounded-md"
+              src={product.image}
+              className="h-40 w-full object-cover rounded-xl"
             />
-            <h2 className="mt-3 font-semibold">{product.name}</h2>
-            <p className="text-pink-600 font-bold">
-              ₹{product.price}
+
+            <h2 className="mt-3 font-semibold text-gray-700">
+              {product.name}
+            </h2>
+
+            <p className="text-sm text-gray-500 line-through">
+              ₹{product.basePrice}
             </p>
 
-            <button
-              onClick={() => placeOrder(product)}
-              className="mt-3 w-full bg-pink-500 text-white py-2 rounded-lg"
-            >
-              Place Order 💕
+            <p className="text-pink-600 font-bold text-lg">
+              ₹{product.finalPrice}
+            </p>
+
+            <button className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-2 rounded-full hover:opacity-90 transition">
+              Order Now 💕
             </button>
           </div>
         ))}
