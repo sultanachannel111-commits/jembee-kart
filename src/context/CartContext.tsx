@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 
 type CartItem = {
   id: string;
@@ -16,6 +22,7 @@ type CartContextType = {
   removeFromCart: (id: string) => void;
   increaseQty: (id: string) => void;
   decreaseQty: (id: string) => void;
+  clearCart: () => void;
   total: number;
   cartCount: number;
 };
@@ -24,6 +31,19 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  // ✅ Load cart from localStorage on first render
+  useEffect(() => {
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    }
+  }, []);
+
+  // ✅ Save cart whenever cart changes
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
 
   // ✅ Add To Cart
   const addToCart = (item: CartItem) => {
@@ -69,13 +89,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // ✅ Total Calculate
+  // ✅ Clear Cart (after order placed)
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  // ✅ Total Price
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  // ✅ Total Items Count
+  // ✅ Total Item Count
   const cartCount = cart.reduce(
     (sum, item) => sum + item.quantity,
     0
@@ -89,6 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         increaseQty,
         decreaseQty,
+        clearCart,
         total,
         cartCount,
       }}
