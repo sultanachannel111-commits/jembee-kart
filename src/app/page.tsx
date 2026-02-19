@@ -4,13 +4,22 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
-import { ShoppingCart } from "lucide-react";
 
 export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [clickedId, setClickedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const categories = [
+    "All",
+    "T-Shirts",
+    "Hoodies",
+    "Kids",
+    "Accessories",
+    "Bags",
+  ];
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -46,9 +55,19 @@ export default function HomePage() {
     fetchProducts();
   }, []);
 
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "All" ||
+      product.name
+        .toLowerCase()
+        .includes(selectedCategory.toLowerCase());
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <>
@@ -56,29 +75,50 @@ export default function HomePage() {
 
       <div className="min-h-screen bg-gray-100 pb-24">
 
-        {/* Search Bar */}
-        <div className="p-4 bg-white shadow">
-          <input
-            type="text"
-            placeholder="Search for products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full border rounded-full px-4 py-2 outline-none"
-          />
+        {/* Gradient Search */}
+        <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-4">
+          <div className="bg-white rounded-full flex items-center px-4 py-2 shadow-md">
+            <input
+              type="text"
+              placeholder="Search for products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 outline-none text-sm"
+            />
+            <span className="text-gray-500 text-lg">🔍</span>
+          </div>
         </div>
 
         {/* Categories */}
         <div className="flex gap-4 overflow-x-auto p-4 bg-white">
-          {["T-Shirts", "Hoodies", "Kids", "Accessories", "Bags"].map(
-            (cat) => (
+          {categories.map((cat) => (
+            <div
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className="flex flex-col items-center min-w-[70px] cursor-pointer"
+            >
               <div
-                key={cat}
-                className="min-w-[80px] text-center bg-gray-200 rounded-full py-2 px-3 text-sm"
+                className={`w-16 h-16 rounded-full flex items-center justify-center shadow transition text-xs font-semibold
+                ${
+                  selectedCategory === cat
+                    ? "bg-pink-500 text-white"
+                    : "bg-pink-100"
+                }`}
               >
                 {cat}
               </div>
-            )
-          )}
+
+              <p
+                className={`text-xs mt-2 ${
+                  selectedCategory === cat
+                    ? "text-pink-600 font-semibold"
+                    : ""
+                }`}
+              >
+                {cat}
+              </p>
+            </div>
+          ))}
         </div>
 
         {/* Products */}
@@ -97,7 +137,7 @@ export default function HomePage() {
                   alt={product.name}
                 />
 
-                <h2 className="mt-2 text-sm font-medium">
+                <h2 className="mt-2 text-sm font-medium line-clamp-2">
                   {product.name}
                 </h2>
 
@@ -115,7 +155,7 @@ export default function HomePage() {
                       setClickedId(product.id);
                       setTimeout(() => setClickedId(null), 300);
                     }}
-                    className={`flex-1 py-2 text-sm rounded
+                    className={`flex-1 py-2 text-sm rounded transition
                     ${
                       clickedId === product.id
                         ? "bg-gray-400 text-white"
@@ -133,21 +173,20 @@ export default function HomePage() {
             ))}
           </div>
         )}
-
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2">
-        <div className="text-center text-xs">
+      <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2 text-xs">
+        <div className="text-center">
           🏠 <br /> Home
         </div>
-        <div className="text-center text-xs">
+        <div className="text-center">
           📂 <br /> Categories
         </div>
-        <div className="text-center text-xs">
+        <div className="text-center">
           👤 <br /> Account
         </div>
-        <div className="text-center text-xs">
+        <div className="text-center">
           🛒 <br /> Cart
         </div>
       </div>
