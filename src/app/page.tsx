@@ -5,23 +5,18 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
 import RatingStars from "@/components/RatingStars";
-import { Home, LayoutGrid, User, ShoppingCart } from "lucide-react";
+import { useCart } from "@/context/CartContext"; // ✅ Added
 
 export default function HomePage() {
+  const { addToCart, cartCount } = useCart(); // ✅ Added
+
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [clickedId, setClickedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [currentBanner, setCurrentBanner] = useState(0);
   const recognitionRef = useRef<any>(null);
-
-  const banners = [
-    "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1400&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1400&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?q=80&w=1400&auto=format&fit=crop",
-  ];
 
   const normalize = (text: string) =>
     text.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
@@ -41,7 +36,6 @@ export default function HomePage() {
         const mergedProducts = qikinkData.data.map((product: any) => ({
           id: product.id,
           name: product.name,
-          category: product.category || product.name.split(" ")[0],
           image: product.images?.[0] || "/placeholder.png",
           basePrice: product.product_price,
           finalPrice:
@@ -51,20 +45,28 @@ export default function HomePage() {
 
         setProducts(mergedProducts);
 
-        const unique = [...new Set(mergedProducts.map(p => p.category))];
+        const uniqueCategories = [
+          ...new Set(
+            mergedProducts.map((p: any) =>
+              p.name.split(" ")[0]
+            )
+          ),
+        ];
 
-        const formatted = [
+        const formattedCategories = [
           {
             name: "All",
-            image: "https://cdn-icons-png.flaticon.com/512/891/891462.png",
+            image:
+              "https://cdn-icons-png.flaticon.com/512/891/891462.png",
           },
-          ...unique.map((cat: string) => ({
+          ...uniqueCategories.map((cat: string) => ({
             name: cat,
-            image: `https://source.unsplash.com/100x100/?${cat}`,
+            image:
+              "https://source.unsplash.com/100x100/?" + cat,
           })),
         ];
 
-        setCategories(formatted);
+        setCategories(formattedCategories);
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -73,17 +75,6 @@ export default function HomePage() {
     };
 
     fetchProducts();
-  }, []);
-
-  // Banner Auto Slide
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBanner((prev) =>
-        prev === banners.length - 1 ? 0 : prev + 1
-      );
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const startVoiceSearch = () => {
@@ -105,25 +96,24 @@ export default function HomePage() {
   };
 
   const filteredProducts = products.filter((product) => {
-    const matchSearch =
-      normalize(product.name).includes(normalize(search));
+    const normalizedProduct = normalize(product.name);
+    const normalizedSearch = normalize(search);
 
-    const matchCategory =
-      selectedCategory === "All" ||
-      product.category === selectedCategory;
+    const matchesSearch =
+      normalizedProduct.includes(normalizedSearch);
 
-    return matchSearch && matchCategory;
+    return matchesSearch;
   });
 
   return (
     <>
       <Header />
 
-      <div className="min-h-screen bg-[#f1f3f6] pb-28">
+      <div className="min-h-screen bg-gray-100 pb-28">
 
         {/* Search */}
-        <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-4">
-          <div className="bg-white rounded-full flex items-center px-4 py-2 shadow">
+        <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-4">
+          <div className="bg-white rounded-full flex items-center px-4 py-2 shadow-md">
             <input
               type="text"
               placeholder="Search products..."
@@ -131,7 +121,10 @@ export default function HomePage() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 outline-none text-sm"
             />
-            <button onClick={startVoiceSearch} className="mr-2">
+            <button
+              onClick={startVoiceSearch}
+              className="text-gray-500 text-lg mr-2"
+            >
               🎤
             </button>
             🔍
@@ -148,25 +141,20 @@ export default function HomePage() {
                 className="flex flex-col items-center min-w-[80px] cursor-pointer"
               >
                 <div
-                  className={`w-16 h-16 rounded-full overflow-hidden border-2 transition
-                  ${
-                    selectedCategory === cat.name
-                      ? "border-pink-500 shadow-md"
-                      : "border-gray-200"
-                  }`}
+                  className={`w-16 h-16 rounded-full overflow-hidden border-2
+                    ${
+                      selectedCategory === cat.name
+                        ? "border-pink-500 shadow-lg"
+                        : "border-gray-200"
+                    }`}
                 >
                   <img
                     src={cat.image}
+                    alt={cat.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <p
-                  className={`text-xs mt-2 ${
-                    selectedCategory === cat.name
-                      ? "text-pink-600 font-semibold"
-                      : "text-gray-600"
-                  }`}
-                >
+                <p className="text-xs mt-2 text-center">
                   {cat.name}
                 </p>
               </div>
@@ -174,58 +162,29 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* HD Banner Slider */}
-        <div className="px-4 py-4">
-          <div className="relative rounded-xl overflow-hidden shadow h-52">
-            <div
-              className="flex transition-transform duration-700"
-              style={{
-                transform: `translateX(-${currentBanner * 100}%)`,
-              }}
-            >
-              {banners.map((banner, index) => (
-                <img
-                  key={index}
-                  src={banner}
-                  className="w-full h-52 object-cover flex-shrink-0"
-                />
-              ))}
-            </div>
-
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-              {banners.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full ${
-                    currentBanner === index
-                      ? "bg-white"
-                      : "bg-white/50"
-                  }`}
-                />
-              ))}
-            </div>
+        {/* Banner */}
+        <div className="px-4 py-3">
+          <div className="rounded-xl overflow-hidden shadow-md">
+            <img
+              src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab"
+              className="w-full h-40 object-cover"
+            />
           </div>
         </div>
 
         {/* Products */}
         {loading ? (
-          <div className="grid grid-cols-2 gap-4 p-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white p-3 rounded-xl animate-pulse">
-                <div className="h-40 bg-gray-200 rounded-lg" />
-              </div>
-            ))}
-          </div>
+          <div className="text-center p-10">Loading...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4 p-4">
             {filteredProducts.map((product) => {
-              const bought =
+              const boughtCount =
                 100 + (product.id.charCodeAt(0) % 900);
 
               return (
                 <div
                   key={product.id}
-                  className="bg-white p-3 rounded-xl shadow"
+                  className="bg-white p-3 rounded-xl shadow hover:shadow-lg"
                 >
                   <img
                     src={product.image}
@@ -238,8 +197,8 @@ export default function HomePage() {
 
                   <RatingStars productId={product.id} />
 
-                  <p className="text-xs text-gray-400">
-                    {bought}+ bought
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {boughtCount}+ bought
                   </p>
 
                   <p className="text-xs line-through text-gray-400">
@@ -253,15 +212,23 @@ export default function HomePage() {
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => {
+                        addToCart({
+                          id: product.id,
+                          name: product.name,
+                          image: product.image,
+                          price: product.finalPrice,
+                          quantity: 1,
+                        });
+
                         setClickedId(product.id);
                         setTimeout(() => setClickedId(null), 300);
                       }}
-                      className={`flex-1 py-2 text-sm rounded
-                      ${
-                        clickedId === product.id
-                          ? "bg-gray-400 text-white"
-                          : "bg-yellow-500 text-white"
-                      }`}
+                      className={`flex-1 py-2 text-sm rounded transition
+                        ${
+                          clickedId === product.id
+                            ? "bg-gray-400 text-white"
+                            : "bg-yellow-500 text-white"
+                        }`}
                     >
                       Add to Cart
                     </button>
@@ -278,22 +245,26 @@ export default function HomePage() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 w-full bg-white border-t shadow-md flex justify-around py-2">
-        <div className="flex flex-col items-center text-xs text-gray-600">
-          <Home size={20} />
-          Home
+      <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2 text-xs">
+        <div className="text-center">
+          🏠 <br /> Home
         </div>
-        <div className="flex flex-col items-center text-xs text-gray-600">
-          <LayoutGrid size={20} />
-          Categories
+
+        <div className="text-center">
+          📂 <br /> Categories
         </div>
-        <div className="flex flex-col items-center text-xs text-gray-600">
-          <User size={20} />
-          Account
+
+        <div className="text-center">
+          👤 <br /> Account
         </div>
-        <div className="flex flex-col items-center text-xs text-gray-600">
-          <ShoppingCart size={20} />
-          Cart
+
+        <div className="text-center relative">
+          🛒 <br /> Cart
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-3 bg-red-500 text-white text-[10px] px-1 rounded-full">
+              {cartCount}
+            </span>
+          )}
         </div>
       </div>
     </>
