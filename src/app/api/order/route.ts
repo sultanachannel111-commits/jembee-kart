@@ -1,24 +1,65 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  getDoc,
+  doc,
+} from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { productId, productName, price, customerEmail } = body;
+    const {
+      productId,
+      productName,
+      price,
+      customerEmail,
+      shipping,
+    } = body;
+
+    /* ---------------- VALIDATION ---------------- */
 
     if (!productId || !productName || !price) {
       return NextResponse.json(
-        { success: false, message: "Missing fields" },
+        { success: false, message: "Missing product fields" },
         { status: 400 }
       );
     }
 
+    if (
+      !shipping ||
+      !shipping.first_name ||
+      !shipping.address1 ||
+      !shipping.city ||
+      !shipping.zip ||
+      !shipping.phone
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Shipping details missing" },
+        { status: 400 }
+      );
+    }
+
+    /* ---------------- FETCH PRODUCT FROM FIRESTORE ---------------- */
+
+    const productSnap = await getDoc(doc(db, "products", productId));
+
+    if (!productSnap.exists()) {
+      return NextResponse.json(
+        { success: false, message: "Product not found in Firestore" },
+        { status: 404 }
+      );
+    }
+
+    const productData = productSnap.data();
+
+    /* ---------------- QIKINK TOKEN ---------------- */
+
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
-
-    /* ---------------- TOKEN ---------------- */
 
     const tokenRes = await fetch(
       "https://sandbox.qikink.com/api/token",
@@ -39,7 +80,7 @@ export async function POST(req: Request) {
 
     if (!accessToken) {
       return NextResponse.json(
-        { success: false, message: "Token failed" },
+        { success: false, message: "Failed to generate token" },
         { status: 400 }
       );
     }
@@ -59,14 +100,14 @@ export async function POST(req: Request) {
           order_number: "store_" + Date.now(),
           qikink_shipping: "1",
           gateway: "COD",
-          total_order_value: price.toString(),
+          total_order_value: productData.price.toString(),
           line_items: [
             {
               search_from_my_products: 0,
               quantity: "1",
-              print_type_id: 1,
-              price: price.toString(),
-              sku: "MVnHs-Wh-S",
+              print_type_id: productData.print_type_id,
+              price: productData.price.toString(),
+              sku: productData.sku,
               designs: [
                 {
                   design_code: "iPhoneXR",
@@ -79,37 +120,32 @@ export async function POST(req: Request) {
               ],
             },
           ],
-          shipping_address: {
-            first_name: "Ali",
-            last_name: "Test",
-            address1: "Test Street",
-            phone: "9999999999",
-            email: customerEmail || "test@example.com",
-            city: "Jamshedpur",
-            zip: "832110",
-            province: "Jharkhand",
-            country_code: "IN",
-          },
+          shipping_address: shipping,
         }),
       }
     );
 
     const orderData = await orderRes.json();
 
-    /* ---------------- SAVE TO FIRESTORE ---------------- */
+    /* ---------------- SAVE ORDER TO FIRESTORE ---------------- */
 
     await addDoc(collection(db, "orders"), {
       productId,
       productName,
-      price,
+      price: productData.price,
       customerEmail: customerEmail || null,
       status: "Placed",
       qikinkOrderId: orderData.order_id || null,
+      qikinkResponse: orderData,
+      shipping,
       createdAt: serverTimestamp(),
     });
 
+    /* ---------------- RESPONSE ---------------- */
+
     return NextResponse.json({
       success: true,
+      message: "Order placed successfully",
       qikinkResponse: orderData,
     });
 
