@@ -1,9 +1,9 @@
-limport { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const clientId = process.env.QIKINK_CLIENT_ID!;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
@@ -29,12 +29,9 @@ export async function GET() {
 
     const data = await response.json();
 
-    return NextResponse.json(data, {
-      status: response.status,
-    });
-
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Qikink Fetch Error:", error);
+    console.error("Qikink Error:", error);
 
     return NextResponse.json(
       { error: "Failed to fetch products" },
