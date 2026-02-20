@@ -5,7 +5,7 @@ export async function GET() {
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
-    // STEP 1: GET TOKEN
+    // STEP 1: Get Access Token
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -23,7 +23,14 @@ export async function GET() {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.Accesstoken;
 
-    // STEP 2: CREATE ORDER
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Token not generated", tokenData },
+        { status: 400 }
+      );
+    }
+
+    // STEP 2: Create Order
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -34,7 +41,7 @@ export async function GET() {
           Accesstoken: accessToken,
         },
         body: JSON.stringify({
-          order_number: "api_test_1",
+          order_number: "api_test_2",
           qikink_shipping: "1",
           gateway: "COD",
           total_order_value: "1",
@@ -42,6 +49,7 @@ export async function GET() {
             {
               search_from_my_products: 0,
               quantity: "1",
+              print_type_id: 1,
               price: "1",
               sku: "MVnHs-Wh-S",
               designs: [
