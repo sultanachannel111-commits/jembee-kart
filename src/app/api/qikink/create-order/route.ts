@@ -12,30 +12,57 @@ export async function POST() {
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    // 🔐 STEP 1 — Get Access Token
+    const authResponse = await fetch(
+      "https://sandbox.qikink.com/api/authentication",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      }
+    );
 
-    const response = await fetch(
+    const authData = await authResponse.json();
+
+    if (!authData.access_token) {
+      return NextResponse.json(
+        { error: "Authentication failed ❌", details: authData },
+        { status: 401 }
+      );
+    }
+
+    const accessToken = authData.access_token;
+
+    // 📦 STEP 2 — Create Order using Bearer token
+    const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/orders",
       {
         method: "POST",
         headers: {
-          Authorization: `Basic ${auth}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order_id: "TEST12345",
+          order_number: "TEST12345",
+          payment_type: "Prepaid",
           shipping_address: {
-            name: "Test Customer",
+            first_name: "Test",
+            last_name: "Customer",
             address1: "Test Street 123",
             city: "Jamshedpur",
             state: "Jharkhand",
-            pincode: "832110",
             country: "India",
+            zip: "832110",
             phone: "9999999999",
           },
-          order_items: [
+          line_items: [
             {
-              product_id: "63784036",
+              sku: "63784036", // 👈 Qikink SKU use karo
               quantity: 1,
             },
           ],
@@ -43,9 +70,11 @@ export async function POST() {
       }
     );
 
-    const data = await response.json();
+    const orderData = await orderResponse.json();
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(orderData, {
+      status: orderResponse.status,
+    });
 
   } catch (error) {
     return NextResponse.json(
