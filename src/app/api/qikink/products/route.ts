@@ -7,7 +7,7 @@ export async function GET() {
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
-        { error: "Missing Qikink credentials" },
+        { error: "Missing QIKINK_CLIENT_ID or QIKINK_CLIENT_SECRET" },
         { status: 500 }
       );
     }
@@ -16,27 +16,48 @@ export async function GET() {
       `${clientId}:${clientSecret}`
     ).toString("base64");
 
-    const response = await fetch(
+    // 🔥 Possible endpoints list
+    const endpoints = [
+      "https://sandbox.qikink.com/api/products",
+      "https://sandbox.qikink.com/api/v1/products",
       "https://sandbox.qikink.com/api/catalog/products",
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          Accept: "application/json",
-        },
-      }
-    );
+    ];
 
-    const text = await response.text();
+    const results: any[] = [];
+
+    for (const url of endpoints) {
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            Accept: "application/json",
+          },
+        });
+
+        const text = await response.text();
+
+        results.push({
+          endpoint: url,
+          status: response.status,
+          response: text,
+        });
+      } catch (err) {
+        results.push({
+          endpoint: url,
+          error: String(err),
+        });
+      }
+    }
 
     return NextResponse.json({
-      status: response.status,
-      response: text,
+      message: "Qikink endpoint test results",
+      results,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
-      { error: error.message },
+      { error: "Server crashed", details: String(error) },
       { status: 500 }
     );
   }
