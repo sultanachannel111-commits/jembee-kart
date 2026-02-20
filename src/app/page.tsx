@@ -5,10 +5,10 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
 import RatingStars from "@/components/RatingStars";
-import { useCart } from "@/context/CartContext"; // ✅ Added
+import { useCart } from "@/context/CartContext";
 
 export default function HomePage() {
-  const { addToCart, cartCount } = useCart(); // ✅ Added
+  const { addToCart, cartCount } = useCart();
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -16,11 +16,37 @@ export default function HomePage() {
   const [clickedId, setClickedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const recognitionRef = useRef<any>(null);
+
+  // 🔥 SLIDER STATE
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const sliderData = [
+    {
+      image:
+        "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=1400&auto=format&fit=crop",
+      title: "SUPER SALE",
+      subtitle: "UP TO 40% OFF",
+    },
+    {
+      image:
+        "https://images.unsplash.com/photo-1521335629791-ce4aec67dd47?q=80&w=1400&auto=format&fit=crop",
+      title: "FASHION DEALS",
+      subtitle: "TRENDING COLLECTION",
+    },
+    {
+      image:
+        "https://images.unsplash.com/photo-1607083206968-13611e3d76db?q=80&w=1400&auto=format&fit=crop",
+      title: "BIG SALE",
+      subtitle: "UP TO 75% OFF",
+    },
+  ];
 
   const normalize = (text: string) =>
     text.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
+  // 🔥 PRODUCTS FETCH
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -46,11 +72,7 @@ export default function HomePage() {
         setProducts(mergedProducts);
 
         const uniqueCategories = [
-          ...new Set(
-            mergedProducts.map((p: any) =>
-              p.name.split(" ")[0]
-            )
-          ),
+          ...new Set(mergedProducts.map((p: any) => p.name.split(" ")[0])),
         ];
 
         const formattedCategories = [
@@ -77,33 +99,20 @@ export default function HomePage() {
     fetchProducts();
   }, []);
 
-  const startVoiceSearch = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+  // 🔥 AUTO SLIDE
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) =>
+        prev === sliderData.length - 1 ? 0 : prev + 1
+      );
+    }, 3000);
 
-    if (!SpeechRecognition) return;
+    return () => clearInterval(interval);
+  }, []);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
-    recognition.start();
-
-    recognition.onresult = (event: any) => {
-      setSearch(event.results[0][0].transcript);
-    };
-
-    recognitionRef.current = recognition;
-  };
-
-  const filteredProducts = products.filter((product) => {
-    const normalizedProduct = normalize(product.name);
-    const normalizedSearch = normalize(search);
-
-    const matchesSearch =
-      normalizedProduct.includes(normalizedSearch);
-
-    return matchesSearch;
-  });
+  const filteredProducts = products.filter((product) =>
+    normalize(product.name).includes(normalize(search))
+  );
 
   return (
     <>
@@ -121,12 +130,6 @@ export default function HomePage() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 outline-none text-sm"
             />
-            <button
-              onClick={startVoiceSearch}
-              className="text-gray-500 text-lg mr-2"
-            >
-              🎤
-            </button>
             🔍
           </div>
         </div>
@@ -141,16 +144,14 @@ export default function HomePage() {
                 className="flex flex-col items-center min-w-[80px] cursor-pointer"
               >
                 <div
-                  className={`w-16 h-16 rounded-full overflow-hidden border-2
-                    ${
-                      selectedCategory === cat.name
-                        ? "border-pink-500 shadow-lg"
-                        : "border-gray-200"
-                    }`}
+                  className={`w-16 h-16 rounded-full overflow-hidden border-2 ${
+                    selectedCategory === cat.name
+                      ? "border-pink-500 shadow-lg"
+                      : "border-gray-200"
+                  }`}
                 >
                   <img
                     src={cat.image}
-                    alt={cat.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -162,13 +163,67 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Banner */}
-        <div className="px-4 py-3">
-          <div className="rounded-xl overflow-hidden shadow-md">
-            <img
-              src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab"
-              className="w-full h-40 object-cover"
-            />
+        {/* 🔥 FLIPKART STYLE SLIDER */}
+        <div className="px-4 py-4">
+          <div
+            className="relative overflow-hidden rounded-xl shadow-md h-36 md:h-52"
+            onTouchStart={(e) =>
+              (touchStartX.current = e.changedTouches[0].clientX)
+            }
+            onTouchEnd={(e) => {
+              touchEndX.current = e.changedTouches[0].clientX;
+              const diff = touchStartX.current - touchEndX.current;
+              if (diff > 50) {
+                setCurrentSlide((prev) =>
+                  prev === sliderData.length - 1 ? 0 : prev + 1
+                );
+              } else if (diff < -50) {
+                setCurrentSlide((prev) =>
+                  prev === 0 ? sliderData.length - 1 : prev - 1
+                );
+              }
+            }}
+          >
+            <div
+              className="flex transition-transform duration-700 ease-in-out"
+              style={{
+                transform: `translateX(-${currentSlide * 100}%)`,
+              }}
+            >
+              {sliderData.map((slide, index) => (
+                <div
+                  key={index}
+                  className="relative w-full h-36 md:h-52 flex-shrink-0"
+                >
+                  <img
+                    src={slide.image}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex flex-col justify-center pl-6 text-white">
+                    <h2 className="text-lg md:text-2xl font-bold">
+                      {slide.title}
+                    </h2>
+                    <p className="text-sm md:text-lg">
+                      {slide.subtitle}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dots */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+              {sliderData.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full ${
+                    currentSlide === index
+                      ? "bg-white w-3"
+                      : "bg-white/50"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -223,12 +278,11 @@ export default function HomePage() {
                         setClickedId(product.id);
                         setTimeout(() => setClickedId(null), 300);
                       }}
-                      className={`flex-1 py-2 text-sm rounded transition
-                        ${
-                          clickedId === product.id
-                            ? "bg-gray-400 text-white"
-                            : "bg-yellow-500 text-white"
-                        }`}
+                      className={`flex-1 py-2 text-sm rounded ${
+                        clickedId === product.id
+                          ? "bg-gray-400 text-white"
+                          : "bg-yellow-500 text-white"
+                      }`}
                     >
                       Add to Cart
                     </button>
@@ -246,18 +300,9 @@ export default function HomePage() {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 w-full bg-white shadow-inner border-t flex justify-around py-2 text-xs">
-        <div className="text-center">
-          🏠 <br /> Home
-        </div>
-
-        <div className="text-center">
-          📂 <br /> Categories
-        </div>
-
-        <div className="text-center">
-          👤 <br /> Account
-        </div>
-
+        <div className="text-center">🏠 <br /> Home</div>
+        <div className="text-center">📂 <br /> Categories</div>
+        <div className="text-center">👤 <br /> Account</div>
         <div className="text-center relative">
           🛒 <br /> Cart
           {cartCount > 0 && (
