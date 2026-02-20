@@ -5,7 +5,7 @@ export async function GET() {
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
-    // STEP 1: Get Token
+    // STEP 1: GET TOKEN
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -23,32 +23,52 @@ export async function GET() {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.Accesstoken;
 
-    // STEP 2: Create Order
+    // STEP 2: CREATE ORDER
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          ClientId: clientId,
+          Accesstoken: accessToken,
         },
         body: JSON.stringify({
-          order_id: "TEST12345",
-          shipping_address: {
-            name: "Ali Test",
-            address1: "Test Street 123",
-            city: "Jamshedpur",
-            state: "Jharkhand",
-            pincode: "832110",
-            country: "India",
-            phone: "9999999999",
-          },
-          order_items: [
+          order_number: "api_test_1",
+          qikink_shipping: "1",
+          gateway: "COD",
+          total_order_value: "1",
+          line_items: [
             {
-              product_id: "63784036",
-              quantity: 1,
+              search_from_my_products: 0,
+              quantity: "1",
+              price: "1",
+              sku: "MVnHs-Wh-S",
+              designs: [
+                {
+                  design_code: "iPhoneXR",
+                  width_inches: "",
+                  height_inches: "",
+                  placement_sku: "fr",
+                  design_link:
+                    "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+                  mockup_link:
+                    "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+                },
+              ],
             },
           ],
+          shipping_address: {
+            first_name: "Ali",
+            last_name: "Test",
+            address1: "Test Street 123",
+            phone: "9999999999",
+            email: "test@example.com",
+            city: "Jamshedpur",
+            zip: "832110",
+            province: "Jharkhand",
+            country_code: "IN",
+          },
         }),
       }
     );
