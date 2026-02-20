@@ -6,25 +6,25 @@ export async function GET() {
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
     const response = await fetch(
-      "https://sandbox.qikink.com/api/auth/login",
+      "https://sandbox.qikink.com/api/token",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({
-          client_id: clientId,
+        body: new URLSearchParams({
+          ClientId: clientId,
           client_secret: clientSecret,
         }),
       }
     );
 
     const data = await response.json();
-    return NextResponse.json(data);
 
+    return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json(
-      { error: "Auth failed ❌" },
+      { error: "Token request failed ❌" },
       { status: 500 }
     );
   }
