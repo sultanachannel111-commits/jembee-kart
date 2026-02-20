@@ -5,19 +5,22 @@ export async function GET() {
     const clientId = process.env.QIKINK_CLIENT_ID;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
+    // ✅ Check ENV variables
     if (!clientId || !clientSecret) {
       return NextResponse.json(
-        { error: "Missing Qikink credentials" },
+        { error: "Missing Qikink credentials in Vercel ENV" },
         { status: 500 }
       );
     }
 
+    // ✅ Encode credentials
     const auth = Buffer.from(
       `${clientId}:${clientSecret}`
     ).toString("base64");
 
+    // ✅ Correct Sandbox Endpoint
     const response = await fetch(
-      "https://sandbox.qikink.com/api/v1/catalog",
+      "https://sandbox.qikink.com/api/catalog/products",
       {
         method: "GET",
         headers: {
@@ -27,14 +30,24 @@ export async function GET() {
       }
     );
 
+    // If Qikink returns error
+    if (!response.ok) {
+      const errorText = await response.text();
+      return NextResponse.json(
+        { error: "Qikink API Error", details: errorText },
+        { status: response.status }
+      );
+    }
+
     const data = await response.json();
 
     return NextResponse.json(data);
-  } catch (error) {
-    console.error("Qikink Error:", error);
+
+  } catch (error: any) {
+    console.error("Qikink Fetch Error:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch products" },
+      { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }
