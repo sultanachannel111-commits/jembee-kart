@@ -22,24 +22,25 @@ export default function HomePage() {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
+  // ✅ UPDATED BANNER IMAGES
   const sliderData = [
     {
       image:
-        "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=1400&auto=format&fit=crop",
-      title: "SUPER SALE",
-      subtitle: "UP TO 40% OFF",
+        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=1000",
+      title: "MEGA SALE",
+      subtitle: "BEST DEALS TODAY",
     },
     {
       image:
-        "https://images.unsplash.com/photo-1521335629791-ce4aec67dd47?q=80&w=1400&auto=format&fit=crop",
-      title: "FASHION DEALS",
-      subtitle: "TRENDING COLLECTION",
+        "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=1000",
+      title: "TRENDING FASHION",
+      subtitle: "NEW ARRIVALS",
     },
     {
       image:
-        "https://images.unsplash.com/photo-1607083206968-13611e3d76db?q=80&w=1400&auto=format&fit=crop",
-      title: "BIG SALE",
-      subtitle: "UP TO 75% OFF",
+        "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&q=80&w=1000",
+      title: "LIMITED OFFER",
+      subtitle: "UP TO 60% OFF",
     },
   ];
 
