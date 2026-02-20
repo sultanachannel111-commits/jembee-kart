@@ -5,43 +5,26 @@ export async function GET() {
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
     const response = await fetch(
-      "https://sandbox.qikink.com/api/orders",
+      "https://sandbox.qikink.com/api/auth/login",
       {
         method: "POST",
         headers: {
-          Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order_id: "TEST999",
-          shipping_address: {
-            name: "Ali Test",
-            address1: "Test Street 123",
-            city: "Jamshedpur",
-            state: "Jharkhand",
-            pincode: "832110",
-            country: "India",
-            phone: "9999999999",
-          },
-          order_items: [
-            {
-              product_id: "63784036",
-              quantity: 1,
-            },
-          ],
+          client_id: clientId,
+          client_secret: clientSecret,
         }),
       }
     );
 
     const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data);
 
   } catch (error) {
     return NextResponse.json(
-      { error: "Order failed ❌" },
+      { error: "Auth failed ❌" },
       { status: 500 }
     );
   }
