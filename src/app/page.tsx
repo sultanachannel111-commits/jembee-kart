@@ -13,17 +13,9 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [clickedId, setClickedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // 🔥 Voice
-  const recognitionRef = useRef<any>(null);
-
-  // 🔥 Slider
   const [currentSlide, setCurrentSlide] = useState(0);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
 
   const sliderData = [
     {
@@ -49,75 +41,51 @@ export default function HomePage() {
   const normalize = (text: string) =>
     text.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
-  // 🎤 Voice Search
-  const startVoiceSearch = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Voice not supported");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
-    recognition.start();
-
-    recognition.onresult = (event: any) => {
-      setSearch(event.results[0][0].transcript);
-    };
-
-    recognitionRef.current = recognition;
-  };
-
-  // 📦 Fetch Products
+  // ✅ Firestore se products fetch
   useEffect(() => {
     const fetchProducts = async () => {
-      const res = await fetch("/api/qikink/products");
-      const qikinkData = await res.json();
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
 
-      const pricingSnap = await getDocs(collection(db, "productPricing"));
-      const pricingMap: any = {};
-      pricingSnap.forEach((doc) => {
-        pricingMap[doc.id] = doc.data().sellingPrice;
-      });
+        const firestoreProducts = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      const merged = qikinkData.data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        image: p.images?.[0],
-        basePrice: p.product_price,
-        finalPrice:
-          pricingMap[p.id] || Number(p.product_price) + 150,
-      }));
+        setProducts(firestoreProducts);
 
-      setProducts(merged);
+        const uniqueCategories = [
+          ...new Set(
+            firestoreProducts.map((p: any) =>
+              p.name ? p.name.split(" ")[0] : "Other"
+            )
+          ),
+        ];
 
-      const unique = [
-        ...new Set(merged.map((p: any) => p.name.split(" ")[0])),
-      ];
+        setCategories([
+          {
+            name: "All",
+            image:
+              "https://cdn-icons-png.flaticon.com/512/891/891462.png",
+          },
+          ...uniqueCategories.map((cat: string) => ({
+            name: cat,
+            image:
+              "https://source.unsplash.com/100x100/?" + cat,
+          })),
+        ]);
 
-      setCategories([
-        {
-          name: "All",
-          image:
-            "https://cdn-icons-png.flaticon.com/512/891/891462.png",
-        },
-        ...unique.map((cat: string) => ({
-          name: cat,
-          image:
-            "https://source.unsplash.com/100x100/?" + cat,
-        })),
-      ]);
-
-      setLoading(false);
+        setLoading(false);
+      } catch (error) {
+        console.error("Firestore fetch error:", error);
+        setLoading(false);
+      }
     };
 
     fetchProducts();
   }, []);
 
-  // 🔁 Auto Slide
+  // 🔁 Auto Slider
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) =>
@@ -127,8 +95,8 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredProducts = products.filter((p) =>
-    normalize(p.name).includes(normalize(search))
+  const filteredProducts = products.filter((p: any) =>
+    normalize(p.name || "").includes(normalize(search))
   );
 
   return (
@@ -146,31 +114,7 @@ export default function HomePage() {
               placeholder="Search products..."
               className="flex-1 outline-none text-sm"
             />
-            <button onClick={startVoiceSearch} className="mr-2">
-              🎤
-            </button>
             🔍
-          </div>
-        </div>
-
-        {/* 🟣 Categories */}
-        <div className="bg-white py-4 px-4">
-          <div className="flex gap-5 overflow-x-auto">
-            {categories.map((cat) => (
-              <div
-                key={cat.name}
-                onClick={() => setSelectedCategory(cat.name)}
-                className="flex flex-col items-center min-w-[80px]"
-              >
-                <div className="w-16 h-16 rounded-full overflow-hidden border">
-                  <img
-                    src={cat.image}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <p className="text-xs mt-2">{cat.name}</p>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -209,7 +153,7 @@ export default function HomePage() {
           <div className="text-center p-10">Loading...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4 p-4">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product: any) => (
               <div
                 key={product.id}
                 className="bg-white p-3 rounded-xl shadow"
@@ -225,12 +169,8 @@ export default function HomePage() {
 
                 <RatingStars productId={product.id} />
 
-                <p className="line-through text-xs text-gray-400">
-                  ₹{product.basePrice}
-                </p>
-
                 <p className="font-bold text-lg">
-                  ₹{product.finalPrice}
+                  ₹{product.sellingPrice}
                 </p>
 
                 <div className="flex gap-2 mt-2">
@@ -240,7 +180,7 @@ export default function HomePage() {
                         id: product.id,
                         name: product.name,
                         image: product.image,
-                        price: product.finalPrice,
+                        price: product.sellingPrice,
                         quantity: 1,
                       })
                     }
@@ -261,19 +201,10 @@ export default function HomePage() {
 
       {/* 🔻 Bottom Nav */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t flex justify-around py-2 text-xs">
-        <a href="/" className="flex flex-col items-center">
-          🏠 Home
-        </a>
-
-        <a href="/categories" className="flex flex-col items-center">
-          📂 Category
-        </a>
-
-        <a href="/account" className="flex flex-col items-center">
-          👤 Account
-        </a>
-
-        <a href="/cart" className="flex flex-col items-center relative">
+        <a href="/">🏠 Home</a>
+        <a href="/categories">📂 Category</a>
+        <a href="/account">👤 Account</a>
+        <a href="/cart" className="relative">
           🛒 Cart
           {cartCount > 0 && (
             <span className="absolute -top-1 right-0 bg-red-500 text-white text-[10px] px-1 rounded-full">
