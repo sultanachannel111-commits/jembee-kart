@@ -16,24 +16,23 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleAction = async (action: Function) => {
+  const [loadingType, setLoadingType] = useState<
+    "login" | "register" | "google" | "guest" | null
+  >(null);
+
+  const handleAction = async (
+    type: "login" | "register" | "google" | "guest",
+    action: () => Promise<void>
+  ) => {
     try {
-      setLoading(true);
-      setError("");
-
+      setLoadingType(type);
       await action();
-
-      router.push("/");
-    } catch (err: any) {
-      console.error("AUTH ERROR:", err);
-
-      // ✅ Show real firebase error
-      setError(err.code || err.message);
+      router.replace("/");
+    } catch (err) {
+      console.log(err); // silent error
     } finally {
-      setLoading(false);
+      setLoadingType(null);
     }
   };
 
@@ -42,12 +41,6 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded-xl shadow-md w-80 space-y-4">
 
         <h2 className="text-xl font-bold text-center">Login</h2>
-
-        {error && (
-          <div className="text-red-500 text-sm text-center break-words">
-            {error}
-          </div>
-        )}
 
         <input
           type="email"
@@ -66,37 +59,47 @@ export default function LoginPage() {
         />
 
         <button
-          onClick={() => handleAction(() => loginWithEmail(email, password))}
-          disabled={loading}
+          onClick={() =>
+            handleAction("login", () =>
+              loginWithEmail(email, password)
+            )
+          }
+          disabled={loadingType !== null}
           className="w-full bg-black text-white py-2 rounded"
         >
-          {loading ? "Please wait..." : "Login"}
+          {loadingType === "login" ? "Please wait..." : "Login"}
         </button>
 
         <button
           onClick={() =>
-            handleAction(() => registerWithEmail(email, password))
+            handleAction("register", () =>
+              registerWithEmail(email, password)
+            )
           }
-          disabled={loading}
+          disabled={loadingType !== null}
           className="w-full bg-gray-700 text-white py-2 rounded"
         >
-          Register
+          {loadingType === "register" ? "Please wait..." : "Register"}
         </button>
 
         <button
-          onClick={() => handleAction(loginWithGoogle)}
-          disabled={loading}
+          onClick={() =>
+            handleAction("google", loginWithGoogle)
+          }
+          disabled={loadingType !== null}
           className="w-full bg-red-500 text-white py-2 rounded"
         >
-          Login with Google
+          {loadingType === "google" ? "Please wait..." : "Login with Google"}
         </button>
 
         <button
-          onClick={() => handleAction(loginAsGuest)}
-          disabled={loading}
+          onClick={() =>
+            handleAction("guest", loginAsGuest)
+          }
+          disabled={loadingType !== null}
           className="w-full bg-green-500 text-white py-2 rounded"
         >
-          Continue as Guest
+          {loadingType === "guest" ? "Please wait..." : "Continue as Guest"}
         </button>
 
       </div>
