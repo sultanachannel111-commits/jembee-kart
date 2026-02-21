@@ -2,7 +2,7 @@
 
 import "./globals.css";
 import type { Metadata } from "next";
-import { CartProvider } from "@/context/CartContext";
+import { CartProvider } from "@/providers/cart-provider";
 
 export const metadata: Metadata = {
   title: "JEMBEE KART",
@@ -27,15 +27,16 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[#f1f3f6] text-gray-900 min-h-screen antialiased">
 
+        {/* 🔥 GLOBAL CART PROVIDER */}
         <CartProvider>
           <div className="flex flex-col min-h-screen">
 
-            {/* Main Page Content */}
+            {/* MAIN CONTENT */}
             <main className="flex-grow">
               {children}
             </main>
 
-            {/* Clean Ecommerce Footer */}
+            {/* FOOTER */}
             <footer className="bg-gray-900 text-gray-300 text-center py-6 text-sm">
               <p className="font-semibold text-white mb-1">
                 JEMBEE KART
