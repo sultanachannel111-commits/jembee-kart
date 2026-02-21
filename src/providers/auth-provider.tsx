@@ -29,40 +29,71 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔥 Auto detect logged user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
+  // 🔥 Google Login
   const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Google login failed:", error);
+      throw error;
+    }
   };
 
+  // 🔥 Email Register
   const registerWithEmail = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Register failed:", error);
+      throw error;
+    }
   };
 
+  // 🔥 Email Login
   const loginWithEmail = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
   };
 
+  // 🔥 Guest Login
   const loginAsGuest = async () => {
-    await signInAnonymously(auth);
+    try {
+      await signInAnonymously(auth);
+    } catch (error) {
+      console.error("Guest login failed:", error);
+      throw error;
+    }
   };
 
+  // 🔥 Logout
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout failed:", error);
+      throw error;
+    }
   };
 
   return (
@@ -82,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// 🔥 Custom Hook
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
