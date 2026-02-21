@@ -1,35 +1,26 @@
 // src/lib/firebase.ts
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-/**
- * 🔥 IMPORTANT:
- * Replace the below values with your own Firebase project config.
- * Go to Firebase Console → Project Settings → General → Your Apps → Web App
- */
-
+// 🔥 Your Real Firebase Config
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ",
+  authDomain: "studio-4213097962-b1ad6.firebaseapp.com",
+  projectId: "studio-4213097962-b1ad6",
+  storageBucket: "studio-4213097962-b1ad6.firebasestorage.app",
+  messagingSenderId: "805890394961",
+  appId: "1:805890394961:web:81d5ff06d6b8336804e170",
 };
 
-/**
- * ✅ Prevent Firebase from initializing multiple times
- * (Important for Next.js hot reload & server/client rendering)
- */
-const app = !getApps().length
-  ? initializeApp(firebaseConfig)
-  : getApp();
+// ✅ Prevent multiple initialization (Next.js safe)
+const app =
+  getApps().length === 0
+    ? initializeApp(firebaseConfig)
+    : getApps()[0];
 
-/**
- * ✅ Export Firebase services
- */
+// ✅ Export Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
