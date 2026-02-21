@@ -19,16 +19,14 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loadingType, setLoadingType] = useState<
     "login" | "register" | "google" | "guest" | null
   >(null);
-
   const [message, setMessage] = useState("");
 
-  // 🔥 Role based redirect
+  // 🔥 AUTO REDIRECT BASED ON ROLE
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && role) {
       if (role === "seller") {
         router.replace("/seller");
       } else if (role === "admin") {
@@ -43,11 +41,9 @@ export default function LoginPage() {
     try {
       setLoadingType("login");
       setMessage("");
-
       await loginWithEmail(email, password);
-
       setMessage("Login Successful ✅");
-    } catch (err) {
+    } catch {
       setMessage("Login Failed ❌");
     } finally {
       setLoadingType(null);
@@ -58,11 +54,9 @@ export default function LoginPage() {
     try {
       setLoadingType("register");
       setMessage("");
-
       await registerWithEmail(email, password);
-
       setMessage("Registration Successful ✅");
-    } catch (err) {
+    } catch {
       setMessage("Registration Failed ❌");
     } finally {
       setLoadingType(null);
@@ -73,11 +67,9 @@ export default function LoginPage() {
     try {
       setLoadingType("google");
       setMessage("");
-
       await loginWithGoogle();
-
       setMessage("Google Login Successful ✅");
-    } catch (err) {
+    } catch {
       setMessage("Google Login Failed ❌");
     } finally {
       setLoadingType(null);
@@ -88,16 +80,22 @@ export default function LoginPage() {
     try {
       setLoadingType("guest");
       setMessage("");
-
       await loginAsGuest();
-
       setMessage("Guest Login Successful ✅");
-    } catch (err) {
+    } catch {
       setMessage("Guest Login Failed ❌");
     } finally {
       setLoadingType(null);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Checking authentication...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
