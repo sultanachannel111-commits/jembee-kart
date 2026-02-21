@@ -23,10 +23,15 @@ export default function LoginPage() {
     try {
       setLoading(true);
       setError("");
+
       await action();
+
       router.push("/");
-    } catch (err) {
-      setError("Authentication failed. Try again.");
+    } catch (err: any) {
+      console.error("AUTH ERROR:", err);
+
+      // ✅ Show real firebase error
+      setError(err.code || err.message);
     } finally {
       setLoading(false);
     }
@@ -39,7 +44,7 @@ export default function LoginPage() {
         <h2 className="text-xl font-bold text-center">Login</h2>
 
         {error && (
-          <div className="text-red-500 text-sm text-center">
+          <div className="text-red-500 text-sm text-center break-words">
             {error}
           </div>
         )}
