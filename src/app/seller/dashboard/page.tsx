@@ -7,7 +7,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function SellerDashboard() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const [orders, setOrders] = useState(0);
@@ -15,18 +15,18 @@ export default function SellerDashboard() {
   const [revenue, setRevenue] = useState(0);
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       router.replace("/login");
-      return;
     }
 
-    fetchSellerData();
-  }, [user]);
+    if (!loading && user) {
+      fetchSellerData();
+    }
+  }, [user, loading]);
 
   const fetchSellerData = async () => {
     if (!user) return;
 
-    // Seller ke products
     const productQuery = query(
       collection(db, "products"),
       where("sellerId", "==", user.uid)
@@ -34,7 +34,6 @@ export default function SellerDashboard() {
 
     const productSnap = await getDocs(productQuery);
 
-    // Seller ke orders
     const orderQuery = query(
       collection(db, "orders"),
       where("sellerId", "==", user.uid)
@@ -54,21 +53,27 @@ export default function SellerDashboard() {
     setRevenue(totalRevenue);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Checking login...
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-
       <h1 className="text-3xl font-bold mb-8">
         Seller Dashboard 🛍
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-
         <Card title="Your Products" value={products} />
         <Card title="Your Orders" value={orders} />
         <Card title="Your Revenue" value={`₹${revenue}`} />
-
       </div>
-
     </div>
   );
 }
