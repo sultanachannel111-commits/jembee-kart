@@ -6,31 +6,38 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface Props {
-  product: Product;
+product: Product;
 }
 
 export default function AddToCartButton({ product }: Props) {
-  const { addToCart } = useCart();
-  const [loading, setLoading] = useState(false);
+const { addToCart } = useCart();
+const [loading, setLoading] = useState(false);
 
-  function handleAdd() {
-    setLoading(true);
+async function handleAdd() {
+try {
+setLoading(true);
 
-    addToCart(product);
+await addToCart({  
+    ...product,  
+    quantity: 1,  
+  });  
 
-    // small delay for better UX
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-  }
+} catch (error) {  
+  console.error("Add to cart error:", error);  
+  alert("Failed to add to cart ❌");  
+} finally {  
+  setLoading(false);  
+}
 
-  return (
-    <Button
-      onClick={handleAdd}
-      className="w-full"
-      disabled={loading}
-    >
-      {loading ? "Adding..." : "Add to Cart"}
-    </Button>
-  );
+}
+
+return (
+<Button  
+onClick={handleAdd}  
+className="w-full"  
+disabled={loading}  
+>
+{loading ? "Adding..." : "Add to Cart"}
+</Button>
+);
 }
