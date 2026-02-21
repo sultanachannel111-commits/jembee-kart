@@ -11,11 +11,7 @@ import {
   User,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import {
-  doc,
-  setDoc,
-  getDoc
-} from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   createContext,
@@ -47,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
       setUser(currentUser);
 
       if (currentUser) {
@@ -55,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (snap.exists()) {
           setRole(snap.data().role);
+        } else {
+          // अगर doc नहीं है तो default role save करो
+          await setDoc(docRef, { role: "customer" });
+          setRole("customer");
         }
+      } else {
+        setRole(null);
       }
 
       setLoading(false);
@@ -64,22 +67,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const saveRole = async (uid: string) => {
-    await setDoc(doc(db, "users", uid), {
-      role: selectedRole,
-    });
-    setRole(selectedRole);
+  const saveRoleIfNewUser = async (uid: string) => {
+    const docRef = doc(db, "users", uid);
+    const snap = await getDoc(docRef);
+
+    if (!snap.exists()) {
+      await setDoc(docRef, { role: selectedRole });
+      setRole(selectedRole);
+    }
   };
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    await saveRole(result.user.uid);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const registerWithEmail = async (email: string, password: string) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    await saveRole(result.user.uid);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const loginWithEmail = async (email: string, password: string) => {
@@ -88,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAsGuest = async () => {
     const result = await signInAnonymously(auth);
-    await saveRole(result.user.uid);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const logout = async () => {
