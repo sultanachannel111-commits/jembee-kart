@@ -10,7 +10,10 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+
 import {
   createContext,
   useContext,
@@ -21,11 +24,11 @@ import {
 
 interface AuthContextType {
   user: User | null;
+  role: string | null;
   loading: boolean;
-  loginWithGoogle: () => Promise<void>;
-  registerWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (role: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string, role: string) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -33,78 +36,76 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 Auto detect logged user
+  // Detect user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setRole(userDoc.data().role);
+        }
+      } else {
+        setRole(null);
+      }
+
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // 🔥 Google Login
-  const loginWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Google login failed:", error);
-      throw error;
-    }
+  // Save user role
+  const saveUserToFirestore = async (user: User, role: string) => {
+    await setDoc(doc(db, "users", user.uid), {
+      email: user.email,
+      role,
+      createdAt: new Date(),
+    });
   };
 
-  // 🔥 Email Register
-  const registerWithEmail = async (email: string, password: string) => {
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error("Register failed:", error);
-      throw error;
-    }
+  const loginWithGoogle = async (role: string) => {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+
+    await saveUserToFirestore(result.user, role);
   };
 
-  // 🔥 Email Login
+  const registerWithEmail = async (
+    email: string,
+    password: string,
+    role: string
+  ) => {
+    const result = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    await saveUserToFirestore(result.user, role);
+  };
+
   const loginWithEmail = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
-  // 🔥 Guest Login
-  const loginAsGuest = async () => {
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error("Guest login failed:", error);
-      throw error;
-    }
-  };
-
-  // 🔥 Logout
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout failed:", error);
-      throw error;
-    }
+    await signOut(auth);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        role,
         loading,
         loginWithGoogle,
         registerWithEmail,
         loginWithEmail,
-        loginAsGuest,
         logout,
       }}
     >
@@ -113,11 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// 🔥 Custom Hook
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be inside AuthProvider");
   return context;
 }
