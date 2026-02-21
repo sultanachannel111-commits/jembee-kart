@@ -28,9 +28,9 @@ export default function LoginPage() {
     try {
       setLoadingType(type);
       await action();
-      router.replace("/");
+      router.push("/");
     } catch (err) {
-      console.log(err); // silent error
+      console.log(err); // no alert shown
     } finally {
       setLoadingType(null);
     }
