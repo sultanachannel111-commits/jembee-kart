@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 
-export default function AddProduct() {
+export default function SellerAddProduct() {
   const [form, setForm] = useState({
     name: "",
     sku: "",
@@ -20,7 +24,8 @@ export default function AddProduct() {
   };
 
   const profit =
-    Number(form.sellingPrice || 0) - Number(form.costPrice || 0);
+    Number(form.sellingPrice || 0) -
+    Number(form.costPrice || 0);
 
   const handleSubmit = async () => {
     if (!form.name || !form.sku || !form.sellingPrice) {
@@ -30,15 +35,23 @@ export default function AddProduct() {
 
     try {
       await addDoc(collection(db, "products"), {
-        ...form,
+        name: form.name,
+        sku: form.sku,
+        printTypeId: Number(form.printTypeId),
+        designLink: form.designLink,
+        mockupLink: form.mockupLink,
         costPrice: Number(form.costPrice),
         sellingPrice: Number(form.sellingPrice),
         profit: profit,
-        isActive: true,
+
+        // 🔥 Qikink Ready Fields
+        status: "pending",       // Admin approval required
+        isActive: false,         // Not live until approved
+        source: "seller",        // Track who added
         createdAt: serverTimestamp(),
       });
 
-      alert("✅ Product Added Successfully");
+      alert("✅ Product Submitted for Admin Approval");
 
       setForm({
         name: "",
@@ -49,6 +62,7 @@ export default function AddProduct() {
         costPrice: "",
         sellingPrice: "",
       });
+
     } catch (error) {
       console.error(error);
       alert("❌ Error adding product");
@@ -57,7 +71,6 @@ export default function AddProduct() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-
       <div className="max-w-xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
 
         <h1 className="text-2xl font-bold mb-6 text-black">
@@ -76,7 +89,7 @@ export default function AddProduct() {
 
           <input
             name="sku"
-            placeholder="Qikink SKU"
+            placeholder="Qikink SKU (Example: MVnHs-Wh-S)"
             value={form.sku}
             onChange={handleChange}
             className="w-full border px-4 py-2 rounded-lg"
@@ -87,6 +100,7 @@ export default function AddProduct() {
             placeholder="Print Type ID (Example: 1)"
             value={form.printTypeId}
             onChange={handleChange}
+            type="number"
             className="w-full border px-4 py-2 rounded-lg"
           />
 
@@ -108,7 +122,7 @@ export default function AddProduct() {
 
           <input
             name="costPrice"
-            placeholder="Cost Price (Qikink)"
+            placeholder="Qikink Cost Price"
             value={form.costPrice}
             onChange={handleChange}
             type="number"
@@ -117,7 +131,7 @@ export default function AddProduct() {
 
           <input
             name="sellingPrice"
-            placeholder="Selling Price"
+            placeholder="Your Selling Price"
             value={form.sellingPrice}
             onChange={handleChange}
             type="number"
@@ -134,7 +148,7 @@ export default function AddProduct() {
             onClick={handleSubmit}
             className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition-all duration-300"
           >
-            Add Product
+            Submit Product
           </button>
 
         </div>
