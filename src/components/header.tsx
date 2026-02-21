@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function Header() {
   const [showLogin, setShowLogin] = useState(false);
   const [clicked, setClicked] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   const handleLoginClick = () => {
     setClicked(true);
@@ -16,6 +20,29 @@ export default function Header() {
       setShowLogin(true);
     }, 200);
   };
+
+  /* 🔥 Firestore Cart Sync */
+  useEffect(() => {
+    const auth = getAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setCartCount(0);
+        return;
+      }
+
+      const snap = await getDoc(doc(db, "cart", user.uid));
+
+      if (snap.exists()) {
+        const items = snap.data().products || [];
+        setCartCount(items.length);
+      } else {
+        setCartCount(0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <>
@@ -46,10 +73,18 @@ export default function Header() {
             {/* Cart Icon */}
             <Link
               href="/cart"
-              className="p-2 rounded-full hover:bg-gray-100 transition"
+              className="relative p-2 rounded-full hover:bg-gray-100 transition"
             >
               <ShoppingCart className="w-6 h-6 text-gray-700" />
+
+              {/* 🔥 Cart Badge */}
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {cartCount}
+                </span>
+              )}
             </Link>
+
           </div>
         </div>
       </header>
