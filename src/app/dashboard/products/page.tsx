@@ -1,140 +1,143 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
+import { useState } from "react";
 import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
+export default function AddProduct() {
+  const [form, setForm] = useState({
+    name: "",
+    sku: "",
+    printTypeId: "",
+    designLink: "",
+    mockupLink: "",
+    costPrice: "",
+    sellingPrice: "",
+  });
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    const snap = await getDocs(collection(db, "products"));
-    const list = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    setProducts(list);
+  const handleChange = (e: any) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const addProduct = async () => {
-    if (!name || !price) return;
+  const profit =
+    Number(form.sellingPrice || 0) - Number(form.costPrice || 0);
 
-    await addDoc(collection(db, "products"), {
-      name,
-      price: Number(price),
-      stock: Number(stock),
-      createdAt: new Date(),
-    });
+  const handleSubmit = async () => {
+    if (!form.name || !form.sku || !form.sellingPrice) {
+      alert("Required fields missing");
+      return;
+    }
 
-    setName("");
-    setPrice("");
-    setStock("");
-    fetchProducts();
-  };
+    try {
+      await addDoc(collection(db, "products"), {
+        ...form,
+        costPrice: Number(form.costPrice),
+        sellingPrice: Number(form.sellingPrice),
+        profit: profit,
+        isActive: true,
+        createdAt: serverTimestamp(),
+      });
 
-  const deleteProduct = async (id: string) => {
-    await deleteDoc(doc(db, "products", id));
-    fetchProducts();
-  };
+      alert("✅ Product Added Successfully");
 
-  const toggleStock = async (id: string, currentStock: number) => {
-    await updateDoc(doc(db, "products", id), {
-      stock: currentStock > 0 ? 0 : 10,
-    });
-    fetchProducts();
+      setForm({
+        name: "",
+        sku: "",
+        printTypeId: "",
+        designLink: "",
+        mockupLink: "",
+        costPrice: "",
+        sellingPrice: "",
+      });
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error adding product");
+    }
   };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Products Management 👕</h1>
+    <div className="min-h-screen bg-gray-100 p-6">
 
-      {/* Add Product Form */}
-      <div className="bg-white p-6 rounded-xl shadow mb-8">
-        <div className="flex flex-wrap gap-4">
+      <div className="max-w-xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
+
+        <h1 className="text-2xl font-bold mb-6 text-black">
+          Add Qikink Product
+        </h1>
+
+        <div className="space-y-4">
+
           <input
+            name="name"
             placeholder="Product Name"
-            className="border p-2 rounded"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={form.name}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
           />
+
           <input
-            placeholder="Price"
-            type="number"
-            className="border p-2 rounded"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            name="sku"
+            placeholder="Qikink SKU"
+            value={form.sku}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
           />
+
           <input
-            placeholder="Stock"
-            type="number"
-            className="border p-2 rounded"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
+            name="printTypeId"
+            placeholder="Print Type ID (Example: 1)"
+            value={form.printTypeId}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
           />
+
+          <input
+            name="designLink"
+            placeholder="Design Image URL"
+            value={form.designLink}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="mockupLink"
+            placeholder="Mockup Image URL"
+            value={form.mockupLink}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="costPrice"
+            placeholder="Cost Price (Qikink)"
+            value={form.costPrice}
+            onChange={handleChange}
+            type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="sellingPrice"
+            placeholder="Selling Price"
+            value={form.sellingPrice}
+            onChange={handleChange}
+            type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <div className="bg-pink-100 p-3 rounded-lg">
+            <p className="font-semibold text-black">
+              Profit: ₹ {profit}
+            </p>
+          </div>
+
           <button
-            onClick={addProduct}
-            className="bg-black text-white px-4 py-2 rounded"
+            onClick={handleSubmit}
+            className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition-all duration-300"
           >
             Add Product
           </button>
+
         </div>
-      </div>
-
-      {/* Product List */}
-      <div className="space-y-4">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
-          >
-            <div>
-              <p className="font-bold">{product.name}</p>
-              <p>₹{product.price}</p>
-              <p>
-                Stock:{" "}
-                <span
-                  className={
-                    product.stock > 0 ? "text-green-600" : "text-red-600"
-                  }
-                >
-                  {product.stock}
-                </span>
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() =>
-                  toggleStock(product.id, product.stock)
-                }
-                className="bg-yellow-500 text-white px-3 py-1 rounded"
-              >
-                Toggle Stock
-              </button>
-
-              <button
-                onClick={() => deleteProduct(product.id)}
-                className="bg-red-600 text-white px-3 py-1 rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
