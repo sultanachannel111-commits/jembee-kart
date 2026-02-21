@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const {
+    user,
+    role,
+    loading,
     loginWithGoogle,
     registerWithEmail,
     loginWithEmail,
@@ -23,6 +26,19 @@ export default function LoginPage() {
 
   const [message, setMessage] = useState("");
 
+  // 🔥 Role based redirect
+  useEffect(() => {
+    if (!loading && user) {
+      if (role === "seller") {
+        router.replace("/seller");
+      } else if (role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/");
+      }
+    }
+  }, [user, role, loading, router]);
+
   const handleLogin = async () => {
     try {
       setLoadingType("login");
@@ -31,12 +47,7 @@ export default function LoginPage() {
       await loginWithEmail(email, password);
 
       setMessage("Login Successful ✅");
-
-      setTimeout(() => {
-        router.replace("/");
-      }, 800);
-    } catch (err: any) {
-      console.log(err);
+    } catch (err) {
       setMessage("Login Failed ❌");
     } finally {
       setLoadingType(null);
@@ -51,12 +62,7 @@ export default function LoginPage() {
       await registerWithEmail(email, password);
 
       setMessage("Registration Successful ✅");
-
-      setTimeout(() => {
-        router.replace("/");
-      }, 800);
-    } catch (err: any) {
-      console.log(err);
+    } catch (err) {
       setMessage("Registration Failed ❌");
     } finally {
       setLoadingType(null);
@@ -71,10 +77,6 @@ export default function LoginPage() {
       await loginWithGoogle();
 
       setMessage("Google Login Successful ✅");
-
-      setTimeout(() => {
-        router.replace("/");
-      }, 800);
     } catch (err) {
       setMessage("Google Login Failed ❌");
     } finally {
@@ -90,10 +92,6 @@ export default function LoginPage() {
       await loginAsGuest();
 
       setMessage("Guest Login Successful ✅");
-
-      setTimeout(() => {
-        router.replace("/");
-      }, 800);
     } catch (err) {
       setMessage("Guest Login Failed ❌");
     } finally {
