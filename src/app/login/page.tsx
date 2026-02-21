@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const {
-    user,
     loginWithGoogle,
     registerWithEmail,
     loginWithEmail,
@@ -22,41 +21,81 @@ export default function LoginPage() {
     "login" | "register" | "google" | "guest" | null
   >(null);
 
-  const [message, setMessage] = useState<{
-    type: "success" | "error" | null;
-    text: string;
-  }>({ type: null, text: "" });
+  const [message, setMessage] = useState("");
 
-  // ✅ Redirect after success
-  useEffect(() => {
-    if (user) {
-      setMessage({
-        type: "success",
-        text: "Authentication Successful ✅",
-      });
+  const handleLogin = async () => {
+    try {
+      setLoadingType("login");
+      setMessage("");
+
+      await loginWithEmail(email, password);
+
+      setMessage("Login Successful ✅");
 
       setTimeout(() => {
         router.replace("/");
-      }, 1000);
-    }
-  }, [user, router]);
-
-  const handleAction = async (
-    type: "login" | "register" | "google" | "guest",
-    action: () => Promise<void>
-  ) => {
-    try {
-      setLoadingType(type);
-      setMessage({ type: null, text: "" });
-
-      await action();
-    } catch (err) {
+      }, 800);
+    } catch (err: any) {
       console.log(err);
+      setMessage("Login Failed ❌");
+    } finally {
+      setLoadingType(null);
+    }
+  };
 
-      setMessage({
-        type: "error",
-        text: "Authentication Failed ❌",
-      });
+  const handleRegister = async () => {
+    try {
+      setLoadingType("register");
+      setMessage("");
+
+      await registerWithEmail(email, password);
+
+      setMessage("Registration Successful ✅");
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 800);
+    } catch (err: any) {
+      console.log(err);
+      setMessage("Registration Failed ❌");
+    } finally {
+      setLoadingType(null);
+    }
+  };
+
+  const handleGoogle = async () => {
+    try {
+      setLoadingType("google");
+      setMessage("");
+
+      await loginWithGoogle();
+
+      setMessage("Google Login Successful ✅");
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 800);
+    } catch (err) {
+      setMessage("Google Login Failed ❌");
+    } finally {
+      setLoadingType(null);
+    }
+  };
+
+  const handleGuest = async () => {
+    try {
+      setLoadingType("guest");
+      setMessage("");
+
+      await loginAsGuest();
+
+      setMessage("Guest Login Successful ✅");
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 800);
+    } catch (err) {
+      setMessage("Guest Login Failed ❌");
     } finally {
       setLoadingType(null);
     }
@@ -68,15 +107,9 @@ export default function LoginPage() {
 
         <h2 className="text-xl font-bold text-center">Login</h2>
 
-        {message.type && (
-          <div
-            className={`text-center text-sm font-medium ${
-              message.type === "success"
-                ? "text-green-600"
-                : "text-red-600"
-            }`}
-          >
-            {message.text}
+        {message && (
+          <div className="text-center text-sm font-medium">
+            {message}
           </div>
         )}
 
@@ -97,11 +130,7 @@ export default function LoginPage() {
         />
 
         <button
-          onClick={() =>
-            handleAction("login", () =>
-              loginWithEmail(email, password)
-            )
-          }
+          onClick={handleLogin}
           disabled={loadingType !== null}
           className="w-full bg-black text-white py-2 rounded"
         >
@@ -109,11 +138,7 @@ export default function LoginPage() {
         </button>
 
         <button
-          onClick={() =>
-            handleAction("register", () =>
-              registerWithEmail(email, password)
-            )
-          }
+          onClick={handleRegister}
           disabled={loadingType !== null}
           className="w-full bg-gray-700 text-white py-2 rounded"
         >
@@ -121,9 +146,7 @@ export default function LoginPage() {
         </button>
 
         <button
-          onClick={() =>
-            handleAction("google", loginWithGoogle)
-          }
+          onClick={handleGoogle}
           disabled={loadingType !== null}
           className="w-full bg-red-500 text-white py-2 rounded"
         >
@@ -133,9 +156,7 @@ export default function LoginPage() {
         </button>
 
         <button
-          onClick={() =>
-            handleAction("guest", loginAsGuest)
-          }
+          onClick={handleGuest}
           disabled={loadingType !== null}
           className="w-full bg-green-500 text-white py-2 rounded"
         >
