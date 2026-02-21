@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -10,6 +10,7 @@ import {
   Users,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -18,7 +19,25 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+
+  // 🔐 Admin Protection
+  useEffect(() => {
+    const isLogged = localStorage.getItem("adminLoggedIn");
+
+    if (isLogged !== "true") {
+      router.replace("/admin/login");
+    } else {
+      setAuthorized(true);
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("adminLoggedIn");
+    router.push("/admin/login");
+  };
 
   const navItem = (
     href: string,
@@ -34,7 +53,7 @@ export default function AdminLayout({
         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300
         ${
           active
-            ? "bg-brand-pink text-white"
+            ? "bg-pink-600 text-white"
             : "text-gray-300 hover:bg-pink-500 hover:text-white"
         }`}
       >
@@ -44,12 +63,14 @@ export default function AdminLayout({
     );
   };
 
+  if (!authorized) return null;
+
   return (
     <div className="flex min-h-screen bg-gray-100">
 
       {/* Mobile Top Bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-black text-white flex justify-between items-center p-4 z-50">
-        <h2 className="font-bold text-brand-pink">
+        <h2 className="font-bold text-pink-500">
           Jembee Admin
         </h2>
         <button onClick={() => setOpen(!open)}>
@@ -64,7 +85,7 @@ export default function AdminLayout({
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <h2 className="text-2xl font-bold text-brand-pink hidden md:block">
+        <h2 className="text-2xl font-bold text-pink-500 hidden md:block">
           Jembee Admin
         </h2>
 
@@ -74,10 +95,19 @@ export default function AdminLayout({
           {navItem("/admin/orders", "Orders", ShoppingCart)}
           {navItem("/admin/users", "Users", Users)}
         </nav>
+
+        {/* Logout */}
+        <button
+          onClick={logout}
+          className="mt-10 flex items-center gap-2 text-red-400 hover:text-red-600 transition"
+        >
+          <LogOut size={18} />
+          Logout
+        </button>
       </aside>
 
       {/* Content */}
-      <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0 animate-fadeIn">
+      <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0">
         {children}
       </main>
     </div>
