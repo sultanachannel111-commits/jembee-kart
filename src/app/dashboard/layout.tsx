@@ -1,27 +1,42 @@
+"use client";
+
+import Link from "next/link";
+import { useAuth } from "@/providers/auth-provider";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [user]);
+
   return (
-    <div className="min-h-screen flex bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100">
+
       {/* Sidebar */}
-      <aside className="w-64 bg-black text-white p-6 space-y-4">
-        <h2 className="text-xl font-bold mb-6">Admin Panel</h2>
+      <div className="w-64 bg-black text-white p-6 space-y-6">
+        <h2 className="text-xl font-bold">Jembee Admin 👑</h2>
 
-        <a href="/dashboard" className="block hover:text-green-400">
-          Dashboard
-        </a>
+        <Link href="/dashboard">Dashboard</Link>
+        <Link href="/dashboard/orders">Orders</Link>
+        <Link href="/dashboard/products">Products</Link>
+        <Link href="/dashboard/users">Users</Link>
+      </div>
 
-        <a href="/dashboard/orders" className="block hover:text-green-400">
-          Orders
-        </a>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-8">
+      {/* Content */}
+      <div className="flex-1 p-8">
         {children}
-      </main>
+      </div>
+
     </div>
   );
 }
