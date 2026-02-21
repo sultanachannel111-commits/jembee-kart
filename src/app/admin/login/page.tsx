@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function AdminLogin() {
@@ -9,28 +9,42 @@ export default function AdminLogin() {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // 🔒 Hardcoded Credentials
+  // 🔒 Hardcoded Credentials (Demo Mode)
   const ADMIN_USER = "sadiyabashar7910";
   const ADMIN_PASS = "Pintu@7910";
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (userId === ADMIN_USER && password === ADMIN_PASS) {
-      localStorage.setItem("adminLoggedIn", "true");
-      router.push("/admin/dashboard");
-    } else {
-      setError("Invalid User ID or Password");
+  // 🔁 Auto Redirect if already logged in
+  useEffect(() => {
+    const isLogged = localStorage.getItem("adminLoggedIn");
+    if (isLogged === "true") {
+      router.replace("/admin");
     }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    // Fake delay for better UX
+    setTimeout(() => {
+      if (userId === ADMIN_USER && password === ADMIN_PASS) {
+        localStorage.setItem("adminLoggedIn", "true");
+        router.push("/admin"); // ✅ Correct route
+      } else {
+        setError("Invalid User ID or Password");
+      }
+      setLoading(false);
+    }, 700);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-400 via-orange-300 to-pink-400 p-4">
-      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
+      <div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md">
 
-        {/* Title */}
-        <h2 className="text-3xl font-bold text-center mb-2 text-gray-800">
+        <h2 className="text-3xl font-bold text-center mb-2 text-black">
           Admin Login
         </h2>
 
@@ -38,10 +52,8 @@ export default function AdminLogin() {
           Welcome to JEMBEE KART Dashboard
         </p>
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
 
-          {/* User ID */}
           <div>
             <label className="block text-sm font-medium mb-1">
               User ID
@@ -51,12 +63,11 @@ export default function AdminLogin() {
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               placeholder="Enter User ID"
-              className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-yellow-400 outline-none transition"
+              className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-pink-500 outline-none transition"
               required
             />
           </div>
 
-          {/* Password */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Password
@@ -66,28 +77,26 @@ export default function AdminLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter Password"
-              className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-yellow-400 outline-none transition"
+              className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-pink-500 outline-none transition"
               required
             />
           </div>
 
-          {/* Error */}
           {error && (
             <p className="text-red-500 text-sm text-center">
               {error}
             </p>
           )}
 
-          {/* Button */}
           <button
             type="submit"
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-semibold shadow-lg transition duration-300"
+            disabled={loading}
+            className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-semibold shadow-lg transition duration-300"
           >
-            Login
+            {loading ? "Please wait..." : "Login"}
           </button>
         </form>
 
-        {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-6">
           © 2026 JEMBEE KART | Secure Admin Panel
         </p>
