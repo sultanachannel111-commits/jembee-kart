@@ -1,150 +1,144 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { useState } from "react";
 import { db } from "@/lib/firebase";
-import { Trash2 } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-interface Product {
-  id: string;
-  name: string;
-  sellingPrice: number;
-}
+export default function AddProduct() {
+  const [form, setForm] = useState({
+    name: "",
+    sku: "",
+    printTypeId: "",
+    designLink: "",
+    mockupLink: "",
+    costPrice: "",
+    sellingPrice: "",
+  });
 
-export default function AdminProductsPage() {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const fetchProducts = async () => {
-    const snap = await getDocs(collection(db, "products"));
-    const list: Product[] = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    }));
-    setProducts(list);
+  const handleChange = (e: any) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const profit =
+    Number(form.sellingPrice || 0) - Number(form.costPrice || 0);
 
-  const handleAdd = async () => {
-    if (!name || !price) {
-      alert("Name aur Price required hai");
+  const handleSubmit = async () => {
+    if (!form.name || !form.sku || !form.sellingPrice) {
+      alert("Required fields missing");
       return;
     }
 
-    setLoading(true);
-
     try {
       await addDoc(collection(db, "products"), {
-        name,
-        sellingPrice: Number(price),
+        ...form,
+        costPrice: Number(form.costPrice),
+        sellingPrice: Number(form.sellingPrice),
+        profit: profit,
+        isActive: true,
         createdAt: serverTimestamp(),
       });
 
-      setName("");
-      setPrice("");
-      await fetchProducts();
+      alert("✅ Product Added Successfully");
+
+      setForm({
+        name: "",
+        sku: "",
+        printTypeId: "",
+        designLink: "",
+        mockupLink: "",
+        costPrice: "",
+        sellingPrice: "",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error adding product");
+      alert("❌ Error adding product");
     }
-
-    setLoading(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("Delete karna hai?");
-    if (!confirmDelete) return;
-
-    await deleteDoc(doc(db, "products", id));
-    fetchProducts();
   };
 
   return (
-    <div className="animate-fadeIn">
+    <div className="min-h-screen bg-gray-100 p-6">
 
-      <h1 className="text-3xl font-bold mb-6 text-brand-pink">
-        Manage Products
-      </h1>
+      <div className="max-w-xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
 
-      {/* Add Product Form */}
-      <div className="bg-white p-6 rounded-xl shadow mb-8">
-        <div className="grid md:grid-cols-3 gap-4">
+        <h1 className="text-2xl font-bold mb-6 text-black">
+          Add Qikink Product
+        </h1>
+
+        <div className="space-y-4">
+
           <input
-            type="text"
+            name="name"
             placeholder="Product Name"
-            className="border p-2 rounded"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={form.name}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
           />
 
           <input
-            type="number"
-            placeholder="Selling Price"
-            className="border p-2 rounded"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            name="sku"
+            placeholder="Qikink SKU"
+            value={form.sku}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
           />
+
+          <input
+            name="printTypeId"
+            placeholder="Print Type ID (Example: 1)"
+            value={form.printTypeId}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="designLink"
+            placeholder="Design Image URL"
+            value={form.designLink}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="mockupLink"
+            placeholder="Mockup Image URL"
+            value={form.mockupLink}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="costPrice"
+            placeholder="Cost Price (Qikink)"
+            value={form.costPrice}
+            onChange={handleChange}
+            type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <input
+            name="sellingPrice"
+            placeholder="Selling Price"
+            value={form.sellingPrice}
+            onChange={handleChange}
+            type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          <div className="bg-pink-100 p-3 rounded-lg">
+            <p className="font-semibold text-black">
+              Profit: ₹ {profit}
+            </p>
+          </div>
 
           <button
-            onClick={handleAdd}
-            disabled={loading}
-            className="bg-brand-pink text-white rounded px-4 py-2 hover:opacity-90 transition"
+            onClick={handleSubmit}
+            className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition-all duration-300"
           >
-            {loading ? "Adding..." : "Add Product"}
+            Add Product
           </button>
+
         </div>
       </div>
-
-      {/* Product List */}
-      <div className="bg-white rounded-xl shadow">
-        <table className="w-full">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">Price</th>
-              <th className="p-3">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {products.map((product) => (
-              <tr key={product.id} className="border-t">
-                <td className="p-3">{product.name}</td>
-                <td className="p-3">₹ {product.sellingPrice}</td>
-                <td className="p-3">
-                  <button
-                    onClick={() => handleDelete(product.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {products.length === 0 && (
-              <tr>
-                <td colSpan={3} className="text-center p-6 text-gray-500">
-                  No products found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
     </div>
   );
 }
