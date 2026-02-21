@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const {
+    user,
     loginWithGoogle,
     registerWithEmail,
     loginWithEmail,
@@ -21,16 +22,41 @@ export default function LoginPage() {
     "login" | "register" | "google" | "guest" | null
   >(null);
 
+  const [message, setMessage] = useState<{
+    type: "success" | "error" | null;
+    text: string;
+  }>({ type: null, text: "" });
+
+  // ✅ Redirect after success
+  useEffect(() => {
+    if (user) {
+      setMessage({
+        type: "success",
+        text: "Authentication Successful ✅",
+      });
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 1000);
+    }
+  }, [user, router]);
+
   const handleAction = async (
     type: "login" | "register" | "google" | "guest",
     action: () => Promise<void>
   ) => {
     try {
       setLoadingType(type);
+      setMessage({ type: null, text: "" });
+
       await action();
-      router.push("/");
     } catch (err) {
-      console.log(err); // no alert shown
+      console.log(err);
+
+      setMessage({
+        type: "error",
+        text: "Authentication Failed ❌",
+      });
     } finally {
       setLoadingType(null);
     }
@@ -41,6 +67,18 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded-xl shadow-md w-80 space-y-4">
 
         <h2 className="text-xl font-bold text-center">Login</h2>
+
+        {message.type && (
+          <div
+            className={`text-center text-sm font-medium ${
+              message.type === "success"
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
 
         <input
           type="email"
@@ -89,7 +127,9 @@ export default function LoginPage() {
           disabled={loadingType !== null}
           className="w-full bg-red-500 text-white py-2 rounded"
         >
-          {loadingType === "google" ? "Please wait..." : "Login with Google"}
+          {loadingType === "google"
+            ? "Please wait..."
+            : "Login with Google"}
         </button>
 
         <button
@@ -99,7 +139,9 @@ export default function LoginPage() {
           disabled={loadingType !== null}
           className="w-full bg-green-500 text-white py-2 rounded"
         >
-          {loadingType === "guest" ? "Please wait..." : "Continue as Guest"}
+          {loadingType === "guest"
+            ? "Please wait..."
+            : "Continue as Guest"}
         </button>
 
       </div>
