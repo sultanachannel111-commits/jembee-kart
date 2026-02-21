@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
 import RatingStars from "@/components/RatingStars";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "@/providers/cart-provider";
 
 export default function HomePage() {
-  const { addToCart, cartCount } = useCart();
+  const { addToCart, items } = useCart();
+  const cartCount = items.length;
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const sliderData = [
@@ -41,7 +41,7 @@ export default function HomePage() {
   const normalize = (text: string) =>
     text.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
-  // ✅ Firestore se products fetch
+  /* 🔥 FETCH PRODUCTS */
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -70,8 +70,7 @@ export default function HomePage() {
           },
           ...uniqueCategories.map((cat: string) => ({
             name: cat,
-            image:
-              "https://source.unsplash.com/100x100/?" + cat,
+            image: "https://source.unsplash.com/100x100/?" + cat,
           })),
         ]);
 
@@ -85,7 +84,7 @@ export default function HomePage() {
     fetchProducts();
   }, []);
 
-  // 🔁 Auto Slider
+  /* 🔁 AUTO SLIDER */
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) =>
