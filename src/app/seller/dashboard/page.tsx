@@ -5,29 +5,33 @@ import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 
 export default function SellerDashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
+    if (!loading) {
+      if (!user) {
+        router.replace("/login");
+      } else if (role !== "seller") {
+        router.replace("/");
+      }
     }
-  }, [user, loading]);
+  }, [user, loading, role, router]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Checking login...
+        Checking seller access...
       </div>
     );
   }
 
-  if (!user) return null;
+  if (!user || role !== "seller") return null;
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <h1 className="text-3xl font-bold">
-        Seller Dashboard 🛍
+        Seller Dashboard ✅
       </h1>
     </div>
   );
