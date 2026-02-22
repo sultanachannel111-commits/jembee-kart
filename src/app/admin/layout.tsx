@@ -24,8 +24,14 @@ export default function AdminLayout({
   const [authorized, setAuthorized] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // 🔐 Admin Protection (No Blank Screen)
+  // 🚨 IMPORTANT: Allow login page without protection
   useEffect(() => {
+    if (pathname === "/admin/login") {
+      setAuthorized(true);
+      setChecking(false);
+      return;
+    }
+
     const isLogged = localStorage.getItem("adminLoggedIn");
 
     if (isLogged === "true") {
@@ -35,7 +41,7 @@ export default function AdminLayout({
     }
 
     setChecking(false);
-  }, [router]);
+  }, [pathname, router]);
 
   const logout = () => {
     localStorage.removeItem("adminLoggedIn");
@@ -62,65 +68,43 @@ export default function AdminLayout({
     );
   };
 
-  // 🛑 Prevent Blank Screen
   if (checking) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Checking Admin Access...
-      </div>
-    );
+    return <div className="p-10">Loading...</div>;
   }
 
   if (!authorized) {
     return null;
   }
 
+  // ❌ DO NOT show sidebar on login page
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-100">
-
-      {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-black text-white flex justify-between items-center p-4 z-50">
-        <h2 className="font-bold text-pink-500">
-          Jembee Admin
-        </h2>
-        <button onClick={() => setOpen(!open)}>
-          {open ? <X /> : <Menu />}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed md:static top-0 left-0 h-full w-64 bg-black text-white p-6 space-y-4 transform transition-transform duration-300 z-40
-        ${
-          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        <h2 className="text-2xl font-bold text-pink-500 hidden md:block">
+      <aside className="w-64 bg-black text-white p-6 space-y-4">
+        <h2 className="text-2xl font-bold text-pink-500">
           Jembee Admin
         </h2>
 
-        <nav className="space-y-2 mt-8 md:mt-4">
+        <nav className="space-y-2 mt-6">
           {navItem("/admin", "Dashboard", LayoutDashboard)}
           {navItem("/admin/products", "Products", Package)}
           {navItem("/admin/orders", "Orders", ShoppingCart)}
           {navItem("/admin/users", "Users", Users)}
-          {navItem("/admin/categories", "Categories", Package)}
-          {navItem("/admin/banners", "Banners", Package)}
-          {navItem("/admin/festival", "Festival", Package)}
         </nav>
 
-        {/* Logout */}
         <button
           onClick={logout}
-          className="mt-10 flex items-center gap-2 text-red-400 hover:text-red-600 transition"
+          className="mt-10 flex items-center gap-2 text-red-400"
         >
           <LogOut size={18} />
           Logout
         </button>
       </aside>
 
-      {/* Content */}
-      <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0">
+      <main className="flex-1 p-6">
         {children}
       </main>
     </div>
