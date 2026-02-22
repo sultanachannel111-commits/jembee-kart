@@ -14,7 +14,7 @@ export default function CheckoutButton({ product }: any) {
       const response = await fetch("/api/orders/create", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           product: {
@@ -25,7 +25,7 @@ export default function CheckoutButton({ product }: any) {
             costPrice: product.costPrice,
             sellingPrice: product.sellingPrice,
             designLink: product.designLink,
-            mockupLink: product.mockupLink
+            mockupLink: product.mockupLink,
           },
           customer: {
             firstName: "Ali",
@@ -35,11 +35,11 @@ export default function CheckoutButton({ product }: any) {
             email: "test@example.com",
             city: "Jamshedpur",
             pincode: "832110",
-            state: "Jharkhand"
+            state: "Jharkhand",
           },
           quantity: 1,
-          paymentMethod: "COD"
-        })
+          paymentMethod: "COD",
+        }),
       });
 
       const data = await response.json();
@@ -47,13 +47,12 @@ export default function CheckoutButton({ product }: any) {
       if (data.success) {
         setMessage("✅ Order Placed Successfully!");
       } else {
-        setMessage("❌ Order Failed");
-        console.log(data);
+        // 🔥 FULL ERROR SHOW
+        setMessage("❌ " + JSON.stringify(data, null, 2));
       }
 
-    } catch (error) {
-      console.error(error);
-      setMessage("❌ Server Error");
+    } catch (error: any) {
+      setMessage("❌ Server Error: " + error?.message);
     }
 
     setLoading(false);
@@ -70,9 +69,9 @@ export default function CheckoutButton({ product }: any) {
       </button>
 
       {message && (
-        <p className="mt-3 text-sm font-semibold text-center">
+        <pre className="mt-4 text-sm bg-gray-100 p-3 rounded overflow-auto">
           {message}
-        </p>
+        </pre>
       )}
     </div>
   );
