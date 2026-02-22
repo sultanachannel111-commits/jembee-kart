@@ -61,9 +61,10 @@ export default function SellerLayout({
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar FIXED */}
       <div
-        className={`fixed md:static z-50 top-0 left-0 h-full w-64 
+        className={`fixed md:static z-50 top-0 left-0 
+        min-h-screen overflow-y-auto w-64 
         bg-black text-white p-5 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0`}
@@ -90,8 +91,8 @@ export default function SellerLayout({
         </nav>
       </div>
 
-      {/* Main Area */}
-      <div className="flex-1 min-h-screen">
+      {/* Main Area FIXED */}
+      <div className="flex-1 min-h-screen overflow-y-auto">
 
         {/* Top Bar */}
         <div className="bg-white shadow p-4 flex items-center justify-between md:hidden">
