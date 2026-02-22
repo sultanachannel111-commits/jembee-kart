@@ -13,35 +13,6 @@ export default function TestOrderPage() {
     try {
       const response = await fetch("/api/qikink/create-order", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          product: {
-            id: "test123",
-            sku: "MVnHs-Wh-S",
-            printTypeId: 1,
-            costPrice: 1,
-            sellingPrice: 10,
-            designLink:
-              "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
-            mockupLink:
-              "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
-            sellerId: "admin",
-          },
-          customer: {
-            firstName: "Ali",
-            lastName: "Test",
-            address: "Test Street 123",
-            phone: "9999999999",
-            email: "test@example.com",
-            city: "Jamshedpur",
-            pincode: "832110",
-            state: "Jharkhand",
-          },
-          quantity: 1,
-          paymentMethod: "COD",
-        }),
       });
 
       const data = await response.json();
@@ -49,8 +20,7 @@ export default function TestOrderPage() {
       if (data.success) {
         setMessage("✅ Order Created Successfully!");
       } else {
-        setMessage("❌ Order Failed");
-        console.log(data);
+        setMessage("❌ " + JSON.stringify(data));
       }
 
     } catch (error) {
@@ -86,4 +56,3 @@ export default function TestOrderPage() {
     </div>
   );
 }
- 
