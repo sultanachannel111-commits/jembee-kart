@@ -3,61 +3,125 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { product, customer, quantity, paymentMethod } = body;
+    const { product } = body;
 
-    const profit =
-      Number(product.sellingPrice) - Number(product.costPrice);
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
-    // STEP 1: Call Qikink API
-    const qikinkRes = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/qikink/create-order`,
-      {
-        method: "POST"
-      }
-    );
-
-    const qikinkData = await qikinkRes.json();
-
-    if (!qikinkData.success) {
+    if (!clientId || !clientSecret) {
       return NextResponse.json({
         success: false,
-        error: "Qikink order failed",
-        qikinkData
+        error: "Missing Qikink ENV variables"
       });
     }
 
-    // STEP 2: Save order in Firestore via internal API
-    const saveRes = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/order-status`,
+    // TOKEN
+    const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        ClientId: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+
+    const tokenText = await tokenRes.text();
+
+    if (!tokenRes.ok) {
+      return NextResponse.json({
+        success: false,
+        error: "Token API failed",
+        raw: tokenText
+      });
+    }
+
+    const tokenData = JSON.parse(tokenText);
+
+    if (!tokenData.Accesstoken) {
+      return NextResponse.json({
+        success: false,
+        error: "Access token missing",
+        tokenData
+      });
+    }
+
+    const accessToken = tokenData.Accesstoken;
+
+    const orderNumber =
+      "JB" + Date.now().toString().slice(-8);
+
+    const orderRes = await fetch(
+      "https://sandbox.qikink.com/api/order/create",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ClientId: clientId,
+          Accesstoken: accessToken,
+        },
         body: JSON.stringify({
-          productId: product.id,
-          sellerId: product.sellerId,
-          customer,
-          quantity,
-          sellingPrice: product.sellingPrice,
-          costPrice: product.costPrice,
-          profit,
-          paymentMethod,
-          status: "confirmed",
-          qikink_order_id: qikinkData.orderData.order_id
-        })
+          order_number: orderNumber,
+          qikink_shipping: "1",
+          gateway: "COD",
+          total_order_value: product.sellingPrice.toString(),
+          line_items: [
+            {
+              search_from_my_products: 0,
+              quantity: "1",
+              print_type_id: product.printTypeId,
+              price: product.sellingPrice.toString(),
+              sku: product.sku,
+              designs: [
+                {
+                  design_code: "test",
+                  width_inches: "",
+                  height_inches: "",
+                  placement_sku: "fr",
+                  design_link: product.designLink,
+                  mockup_link: product.mockupLink,
+                },
+              ],
+            },
+          ],
+          shipping_address: {
+            first_name: "Ali",
+            last_name: "Test",
+            address1: "Test Street 123",
+            phone: "9999999999",
+            email: "test@example.com",
+            city: "Jamshedpur",
+            zip: "832110",
+            province: "Jharkhand",
+            country_code: "IN",
+          },
+        }),
       }
     );
 
-    await saveRes.json();
+    const orderText = await orderRes.text();
+
+    if (!orderRes.ok) {
+      return NextResponse.json({
+        success: false,
+        error: "Order API failed",
+        raw: orderText
+      });
+    }
+
+    const orderData = JSON.parse(orderText);
 
     return NextResponse.json({
       success: true,
-      message: "Order placed successfully"
+      orderData
     });
 
-  } catch (error) {
+  } catch (err: any) {
     return NextResponse.json({
       success: false,
-      error: "Checkout failed"
+      error: "Server Crash",
+      message: err?.message || "Unknown error"
     });
   }
 }
