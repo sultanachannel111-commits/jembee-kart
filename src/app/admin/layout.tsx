@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -25,6 +26,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState("");
 
   useEffect(() => {
     const auth = getAuth();
@@ -35,14 +37,21 @@ export default function AdminLayout({
         return;
       }
 
-      // 🔥 Check role from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
 
-      if (!userDoc.exists() || userDoc.data().role !== "admin") {
+      if (!userDoc.exists()) {
         router.replace("/");
         return;
       }
 
+      const userRole = userDoc.data().role;
+
+      if (userRole !== "admin" && userRole !== "superadmin") {
+        router.replace("/");
+        return;
+      }
+
+      setRole(userRole);
       setLoading(false);
     });
 
@@ -78,7 +87,7 @@ export default function AdminLayout({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        Checking Admin Access...
+        Checking Access...
       </div>
     );
   }
@@ -86,32 +95,21 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen bg-gray-100">
 
-      {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-black text-white flex justify-between items-center p-4 z-50">
-        <h2 className="font-bold text-pink-500">
-          Jembee Admin
-        </h2>
-        <button onClick={() => setOpen(!open)}>
-          {open ? <X /> : <Menu />}
-        </button>
-      </div>
-
       {/* Sidebar */}
-      <aside
-        className={`fixed md:static top-0 left-0 h-full w-64 bg-black text-white p-6 space-y-4 transform transition-transform duration-300 z-40
-        ${
-          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        <h2 className="text-2xl font-bold text-pink-500 hidden md:block">
+      <aside className="w-64 bg-black text-white p-6 space-y-4">
+        <h2 className="text-2xl font-bold text-pink-500">
           Jembee Admin
         </h2>
 
-        <nav className="space-y-2 mt-8 md:mt-4">
+        <nav className="space-y-2 mt-6">
           {navItem("/admin", "Dashboard", LayoutDashboard)}
           {navItem("/admin/products", "Products", Package)}
           {navItem("/admin/orders", "Orders", ShoppingCart)}
-          {navItem("/admin/users", "Users", Users)}
+
+          {/* 🔥 Only SuperAdmin Can See Users */}
+          {role === "superadmin" &&
+            navItem("/admin/users", "Manage Admins", ShieldCheck)}
+
           {navItem("/admin/categories", "Categories", Package)}
           {navItem("/admin/banners", "Banners", Package)}
           {navItem("/admin/festival", "Festival", Package)}
@@ -119,16 +117,14 @@ export default function AdminLayout({
 
         <button
           onClick={logout}
-          className="mt-10 flex items-center gap-2 text-red-400 hover:text-red-600 transition"
+          className="mt-10 flex items-center gap-2 text-red-400 hover:text-red-600"
         >
           <LogOut size={18} />
           Logout
         </button>
       </aside>
 
-      <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0">
-        {children}
-      </main>
+      <main className="flex-1 p-6">{children}</main>
     </div>
   );
 }
