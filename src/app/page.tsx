@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Mic, ShoppingCart, Home, Grid, User } from "lucide-react";
+import {
+  Search,
+  Mic,
+  ShoppingCart,
+  Home,
+  Grid,
+  User,
+  Star,
+} from "lucide-react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
@@ -14,48 +22,38 @@ export default function HomePage() {
   const [banners, setBanners] = useState<any[]>([]);
   const [festival, setFestival] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slide, setSlide] = useState(0);
 
   useEffect(() => {
-    fetchCategories();
-    fetchBanners();
-    fetchFestival();
-    fetchProducts();
+    fetchData();
   }, []);
 
-  const fetchCategories = async () => {
-    const snap = await getDocs(collection(db, "categories"));
-    setCategories(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  const fetchData = async () => {
+    const catSnap = await getDocs(collection(db, "categories"));
+    setCategories(catSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+    const bannerSnap = await getDocs(collection(db, "banners"));
+    setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+    const festSnap = await getDoc(doc(db, "settings", "festival"));
+    if (festSnap.exists()) setFestival(festSnap.data());
+
+    const prodSnap = await getDocs(collection(db, "products"));
+    setProducts(prodSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
 
-  const fetchBanners = async () => {
-    const snap = await getDocs(collection(db, "banners"));
-    setBanners(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
-
-  const fetchFestival = async () => {
-    const snap = await getDoc(doc(db, "settings", "festival"));
-    if (snap.exists()) setFestival(snap.data());
-  };
-
-  const fetchProducts = async () => {
-    const snap = await getDocs(collection(db, "products"));
-    setProducts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
-
-  // Auto slider
   useEffect(() => {
     if (banners.length === 0) return;
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % banners.length);
+      setSlide((prev) => (prev + 1) % banners.length);
     }, 3000);
     return () => clearInterval(interval);
   }, [banners]);
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div className="bg-gray-100 min-h-screen pb-20">
 
-      {/* 🔴 TOP HEADER */}
+      {/* 🔴 HEADER */}
       <div className="bg-pink-600 text-white px-4 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">
           <span className="text-black">jembee</span>{" "}
@@ -80,17 +78,19 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🟣 SEARCH SECTION */}
-      <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-4">
+      {/* 🟣 GRADIENT SEARCH SECTION */}
+      <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-5">
         <div className="flex items-center gap-3">
+
+          {/* White Search Bar */}
           <div className="flex items-center bg-white rounded-full px-4 py-3 flex-1 shadow-md">
-            <Search size={20} className="text-gray-500" />
+            <Search size={18} className="text-gray-500" />
             <input
               type="text"
               placeholder="Search for products..."
               className="flex-1 outline-none px-3 text-sm bg-transparent"
             />
-            <Mic size={20} className="text-gray-500" />
+            <Mic size={18} className="text-gray-500" />
           </div>
 
           <Link href="/login">
@@ -101,12 +101,12 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🎉 FESTIVAL BANNER (Hidden Default) */}
+      {/* 🎉 FESTIVAL BANNER */}
       {festival?.active && (
         <div className="px-4 mt-4">
           <img
             src={festival.image}
-            className="rounded-2xl shadow-md"
+            className="rounded-2xl shadow-md w-full"
           />
         </div>
       )}
@@ -124,22 +124,22 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 🎀 MAIN SLIDER */}
+      {/* 🎀 SLIDER */}
       {banners.length > 0 && (
         <div className="px-4 mt-4">
           <div className="relative rounded-2xl overflow-hidden shadow-md">
             <img
-              src={banners[currentSlide]?.image}
-              className="w-full h-40 object-cover"
+              src={banners[slide]?.image}
+              className="w-full h-44 object-cover"
             />
           </div>
 
           <div className="flex justify-center mt-2 gap-2">
-            {banners.map((_, index) => (
+            {banners.map((_, i) => (
               <div
-                key={index}
+                key={i}
                 className={`w-2 h-2 rounded-full ${
-                  currentSlide === index ? "bg-purple-600" : "bg-gray-300"
+                  slide === i ? "bg-purple-600" : "bg-gray-300"
                 }`}
               />
             ))}
@@ -147,7 +147,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 🟪 PRODUCT SECTION */}
+      {/* 🟪 PRODUCTS */}
       <div className="px-4 mt-6">
         <h2 className="text-lg font-bold text-purple-700 mb-4">
           Best of JembeeKart
@@ -160,13 +160,24 @@ export default function HomePage() {
               href={`/product/${product.id}`}
               className="bg-white rounded-2xl shadow p-3"
             >
-              <img
-                src={product.image}
-                className="rounded-xl w-full h-40 object-cover"
-              />
+              <div className="relative">
+                <img
+                  src={product.image}
+                  className="rounded-xl w-full h-40 object-cover"
+                />
+
+                {/* ⭐ Rating Pill (Fake, Image Style) */}
+                <div className="absolute bottom-2 left-2 bg-white px-2 py-1 rounded-full flex items-center gap-1 shadow text-xs">
+                  <span className="font-medium">4.4</span>
+                  <Star size={14} className="text-green-600 fill-green-600" />
+                  <span className="text-gray-500">(185)</span>
+                </div>
+              </div>
+
               <div className="mt-2 text-sm font-medium">
                 {product.name}
               </div>
+
               <div className="text-black font-bold">
                 ₹{product.price}
               </div>
@@ -202,7 +213,6 @@ export default function HomePage() {
           )}
         </Link>
       </div>
-
     </div>
   );
 }
