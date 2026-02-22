@@ -12,7 +12,7 @@ export async function POST() {
       });
     }
 
-    // 🔹 STEP 1: Generate Access Token
+    // 🔹 STEP 1: Get Access Token
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -39,12 +39,10 @@ export async function POST() {
 
     const accessToken = tokenData.Accesstoken;
 
-    // 🔹 STEP 2: Create Unique Order Number
-    const uniqueOrderNumber =
-      "jembee_" +
-      Date.now() +
-      "_" +
-      Math.floor(Math.random() * 10000);
+    // 🔹 STEP 2: Create SHORT unique order number (max 15 chars)
+    const shortTimestamp = Date.now().toString().slice(-10);
+    const uniqueOrderNumber = "JB" + shortTimestamp; 
+    // Example: JB8592234567 (12 chars safe)
 
     // 🔹 STEP 3: Create Order Payload
     const orderPayload = {
@@ -61,7 +59,7 @@ export async function POST() {
           sku: "MVnHs-Wh-S",
           designs: [
             {
-              design_code: "test_design",
+              design_code: "test1",
               width_inches: "",
               height_inches: "",
               placement_sku: "fr",
@@ -86,7 +84,7 @@ export async function POST() {
       },
     };
 
-    // 🔹 STEP 4: Send Order Request
+    // 🔹 STEP 4: Create Order
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -113,6 +111,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       message: "Order Created Successfully",
+      orderNumber: uniqueOrderNumber,
       orderData,
     });
 
