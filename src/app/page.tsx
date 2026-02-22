@@ -20,8 +20,8 @@ export default function HomePage() {
 
   const [categories, setCategories] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
-  const [festival, setFestival] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [festival, setFestival] = useState<any>(null);
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
@@ -35,11 +35,13 @@ export default function HomePage() {
     const bannerSnap = await getDocs(collection(db, "banners"));
     setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-    const festSnap = await getDoc(doc(db, "settings", "festival"));
-    if (festSnap.exists()) setFestival(festSnap.data());
-
     const prodSnap = await getDocs(collection(db, "products"));
     setProducts(prodSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+    const festSnap = await getDoc(doc(db, "settings", "festival"));
+    if (festSnap.exists()) {
+      setFestival(festSnap.data());
+    }
   };
 
   useEffect(() => {
@@ -78,11 +80,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🟣 GRADIENT SEARCH SECTION */}
+      {/* 🟣 SEARCH SECTION */}
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-5">
         <div className="flex items-center gap-3">
-
-          {/* White Search Bar */}
           <div className="flex items-center bg-white rounded-full px-4 py-3 flex-1 shadow-md">
             <Search size={18} className="text-gray-500" />
             <input
@@ -101,25 +101,31 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🎉 FESTIVAL BANNER */}
+      {/* 🎉 FESTIVAL BANNER (Hidden Default) */}
       {festival?.active && (
         <div className="px-4 mt-4">
           <img
             src={festival.image}
             className="rounded-2xl shadow-md w-full"
+            alt="festival"
           />
         </div>
       )}
 
       {/* 🟡 CATEGORY ROW */}
-      <div className="bg-white py-4 px-2 overflow-x-auto flex gap-4 mt-4">
+      <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-4">
         {categories.map((cat) => (
-          <div key={cat.id} className="flex flex-col items-center min-w-[80px]">
-            <img
-              src={cat.image}
-              className="w-16 h-16 rounded-full border-2 border-pink-500 p-1 object-cover"
-            />
-            <span className="text-xs mt-2 text-center">{cat.name}</span>
+          <div key={cat.id} className="flex flex-col items-center min-w-[75px]">
+            <div className="w-16 h-16 rounded-full border-2 border-pink-500 p-1">
+              <img
+                src={cat.image}
+                className="w-full h-full rounded-full object-cover"
+                alt={cat.name}
+              />
+            </div>
+            <span className="text-xs mt-2 text-center">
+              {cat.name}
+            </span>
           </div>
         ))}
       </div>
@@ -131,6 +137,7 @@ export default function HomePage() {
             <img
               src={banners[slide]?.image}
               className="w-full h-44 object-cover"
+              alt="banner"
             />
           </div>
 
@@ -164,9 +171,9 @@ export default function HomePage() {
                 <img
                   src={product.image}
                   className="rounded-xl w-full h-40 object-cover"
+                  alt={product.name}
                 />
 
-                {/* ⭐ Rating Pill (Fake, Image Style) */}
                 <div className="absolute bottom-2 left-2 bg-white px-2 py-1 rounded-full flex items-center gap-1 shadow text-xs">
                   <span className="font-medium">4.4</span>
                   <Star size={14} className="text-green-600 fill-green-600" />
@@ -174,12 +181,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-2 text-sm font-medium">
+              <div className="mt-2 text-sm font-medium truncate">
                 {product.name}
               </div>
 
               <div className="text-black font-bold">
-                ₹{product.price}
+                ₹{product.sellingPrice || product.price}
               </div>
             </Link>
           ))}
@@ -193,7 +200,7 @@ export default function HomePage() {
           Home
         </Link>
 
-        <Link href="/categories" className="flex flex-col items-center text-xs text-blue-600">
+        <Link href="/categories" className="flex flex-col items-center text-xs">
           <Grid size={20} />
           Categories
         </Link>
@@ -213,6 +220,7 @@ export default function HomePage() {
           )}
         </Link>
       </div>
+
     </div>
   );
 }
