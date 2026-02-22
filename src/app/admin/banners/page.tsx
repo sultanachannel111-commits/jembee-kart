@@ -18,16 +18,16 @@ export default function AdminBanners() {
   const [image, setImage] = useState("");
   const [order, setOrder] = useState(1);
   const [banners, setBanners] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // 🔥 Fetch banners sorted by order
   const fetchBanners = async () => {
     const q = query(collection(db, "banners"), orderBy("order", "asc"));
     const snap = await getDocs(q);
-    const data = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
+
+    const data = snap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
     }));
+
     setBanners(data);
   };
 
@@ -35,55 +35,44 @@ export default function AdminBanners() {
     fetchBanners();
   }, []);
 
-  // ➕ Add Banner
   const addBanner = async () => {
-    if (!image) return alert("Please enter image URL");
+    if (!image) return alert("Enter image URL");
 
-    try {
-      setLoading(true);
+    await addDoc(collection(db, "banners"), {
+      image,
+      order: Number(order),
+      active: true,
+      createdAt: serverTimestamp(),
+    });
 
-      await addDoc(collection(db, "banners"), {
-        image,
-        order: Number(order),
-        active: true,
-        createdAt: serverTimestamp(),
-      });
-
-      setImage("");
-      setOrder(1);
-      fetchBanners();
-    } catch (error) {
-      console.error("Error adding banner:", error);
-    } finally {
-      setLoading(false);
-    }
+    setImage("");
+    setOrder(1);
+    fetchBanners();
   };
 
-  // 🔁 Toggle Active
-  const toggleActive = async (id: string, current: boolean) => {
+  const toggleActive = async (id: string, active: boolean) => {
     await updateDoc(doc(db, "banners", id), {
-      active: !current,
+      active: !active,
     });
     fetchBanners();
   };
 
-  // ❌ Delete Banner
   const deleteBanner = async (id: string) => {
     await deleteDoc(doc(db, "banners", id));
     fetchBanners();
   };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6 text-pink-600">
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6 text-pink-600">
         Banner Management
       </h1>
 
-      {/* Add Banner Form */}
+      {/* Add Banner */}
       <div className="bg-white p-6 rounded-xl shadow mb-8">
         <input
           type="text"
-          placeholder="Paste Banner Image URL"
+          placeholder="Banner Image URL"
           value={image}
           onChange={(e) => setImage(e.target.value)}
           className="border p-3 w-full rounded mb-4"
@@ -91,7 +80,7 @@ export default function AdminBanners() {
 
         <input
           type="number"
-          placeholder="Banner Order (1,2,3...)"
+          placeholder="Order (1,2,3...)"
           value={order}
           onChange={(e) => setOrder(Number(e.target.value))}
           className="border p-3 w-full rounded mb-4"
@@ -99,17 +88,53 @@ export default function AdminBanners() {
 
         <button
           onClick={addBanner}
-          disabled={loading}
-          className="bg-pink-600 text-white px-6 py-3 rounded-lg"
+          className="bg-pink-600 text-white px-6 py-2 rounded"
         >
-          {loading ? "Adding..." : "Add Banner"}
+          Add Banner
         </button>
       </div>
 
       {/* Banner List */}
       <div className="grid md:grid-cols-3 gap-6">
-        {banners.map((b) => (
+        {banners.map((banner) => (
           <div
-            key={b.id}
+            key={banner.id}
             className="bg-white p-4 rounded-xl shadow"
           >
+            <img
+              src={banner.image}
+              alt="banner"
+              className="w-full h-40 object-cover rounded mb-4"
+            />
+
+            <div className="flex justify-between mb-3">
+              <button
+                onClick={() =>
+                  toggleActive(banner.id, banner.active)
+                }
+                className={`px-3 py-1 rounded text-white ${
+                  banner.active
+                    ? "bg-green-500"
+                    : "bg-gray-400"
+                }`}
+              >
+                {banner.active ? "Active" : "Inactive"}
+              </button>
+
+              <button
+                onClick={() => deleteBanner(banner.id)}
+                className="bg-red-500 text-white px-3 py-1 rounded"
+              >
+                Delete
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500">
+              Order: {banner.order}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
