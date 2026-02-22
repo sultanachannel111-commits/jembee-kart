@@ -17,23 +17,19 @@ export default function HomePage() {
 
   const slides = [
     {
-      title: "Premium Print On Demand",
-      subtitle: "Create & Sell Custom Apparel",
-      image: "/banners/banner1.jpg",
+      title: "Wear Your Creativity",
+      subtitle: "Premium Print On Demand Apparel",
     },
     {
       title: "Oversized Collection",
-      subtitle: "Trendy & Comfortable Styles",
-      image: "/banners/banner2.jpg",
+      subtitle: "Comfort Meets Style",
     },
     {
       title: "Kids Special",
       subtitle: "Cute & Custom Prints",
-      image: "/banners/banner3.jpg",
     },
   ];
 
-  // 🔁 Auto Slide
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) =>
@@ -56,7 +52,7 @@ export default function HomePage() {
         }));
         setProducts(firestoreProducts);
       } catch (error) {
-        console.error("Firestore fetch error:", error);
+        console.error(error);
       } finally {
         setLoading(false);
       }
@@ -69,15 +65,15 @@ export default function HomePage() {
   );
 
   const categories = [
-    { name: "T-Shirts", image: "/categories/tshirt.png" },
-    { name: "Oversized", image: "/categories/oversized.png" },
-    { name: "Hoodies", image: "/categories/hoodie.png" },
-    { name: "Sweatshirts", image: "/categories/sweatshirt.png" },
-    { name: "Polos", image: "/categories/polo.png" },
-    { name: "Tank Tops", image: "/categories/tanktop.png" },
-    { name: "Kids", image: "/categories/kids.png" },
-    { name: "Tote Bags", image: "/categories/totebag.png" },
-    { name: "Caps", image: "/categories/cap.png" },
+    { name: "T-Shirts", image: "/categories/tshirt.jpg" },
+    { name: "Oversized", image: "/categories/oversized.jpg" },
+    { name: "Hoodies", image: "/categories/hoodie.jpg" },
+    { name: "Sweatshirts", image: "/categories/sweatshirt.jpg" },
+    { name: "Polos", image: "/categories/polo.jpg" },
+    { name: "Tank Tops", image: "/categories/tanktop.jpg" },
+    { name: "Kids", image: "/categories/kids.jpg" },
+    { name: "Tote Bags", image: "/categories/totebag.jpg" },
+    { name: "Caps", image: "/categories/cap.jpg" },
   ];
 
   return (
@@ -86,19 +82,19 @@ export default function HomePage() {
 
       <div className="min-h-screen bg-gray-50 pb-24">
 
-        {/* 🔍 SEARCH */}
+        {/* SEARCH BAR */}
         <div className="bg-gradient-to-r from-pink-400 to-purple-500 px-4 py-4">
-          <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
+          <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-lg">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search for products..."
+              placeholder="Search products..."
               className="flex-1 outline-none text-sm"
             />
           </div>
         </div>
 
-        {/* 🟣 CATEGORY */}
+        {/* CATEGORY WITH IMAGE */}
         <div className="flex overflow-x-auto gap-4 px-4 py-4 bg-white">
           {categories.map((cat, index) => (
             <div key={index} className="flex flex-col items-center min-w-[80px]">
@@ -116,22 +112,15 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* 🎬 AUTO SLIDER */}
-        <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden shadow-lg h-44">
-          <img
-            src={slides[currentSlide].image}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/40 flex flex-col justify-center px-6 text-white">
-            <h2 className="text-lg font-bold">
-              {slides[currentSlide].title}
-            </h2>
-            <p className="text-sm mt-1">
-              {slides[currentSlide].subtitle}
-            </p>
-          </div>
+        {/* SLIDER */}
+        <div className="mx-4 mt-4 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 p-6 text-white shadow-lg relative">
+          <h2 className="text-lg font-bold">
+            {slides[currentSlide].title}
+          </h2>
+          <p className="text-sm mt-1">
+            {slides[currentSlide].subtitle}
+          </p>
 
-          {/* Dots */}
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
             {slides.map((_, index) => (
               <div
@@ -146,7 +135,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 🛍 PRODUCTS */}
+        {/* PRODUCTS */}
         {loading ? (
           <div className="text-center p-10">Loading...</div>
         ) : (
@@ -175,14 +164,6 @@ export default function HomePage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* 🔻 BOTTOM NAV */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t flex justify-around py-3 text-xs shadow-inner">
-        <a href="/" className="flex flex-col items-center">🏠 Home</a>
-        <a href="/categories" className="flex flex-col items-center">📂 Categories</a>
-        <a href="/account" className="flex flex-col items-center">👤 Account</a>
-        <a href="/cart" className="flex flex-col items-center">🛒 Cart</a>
       </div>
     </>
   );
