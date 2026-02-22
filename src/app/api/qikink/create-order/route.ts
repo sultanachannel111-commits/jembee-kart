@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const body = await req.json();
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
-    const { product, customer, quantity, paymentMethod } = body;
-
-    if (!product || !customer || !quantity) {
-      return NextResponse.json(
-        { error: "Missing required data" },
-        { status: 400 }
-      );
+    if (!clientId || !clientSecret) {
+      return NextResponse.json({
+        success: false,
+        error: "Missing Qikink Environment Variables",
+      });
     }
 
-    const clientId = process.env.QIKINK_CLIENT_ID!;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
-
-    // 🔹 STEP 1: Generate Qikink Token
+    // STEP 1 — GET ACCESS TOKEN
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -34,23 +28,57 @@ export async function POST(req: Request) {
     );
 
     const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.Accesstoken;
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Token generation failed", tokenData },
-        { status: 400 }
-      );
+    if (!tokenData?.Accesstoken) {
+      return NextResponse.json({
+        success: false,
+        error: "Token generation failed",
+        tokenData,
+      });
     }
 
-    // 🔹 STEP 2: Create Unique Order Number
-    const orderNumber = "jembee_" + Date.now();
+    const accessToken = tokenData.Accesstoken;
 
-    const totalAmount = product.sellingPrice * quantity;
-    const totalCost = product.costPrice * quantity;
-    const profit = totalAmount - totalCost;
+    // STEP 2 — CREATE ORDER
+    const orderPayload = {
+      order_number: "api_test_" + Date.now(),
+      qikink_shipping: "1",
+      gateway: "COD",
+      total_order_value: "10",
+      line_items: [
+        {
+          search_from_my_products: 0,
+          quantity: "1",
+          print_type_id: 1,
+          price: "10",
+          sku: "MVnHs-Wh-S",
+          designs: [
+            {
+              design_code: "test_design",
+              width_inches: "",
+              height_inches: "",
+              placement_sku: "fr",
+              design_link:
+                "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+              mockup_link:
+                "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+            },
+          ],
+        },
+      ],
+      shipping_address: {
+        first_name: "Ali",
+        last_name: "Test",
+        address1: "Test Street 123",
+        phone: "9999999999",
+        email: "test@example.com",
+        city: "Jamshedpur",
+        zip: "832110",
+        province: "Jharkhand",
+        country_code: "IN",
+      },
+    };
 
-    // 🔹 STEP 3: Create Qikink Order
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -60,80 +88,29 @@ export async function POST(req: Request) {
           ClientId: clientId,
           Accesstoken: accessToken,
         },
-        body: JSON.stringify({
-          order_number: orderNumber,
-          qikink_shipping: "1",
-          gateway: paymentMethod === "COD" ? "COD" : "Prepaid",
-          total_order_value: totalAmount.toString(),
-          line_items: [
-            {
-              search_from_my_products: 0,
-              quantity: quantity.toString(),
-              print_type_id: product.printTypeId,
-              price: product.costPrice.toString(),
-              sku: product.sku,
-              designs: [
-                {
-                  design_code: "front",
-                  width_inches: "",
-                  height_inches: "",
-                  placement_sku: "fr",
-                  design_link: product.designLink,
-                  mockup_link: product.mockupLink,
-                },
-              ],
-            },
-          ],
-          shipping_address: {
-            first_name: customer.firstName,
-            last_name: customer.lastName,
-            address1: customer.address,
-            phone: customer.phone,
-            email: customer.email,
-            city: customer.city,
-            zip: customer.pincode,
-            province: customer.state,
-            country_code: "IN",
-          },
-        }),
+        body: JSON.stringify(orderPayload),
       }
     );
 
     const orderData = await orderResponse.json();
 
-    if (!orderData.order_id) {
-      return NextResponse.json(
-        { error: "Qikink order failed", orderData },
-        { status: 400 }
-      );
+    if (!orderResponse.ok) {
+      return NextResponse.json({
+        success: false,
+        error: "Order API Failed",
+        orderData,
+      });
     }
-
-    // 🔹 STEP 4: Save Order in Firestore
-    await addDoc(collection(db, "orders"), {
-      orderNumber,
-      qikinkOrderId: orderData.order_id,
-      productId: product.id,
-      sellerId: product.sellerId,
-      customer,
-      quantity,
-      totalAmount,
-      profit,
-      paymentMethod,
-      status: "Processing",
-      createdAt: serverTimestamp(),
-    });
 
     return NextResponse.json({
       success: true,
-      orderId: orderData.order_id,
+      orderData,
     });
 
   } catch (error) {
-    console.error("Qikink Order Error:", error);
-
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: "Server Crash",
+    });
   }
 }
