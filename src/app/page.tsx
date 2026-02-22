@@ -25,29 +25,27 @@ export default function HomePage() {
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
-    fetchData();
+    loadData();
   }, []);
 
-  const fetchData = async () => {
+  const loadData = async () => {
     const catSnap = await getDocs(collection(db, "categories"));
-    setCategories(catSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
     const bannerSnap = await getDocs(collection(db, "banners"));
-    setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setBanners(bannerSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-    const prodSnap = await getDocs(collection(db, "products"));
-    setProducts(prodSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const productSnap = await getDocs(collection(db, "products"));
+    setProducts(productSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
     const festSnap = await getDoc(doc(db, "settings", "festival"));
-    if (festSnap.exists()) {
-      setFestival(festSnap.data());
-    }
+    if (festSnap.exists()) setFestival(festSnap.data());
   };
 
   useEffect(() => {
-    if (banners.length === 0) return;
+    if (!banners.length) return;
     const interval = setInterval(() => {
-      setSlide((prev) => (prev + 1) % banners.length);
+      setSlide(prev => (prev + 1) % banners.length);
     }, 3000);
     return () => clearInterval(interval);
   }, [banners]);
@@ -55,24 +53,24 @@ export default function HomePage() {
   return (
     <div className="bg-gray-100 min-h-screen pb-20">
 
-      {/* 🔴 HEADER */}
-      <div className="bg-pink-600 text-white px-4 py-4 flex justify-between items-center">
+      {/* 🔴 TOP WHITE HEADER */}
+      <div className="bg-white px-4 py-4 flex justify-between items-center shadow-sm">
         <h1 className="text-xl font-bold">
           <span className="text-black">jembee</span>{" "}
-          <span className="text-white">kart</span>
+          <span className="text-pink-600">kart</span>
         </h1>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/login">
-            <button className="bg-black px-4 py-1 rounded-full text-sm">
-              Login
+            <button className="bg-purple-600 text-white px-4 py-2 rounded-full text-sm">
+              Sign In
             </button>
           </Link>
 
           <Link href="/cart" className="relative">
             <ShoppingCart size={22} />
             {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white px-1 rounded-full">
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
                 {cart.length}
               </span>
             )}
@@ -80,41 +78,33 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🟣 SEARCH SECTION */}
-      <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-white rounded-full px-4 py-3 flex-1 shadow-md">
-            <Search size={18} className="text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search for products..."
-              className="flex-1 outline-none px-3 text-sm bg-transparent"
-            />
-            <Mic size={18} className="text-gray-500" />
-          </div>
-
-          <Link href="/login">
-            <button className="bg-purple-700 text-white px-4 py-3 rounded-full text-sm shadow-md">
-              Sign In
-            </button>
-          </Link>
+      {/* 🔍 SEARCH BAR */}
+      <div className="bg-white px-4 py-3">
+        <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
+          <Search size={18} className="text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search for products..."
+            className="flex-1 bg-transparent outline-none px-3 text-sm"
+          />
+          <Mic size={18} className="text-gray-500" />
         </div>
       </div>
 
-      {/* 🎉 FESTIVAL BANNER (Hidden Default) */}
+      {/* 🎉 FESTIVAL (HIDDEN DEFAULT) */}
       {festival?.active && (
-        <div className="px-4 mt-4">
+        <div className="px-4 mt-2">
           <img
             src={festival.image}
-            className="rounded-2xl shadow-md w-full"
+            className="rounded-xl shadow"
             alt="festival"
           />
         </div>
       )}
 
       {/* 🟡 CATEGORY ROW */}
-      <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-4">
-        {categories.map((cat) => (
+      <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
+        {categories.map(cat => (
           <div key={cat.id} className="flex flex-col items-center min-w-[75px]">
             <div className="w-16 h-16 rounded-full border-2 border-pink-500 p-1">
               <img
@@ -123,17 +113,15 @@ export default function HomePage() {
                 alt={cat.name}
               />
             </div>
-            <span className="text-xs mt-2 text-center">
-              {cat.name}
-            </span>
+            <span className="text-xs mt-2 text-center">{cat.name}</span>
           </div>
         ))}
       </div>
 
-      {/* 🎀 SLIDER */}
+      {/* 🟣 FLIPKART STYLE SLIDER */}
       {banners.length > 0 && (
         <div className="px-4 mt-4">
-          <div className="relative rounded-2xl overflow-hidden shadow-md">
+          <div className="relative rounded-xl overflow-hidden shadow">
             <img
               src={banners[slide]?.image}
               className="w-full h-44 object-cover"
@@ -141,7 +129,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="flex justify-center mt-2 gap-2">
+          <div className="flex justify-end mt-2 gap-1 pr-2">
             {banners.map((_, i) => (
               <div
                 key={i}
@@ -154,23 +142,23 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 🟪 PRODUCTS */}
+      {/* 🔵 PRODUCT SECTION */}
       <div className="px-4 mt-6">
-        <h2 className="text-lg font-bold text-purple-700 mb-4">
+        <h2 className="text-lg font-bold text-purple-600 mb-4">
           Best of JembeeKart
         </h2>
 
         <div className="grid grid-cols-2 gap-4">
-          {products.map((product) => (
+          {products.map(product => (
             <Link
               key={product.id}
               href={`/product/${product.id}`}
-              className="bg-white rounded-2xl shadow p-3"
+              className="bg-white rounded-xl shadow p-3"
             >
               <div className="relative">
                 <img
                   src={product.image}
-                  className="rounded-xl w-full h-40 object-cover"
+                  className="rounded-lg w-full h-40 object-cover"
                   alt={product.name}
                 />
 
@@ -185,7 +173,7 @@ export default function HomePage() {
                 {product.name}
               </div>
 
-              <div className="text-black font-bold">
+              <div className="font-bold text-black">
                 ₹{product.sellingPrice || product.price}
               </div>
             </Link>
@@ -193,9 +181,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🔻 BOTTOM NAV */}
+      {/* ⚫ BOTTOM NAV */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3">
-        <Link href="/" className="flex flex-col items-center text-xs">
+        <Link href="/" className="flex flex-col items-center text-xs text-blue-600">
           <Home size={20} />
           Home
         </Link>
