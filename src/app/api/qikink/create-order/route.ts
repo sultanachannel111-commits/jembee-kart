@@ -8,43 +8,48 @@ export async function POST() {
     if (!clientId || !clientSecret) {
       return NextResponse.json({
         success: false,
-        error: "Missing QIKINK environment variables",
+        error: "Missing environment variables",
       });
     }
 
-    // 🔹 STEP 1: Get Access Token
-    const tokenResponse = await fetch(
-      "https://sandbox.qikink.com/api/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          ClientId: clientId,
-          client_secret: clientSecret,
-        }),
-      }
-    );
+    // STEP 1: TOKEN REQUEST
+    const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        ClientId: clientId,
+        client_secret: clientSecret,
+      }),
+    });
 
-    const tokenData = await tokenResponse.json();
+    const tokenText = await tokenRes.text();
 
-    if (!tokenData?.Accesstoken) {
+    if (!tokenRes.ok) {
       return NextResponse.json({
         success: false,
-        error: "Token generation failed",
+        error: "Token API failed",
+        raw: tokenText,
+      });
+    }
+
+    const tokenData = JSON.parse(tokenText);
+
+    if (!tokenData.Accesstoken) {
+      return NextResponse.json({
+        success: false,
+        error: "Access token missing",
         tokenData,
       });
     }
 
     const accessToken = tokenData.Accesstoken;
 
-    // 🔹 STEP 2: Create SHORT unique order number (max 15 chars)
-    const shortTimestamp = Date.now().toString().slice(-10);
-    const uniqueOrderNumber = "JB" + shortTimestamp; 
-    // Example: JB8592234567 (12 chars safe)
+    // STEP 2: SHORT ORDER NUMBER (max 15 chars)
+    const uniqueOrderNumber =
+      "JB" + Date.now().toString().slice(-8);
 
-    // 🔹 STEP 3: Create Order Payload
     const orderPayload = {
       order_number: uniqueOrderNumber,
       qikink_shipping: "1",
@@ -84,8 +89,8 @@ export async function POST() {
       },
     };
 
-    // 🔹 STEP 4: Create Order
-    const orderResponse = await fetch(
+    // STEP 3: CREATE ORDER
+    const orderRes = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
         method: "POST",
@@ -98,27 +103,28 @@ export async function POST() {
       }
     );
 
-    const orderData = await orderResponse.json();
+    const orderText = await orderRes.text();
 
-    if (!orderResponse.ok) {
+    if (!orderRes.ok) {
       return NextResponse.json({
         success: false,
-        error: "Order API Failed",
-        orderData,
+        error: "Order API failed",
+        raw: orderText,
       });
     }
 
+    const orderData = JSON.parse(orderText);
+
     return NextResponse.json({
       success: true,
-      message: "Order Created Successfully",
-      orderNumber: uniqueOrderNumber,
       orderData,
     });
 
-  } catch (error) {
+  } catch (err: any) {
     return NextResponse.json({
       success: false,
       error: "Server Crash",
+      message: err?.message || "Unknown error",
     });
   }
 }
