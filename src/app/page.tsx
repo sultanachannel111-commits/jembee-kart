@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Header from "@/components/header";
 import RatingStars from "@/components/RatingStars";
@@ -14,11 +14,9 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [festival, setFestival] = useState<any>(null);
   const [search, setSearch] = useState("");
-
-  const normalize = (text: string) =>
-    text.toLowerCase().replace(/\s+/g, "");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,9 +24,15 @@ export default function HomePage() {
       const categorySnap = await getDocs(collection(db, "categories"));
       const bannerSnap = await getDocs(collection(db, "banners"));
 
+      const festivalSnap = await getDoc(doc(db, "settings", "festival"));
+
       setProducts(productSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setCategories(categorySnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setBanners(bannerSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      if (festivalSnap.exists()) {
+        setFestival(festivalSnap.data());
+      }
 
       setLoading(false);
     };
@@ -37,7 +41,7 @@ export default function HomePage() {
   }, []);
 
   const filteredProducts = products.filter((p: any) =>
-    normalize(p.name || "").includes(normalize(search))
+    p.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -50,14 +54,14 @@ export default function HomePage() {
         <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-4">
           <div className="flex items-center gap-3">
             <div className="bg-white flex items-center px-4 py-2 rounded-full shadow-md flex-1">
-              <span className="text-gray-400 mr-2">🔍</span>
+              <span className="mr-2 text-gray-400">🔍</span>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search for products..."
                 className="flex-1 outline-none text-sm"
               />
-              <span className="text-gray-400 ml-2">🎤</span>
+              <span className="ml-2 text-gray-400">🎤</span>
             </div>
 
             <Link
@@ -69,14 +73,23 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* FESTIVAL BANNER (Hidden until Admin enables) */}
+        {festival?.active && (
+          <div className="px-4 mt-3">
+            <img
+              src={festival.image}
+              className="w-full h-32 object-cover rounded-xl shadow-md"
+            />
+          </div>
+        )}
+
         {/* CATEGORY ROW */}
-        <div className="flex overflow-x-auto gap-4 px-4 py-4 bg-white">
+        <div className="flex overflow-x-auto gap-4 px-4 py-4 bg-white mt-3">
           {categories.map((cat: any) => (
             <div key={cat.id} className="flex flex-col items-center min-w-[80px]">
               <div className="w-16 h-16 rounded-full border-2 border-pink-400 p-1">
                 <img
                   src={cat.image}
-                  alt={cat.name}
                   className="w-full h-full object-cover rounded-full"
                 />
               </div>
@@ -87,17 +100,15 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* SLIDER BANNER */}
-        <div className="px-4 mt-2">
-          <div className="overflow-hidden rounded-2xl shadow-lg">
-            {banners.length > 0 && (
-              <img
-                src={banners[0].image}
-                className="w-full h-44 object-cover"
-              />
-            )}
+        {/* MAIN SLIDER BANNER */}
+        {banners.length > 0 && (
+          <div className="px-4 mt-3">
+            <img
+              src={banners[0].image}
+              className="w-full h-44 object-cover rounded-2xl shadow-lg"
+            />
           </div>
-        </div>
+        )}
 
         {/* PRODUCT SECTION */}
         <h2 className="text-purple-700 font-bold text-lg px-4 mt-6">
@@ -117,14 +128,13 @@ export default function HomePage() {
                 <img
                   src={product.image}
                   className="h-40 w-full object-cover rounded-xl"
-                  alt={product.name}
                 />
 
                 <div className="mt-2">
                   <RatingStars productId={product.id} />
                 </div>
 
-                <h3 className="text-sm mt-1 font-medium line-clamp-1">
+                <h3 className="text-sm mt-1 font-medium">
                   {product.name}
                 </h3>
 
@@ -140,23 +150,19 @@ export default function HomePage() {
       {/* BOTTOM NAV */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t flex justify-around py-3 text-xs shadow-inner">
         <Link href="/" className="flex flex-col items-center">
-          <span>🏠</span>
-          Home
+          🏠 Home
         </Link>
 
         <Link href="/categories" className="flex flex-col items-center text-blue-600">
-          <span>📂</span>
-          Categories
+          📂 Categories
         </Link>
 
         <Link href="/account" className="flex flex-col items-center">
-          <span>👤</span>
-          Account
+          👤 Account
         </Link>
 
         <Link href="/cart" className="relative flex flex-col items-center">
-          <span>🛒</span>
-          Cart
+          🛒 Cart
           {cartCount > 0 && (
             <span className="absolute -top-1 right-2 bg-red-500 text-white text-[10px] px-1 rounded-full">
               {cartCount}
