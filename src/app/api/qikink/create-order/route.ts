@@ -8,11 +8,11 @@ export async function POST() {
     if (!clientId || !clientSecret) {
       return NextResponse.json({
         success: false,
-        error: "Missing Qikink Environment Variables",
+        error: "Missing QIKINK environment variables",
       });
     }
 
-    // STEP 1 — GET ACCESS TOKEN
+    // 🔹 STEP 1: Generate Access Token
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -39,9 +39,16 @@ export async function POST() {
 
     const accessToken = tokenData.Accesstoken;
 
-    // STEP 2 — CREATE ORDER
+    // 🔹 STEP 2: Create Unique Order Number
+    const uniqueOrderNumber =
+      "jembee_" +
+      Date.now() +
+      "_" +
+      Math.floor(Math.random() * 10000);
+
+    // 🔹 STEP 3: Create Order Payload
     const orderPayload = {
-      order_number: "api_test_" + Date.now(),
+      order_number: uniqueOrderNumber,
       qikink_shipping: "1",
       gateway: "COD",
       total_order_value: "10",
@@ -79,6 +86,7 @@ export async function POST() {
       },
     };
 
+    // 🔹 STEP 4: Send Order Request
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -104,6 +112,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
+      message: "Order Created Successfully",
       orderData,
     });
 
