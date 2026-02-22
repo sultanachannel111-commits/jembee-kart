@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -18,32 +21,41 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 🔐 Admin Protection
   useEffect(() => {
-    const isLogged = localStorage.getItem("adminLoggedIn");
+    const auth = getAuth();
 
-    if (isLogged !== "true") {
-      router.replace("/admin/login");
-    } else {
-      setAuthorized(true);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      // 🔥 Check role from Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if (!userDoc.exists() || userDoc.data().role !== "admin") {
+        router.replace("/");
+        return;
+      }
+
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem("adminLoggedIn");
-    router.push("/admin/login");
+  const logout = async () => {
+    const auth = getAuth();
+    await auth.signOut();
+    router.push("/login");
   };
 
-  const navItem = (
-    href: string,
-    label: string,
-    Icon: any
-  ) => {
+  const navItem = (href: string, label: string, Icon: any) => {
     const active = pathname === href;
 
     return (
@@ -63,7 +75,13 @@ export default function AdminLayout({
     );
   };
 
-  if (!authorized) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Checking Admin Access...
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -94,9 +112,11 @@ export default function AdminLayout({
           {navItem("/admin/products", "Products", Package)}
           {navItem("/admin/orders", "Orders", ShoppingCart)}
           {navItem("/admin/users", "Users", Users)}
+          {navItem("/admin/categories", "Categories", Package)}
+          {navItem("/admin/banners", "Banners", Package)}
+          {navItem("/admin/festival", "Festival", Package)}
         </nav>
 
-        {/* Logout */}
         <button
           onClick={logout}
           className="mt-10 flex items-center gap-2 text-red-400 hover:text-red-600 transition"
@@ -106,7 +126,6 @@ export default function AdminLayout({
         </button>
       </aside>
 
-      {/* Content */}
       <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0">
         {children}
       </main>
