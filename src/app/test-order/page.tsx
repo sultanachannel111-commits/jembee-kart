@@ -4,38 +4,35 @@ import { useState } from "react";
 
 export default function TestOrderPage() {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [responseData, setResponseData] = useState<any>(null);
 
   const handleOrder = async () => {
     setLoading(true);
-    setMessage("");
+    setResponseData(null);
 
     try {
-      const response = await fetch("/api/qikink/create-order", {
+      const res = await fetch("/api/qikink/create-order", {
         method: "POST",
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage("✅ Order Created Successfully!");
-      } else {
-        setMessage("❌ " + JSON.stringify(data));
-      }
+      const data = await res.json();
+      setResponseData(data);
 
     } catch (error) {
-      console.error(error);
-      setMessage("❌ Server Error");
+      setResponseData({
+        success: false,
+        error: "Frontend Fetch Error",
+      });
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow-md text-center w-80">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-5">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
 
-        <h1 className="text-xl font-bold mb-6">
+        <h1 className="text-xl font-bold mb-6 text-center">
           Qikink Order Test
         </h1>
 
@@ -47,11 +44,12 @@ export default function TestOrderPage() {
           {loading ? "Processing..." : "Create Test Order"}
         </button>
 
-        {message && (
-          <p className="mt-4 text-sm font-semibold">
-            {message}
-          </p>
+        {responseData && (
+          <div className="mt-6 bg-gray-100 p-3 rounded text-sm overflow-auto max-h-60">
+            <pre>{JSON.stringify(responseData, null, 2)}</pre>
+          </div>
         )}
+
       </div>
     </div>
   );
