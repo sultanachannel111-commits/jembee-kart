@@ -22,12 +22,9 @@ export default function ProductPage() {
   const [timeLeft, setTimeLeft] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  // 🔥 NEW STATES
   const [viewers, setViewers] = useState(0);
   const [soldCount, setSoldCount] = useState(0);
   const [deliveryDate, setDeliveryDate] = useState("");
-
-  const now = new Date();
 
   /* ---------------- FETCH PRODUCT ---------------- */
   useEffect(() => {
@@ -40,17 +37,12 @@ export default function ProductPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const productData = {
-            id: docSnap.id,
-            ...data,
-          };
+          setProduct({ id: docSnap.id, ...data });
 
-          setProduct(productData);
-
-          if (data.images && data.images.length > 0) {
+          if (data?.images?.length > 0) {
             setSelectedImage(data.images[0]);
           } else {
-            setSelectedImage(data.image || "");
+            setSelectedImage(data?.image || "");
           }
         } else {
           setProduct(null);
@@ -65,39 +57,35 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  /* ---------------- DYNAMIC CONVERSION FEATURES ---------------- */
+  /* ---------------- RANDOM CONVERSION DATA ---------------- */
   useEffect(() => {
-    const randomViewers = Math.floor(Math.random() * 15) + 5;
-    setViewers(randomViewers);
+    setViewers(Math.floor(Math.random() * 15) + 5);
+    setSoldCount(Math.floor(Math.random() * 200) + 50);
 
-    const randomSold = Math.floor(Math.random() * 200) + 50;
-    setSoldCount(randomSold);
-
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 3);
-
-    const options: Intl.DateTimeFormatOptions = {
-      day: "numeric",
-      month: "short",
-    };
-
+    const future = new Date();
+    future.setDate(future.getDate() + 3);
     setDeliveryDate(
-      futureDate.toLocaleDateString("en-IN", options)
+      future.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      })
     );
   }, []);
 
-  /* ---------------- OFFER SYSTEM ---------------- */
+  /* ---------------- OFFER SYSTEM SAFE ---------------- */
 
   const isOfferActive =
-    product?.offerEnd &&
-    new Date(product.offerEnd.seconds * 1000) > now;
+    product?.offerEnd?.seconds &&
+    new Date(product.offerEnd.seconds * 1000) > new Date();
 
   const finalPrice = isOfferActive
-    ? product.offerPrice
-    : product.sellingPrice || product.price;
+    ? product?.offerPrice ?? product?.price
+    : product?.sellingPrice ?? product?.price ?? 0;
 
   const discountPercent =
-    isOfferActive && product?.sellingPrice
+    isOfferActive &&
+    product?.sellingPrice &&
+    product?.offerPrice
       ? Math.round(
           ((product.sellingPrice - product.offerPrice) /
             product.sellingPrice) *
@@ -105,8 +93,10 @@ export default function ProductPage() {
         )
       : null;
 
+  /* ---------------- COUNTDOWN SAFE ---------------- */
+
   useEffect(() => {
-    if (!product?.offerEnd) return;
+    if (!product?.offerEnd?.seconds) return;
 
     const interval = setInterval(() => {
       const diff =
@@ -126,12 +116,12 @@ export default function ProductPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [product?.offerEnd]);
+  }, [product?.offerEnd?.seconds]);
 
-  /* ---------------- CART FUNCTIONS ---------------- */
+  /* ---------------- CART SAFE ---------------- */
 
   const handleAddToCart = () => {
-    if (product.stock === 0) {
+    if (!product?.stock || product.stock === 0) {
       alert("Product is out of stock");
       return;
     }
@@ -151,7 +141,7 @@ export default function ProductPage() {
   };
 
   const handleBuyNow = () => {
-    if (product.stock === 0) {
+    if (!product?.stock || product.stock === 0) {
       alert("Product is out of stock");
       return;
     }
@@ -185,7 +175,7 @@ export default function ProductPage() {
     <>
       <div className="max-w-7xl mx-auto p-6 grid md:grid-cols-2 gap-10">
 
-        {/* IMAGE SECTION */}
+        {/* IMAGE */}
         <div>
           <div
             onClick={() => setZoomOpen(true)}
@@ -193,22 +183,22 @@ export default function ProductPage() {
           >
             <img
               src={selectedImage}
-              alt={product.name}
-              className="w-full h-[450px] object-cover hover:scale-110 transition duration-300"
+              alt={product?.name}
+              className="w-full h-[450px] object-cover"
             />
 
             {discountPercent && (
-              <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm">
                 {discountPercent}% OFF
               </div>
             )}
           </div>
         </div>
 
-        {/* DETAILS SECTION */}
+        {/* DETAILS */}
         <div>
 
-          {product.category && (
+          {product?.category && (
             <Link
               href={`/category/${product.category}`}
               className="text-sm text-pink-600 font-medium"
@@ -217,18 +207,18 @@ export default function ProductPage() {
             </Link>
           )}
 
-          <h1 className="text-3xl font-bold mb-4 mt-2">
-            {product.name}
+          <h1 className="text-3xl font-bold mt-2">
+            {product?.name}
           </h1>
 
-          <p className="text-3xl text-green-600 font-bold">
+          <p className="text-3xl text-green-600 font-bold mt-3">
             ₹{finalPrice}
           </p>
 
           {isOfferActive && (
             <div className="mt-2">
               <span className="line-through text-gray-400 mr-3">
-                ₹{product.sellingPrice}
+                ₹{product?.sellingPrice}
               </span>
               <span className="text-red-600 font-semibold">
                 🔥 {timeLeft}
@@ -236,43 +226,37 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* 👀 VIEWERS */}
+          {/* VIEWERS */}
           <div className="mt-3 text-sm text-gray-600">
-            👀 {viewers} people are viewing this right now
+            👀 {viewers} people viewing
           </div>
 
-          {/* 🔥 SOLD */}
+          {/* SOLD */}
           <div className="text-sm text-red-600 font-semibold mt-1">
             🔥 {soldCount}+ sold recently
           </div>
 
-          {/* 📦 DELIVERY */}
+          {/* DELIVERY */}
           <div className="text-sm text-green-600 mt-2">
             📦 Get it by <span className="font-semibold">{deliveryDate}</span>
           </div>
 
-          {/* STOCK DISPLAY */}
-          {product.stock !== undefined && (
+          {/* STOCK */}
+          {product?.stock !== undefined && (
             <div className="mt-4">
-
               {product.stock > 5 && (
-                <p className="text-green-600 text-sm font-medium">
-                  ✔ In Stock
-                </p>
+                <p className="text-green-600 text-sm">✔ In Stock</p>
               )}
-
               {product.stock <= 5 && product.stock > 2 && (
-                <p className="text-orange-500 text-sm font-semibold">
+                <p className="text-orange-500 text-sm">
                   ⚠ Only {product.stock} left
                 </p>
               )}
-
               {product.stock <= 2 && product.stock > 0 && (
-                <div className="bg-red-100 border border-red-400 text-red-600 px-3 py-2 rounded text-sm font-semibold animate-pulse">
-                  🔥 Hurry! Only {product.stock} left in stock
+                <div className="bg-red-100 text-red-600 px-3 py-2 rounded text-sm animate-pulse">
+                  🔥 Hurry! Only {product.stock} left
                 </div>
               )}
-
               {product.stock === 0 && (
                 <p className="text-red-600 font-bold">
                   ❌ Out of Stock
@@ -282,13 +266,15 @@ export default function ProductPage() {
           )}
 
           <p className="text-gray-600 mt-4">
-            {product.description}
+            {product?.description}
           </p>
 
           {/* QUANTITY */}
           <div className="flex items-center gap-4 mt-6">
             <button
-              onClick={() => setQuantity(q => (q > 1 ? q - 1 : 1))}
+              onClick={() =>
+                setQuantity((q) => (q > 1 ? q - 1 : 1))
+              }
               className="px-3 py-1 border rounded"
             >
               -
@@ -299,7 +285,9 @@ export default function ProductPage() {
             </span>
 
             <button
-              onClick={() => setQuantity(q => q + 1)}
+              onClick={() =>
+                setQuantity((q) => q + 1)
+              }
               className="px-3 py-1 border rounded"
             >
               +
@@ -310,22 +298,23 @@ export default function ProductPage() {
           <div className="flex gap-4 mt-6">
             <button
               onClick={handleAddToCart}
-              className="flex-1 bg-black hover:bg-gray-800 text-white py-3 rounded-lg shadow-lg transition"
+              className="flex-1 bg-black text-white py-3 rounded-lg"
             >
               🛒 Add to Cart
             </button>
 
             <button
               onClick={handleBuyNow}
-              className="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-lg shadow-lg transition"
+              className="flex-1 bg-pink-600 text-white py-3 rounded-lg"
             >
               ⚡ Buy Now
             </button>
           </div>
+
         </div>
       </div>
 
-      {/* ZOOM MODAL */}
+      {/* ZOOM */}
       {zoomOpen && (
         <div
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
