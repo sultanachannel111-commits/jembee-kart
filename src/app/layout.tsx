@@ -1,13 +1,14 @@
-// src/app/layout.tsx
-
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import DynamicCategories from "@/components/DynamicCategories";
 import { CartProvider } from "@/context/CartContext";
-import { AuthProvider } from "@/providers/auth-provider";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "JEMBEE KART",
-  description: "Premium Online Shopping Experience",
+  title: "JembeeKart",
+  description: "Modern Ecommerce Platform",
 };
 
 export default function RootLayout({
@@ -17,32 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#f1f3f6] text-gray-900 min-h-screen antialiased">
-
+      <body className={inter.className}>
         <CartProvider>
-          <AuthProvider>
+          
+          {/* HEADER (agar tumhara alag header component hai to yaha rakho) */}
+          
+          {/* 🔥 DYNAMIC CATEGORIES (Home ko touch nahi kiya) */}
+          <DynamicCategories />
 
-            <div className="flex flex-col min-h-screen">
+          {/* MAIN CONTENT */}
+          {children}
 
-              <main className="flex-grow">
-                {children}
-              </main>
-
-              <footer className="bg-gray-900 text-gray-300 text-center py-6 text-sm">
-                <p className="font-semibold text-white mb-1">
-                  JEMBEE KART
-                </p>
-                <p>Premium Print on Demand Store</p>
-                <p className="mt-2 text-gray-500">
-                  © {new Date().getFullYear()} All Rights Reserved
-                </p>
-              </footer>
-
-            </div>
-
-          </AuthProvider>
         </CartProvider>
-
       </body>
     </html>
   );
