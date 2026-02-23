@@ -16,13 +16,16 @@ export default function DynamicCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    const q = query(collection(db, "categories"), orderBy("createdAt", "desc"));
+    const q = query(
+      collection(db, "categories"),
+      orderBy("createdAt", "desc")
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Category[] = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
-      })) as Category[];
+        ...(doc.data() as Omit<Category, "id">),
+      }));
 
       setCategories(list);
     });
