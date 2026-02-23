@@ -12,16 +12,14 @@ import {
   Star,
   Heart
 } from "lucide-react";
-
 import {
   collection,
   getDocs,
   doc,
   getDoc,
-  setDoc,
-  deleteDoc
+  query,
+  where
 } from "firebase/firestore";
-
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { usePathname } from "next/navigation";
@@ -40,24 +38,10 @@ export default function HomePage() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [ratings, setRatings] = useState<any>({});
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [page, setPage] = useState(1);
-  const [pincode, setPincode] = useState("");
-  const [pincodeMsg, setPincodeMsg] = useState("");
-
-  // 🔥 NEW STATES
-  const [offerTimers, setOfferTimers] = useState<any>({});
-
-  const productsPerPage = 6;
-  const now = new Date();
 
   useEffect(() => {
     loadData();
   }, []);
-
-  // 🔥 Reset page when category changes
-  useEffect(() => {
-    setPage(1);
-  }, [selectedCategory]);
 
   const loadData = async () => {
     const catSnap = await getDocs(collection(db, "categories"));
@@ -73,6 +57,7 @@ export default function HomePage() {
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
 
+    // Real rating calculation
     const reviewSnap = await getDocs(collection(db, "reviews"));
     const ratingMap: any = {};
     reviewSnap.forEach(doc => {
@@ -84,14 +69,6 @@ export default function HomePage() {
       ratingMap[r.productId].count += 1;
     });
     setRatings(ratingMap);
-
-    // 🔥 Wishlist Auto Load
-    const userId = "demoUser";
-    const wishSnap = await getDocs(collection(db, "wishlists"));
-    const userWishlist = wishSnap.docs
-      .filter(d => d.data().userId === userId)
-      .map(d => d.data().productId);
-    setWishlist(userWishlist);
   };
 
   // Slider auto
@@ -103,33 +80,6 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [banners]);
 
-  // 🔥 Offer Countdown
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newTimers: any = {};
-
-      products.forEach(product => {
-        if (product.offerEnd?.seconds) {
-          const diff =
-            new Date(product.offerEnd.seconds * 1000).getTime() -
-            new Date().getTime();
-
-          if (diff > 0) {
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor(
-              (diff % (1000 * 60 * 60)) / (1000 * 60)
-            );
-            newTimers[product.id] = `${hours}h ${minutes}m left`;
-          }
-        }
-      });
-
-      setOfferTimers(newTimers);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [products]);
-
   const normalize = (text: string) =>
     text?.toLowerCase().replace(/\s|-/g, "");
 
@@ -139,11 +89,6 @@ export default function HomePage() {
       selectedCategory === "All" || p.category === selectedCategory;
     return matchSearch && matchCategory;
   });
-
-  const paginatedProducts = filteredProducts.slice(
-    (page - 1) * productsPerPage,
-    page * productsPerPage
-  );
 
   useEffect(() => {
     if (!search) return setSuggestions([]);
@@ -165,20 +110,17 @@ export default function HomePage() {
     };
   };
 
-  const toggleWishlist = async (id: string) => {
-    const userId = "demoUser";
-
+  const toggleWishlist = (id: string) => {
     if (wishlist.includes(id)) {
-      await deleteDoc(doc(db, "wishlists", userId + "_" + id));
       setWishlist(wishlist.filter(w => w !== id));
     } else {
-      await setDoc(doc(db, "wishlists", userId + "_" + id), {
-        productId: id,
-        userId,
-        createdAt: new Date(),
-      });
       setWishlist([...wishlist, id]);
     }
+  };
+
+  const calculateDiscount = (price: number, original: number) => {
+    if (!original) return null;
+    return Math.round(((original - price) / original) * 100);
   };
 
   return (
@@ -209,43 +151,96 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* PRODUCTS SECTION ONLY UPDATED BELOW */}
+      {/* SEARCH */}
+      <div className="bg-white px-4 py-3 relative">
+        <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 bg-transparent outline-none px-3 text-sm"
+          />
+          <Mic size={16} onClick={startVoice} className="cursor-pointer" />
+        </div>
 
+        {suggestions.length > 0 && (
+          <div className="absolute bg-white shadow rounded mt-2 w-full z-50">
+            {suggestions.map(s => (
+              <Link key={s.id} href={`/product/${s.id}`}>
+                <div className="p-2 hover:bg-gray-100 text-sm">
+                  {s.name}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* FESTIVAL */}
+      {festival?.active && (
+        <div className="px-4 mt-2">
+          <img src={festival.image} className="rounded-xl shadow" />
+        </div>
+      )}
+
+      {/* CATEGORY */}
+      <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
+        {categories.map(cat => (
+          <div
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.name)}
+            className="flex flex-col items-center min-w-[75px] cursor-pointer"
+          >
+            <div className={`w-16 h-16 rounded-full border-2 p-1 ${selectedCategory === cat.name ? "border-pink-600" : "border-gray-300"}`}>
+              {cat.image && (
+                <img src={cat.image} className="w-full h-full rounded-full object-cover" />
+              )}
+            </div>
+            <span className="text-xs mt-2">{cat.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* SLIDER */}
+      {banners.length > 0 && (
+        <div className="px-4 mt-4">
+          <div className="rounded-xl overflow-hidden shadow relative">
+            <img src={banners[slide]?.image} className="w-full h-44 object-cover" />
+          </div>
+          <div className="flex justify-center gap-2 mt-2">
+            {banners.map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full ${slide === i ? "bg-pink-600" : "bg-gray-300"}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCTS */}
       <div className="px-4 mt-6">
         <h2 className="text-lg font-bold text-purple-600 mb-4">
           Best of JembeeKart
         </h2>
 
         <div className="grid grid-cols-2 gap-4">
-          {paginatedProducts.map(product => {
-
+          {filteredProducts.map(product => {
             const ratingData = ratings[product.id];
             const avg =
               ratingData && ratingData.count
                 ? (ratingData.total / ratingData.count).toFixed(1)
                 : "4.5";
 
-            const isOfferActive =
-              product.offerEnd &&
-              new Date(product.offerEnd.seconds * 1000) > now;
-
-            const finalPrice = isOfferActive
-              ? product.offerPrice
-              : product.sellingPrice;
-
-            const discountPercent =
-              isOfferActive && product.sellingPrice
-                ? Math.round(
-                    ((product.sellingPrice - product.offerPrice) /
-                      product.sellingPrice) *
-                      100
-                  )
-                : null;
+            const discount = calculateDiscount(
+              product.sellingPrice,
+              product.originalPrice
+            );
 
             return (
               <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
-
-                {/* Wishlist */}
                 <button
                   onClick={() => toggleWishlist(product.id)}
                   className="absolute top-2 right-2"
@@ -255,13 +250,6 @@ export default function HomePage() {
                     className={wishlist.includes(product.id) ? "text-red-500 fill-red-500" : ""}
                   />
                 </button>
-
-                {/* Discount Badge */}
-                {discountPercent && (
-                  <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
-                    {discountPercent}% OFF
-                  </div>
-                )}
 
                 <Link href={`/product/${product.id}`}>
                   <img
@@ -280,65 +268,45 @@ export default function HomePage() {
                 </div>
 
                 <div className="font-bold mt-1">
-                  ₹{finalPrice}
-                  {isOfferActive && (
+                  ₹{product.sellingPrice}
+                  {product.originalPrice && (
                     <span className="line-through text-gray-400 ml-2 text-xs">
-                      ₹{product.sellingPrice}
+                      ₹{product.originalPrice}
                     </span>
                   )}
                 </div>
 
-                {/* Countdown */}
-                {offerTimers[product.id] && (
-                  <div className="text-red-500 text-xs mt-1">
-                    🔥 {offerTimers[product.id]}
-                  </div>
-                )}
-
-                {/* Stock */}
-                {product.stock !== undefined && (
-                  <div className="text-xs mt-1">
-                    {product.stock === 0 ? (
-                      <span className="text-red-600 font-semibold">
-                        Out of Stock
-                      </span>
-                    ) : product.stock <= 5 ? (
-                      <span className="text-orange-600 font-semibold">
-                        Only {product.stock} left
-                      </span>
-                    ) : (
-                      <span className="text-green-600">
-                        In Stock
-                      </span>
-                    )}
+                {discount && (
+                  <div className="text-green-600 text-xs">
+                    {discount}% OFF
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-
-        {/* Pagination Improved */}
-        <div className="flex justify-center gap-2 mt-4">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Prev
-          </button>
-
-          <button
-            disabled={page * productsPerPage >= filteredProducts.length}
-            onClick={() => setPage(prev => prev + 1)}
-            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
       </div>
 
-      {/* Bottom Nav same as before */}
+      {/* BOTTOM NAV */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3">
+        <Link href="/" className={pathname === "/" ? "text-pink-600" : ""}>
+          <Home size={20} />
+        </Link>
+        <Link href="/categories">
+          <Grid size={20} />
+        </Link>
+        <Link href="/account">
+          <User size={20} />
+        </Link>
+        <Link href="/cart" className="relative">
+          <ShoppingCart size={20} />
+          {cart.length > 0 && (
+            <span className="absolute -top-1 right-0 bg-red-500 text-white text-xs px-1 rounded-full">
+              {cart.length}
+            </span>
+          )}
+        </Link>
+      </div>
     </div>
   );
 }
