@@ -1,9 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import DynamicCategories from "@/components/DynamicCategories";
 import { CartProvider } from "@/context/CartContext";
-import { AuthProvider } from "@/providers/auth-provider"; // ✅ ADD THIS
+import { AuthProvider } from "@/providers/auth-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,13 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider> {/* ✅ WRAP EVERYTHING */}
+        <AuthProvider>
           <CartProvider>
 
-            {/* 🔥 DYNAMIC CATEGORIES */}
-            <DynamicCategories />
+            {/* ❌ DynamicCategories removed from here */}
 
-            {/* MAIN CONTENT */}
             {children}
 
           </CartProvider>
