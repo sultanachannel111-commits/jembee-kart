@@ -8,18 +8,23 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function AdminOffersPage() {
   const [title, setTitle] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState<number | "">("");
   const [endDate, setEndDate] = useState("");
   const [offers, setOffers] = useState<any[]>([]);
+  const [error, setError] = useState("");
 
-  // 🔥 Real-time listener
+  // 🔥 Real-time fetch
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "offers"), (snapshot) => {
+    const q = query(collection(db, "offers"), orderBy("createdAt", "desc"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -27,15 +32,30 @@ export default function AdminOffersPage() {
       setOffers(data);
     });
 
-    return () => unsub();
+    return () => unsubscribe();
   }, []);
 
+  // ✅ Add Offer
   const addOffer = async () => {
-    if (!title || !discount || !endDate)
-      return alert("All fields required");
+    setError("");
+
+    if (!title.trim()) {
+      setError("Enter offer title");
+      return;
+    }
+
+    if (!discount || Number(discount) <= 0) {
+      setError("Enter valid discount");
+      return;
+    }
+
+    if (!endDate) {
+      setError("Select end date & time");
+      return;
+    }
 
     await addDoc(collection(db, "offers"), {
-      title,
+      title: title.trim(),
       discount: Number(discount),
       endDate,
       active: true,
@@ -43,31 +63,31 @@ export default function AdminOffersPage() {
     });
 
     setTitle("");
-    setDiscount(0);
+    setDiscount("");
     setEndDate("");
   };
 
+  // ✅ Delete
   const deleteOffer = async (id: string) => {
     await deleteDoc(doc(db, "offers", id));
   };
 
+  // ✅ Toggle Active
   const toggleActive = async (id: string, current: boolean) => {
     await updateDoc(doc(db, "offers", id), {
       active: !current,
     });
   };
 
+  // ⏳ Countdown
   const getRemainingTime = (end: string) => {
     const total = new Date(end).getTime() - new Date().getTime();
+
     if (total <= 0) return "Expired";
 
     const days = Math.floor(total / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(
-      (total / (1000 * 60 * 60)) % 24
-    );
-    const minutes = Math.floor(
-      (total / (1000 * 60)) % 60
-    );
+    const hours = Math.floor((total / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((total / (1000 * 60)) % 60);
 
     return `${days}d ${hours}h ${minutes}m`;
   };
@@ -79,30 +99,35 @@ export default function AdminOffersPage() {
       </h1>
 
       {/* Add Form */}
-      <div className="grid md:grid-cols-4 gap-3 mb-6">
+      <div className="grid md:grid-cols-4 gap-3 mb-2">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Offer Title"
           className="border px-4 py-2 rounded"
         />
+
         <input
           type="number"
           value={discount}
           onChange={(e) =>
-            setDiscount(Number(e.target.value))
+            setDiscount(
+              e.target.value === ""
+                ? ""
+                : Number(e.target.value)
+            )
           }
           placeholder="Discount %"
           className="border px-4 py-2 rounded"
         />
+
         <input
           type="datetime-local"
           value={endDate}
-          onChange={(e) =>
-            setEndDate(e.target.value)
-          }
+          onChange={(e) => setEndDate(e.target.value)}
           className="border px-4 py-2 rounded"
         />
+
         <button
           onClick={addOffer}
           className="bg-pink-600 text-white px-4 py-2 rounded"
@@ -111,8 +136,13 @@ export default function AdminOffersPage() {
         </button>
       </div>
 
+      {/* Error */}
+      {error && (
+        <p className="text-red-500 mb-4">{error}</p>
+      )}
+
       {/* Offer List */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-3 gap-4 mt-6">
         {offers.map((offer) => (
           <div
             key={offer.id}
