@@ -9,6 +9,8 @@ import {
   ShoppingCart,
   Users,
   Image,
+  Folder,
+  Timer,
   LogOut,
   Menu,
   X,
@@ -113,6 +115,11 @@ export default function AdminLayout({
           {navItem("/admin/orders", "Orders", ShoppingCart)}
           {navItem("/admin/users", "Users", Users)}
           {navItem("/admin/banners", "Banners", Image)}
+
+          {/* ✅ NEW ITEMS ADDED BELOW */}
+          {navItem("/admin/categories", "Categories", Folder)}
+          {navItem("/admin/festival", "Festival Banner", Image)}
+          {navItem("/admin/offers", "Discount & Offer Timer", Timer)}
         </nav>
 
         <button
