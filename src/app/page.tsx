@@ -12,14 +12,16 @@ import {
   Star,
   Heart
 } from "lucide-react";
+
 import {
   collection,
   getDocs,
   doc,
   getDoc,
-  query,
-  where
+  setDoc,
+  deleteDoc
 } from "firebase/firestore";
+
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { usePathname } from "next/navigation";
@@ -38,6 +40,12 @@ export default function HomePage() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [ratings, setRatings] = useState<any>({});
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [pincode, setPincode] = useState("");
+  const [pincodeMsg, setPincodeMsg] = useState("");
+
+  const productsPerPage = 6;
+  const now = new Date();
 
   useEffect(() => {
     loadData();
@@ -57,7 +65,6 @@ export default function HomePage() {
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
 
-    // Real rating calculation
     const reviewSnap = await getDocs(collection(db, "reviews"));
     const ratingMap: any = {};
     reviewSnap.forEach(doc => {
@@ -90,6 +97,11 @@ export default function HomePage() {
     return matchSearch && matchCategory;
   });
 
+  const paginatedProducts = filteredProducts.slice(
+    (page - 1) * productsPerPage,
+    page * productsPerPage
+  );
+
   useEffect(() => {
     if (!search) return setSuggestions([]);
     const matches = products.filter(p =>
@@ -110,17 +122,20 @@ export default function HomePage() {
     };
   };
 
-  const toggleWishlist = (id: string) => {
+  const toggleWishlist = async (id: string) => {
+    const userId = "demoUser";
+
     if (wishlist.includes(id)) {
+      await deleteDoc(doc(db, "wishlists", userId + "_" + id));
       setWishlist(wishlist.filter(w => w !== id));
     } else {
+      await setDoc(doc(db, "wishlists", userId + "_" + id), {
+        productId: id,
+        userId,
+        createdAt: new Date(),
+      });
       setWishlist([...wishlist, id]);
     }
-  };
-
-  const calculateDiscount = (price: number, original: number) => {
-    if (!original) return null;
-    return Math.round(((original - price) / original) * 100);
   };
 
   return (
@@ -206,9 +221,10 @@ export default function HomePage() {
       {/* SLIDER */}
       {banners.length > 0 && (
         <div className="px-4 mt-4">
-          <div className="rounded-xl overflow-hidden shadow relative">
+          <div className="rounded-xl overflow-hidden shadow">
             <img src={banners[slide]?.image} className="w-full h-44 object-cover" />
           </div>
+
           <div className="flex justify-center gap-2 mt-2">
             {banners.map((_, i) => (
               <div
@@ -220,6 +236,29 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* PINCODE CHECK */}
+      <div className="px-4 mt-4 flex gap-2">
+        <input
+          value={pincode}
+          onChange={(e) => setPincode(e.target.value)}
+          placeholder="Enter Pincode"
+          className="border px-3 py-2 rounded text-sm"
+        />
+        <button
+          onClick={() =>
+            setPincodeMsg(
+              pincode.length === 6 ? "Delivery Available" : "Invalid Pincode"
+            )
+          }
+          className="bg-pink-600 text-white px-3 rounded text-sm"
+        >
+          Check
+        </button>
+      </div>
+      {pincodeMsg && (
+        <p className="px-4 text-green-600 text-xs">{pincodeMsg}</p>
+      )}
+
       {/* PRODUCTS */}
       <div className="px-4 mt-6">
         <h2 className="text-lg font-bold text-purple-600 mb-4">
@@ -227,20 +266,24 @@ export default function HomePage() {
         </h2>
 
         <div className="grid grid-cols-2 gap-4">
-          {filteredProducts.map(product => {
+          {paginatedProducts.map(product => {
             const ratingData = ratings[product.id];
             const avg =
               ratingData && ratingData.count
                 ? (ratingData.total / ratingData.count).toFixed(1)
                 : "4.5";
 
-            const discount = calculateDiscount(
-              product.sellingPrice,
-              product.originalPrice
-            );
+            const isOfferActive =
+              product.offerEnd &&
+              new Date(product.offerEnd.seconds * 1000) > now;
+
+            const finalPrice = isOfferActive
+              ? product.offerPrice
+              : product.sellingPrice;
 
             return (
               <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
+
                 <button
                   onClick={() => toggleWishlist(product.id)}
                   className="absolute top-2 right-2"
@@ -268,22 +311,32 @@ export default function HomePage() {
                 </div>
 
                 <div className="font-bold mt-1">
-                  ₹{product.sellingPrice}
-                  {product.originalPrice && (
+                  ₹{finalPrice}
+                  {isOfferActive && (
                     <span className="line-through text-gray-400 ml-2 text-xs">
-                      ₹{product.originalPrice}
+                      ₹{product.sellingPrice}
                     </span>
                   )}
                 </div>
-
-                {discount && (
-                  <div className="text-green-600 text-xs">
-                    {discount}% OFF
-                  </div>
-                )}
               </div>
             );
           })}
+        </div>
+
+        {/* PAGINATION */}
+        <div className="flex justify-center gap-2 mt-4">
+          <button
+            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+            className="px-3 py-1 bg-gray-200 rounded"
+          >
+            Prev
+          </button>
+          <button
+            onClick={() => setPage(prev => prev + 1)}
+            className="px-3 py-1 bg-gray-200 rounded"
+          >
+            Next
+          </button>
         </div>
       </div>
 
@@ -292,10 +345,10 @@ export default function HomePage() {
         <Link href="/" className={pathname === "/" ? "text-pink-600" : ""}>
           <Home size={20} />
         </Link>
-        <Link href="/categories">
+        <Link href="/categories" className={pathname === "/categories" ? "text-pink-600" : ""}>
           <Grid size={20} />
         </Link>
-        <Link href="/account">
+        <Link href="/account" className={pathname === "/account" ? "text-pink-600" : ""}>
           <User size={20} />
         </Link>
         <Link href="/cart" className="relative">
