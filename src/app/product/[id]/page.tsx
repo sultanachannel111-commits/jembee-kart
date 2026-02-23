@@ -6,6 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ProductPage() {
   const params = useParams();
@@ -18,10 +19,13 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState("");
   const [zoomOpen, setZoomOpen] = useState(false);
-
-  // 🔥 NEW STATES
   const [timeLeft, setTimeLeft] = useState("");
   const [quantity, setQuantity] = useState(1);
+
+  // 🔥 NEW STATES
+  const [viewers, setViewers] = useState(0);
+  const [soldCount, setSoldCount] = useState(0);
+  const [deliveryDate, setDeliveryDate] = useState("");
 
   const now = new Date();
 
@@ -61,6 +65,27 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
+  /* ---------------- DYNAMIC CONVERSION FEATURES ---------------- */
+  useEffect(() => {
+    const randomViewers = Math.floor(Math.random() * 15) + 5;
+    setViewers(randomViewers);
+
+    const randomSold = Math.floor(Math.random() * 200) + 50;
+    setSoldCount(randomSold);
+
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 3);
+
+    const options: Intl.DateTimeFormatOptions = {
+      day: "numeric",
+      month: "short",
+    };
+
+    setDeliveryDate(
+      futureDate.toLocaleDateString("en-IN", options)
+    );
+  }, []);
+
   /* ---------------- OFFER SYSTEM ---------------- */
 
   const isOfferActive =
@@ -69,13 +94,13 @@ export default function ProductPage() {
 
   const finalPrice = isOfferActive
     ? product.offerPrice
-    : product.price;
+    : product.sellingPrice || product.price;
 
   const discountPercent =
-    isOfferActive && product?.price
+    isOfferActive && product?.sellingPrice
       ? Math.round(
-          ((product.price - product.offerPrice) /
-            product.price) *
+          ((product.sellingPrice - product.offerPrice) /
+            product.sellingPrice) *
             100
         )
       : null;
@@ -106,6 +131,16 @@ export default function ProductPage() {
   /* ---------------- CART FUNCTIONS ---------------- */
 
   const handleAddToCart = () => {
+    if (product.stock === 0) {
+      alert("Product is out of stock");
+      return;
+    }
+
+    if (quantity > product.stock) {
+      alert("Not enough stock available");
+      return;
+    }
+
     addToCart({
       id: product.id,
       name: product.name,
@@ -116,6 +151,11 @@ export default function ProductPage() {
   };
 
   const handleBuyNow = () => {
+    if (product.stock === 0) {
+      alert("Product is out of stock");
+      return;
+    }
+
     addToCart({
       id: product.id,
       name: product.name,
@@ -123,6 +163,7 @@ export default function ProductPage() {
       price: finalPrice,
       quantity: quantity,
     });
+
     router.push("/checkout");
   };
 
@@ -162,70 +203,92 @@ export default function ProductPage() {
               </div>
             )}
           </div>
-
-          {product.images && product.images.length > 0 && (
-            <div className="flex gap-4 mt-4 flex-wrap">
-              {product.images.map((img: string, index: number) => (
-                <img
-                  key={index}
-                  src={img}
-                  alt="thumb"
-                  onClick={() => setSelectedImage(img)}
-                  className={`w-20 h-20 object-cover rounded-lg border cursor-pointer transition
-                  ${
-                    selectedImage === img
-                      ? "border-yellow-500 scale-105"
-                      : "border-gray-300"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
         </div>
 
         {/* DETAILS SECTION */}
         <div>
-          <h1 className="text-3xl font-bold mb-4">
+
+          {product.category && (
+            <Link
+              href={`/category/${product.category}`}
+              className="text-sm text-pink-600 font-medium"
+            >
+              {product.category}
+            </Link>
+          )}
+
+          <h1 className="text-3xl font-bold mb-4 mt-2">
             {product.name}
           </h1>
 
-          {/* PRICE SECTION */}
-          <div className="mb-4">
-            <p className="text-3xl text-green-600 font-bold">
-              ₹{finalPrice}
-            </p>
+          <p className="text-3xl text-green-600 font-bold">
+            ₹{finalPrice}
+          </p>
 
-            {isOfferActive && (
-              <div className="mt-2">
-                <span className="line-through text-gray-400 mr-3">
-                  ₹{product.price}
-                </span>
-                <span className="text-red-600 font-semibold">
-                  🔥 {timeLeft}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* STOCK */}
-          {product.stock && (
-            <p className="text-sm text-gray-500 mb-3">
-              {product.stock > 5
-                ? "In Stock"
-                : `Only ${product.stock} left`}
-            </p>
+          {isOfferActive && (
+            <div className="mt-2">
+              <span className="line-through text-gray-400 mr-3">
+                ₹{product.sellingPrice}
+              </span>
+              <span className="text-red-600 font-semibold">
+                🔥 {timeLeft}
+              </span>
+            </div>
           )}
 
-          <p className="text-gray-600 mb-6">
+          {/* 👀 VIEWERS */}
+          <div className="mt-3 text-sm text-gray-600">
+            👀 {viewers} people are viewing this right now
+          </div>
+
+          {/* 🔥 SOLD */}
+          <div className="text-sm text-red-600 font-semibold mt-1">
+            🔥 {soldCount}+ sold recently
+          </div>
+
+          {/* 📦 DELIVERY */}
+          <div className="text-sm text-green-600 mt-2">
+            📦 Get it by <span className="font-semibold">{deliveryDate}</span>
+          </div>
+
+          {/* STOCK DISPLAY */}
+          {product.stock !== undefined && (
+            <div className="mt-4">
+
+              {product.stock > 5 && (
+                <p className="text-green-600 text-sm font-medium">
+                  ✔ In Stock
+                </p>
+              )}
+
+              {product.stock <= 5 && product.stock > 2 && (
+                <p className="text-orange-500 text-sm font-semibold">
+                  ⚠ Only {product.stock} left
+                </p>
+              )}
+
+              {product.stock <= 2 && product.stock > 0 && (
+                <div className="bg-red-100 border border-red-400 text-red-600 px-3 py-2 rounded text-sm font-semibold animate-pulse">
+                  🔥 Hurry! Only {product.stock} left in stock
+                </div>
+              )}
+
+              {product.stock === 0 && (
+                <p className="text-red-600 font-bold">
+                  ❌ Out of Stock
+                </p>
+              )}
+            </div>
+          )}
+
+          <p className="text-gray-600 mt-4">
             {product.description}
           </p>
 
-          {/* QUANTITY SELECTOR */}
-          <div className="flex items-center gap-4 mb-6">
+          {/* QUANTITY */}
+          <div className="flex items-center gap-4 mt-6">
             <button
-              onClick={() =>
-                setQuantity(q => (q > 1 ? q - 1 : 1))
-              }
+              onClick={() => setQuantity(q => (q > 1 ? q - 1 : 1))}
               className="px-3 py-1 border rounded"
             >
               -
@@ -236,9 +299,7 @@ export default function ProductPage() {
             </span>
 
             <button
-              onClick={() =>
-                setQuantity(q => q + 1)
-              }
+              onClick={() => setQuantity(q => q + 1)}
               className="px-3 py-1 border rounded"
             >
               +
