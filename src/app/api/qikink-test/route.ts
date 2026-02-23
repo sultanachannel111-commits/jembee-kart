@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     const tokenData = await tokenResponse.json();
 
-    if (!tokenResponse.ok || !tokenData.Accesstoken) {
+    if (!tokenData.Accesstoken) {
       return NextResponse.json({
         success: false,
         step: "Token Generation Failed",
@@ -34,10 +34,10 @@ export async function POST(req: Request) {
     const accessToken = tokenData.Accesstoken;
 
     // ==============================
-    // 2️⃣ Create Short Order Number (Max 15 chars)
+    // 2️⃣ Safe Order Number (max 15 chars)
     // ==============================
     const orderNumber =
-      "ORD" + Date.now().toString().slice(-10); // always safe length
+      "ORD" + Date.now().toString().slice(-10);
 
     // ==============================
     // 3️⃣ Create Order
@@ -61,7 +61,8 @@ export async function POST(req: Request) {
               search_from_my_products: 0,
               quantity: "1",
               price: "1",
-              sku: body.sku || "MVnHs-Wh-S", // fallback SKU
+              sku: body.sku || "MVnHs-Wh-S",
+              print_type_id: 1,   // 🔥 REQUIRED FIELD
               designs: [],
             },
           ],
@@ -90,9 +91,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // ==============================
-    // ✅ SUCCESS
-    // ==============================
     return NextResponse.json({
       success: true,
       message: "Order Created Successfully",
