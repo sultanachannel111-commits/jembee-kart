@@ -4,25 +4,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 🔥 Correct Sandbox Endpoint
     const response = await fetch(
-      "https://sandbox.qikink.com/api/v1/create-order",
+      "https://sandbox.qikink.com/openapi/v1/orders",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.QIKINK_SANDBOX_SECRET}`,
+          "X-API-KEY": process.env.QIKINK_SANDBOX_SECRET as string,
         },
         body: JSON.stringify({
           order_id: "TEST" + Date.now(),
-          payment_mode: "Prepaid",
-
+          payment_mode: "prepaid",
           customer: {
             name: "Test User",
             email: "test@gmail.com",
             phone: "9999999999",
           },
-
           shipping_address: {
             address1: "Test Street",
             address2: "",
@@ -31,8 +28,7 @@ export async function POST(req: Request) {
             pincode: "110001",
             country: "India",
           },
-
-          items: [
+          order_items: [
             {
               product_id: body.productId,
               quantity: body.quantity || 1,
@@ -46,13 +42,11 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    // 🔎 Debug friendly response
     return NextResponse.json({
       success: response.ok,
       status: response.status,
       data,
     });
-
   } catch (error: any) {
     return NextResponse.json({
       success: false,
