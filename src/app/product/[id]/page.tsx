@@ -4,14 +4,19 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function ProductPage() {
   const params = useParams();
+  const router = useRouter();
+  const { addToCart } = useCart();
+
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedImage, setSelectedImage] = useState("");
   const [zoomOpen, setZoomOpen] = useState(false);
 
   /* ---------------- FETCH PRODUCT ---------------- */
@@ -33,7 +38,6 @@ export default function ProductPage() {
 
           setProduct(productData);
 
-          // Agar images array hai to first image set karo
           if (data.images && data.images.length > 0) {
             setSelectedImage(data.images[0]);
           } else {
@@ -66,7 +70,28 @@ export default function ProductPage() {
       </div>
     );
 
-  const whatsappLink = `https://wa.me/917061369212?text=Hello, I want to order ${product.name} - ₹${product.price}`;
+  /* ---------------- CART FUNCTIONS ---------------- */
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      image: selectedImage,
+      price: product.price,
+      quantity: 1,
+    });
+  };
+
+  const handleBuyNow = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      image: selectedImage,
+      price: product.price,
+      quantity: 1,
+    });
+    router.push("/checkout");
+  };
 
   return (
     <>
@@ -85,7 +110,6 @@ export default function ProductPage() {
             />
           </div>
 
-          {/* THUMBNAILS (If multiple images) */}
           {product.images && product.images.length > 0 && (
             <div className="flex gap-4 mt-4 flex-wrap">
               {product.images.map((img: string, index: number) => (
@@ -120,12 +144,23 @@ export default function ProductPage() {
             {product.description}
           </p>
 
-          <button
-            onClick={() => window.open(whatsappLink, "_blank")}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg shadow-lg transition"
-          >
-            Order on WhatsApp
-          </button>
+          {/* 🔥 NEW BUTTONS */}
+
+          <div className="flex gap-4 mt-6">
+            <button
+              onClick={handleAddToCart}
+              className="flex-1 bg-black hover:bg-gray-800 text-white py-3 rounded-lg shadow-lg transition"
+            >
+              🛒 Add to Cart
+            </button>
+
+            <button
+              onClick={handleBuyNow}
+              className="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-lg shadow-lg transition"
+            >
+              ⚡ Buy Now
+            </button>
+          </div>
         </div>
       </div>
 
