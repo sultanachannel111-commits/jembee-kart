@@ -6,7 +6,7 @@ export async function POST(req: Request) {
 
     // 🔥 Correct Sandbox Endpoint
     const response = await fetch(
-      "https://sandbox.qikink.com/openapi/v1/orders",
+      "https://sandbox.qikink.com/api/v1/create-order"
       {
         method: "POST",
         headers: {
