@@ -34,7 +34,13 @@ export async function POST(req: Request) {
     const accessToken = tokenData.Accesstoken;
 
     // ==============================
-    // 2️⃣ Create Order
+    // 2️⃣ Create Short Order Number (Max 15 chars)
+    // ==============================
+    const orderNumber =
+      "ORD" + Date.now().toString().slice(-10); // always safe length
+
+    // ==============================
+    // 3️⃣ Create Order
     // ==============================
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
           Accesstoken: accessToken,
         },
         body: JSON.stringify({
-          order_number: "TEST" + Date.now(),
+          order_number: orderNumber,
           qikink_shipping: "1",
           gateway: "COD",
           total_order_value: "1",
@@ -55,7 +61,7 @@ export async function POST(req: Request) {
               search_from_my_products: 0,
               quantity: "1",
               price: "1",
-              sku: body.sku, // 👈 Frontend se bhejo
+              sku: body.sku || "MVnHs-Wh-S", // fallback SKU
               designs: [],
             },
           ],
@@ -85,11 +91,12 @@ export async function POST(req: Request) {
     }
 
     // ==============================
-    // ✅ Success Response
+    // ✅ SUCCESS
     // ==============================
     return NextResponse.json({
       success: true,
       message: "Order Created Successfully",
+      orderNumber,
       orderData,
     });
 
