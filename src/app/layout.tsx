@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import DynamicCategories from "@/components/DynamicCategories";
 import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/providers/auth-provider"; // ✅ ADD THIS
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,17 +20,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <CartProvider>
-          
-          {/* HEADER (agar tumhara alag header component hai to yaha rakho) */}
-          
-          {/* 🔥 DYNAMIC CATEGORIES (Home ko touch nahi kiya) */}
-          <DynamicCategories />
+        <AuthProvider> {/* ✅ WRAP EVERYTHING */}
+          <CartProvider>
 
-          {/* MAIN CONTENT */}
-          {children}
+            {/* 🔥 DYNAMIC CATEGORIES */}
+            <DynamicCategories />
 
-        </CartProvider>
+            {/* MAIN CONTENT */}
+            {children}
+
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
