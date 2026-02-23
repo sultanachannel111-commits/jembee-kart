@@ -18,6 +18,8 @@ export default function AdminAddProduct() {
     costPrice: "",
     sellingPrice: "",
     sellerId: "",
+    offerPrice: "",
+    offerEnd: "",
   });
 
   const handleChange = (e: any) => {
@@ -45,8 +47,17 @@ export default function AdminAddProduct() {
         sellingPrice: Number(form.sellingPrice),
         profit: profit,
         sellerId: form.sellerId || "admin",
-        status: "approved", // admin direct approved
+        status: "approved",
         isActive: true,
+
+        // 🔥 OFFER SYSTEM ADDED (Safe)
+        offerPrice: form.offerPrice
+          ? Number(form.offerPrice)
+          : null,
+        offerEnd: form.offerEnd
+          ? new Date(form.offerEnd)
+          : null,
+
         createdAt: serverTimestamp(),
       });
 
@@ -61,6 +72,8 @@ export default function AdminAddProduct() {
         costPrice: "",
         sellingPrice: "",
         sellerId: "",
+        offerPrice: "",
+        offerEnd: "",
       });
     } catch (error) {
       console.error(error);
@@ -134,6 +147,25 @@ export default function AdminAddProduct() {
             value={form.sellingPrice}
             onChange={handleChange}
             type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          {/* 🔥 OFFER PRICE */}
+          <input
+            name="offerPrice"
+            placeholder="Offer Price (Optional)"
+            value={form.offerPrice}
+            onChange={handleChange}
+            type="number"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+
+          {/* 🔥 OFFER END TIME */}
+          <input
+            name="offerEnd"
+            type="datetime-local"
+            value={form.offerEnd}
+            onChange={handleChange}
             className="w-full border px-4 py-2 rounded-lg"
           />
 
