@@ -7,6 +7,7 @@ export default function AccountClient() {
   const { user, role, logout } = useAuth();
   const router = useRouter();
 
+  // If not logged in
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
@@ -29,13 +30,17 @@ export default function AccountClient() {
     );
   }
 
+  // Logged in
   return (
     <div className="min-h-screen p-6 bg-gray-100">
       <div className="max-w-md mx-auto bg-white p-6 rounded-xl shadow space-y-4">
+
         <h2 className="text-2xl font-bold text-center">My Account</h2>
 
-        <p><b>Email:</b> {user.email}</p>
-        <p><b>Role:</b> {role}</p>
+        <div className="text-sm text-gray-600">
+          <p><b>Email:</b> {user.email}</p>
+          <p><b>Role:</b> {role}</p>
+        </div>
 
         {role === "seller" && (
           <button
@@ -47,11 +52,15 @@ export default function AccountClient() {
         )}
 
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            router.push("/");
+          }}
           className="w-full bg-red-500 text-white py-2 rounded"
         >
           Logout
         </button>
+
       </div>
     </div>
   );
