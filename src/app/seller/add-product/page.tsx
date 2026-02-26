@@ -17,6 +17,7 @@ export default function AddProduct() {
     mockupLink: "",
     costPrice: "",
     sellingPrice: "",
+    stock: "", // ✅ Added stock
   });
 
   const handleChange = (e: any) => {
@@ -49,8 +50,10 @@ export default function AddProduct() {
         costPrice: Number(form.costPrice),
         sellingPrice: Number(form.sellingPrice),
         profit: profit,
+        stock: Number(form.stock || 0), // ✅ Saved in DB
+        sold: 0, // ✅ Future tracking
         sellerId: user?.uid,
-        status: "pending", // admin approval
+        status: "pending",
         isActive: false,
         createdAt: serverTimestamp(),
       });
@@ -66,6 +69,7 @@ export default function AddProduct() {
         mockupLink: "",
         costPrice: "",
         sellingPrice: "",
+        stock: "",
       });
 
     } catch (error) {
@@ -84,7 +88,6 @@ export default function AddProduct() {
 
         <div className="space-y-4">
 
-          {/* Product Name */}
           <input
             name="name"
             placeholder="Product Name"
@@ -93,7 +96,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Qikink Category */}
           <select
             name="category"
             value={form.category}
@@ -116,7 +118,6 @@ export default function AddProduct() {
             <option value="Bags">Bags</option>
           </select>
 
-          {/* SKU */}
           <input
             name="sku"
             placeholder="Qikink SKU"
@@ -125,7 +126,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Print Type */}
           <input
             name="printTypeId"
             placeholder="Print Type ID (Example: 1)"
@@ -135,7 +135,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Design URL */}
           <input
             name="designLink"
             placeholder="Design Image URL"
@@ -144,7 +143,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Mockup URL */}
           <input
             name="mockupLink"
             placeholder="Mockup Image URL"
@@ -153,7 +151,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Cost Price */}
           <input
             name="costPrice"
             placeholder="Cost Price (Qikink)"
@@ -163,7 +160,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Selling Price */}
           <input
             name="sellingPrice"
             placeholder="Selling Price"
@@ -173,14 +169,22 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Profit */}
+          {/* ✅ Stock Field */}
+          <input
+            name="stock"
+            placeholder="Available Stock"
+            type="number"
+            value={form.stock}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded"
+          />
+
           <div className="bg-pink-100 p-3 rounded">
             <p className="font-semibold">
               Profit: ₹ {profit}
             </p>
           </div>
 
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded font-semibold"
