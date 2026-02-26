@@ -152,7 +152,7 @@ export default function HomePage() {
       </div>
 
       {/* SEARCH */}
-      <div className="bg-white px-4 py-3 relative">
+      <div className="sticky top-[72px] z-40 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
           <Search size={16} />
           <input
