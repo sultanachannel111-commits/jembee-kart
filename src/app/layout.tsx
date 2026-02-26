@@ -18,10 +18,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <CartProvider>
+  <html lang="en">
+    <head>
+      <meta name="theme-color" content="#f472b6" />
+      <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    </head>
+    <body className={inter.className}>
+      <AuthProvider>
+        <CartProvider>
+
+          {/* ❌ DynamicCategories removed from here */}
+
+          {children}
+
+        </CartProvider>
+      </AuthProvider>
+    </body>
+  </html>
+);
 
             {/* ❌ DynamicCategories removed from here */}
 
