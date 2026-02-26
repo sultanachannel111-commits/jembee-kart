@@ -44,7 +44,7 @@ export default function HomePage() {
   }, []);
 
   const loadData = async () => {
-    const catSnap = await getDocs(collection(db, "categories"));
+    const catSnap = await getDocs(collection(db, "qikinkCategories"));
     setCategories([{ id: "all", name: "All" }, ...catSnap.docs.map(d => ({ id: d.id, ...d.data() }))]);
 
     const bannerSnap = await getDocs(collection(db, "banners"));
