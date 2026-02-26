@@ -127,7 +127,7 @@ export default function HomePage() {
     <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20">
 
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-pink-200 to-pink-400 px-4 py-4 flex justify-between items-center">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pink-200 to-pink-400 px-4 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">
           <span className="text-black">Jembee</span>
           <span className="text-pink-700">Kart</span>
