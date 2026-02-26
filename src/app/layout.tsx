@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "JembeeKart",
   description: "Modern Ecommerce Platform",
-  themeColor: "#f472b6", // Pink-400 (Header match)
+  themeColor: "#f472b6", // Header Pink Match
 };
 
 export default function RootLayout({
@@ -18,29 +18,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-  <html lang="en">
-    <head>
-      <meta name="theme-color" content="#f472b6" />
-      <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    </head>
-    <body className={inter.className}>
-      <AuthProvider>
-        <CartProvider>
+    <html lang="en">
+      <head>
+        {/* Android Chrome Status Bar Color */}
+        <meta name="theme-color" content="#f472b6" />
+        {/* iPhone Status Bar Style */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
 
-          {/* ❌ DynamicCategories removed from here */}
-
-          {children}
-
-        </CartProvider>
-      </AuthProvider>
-    </body>
-  </html>
-);
-
-            {/* ❌ DynamicCategories removed from here */}
-
+      <body className={`${inter.className} bg-pink-50`}>
+        <AuthProvider>
+          <CartProvider>
             {children}
-
           </CartProvider>
         </AuthProvider>
       </body>
