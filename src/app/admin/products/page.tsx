@@ -1,197 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
-  collection,
-  addDoc,
-  serverTimestamp,
+collection,
+onSnapshot,
+updateDoc,
+deleteDoc,
+doc,
+serverTimestamp,
 } from "firebase/firestore";
 
-export default function AdminAddProduct() {
-  const [form, setForm] = useState({
-    name: "",
-    sku: "",
-    printTypeId: "",
-    designLink: "",
-    mockupLink: "",
-    costPrice: "",
-    sellingPrice: "",
-    sellerId: "",
-    offerPrice: "",
-    offerEnd: "",
-  });
+export default function AdminProducts() {
+const [products, setProducts] = useState<any[]>([]);
 
-  const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const profit =
-    Number(form.sellingPrice || 0) -
-    Number(form.costPrice || 0);
-
-  const handleSubmit = async () => {
-    if (!form.name || !form.sku || !form.sellingPrice) {
-      alert("Required fields missing");
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, "products"), {
-        name: form.name,
-        sku: form.sku,
-        printTypeId: Number(form.printTypeId),
-        designLink: form.designLink,
-        mockupLink: form.mockupLink,
-        costPrice: Number(form.costPrice),
-        sellingPrice: Number(form.sellingPrice),
-        profit: profit,
-        sellerId: form.sellerId || "admin",
-        status: "approved",
-        isActive: true,
-
-        // 🔥 OFFER SYSTEM ADDED (Safe)
-        offerPrice: form.offerPrice
-          ? Number(form.offerPrice)
-          : null,
-        offerEnd: form.offerEnd
-          ? new Date(form.offerEnd)
-          : null,
-
-        createdAt: serverTimestamp(),
-      });
-
-      alert("✅ Product Added by Admin");
-
-      setForm({
-        name: "",
-        sku: "",
-        printTypeId: "",
-        designLink: "",
-        mockupLink: "",
-        costPrice: "",
-        sellingPrice: "",
-        sellerId: "",
-        offerPrice: "",
-        offerEnd: "",
-      });
-    } catch (error) {
-      console.error(error);
-      alert("❌ Error adding product");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
-
-        <h1 className="text-2xl font-bold mb-6 text-black">
-          Admin Add Product (Qikink)
-        </h1>
-
-        <div className="space-y-4">
-
-          <input
-            name="name"
-            placeholder="Product Name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="sku"
-            placeholder="Qikink SKU"
-            value={form.sku}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="printTypeId"
-            placeholder="Print Type ID"
-            value={form.printTypeId}
-            onChange={handleChange}
-            type="number"
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="designLink"
-            placeholder="Design Image URL"
-            value={form.designLink}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="mockupLink"
-            placeholder="Mockup Image URL"
-            value={form.mockupLink}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="costPrice"
-            placeholder="Cost Price"
-            value={form.costPrice}
-            onChange={handleChange}
-            type="number"
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="sellingPrice"
-            placeholder="Selling Price"
-            value={form.sellingPrice}
-            onChange={handleChange}
-            type="number"
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          {/* 🔥 OFFER PRICE */}
-          <input
-            name="offerPrice"
-            placeholder="Offer Price (Optional)"
-            value={form.offerPrice}
-            onChange={handleChange}
-            type="number"
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          {/* 🔥 OFFER END TIME */}
-          <input
-            name="offerEnd"
-            type="datetime-local"
-            value={form.offerEnd}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <input
-            name="sellerId"
-            placeholder="Seller ID (Optional)"
-            value={form.sellerId}
-            onChange={handleChange}
-            className="w-full border px-4 py-2 rounded-lg"
-          />
-
-          <div className="bg-green-100 p-3 rounded-lg">
-            <p className="font-semibold text-black">
-              Profit: ₹ {profit}
-            </p>
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded-lg font-semibold transition-all duration-300"
-          >
-            Add Product
-          </button>
-
-        </div>
-      </div>
-    </div>
-  );
+useEffect(() => {
+const unsub = onSnapshot(
+collection(db, "products"),
+(snap) => {
+setProducts(
+snap.docs.map((doc) => ({
+id: doc.id,
+...doc.data(),
+}))
+);
 }
+);
+return () => unsub();
+}, []);
+
+const approve = async (id: string) => {
+await updateDoc(doc(db, "products", id), {
+status: "approved",
+isActive: true,
+approvedAt: serverTimestamp(),
+});
+};
+
+const reject = async (id: string) => {
+await updateDoc(doc(db, "products", id), {
+status: "rejected",
+isActive: false,
+rejectedAt: serverTimestamp(),
+});
+};
+
+const remove = async (id: string) => {
+await deleteDoc(doc(db, "products", id));
+};
+
+return (
+<div className="p-6">
+<h1 className="text-2xl font-bold mb-6">
+Admin Product Panel
+</h1>
+
+{products.map((p) => (  
+    <div key={p.id} className="bg-white p-4 mb-4 rounded shadow">  
+
+      <h2 className="font-bold">{p.name}</h2>  
+      <p>Seller: {p.sellerId}</p>  
+      <p>Category: {p.category}</p>  
+      <p>Price: ₹ {p.sellingPrice}</p>  
+      <p>Status: {p.status}</p>  
+
+      <div className="mt-3 space-x-2">  
+
+        <button  
+          onClick={() => approve(p.id)}  
+          className="bg-green-600 text-white px-3 py-1 rounded"  
+        >  
+          Approve  
+        </button>  
+
+        <button  
+          onClick={() => reject(p.id)}  
+          className="bg-yellow-600 text-white px-3 py-1 rounded"  
+        >  
+          Reject  
+        </button>  
+
+        <button  
+          onClick={() => remove(p.id)}  
+          className="bg-red-600 text-white px-3 py-1 rounded"  
+        >  
+          Delete  
+        </button>  
+
+      </div>  
+    </div>  
+  ))}  
+</div>
+
+);
+} Ye kaha likhna h
