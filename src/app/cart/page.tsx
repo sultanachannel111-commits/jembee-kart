@@ -11,12 +11,15 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const [items, setItems] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
 
   /* 🔥 AUTH + FETCH CART */
   useEffect(() => {
@@ -55,7 +58,7 @@ export default function CartPage() {
     });
   };
 
-  /* 🔥 CHECKOUT WITH UPI PAYMENT */
+  /* 🔥 CHECKOUT WITH PAYMENT PAGE REDIRECT */
   const checkout = async () => {
     if (!userId || items.length === 0) return;
 
@@ -67,34 +70,31 @@ export default function CartPage() {
     );
 
     try {
-      // 🔥 CREATE ORDERS WITH PAYMENT PENDING
-      for (let item of items) {
-        await addDoc(collection(db, "orders"), {
-          userId,
-          productName: item.name,
-          price: item.price * item.quantity,
-          quantity: item.quantity,
-          status: "Payment Pending",
-          paymentMethod: "UPI",
-          trackingId: "",
-          createdAt: new Date(),
-        });
-      }
+      const orderId = "ORD" + Date.now().toString().slice(-8);
+
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 15);
+
+      const docRef = await addDoc(collection(db, "orders"), {
+        userId,
+        orderId,
+        amount: totalAmount,
+        paymentStatus: "INITIATED",
+        paymentMethod: "UPI",
+        products: items,
+        createdAt: new Date(),
+        expiresAt: expires,
+      });
 
       // 🔥 CLEAR CART
       await deleteDoc(doc(db, "cart", userId));
       setItems([]);
 
-      // 🔥 GENERATE UPI LINK
-      const upiLink = `upi://pay?pa=yourupi@okaxis&pn=JembeeKart&am=${totalAmount}&cu=INR`;
-
-      setMessage("Redirecting to UPI App 💰");
-
-      // 🔥 OPEN PAYMENT APP
-      window.location.href = upiLink;
+      // 🔥 REDIRECT TO PAYMENT PAGE
+      router.push(`/payment/${docRef.id}`);
 
     } catch (error) {
-      setMessage("Payment Failed ❌");
+      setMessage("Something went wrong ❌");
     }
 
     setLoading(false);
@@ -107,7 +107,6 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6">
-
       <div className="max-w-5xl mx-auto">
 
         <h1 className="text-3xl font-bold text-pink-600 mb-8">
@@ -174,7 +173,7 @@ export default function CartPage() {
                 disabled={loading}
                 className="mt-6 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-full hover:opacity-90 disabled:opacity-50 transition"
               >
-                {loading ? "Processing..." : "Pay with UPI 💰"}
+                {loading ? "Processing..." : "Proceed to Payment 💳"}
               </button>
 
             </div>
