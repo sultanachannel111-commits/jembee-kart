@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "JembeeKart",
   description: "Modern Ecommerce Platform",
+  themeColor: "#f472b6", // Pink-400 (Header match)
 };
 
 export default function RootLayout({
