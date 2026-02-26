@@ -17,8 +17,11 @@ export default function AddProduct() {
     mockupLink: "",
     costPrice: "",
     sellingPrice: "",
-    stock: "", // ✅ Added stock
+    stock: "",
   });
+
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,11 +38,12 @@ export default function AddProduct() {
       !form.sku ||
       !form.sellingPrice
     ) {
-      alert("Please fill required fields");
       return;
     }
 
     try {
+      setLoading(true);
+
       await addDoc(collection(db, "products"), {
         name: form.name,
         category: form.category,
@@ -50,15 +54,15 @@ export default function AddProduct() {
         costPrice: Number(form.costPrice),
         sellingPrice: Number(form.sellingPrice),
         profit: profit,
-        stock: Number(form.stock || 0), // ✅ Saved in DB
-        sold: 0, // ✅ Future tracking
+        stock: Number(form.stock || 0),
+        sold: 0,
         sellerId: user?.uid,
-        status: "pending",
-        isActive: false,
+        status: "pending",      // 🔥 Qikink safe flow
+        isActive: false,        // 🔥 Not live until admin approves
         createdAt: serverTimestamp(),
       });
 
-      alert("✅ Product Submitted For Admin Approval");
+      setSuccess(true);
 
       setForm({
         name: "",
@@ -72,9 +76,11 @@ export default function AddProduct() {
         stock: "",
       });
 
+      setLoading(false);
+
     } catch (error) {
       console.error(error);
-      alert("❌ Error adding product");
+      setLoading(false);
     }
   };
 
@@ -86,6 +92,12 @@ export default function AddProduct() {
           Add Qikink Product
         </h1>
 
+        {success && (
+          <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+            Product submitted successfully. Waiting for admin approval.
+          </div>
+        )}
+
         <div className="space-y-4">
 
           <input
@@ -96,27 +108,13 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          <select
+          <input
             name="category"
+            placeholder="Category"
             value={form.category}
             onChange={handleChange}
             className="w-full border px-4 py-2 rounded"
-          >
-            <option value="">Select Qikink Category</option>
-            <option value="New Products">New Products</option>
-            <option value="Best Sellers">Best Sellers</option>
-            <option value="T-Shirts">T-Shirts</option>
-            <option value="Hoodies & Jackets">Hoodies & Jackets</option>
-            <option value="AOP Apparel">AOP Apparel</option>
-            <option value="Bottomwear">Bottomwear</option>
-            <option value="Kids Clothing">Kids Clothing</option>
-            <option value="Headwear">Headwear</option>
-            <option value="Drinkware">Drinkware</option>
-            <option value="Accessories">Accessories</option>
-            <option value="Home & Living">Home & Living</option>
-            <option value="Pet-Wear">Pet-Wear</option>
-            <option value="Bags">Bags</option>
-          </select>
+          />
 
           <input
             name="sku"
@@ -128,7 +126,7 @@ export default function AddProduct() {
 
           <input
             name="printTypeId"
-            placeholder="Print Type ID (Example: 1)"
+            placeholder="Print Type ID"
             type="number"
             value={form.printTypeId}
             onChange={handleChange}
@@ -153,7 +151,7 @@ export default function AddProduct() {
 
           <input
             name="costPrice"
-            placeholder="Cost Price (Qikink)"
+            placeholder="Cost Price"
             type="number"
             value={form.costPrice}
             onChange={handleChange}
@@ -169,7 +167,6 @@ export default function AddProduct() {
             className="w-full border px-4 py-2 rounded"
           />
 
-          {/* ✅ Stock Field */}
           <input
             name="stock"
             placeholder="Available Stock"
@@ -180,16 +177,15 @@ export default function AddProduct() {
           />
 
           <div className="bg-pink-100 p-3 rounded">
-            <p className="font-semibold">
-              Profit: ₹ {profit}
-            </p>
+            Profit: ₹ {profit}
           </div>
 
           <button
             onClick={handleSubmit}
+            disabled={loading}
             className="w-full bg-black hover:bg-pink-600 text-white py-3 rounded font-semibold"
           >
-            Submit Product
+            {loading ? "Submitting..." : "Submit Product"}
           </button>
 
         </div>
