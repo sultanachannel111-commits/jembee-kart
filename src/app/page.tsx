@@ -170,9 +170,6 @@ export default function HomePage() {
     </div>
   </div>
 
-</div>
-      </div>
-
       {/* FESTIVAL */}
       {festival?.active && (
         <div className="px-4 mt-2">
