@@ -13,26 +13,26 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
 
-        {/* Logo */}
+        {/* 🔹 Logo */}
         <Link href="/" className="text-2xl font-bold text-gray-800">
-          jembee <span className="text-pink-600">kart</span>
+          Jembee<span className="text-pink-600">Kart</span>
         </Link>
 
-        {/* Right Section */}
+        {/* 🔹 Right Section */}
         <div className="flex items-center gap-4">
 
           {/* Login / Logout */}
           {user ? (
             <button
               onClick={logout}
-              className="px-5 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
+              className="px-4 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
             >
               Logout
             </button>
           ) : (
             <Link
               href="/login"
-              className="px-5 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
+              className="px-4 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
             >
               Login
             </Link>
@@ -45,14 +45,13 @@ export default function Header() {
           >
             <ShoppingCart className="w-6 h-6 text-gray-700" />
 
-            {/* Cart Badge */}
+            {/* 🔴 Cart Badge */}
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1 rounded-full">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
                 {cartCount}
               </span>
             )}
           </Link>
-
         </div>
       </div>
     </header>
