@@ -20,7 +20,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { signOut } from "firebase/auth";
 
 export default function HomePage() {
-  const { cart } = useCart();
+  const { cart, addToCart } = useCart();
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -38,6 +38,7 @@ export default function HomePage() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [ratings, setRatings] = useState<any>({});
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [timeLeft, setTimeLeft] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -81,6 +82,28 @@ export default function HomePage() {
     }, 3000);
     return () => clearInterval(interval);
   }, [banners]);
+
+  useEffect(() => {
+    if (!festival?.endDate) return;
+
+    const interval = setInterval(() => {
+      const diff =
+        new Date(festival.endDate).getTime() - new Date().getTime();
+
+      if (diff <= 0) {
+        setTimeLeft(null);
+        clearInterval(interval);
+      } else {
+        setTimeLeft({
+          hours: Math.floor(diff / (1000 * 60 * 60)),
+          minutes: Math.floor((diff / (1000 * 60)) % 60),
+          seconds: Math.floor((diff / 1000) % 60),
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [festival]);
 
   const normalize = (text: string) =>
     text?.toLowerCase().replace(/\s|-/g, "");
@@ -129,7 +152,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[96px]">
+    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-24 pt-[96px]">
 
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pink-200 to-pink-400 px-4 h-[72px] flex justify-between items-center">
@@ -172,18 +195,59 @@ export default function HomePage() {
 
       {/* SEARCH */}
       <div className="sticky top-[72px] z-40 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent outline-none px-3 text-sm"
-          />
-          <Mic size={16} onClick={startVoice} className="cursor-pointer" />
+        <div className="relative">
+          <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 bg-transparent outline-none px-3 text-sm"
+            />
+            <Mic size={16} onClick={startVoice} className="cursor-pointer" />
+          </div>
+
+          {suggestions.length > 0 && (
+            <div className="absolute bg-white w-full mt-2 rounded-lg shadow-lg z-50">
+              {suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => {
+                    setSearch(s.name);
+                    setSuggestions([]);
+                  }}
+                  className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                >
+                  {s.name}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* BANNER */}
+      {banners.length > 0 && (
+        <div className="px-4 mt-4">
+          <img
+            src={banners[slide]?.image}
+            className="w-full h-40 object-cover rounded-xl shadow"
+          />
+        </div>
+      )}
+
+      {/* FESTIVAL */}
+      {festival && timeLeft && (
+        <div className="mx-4 mt-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl p-4 shadow-lg">
+          <h2 className="text-lg font-bold">{festival.title}</h2>
+          <div className="flex gap-4 mt-2 font-bold">
+            <span>{timeLeft.hours}h</span>
+            <span>{timeLeft.minutes}m</span>
+            <span>{timeLeft.seconds}s</span>
+          </div>
+        </div>
+      )}
 
       {/* CATEGORY */}
       <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
@@ -220,19 +284,87 @@ export default function HomePage() {
 
         <div className="grid grid-cols-2 gap-4">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-xl shadow p-3">
+            <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
+
+              <Heart
+                size={18}
+                onClick={() => toggleWishlist(product.id)}
+                className={`absolute top-3 right-3 cursor-pointer ${
+                  wishlist.includes(product.id)
+                    ? "text-red-500"
+                    : "text-gray-400"
+                }`}
+              />
+
               <Link href={`/product/${product.id}`}>
                 <img
                   src={product.image}
                   className="rounded-lg w-full h-40 object-cover"
                 />
               </Link>
+
+              {calculateDiscount(product.price, product.originalPrice) && (
+                <span className="absolute top-3 left-3 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                  {calculateDiscount(product.price, product.originalPrice)}% OFF
+                </span>
+              )}
+
               <div className="mt-2 text-sm font-medium truncate">
                 {product.name}
               </div>
+
+              {ratings[product.id] && (
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  <span className="bg-green-600 text-white px-1 rounded">
+                    {(ratings[product.id].total /
+                      ratings[product.id].count).toFixed(1)}
+                  </span>
+                  <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                  <span className="text-gray-500">
+                    ({ratings[product.id].count})
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-1">
+                <span className="font-bold">₹{product.price}</span>
+                {product.originalPrice && (
+                  <span className="text-gray-400 line-through text-xs">
+                    ₹{product.originalPrice}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => addToCart(product)}
+                className="w-full mt-2 bg-pink-600 text-white text-xs py-2 rounded-lg"
+              >
+                Add to Cart
+              </button>
+
             </div>
           ))}
         </div>
+      </div>
+
+      {/* BOTTOM NAV */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-inner flex justify-around py-2 border-t">
+        <Link href="/" className="flex flex-col items-center text-xs">
+          <Home size={20} />
+          Home
+        </Link>
+        <Link href="/categories" className="flex flex-col items-center text-xs">
+          <Grid size={20} />
+          Categories
+        </Link>
+        <Link href="/wishlist" className="flex flex-col items-center text-xs">
+          <Heart size={20} />
+          Wishlist
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center text-xs">
+          <User size={20} />
+          Profile
+        </Link>
       </div>
 
     </div>
