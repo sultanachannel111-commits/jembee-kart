@@ -10,15 +10,13 @@ import {
   Grid,
   User,
   Star,
-  Heart
+  Heart,
 } from "lucide-react";
 import {
   collection,
   getDocs,
   doc,
   getDoc,
-  query,
-  where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
@@ -45,22 +43,24 @@ export default function HomePage() {
 
   const loadData = async () => {
     const catSnap = await getDocs(collection(db, "qikinkCategories"));
-    setCategories([{ id: "all", name: "All" }, ...catSnap.docs.map(d => ({ id: d.id, ...d.data() }))]);
+    setCategories([
+      { id: "all", name: "All" },
+      ...catSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    ]);
 
     const bannerSnap = await getDocs(collection(db, "banners"));
-    setBanners(bannerSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
     const productSnap = await getDocs(collection(db, "products"));
-    const productData = productSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    setProducts(productData);
+    setProducts(productSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
 
-    // Real rating calculation
     const reviewSnap = await getDocs(collection(db, "reviews"));
     const ratingMap: any = {};
-    reviewSnap.forEach(doc => {
+
+    reviewSnap.forEach((doc) => {
       const r = doc.data();
       if (!ratingMap[r.productId]) {
         ratingMap[r.productId] = { total: 0, count: 0 };
@@ -68,14 +68,14 @@ export default function HomePage() {
       ratingMap[r.productId].total += r.rating;
       ratingMap[r.productId].count += 1;
     });
+
     setRatings(ratingMap);
   };
 
-  // Slider auto
   useEffect(() => {
     if (!banners.length) return;
     const interval = setInterval(() => {
-      setSlide(prev => (prev + 1) % banners.length);
+      setSlide((prev) => (prev + 1) % banners.length);
     }, 3000);
     return () => clearInterval(interval);
   }, [banners]);
@@ -83,7 +83,7 @@ export default function HomePage() {
   const normalize = (text: string) =>
     text?.toLowerCase().replace(/\s|-/g, "");
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p) => {
     const matchSearch = normalize(p.name).includes(normalize(search));
     const matchCategory =
       selectedCategory === "All" || p.category === selectedCategory;
@@ -92,7 +92,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!search) return setSuggestions([]);
-    const matches = products.filter(p =>
+    const matches = products.filter((p) =>
       normalize(p.name).includes(normalize(search))
     );
     setSuggestions(matches.slice(0, 5));
@@ -102,9 +102,12 @@ export default function HomePage() {
     const SpeechRecognition =
       (window as any).webkitSpeechRecognition ||
       (window as any).SpeechRecognition;
+
     if (!SpeechRecognition) return;
+
     const recognition = new SpeechRecognition();
     recognition.start();
+
     recognition.onresult = (event: any) => {
       setSearch(event.results[0][0].transcript);
     };
@@ -112,7 +115,7 @@ export default function HomePage() {
 
   const toggleWishlist = (id: string) => {
     if (wishlist.includes(id)) {
-      setWishlist(wishlist.filter(w => w !== id));
+      setWishlist(wishlist.filter((w) => w !== id));
     } else {
       setWishlist([...wishlist, id]);
     }
@@ -124,13 +127,10 @@ export default function HomePage() {
   };
 
   return (
-  <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[130px]">
-
-    {/* FIXED TOP SECTION */}
-    <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-pink-200 to-white">
+    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[140px]">
 
       {/* HEADER */}
-      <div className="px-4 py-4 flex justify-between items-center">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pink-200 to-pink-400 px-4 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">
           <span className="text-black">Jembee</span>
           <span className="text-pink-700">Kart</span>
@@ -155,7 +155,7 @@ export default function HomePage() {
       </div>
 
       {/* SEARCH */}
-      <div className="bg-white px-4 pb-3">
+      <div className="sticky top-[72px] z-40 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
           <Search size={16} />
           <input
@@ -167,180 +167,18 @@ export default function HomePage() {
           />
           <Mic size={16} onClick={startVoice} className="cursor-pointer" />
         </div>
-      </div>
 
-    </div>
-
-    {/* FESTIVAL */}
-    {festival?.active && (
-      <div className="px-4 mt-2">
-        <img src={festival.image} className="rounded-xl shadow" />
-      </div>
-    )}
-
-    {/* CATEGORY */}
-    <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
-      {categories.map((cat) => (
-        <div
-          key={cat.id}
-          onClick={() => setSelectedCategory(cat.name)}
-          className="flex flex-col items-center min-w-[75px] cursor-pointer"
-        >
-          <div
-            className={`w-16 h-16 rounded-full border-2 p-1 ${
-              selectedCategory === cat.name
-                ? "border-pink-600"
-                : "border-gray-300"
-            }`}
-          >
-            {cat.image && (
-              <img
-                src={cat.image}
-                className="w-full h-full rounded-full object-cover"
-              />
-            )}
-          </div>
-          <span className="text-xs mt-2">{cat.name}</span>
-        </div>
-      ))}
-    </div>
-
-    {/* SLIDER */}
-    {banners.length > 0 && (
-      <div className="px-4 mt-4">
-        <div className="rounded-xl overflow-hidden shadow relative">
-          <img
-            src={banners[slide]?.image}
-            className="w-full h-44 object-cover"
-          />
-        </div>
-        <div className="flex justify-center gap-2 mt-2">
-          {banners.map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full ${
-                slide === i ? "bg-pink-600" : "bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* PRODUCTS */}
-    <div className="px-4 mt-6">
-      <h2 className="text-lg font-bold text-purple-600 mb-4">
-        Best of JembeeKart
-      </h2>
-
-      <div className="grid grid-cols-2 gap-4">
-        {filteredProducts.map((product) => {
-          const ratingData = ratings[product.id];
-          const avg =
-            ratingData && ratingData.count
-              ? (ratingData.total / ratingData.count).toFixed(1)
-              : "4.5";
-
-          const discount = calculateDiscount(
-            product.sellingPrice,
-            product.originalPrice
-          );
-
-          return (
-            <div
-              key={product.id}
-              className="bg-white rounded-xl shadow p-3 relative"
-            >
-              <button
-                onClick={() => toggleWishlist(product.id)}
-                className="absolute top-2 right-2"
-              >
-                <Heart
-                  size={18}
-                  className={
-                    wishlist.includes(product.id)
-                      ? "text-red-500 fill-red-500"
-                      : ""
-                  }
-                />
-              </button>
-
-              <Link href={`/product/${product.id}`}>
-                <img
-                  src={product.image}
-                  className="rounded-lg w-full h-40 object-cover"
-                />
-              </Link>
-
-              <div className="mt-2 text-sm font-medium truncate">
-                {product.name}
-              </div>
-
-              <div className="flex items-center gap-1 text-xs mt-1">
-                <span>{avg}</span>
-                <Star size={14} className="text-green-600 fill-green-600" />
-              </div>
-
-              <div className="font-bold mt-1">
-                ₹{product.sellingPrice}
-                {product.originalPrice && (
-                  <span className="line-through text-gray-400 ml-2 text-xs">
-                    ₹{product.originalPrice}
-                  </span>
-                )}
-              </div>
-
-              {discount && (
-                <div className="text-green-600 text-xs">
-                  {discount}% OFF
+        {suggestions.length > 0 && (
+          <div className="absolute left-4 right-4 bg-white shadow-lg rounded-xl mt-2 z-50">
+            {suggestions.map((s) => (
+              <Link key={s.id} href={`/product/${s.id}`}>
+                <div className="p-2 hover:bg-gray-100 text-sm">
+                  {s.name}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-
-    {/* BOTTOM NAV */}
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-3">
-      <Link href="/" className={pathname === "/" ? "text-pink-600" : ""}>
-        <Home size={20} />
-      </Link>
-      <Link href="/categories">
-        <Grid size={20} />
-      </Link>
-      <Link href="/account">
-        <User size={20} />
-      </Link>
-      <Link href="/cart" className="relative">
-        <ShoppingCart size={20} />
-        {cart.length > 0 && (
-          <span className="absolute -top-1 right-0 bg-red-500 text-white text-xs px-1 rounded-full">
-            {cart.length}
-          </span>
+              </Link>
+            ))}
+          </div>
         )}
-      </Link>
-    </div>
-
-  </div>
-);
-
-  {/* SEARCH */}
-  <div className="bg-white px-4 pb-3">
-    <div className="flex items-center bg-gray-100 rounded-full px-4 py-3">
-      <Search size={16} />
-      <input
-        type="text"
-        placeholder="Search products..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="flex-1 bg-transparent outline-none px-3 text-sm"
-      />
-      <Mic size={16} onClick={startVoice} className="cursor-pointer" />
-    </div>
-  </div>
-
-</div>
       </div>
 
       {/* FESTIVAL */}
@@ -352,15 +190,24 @@ export default function HomePage() {
 
       {/* CATEGORY */}
       <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <div
             key={cat.id}
             onClick={() => setSelectedCategory(cat.name)}
             className="flex flex-col items-center min-w-[75px] cursor-pointer"
           >
-            <div className={`w-16 h-16 rounded-full border-2 p-1 ${selectedCategory === cat.name ? "border-pink-600" : "border-gray-300"}`}>
+            <div
+              className={`w-16 h-16 rounded-full border-2 p-1 ${
+                selectedCategory === cat.name
+                  ? "border-pink-600"
+                  : "border-gray-300"
+              }`}
+            >
               {cat.image && (
-                <img src={cat.image} className="w-full h-full rounded-full object-cover" />
+                <img
+                  src={cat.image}
+                  className="w-full h-full rounded-full object-cover"
+                />
               )}
             </div>
             <span className="text-xs mt-2">{cat.name}</span>
@@ -372,13 +219,19 @@ export default function HomePage() {
       {banners.length > 0 && (
         <div className="px-4 mt-4">
           <div className="rounded-xl overflow-hidden shadow relative">
-            <img src={banners[slide]?.image} className="w-full h-44 object-cover" />
+            <img
+              src={banners[slide]?.image}
+              className="w-full h-44 object-cover"
+            />
           </div>
+
           <div className="flex justify-center gap-2 mt-2">
             {banners.map((_, i) => (
               <div
                 key={i}
-                className={`w-2 h-2 rounded-full ${slide === i ? "bg-pink-600" : "bg-gray-300"}`}
+                className={`w-2 h-2 rounded-full ${
+                  slide === i ? "bg-pink-600" : "bg-gray-300"
+                }`}
               />
             ))}
           </div>
@@ -392,7 +245,7 @@ export default function HomePage() {
         </h2>
 
         <div className="grid grid-cols-2 gap-4">
-          {filteredProducts.map(product => {
+          {filteredProducts.map((product) => {
             const ratingData = ratings[product.id];
             const avg =
               ratingData && ratingData.count
@@ -405,14 +258,21 @@ export default function HomePage() {
             );
 
             return (
-              <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
+              <div
+                key={product.id}
+                className="bg-white rounded-xl shadow p-3 relative"
+              >
                 <button
                   onClick={() => toggleWishlist(product.id)}
                   className="absolute top-2 right-2"
                 >
                   <Heart
                     size={18}
-                    className={wishlist.includes(product.id) ? "text-red-500 fill-red-500" : ""}
+                    className={
+                      wishlist.includes(product.id)
+                        ? "text-red-500 fill-red-500"
+                        : ""
+                    }
                   />
                 </button>
 
@@ -472,6 +332,7 @@ export default function HomePage() {
           )}
         </Link>
       </div>
+
     </div>
   );
 }
