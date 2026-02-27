@@ -1,9 +1,26 @@
+// src/utils/payment.ts
+
 export const generateUpiLink = (
   amount: number,
   orderId: string
-) => {
-  const upiId = "sultana9212@axl";
-  const storeName = "JembeeKart";
+): string => {
+  const upiId = "sultana9212@axl"; // ✅ Your UPI ID
+  const merchantName = "JembeeKart";
 
-  return `upi://pay?pa=${upiId}&pn=${storeName}&am=${amount}&cu=INR&tn=${orderId}`;
+  // Ensure valid number
+  const finalAmount = Number(amount);
+
+  // Extra safety check
+  if (!finalAmount || finalAmount <= 0) {
+    console.error("Invalid payment amount");
+    return "";
+  }
+
+  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+    merchantName
+  )}&am=${finalAmount}&cu=INR&tr=${orderId}&tn=${encodeURIComponent(
+    "JembeeKart Order"
+  )}`;
+
+  return upiUrl;
 };
