@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { generateUpiLink } from "@/utils/payment";
 import { useParams, useRouter } from "next/navigation";
 
 export default function PaymentPage() {
@@ -15,8 +14,11 @@ export default function PaymentPage() {
   const [timeLeft, setTimeLeft] = useState("");
   const [expired, setExpired] = useState(false);
 
+  /* 🔥 FETCH ORDER */
   useEffect(() => {
     const fetchOrder = async () => {
+      if (!id) return;
+
       const snap = await getDoc(doc(db, "orders", id as string));
 
       if (!snap.exists()) {
@@ -31,6 +33,7 @@ export default function PaymentPage() {
     fetchOrder();
   }, [id, router]);
 
+  /* 🔥 TIMER */
   useEffect(() => {
     if (!order?.expiresAt) return;
 
@@ -61,8 +64,27 @@ export default function PaymentPage() {
 
   if (!order) return <div className="p-6">Loading...</div>;
 
-  const upiLink = generateUpiLink(order.amount, order.orderId);
+  /* 🔥 UPI LINK */
+  const upiId = "sultana9212@axl";
+  const merchantName = "JembeeKart";
 
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+    merchantName
+  )}&am=${order.amount}&cu=INR&tr=${order.orderId}&tn=${encodeURIComponent(
+    "JembeeKart Order"
+  )}`;
+
+  /* 🔥 FORCE OPEN UPI */
+  const openUpi = () => {
+    window.location.href = upiLink;
+
+    // fallback after 2 seconds
+    setTimeout(() => {
+      window.location.href = upiLink;
+    }, 2000);
+  };
+
+  /* 🔥 SUBMIT PAYMENT */
   const submitPayment = async () => {
     if (!txn) {
       alert("Enter Transaction ID");
@@ -79,52 +101,57 @@ export default function PaymentPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white flex items-center justify-center p-6">
 
-      <h2 className="text-2xl font-bold text-center">
-        Complete Payment 💳
-      </h2>
+      <div className="bg-white shadow-2xl rounded-3xl p-8 w-full max-w-md space-y-6">
 
-      <div className="text-center text-red-600 font-semibold">
-        Expires in: {timeLeft}
-      </div>
+        <h2 className="text-2xl font-bold text-center">
+          Complete Payment 💳
+        </h2>
 
-      {!expired && (
-        <>
-          <a
-            href={upiLink}
-            className="block bg-green-600 text-white text-center py-3 rounded-xl"
-          >
-            Pay ₹{order.amount} via UPI
-          </a>
-
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${upiLink}`}
-            className="mx-auto"
-          />
-
-          <input
-            placeholder="Enter UPI Transaction ID"
-            value={txn}
-            onChange={(e) => setTxn(e.target.value)}
-            className="w-full border px-4 py-2 rounded"
-          />
-
-          <button
-            onClick={submitPayment}
-            className="w-full bg-black text-white py-2 rounded"
-          >
-            I Have Paid
-          </button>
-        </>
-      )}
-
-      {expired && (
-        <div className="text-center text-red-500 font-semibold">
-          Payment Link Expired ❌
+        <div className="text-center text-red-600 font-semibold">
+          Expires in: {timeLeft}
         </div>
-      )}
 
+        {!expired && (
+          <>
+            <button
+              onClick={openUpi}
+              className="w-full bg-green-600 text-white py-3 rounded-xl text-lg font-semibold"
+            >
+              Pay ₹{order.amount} via UPI
+            </button>
+
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                upiLink
+              )}`}
+              className="mx-auto"
+            />
+
+            <input
+              placeholder="Enter UPI Transaction ID"
+              value={txn}
+              onChange={(e) => setTxn(e.target.value)}
+              className="w-full border px-4 py-2 rounded-xl"
+            />
+
+            <button
+              onClick={submitPayment}
+              className="w-full bg-black text-white py-3 rounded-xl"
+            >
+              I Have Paid
+            </button>
+          </>
+        )}
+
+        {expired && (
+          <div className="text-center text-red-500 font-semibold">
+            Payment Link Expired ❌
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
