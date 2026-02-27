@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
+import { getAuth } from "firebase/auth";
 import Link from "next/link";
 
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
-  const { addToCart } = useCart();
-
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [product, setProduct] = useState<any>(null);
@@ -29,9 +26,9 @@ export default function ProductPage() {
   /* ---------------- FETCH PRODUCT ---------------- */
   useEffect(() => {
     const fetchProduct = async () => {
-      try {
-        if (!id) return;
+      if (!id) return;
 
+      try {
         const docRef = doc(db, "products", id);
         const docSnap = await getDoc(docRef);
 
@@ -57,7 +54,7 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  /* ---------------- RANDOM CONVERSION DATA ---------------- */
+  /* ---------------- RANDOM DATA ---------------- */
   useEffect(() => {
     setViewers(Math.floor(Math.random() * 15) + 5);
     setSoldCount(Math.floor(Math.random() * 200) + 50);
@@ -72,7 +69,7 @@ export default function ProductPage() {
     );
   }, []);
 
-  /* ---------------- OFFER SYSTEM SAFE ---------------- */
+  /* ---------------- OFFER ---------------- */
 
   const isOfferActive =
     product?.offerEnd?.seconds &&
@@ -93,7 +90,7 @@ export default function ProductPage() {
         )
       : null;
 
-  /* ---------------- COUNTDOWN SAFE ---------------- */
+  /* ---------------- COUNTDOWN ---------------- */
 
   useEffect(() => {
     if (!product?.offerEnd?.seconds) return;
@@ -118,43 +115,80 @@ export default function ProductPage() {
     return () => clearInterval(interval);
   }, [product?.offerEnd?.seconds]);
 
-  /* ---------------- CART SAFE ---------------- */
+  /* ---------------- FIRESTORE CART ---------------- */
 
-  const handleAddToCart = () => {
-    if (!product?.stock || product.stock === 0) {
-      alert("Product is out of stock");
-      return;
+  const handleAddToCart = async () => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        alert("Please login first");
+        return;
+      }
+
+      if (!product?.stock || product.stock === 0) {
+        alert("Product is out of stock");
+        return;
+      }
+
+      if (quantity > product.stock) {
+        alert("Not enough stock available");
+        return;
+      }
+
+      const cartRef = doc(db, "cart", user.uid);
+      const snap = await getDoc(cartRef);
+
+      let updatedProducts = [];
+
+      if (snap.exists()) {
+        const existingProducts = snap.data().products || [];
+
+        const existingIndex = existingProducts.findIndex(
+          (item: any) => item.id === product.id
+        );
+
+        if (existingIndex >= 0) {
+          existingProducts[existingIndex].quantity += quantity;
+          updatedProducts = existingProducts;
+        } else {
+          updatedProducts = [
+            ...existingProducts,
+            {
+              id: product.id,
+              name: product.name,
+              image: selectedImage,
+              price: finalPrice,
+              quantity,
+            },
+          ];
+        }
+      } else {
+        updatedProducts = [
+          {
+            id: product.id,
+            name: product.name,
+            image: selectedImage,
+            price: finalPrice,
+            quantity,
+          },
+        ];
+      }
+
+      await setDoc(cartRef, { products: updatedProducts });
+
+      alert("Added to Cart ✅");
+
+    } catch (error) {
+      console.log("Cart Error:", error);
+      alert("Something went wrong ❌");
     }
-
-    if (quantity > product.stock) {
-      alert("Not enough stock available");
-      return;
-    }
-
-    addToCart({
-      id: product.id,
-      name: product.name,
-      image: selectedImage,
-      price: finalPrice,
-      quantity: quantity,
-    });
   };
 
-  const handleBuyNow = () => {
-    if (!product?.stock || product.stock === 0) {
-      alert("Product is out of stock");
-      return;
-    }
-
-    addToCart({
-      id: product.id,
-      name: product.name,
-      image: selectedImage,
-      price: finalPrice,
-      quantity: quantity,
-    });
-
-    router.push("/checkout");
+  const handleBuyNow = async () => {
+    await handleAddToCart();
+    router.push("/cart");
   };
 
   if (loading)
@@ -174,7 +208,6 @@ export default function ProductPage() {
   return (
     <>
       <div className="max-w-7xl mx-auto p-6 grid md:grid-cols-2 gap-10">
-
         {/* IMAGE */}
         <div>
           <div
@@ -197,7 +230,6 @@ export default function ProductPage() {
 
         {/* DETAILS */}
         <div>
-
           {product?.category && (
             <Link
               href={`/category/${product.category}`}
@@ -226,55 +258,25 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* VIEWERS */}
           <div className="mt-3 text-sm text-gray-600">
             👀 {viewers} people viewing
           </div>
 
-          {/* SOLD */}
           <div className="text-sm text-red-600 font-semibold mt-1">
             🔥 {soldCount}+ sold recently
           </div>
 
-          {/* DELIVERY */}
           <div className="text-sm text-green-600 mt-2">
             📦 Get it by <span className="font-semibold">{deliveryDate}</span>
           </div>
-
-          {/* STOCK */}
-          {product?.stock !== undefined && (
-            <div className="mt-4">
-              {product.stock > 5 && (
-                <p className="text-green-600 text-sm">✔ In Stock</p>
-              )}
-              {product.stock <= 5 && product.stock > 2 && (
-                <p className="text-orange-500 text-sm">
-                  ⚠ Only {product.stock} left
-                </p>
-              )}
-              {product.stock <= 2 && product.stock > 0 && (
-                <div className="bg-red-100 text-red-600 px-3 py-2 rounded text-sm animate-pulse">
-                  🔥 Hurry! Only {product.stock} left
-                </div>
-              )}
-              {product.stock === 0 && (
-                <p className="text-red-600 font-bold">
-                  ❌ Out of Stock
-                </p>
-              )}
-            </div>
-          )}
 
           <p className="text-gray-600 mt-4">
             {product?.description}
           </p>
 
-          {/* QUANTITY */}
           <div className="flex items-center gap-4 mt-6">
             <button
-              onClick={() =>
-                setQuantity((q) => (q > 1 ? q - 1 : 1))
-              }
+              onClick={() => setQuantity((q) => (q > 1 ? q - 1 : 1))}
               className="px-3 py-1 border rounded"
             >
               -
@@ -285,16 +287,13 @@ export default function ProductPage() {
             </span>
 
             <button
-              onClick={() =>
-                setQuantity((q) => q + 1)
-              }
+              onClick={() => setQuantity((q) => q + 1)}
               className="px-3 py-1 border rounded"
             >
               +
             </button>
           </div>
 
-          {/* BUTTONS */}
           <div className="flex gap-4 mt-6">
             <button
               onClick={handleAddToCart}
@@ -310,11 +309,9 @@ export default function ProductPage() {
               ⚡ Buy Now
             </button>
           </div>
-
         </div>
       </div>
 
-      {/* ZOOM */}
       {zoomOpen && (
         <div
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
