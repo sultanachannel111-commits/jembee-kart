@@ -21,7 +21,9 @@ import {
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { usePathname } from "next/navigation";
-
+import { useAuth } from "@/providers/auth-provider";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 export default function HomePage() {
   const { cart } = useCart();
   const pathname = usePathname();
