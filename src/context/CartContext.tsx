@@ -35,44 +35,52 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔹 Load from localStorage first
+  // 🔹 Load Local Cart First
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+    const saved = localStorage.getItem("cart");
+    if (saved) {
+      setCart(JSON.parse(saved));
     }
+    setLoading(false);
   }, []);
 
-  // 🔹 Sync with Firestore when user logs in
+  // 🔹 Sync From Firestore When User Login
   useEffect(() => {
     if (!user) return;
 
-    const syncCart = async () => {
-      const docRef = doc(db, "cart", user.uid);
-      const snap = await getDoc(docRef);
+    const loadFirestoreCart = async () => {
+      const snap = await getDoc(doc(db, "cart", user.uid));
 
       if (snap.exists()) {
         const firestoreCart = snap.data().items || [];
         setCart(firestoreCart);
         localStorage.setItem("cart", JSON.stringify(firestoreCart));
       } else {
-        await setDoc(docRef, { items: cart });
+        await setDoc(doc(db, "cart", user.uid), {
+          items: cart,
+        });
       }
     };
 
-    syncCart();
+    loadFirestoreCart();
   }, [user]);
 
-  // 🔹 Save to localStorage + Firestore
+  // 🔹 Sync To Firestore + Local
   useEffect(() => {
+    if (loading) return;
+
     localStorage.setItem("cart", JSON.stringify(cart));
 
     if (user) {
-      const docRef = doc(db, "cart", user.uid);
-      setDoc(docRef, { items: cart }, { merge: true });
+      setDoc(
+        doc(db, "cart", user.uid),
+        { items: cart },
+        { merge: true }
+      );
     }
-  }, [cart, user]);
+  }, [cart, user, loading]);
 
   // 🔹 Add To Cart
   const addToCart = (item: CartItem) => {
@@ -91,10 +99,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // 🔹 Remove Completely
   const removeFromCart = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // 🔹 Increase Qty
   const increaseQty = (id: string) => {
     setCart((prev) =>
       prev.map((item) =>
@@ -105,25 +115,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // 🔹 Decrease Qty (Remove if 0)
   const decreaseQty = (id: string) => {
     setCart((prev) =>
-      prev.map((item) =>
-        item.id === id && item.quantity > 1
-          ? { ...item, quantity: item.quantity - 1 }
-          : item
-      )
+      prev
+        .map((item) =>
+          item.id === id
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
     );
   };
 
+  // 🔹 Clear Cart
   const clearCart = () => {
     setCart([]);
   };
 
+  // 🔹 Correct Total
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
+  // 🔹 Correct Count (Badge)
   const cartCount = cart.reduce(
     (sum, item) => sum + item.quantity,
     0
