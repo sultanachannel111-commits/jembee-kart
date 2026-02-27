@@ -129,7 +129,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[136px]">
+    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[96px]">
 
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pink-200 to-pink-400 px-4 h-[72px] flex justify-between items-center">
