@@ -55,7 +55,16 @@ export default function HomePage() {
     setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
     const productSnap = await getDocs(collection(db, "products"));
-    setProducts(productSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setProducts(
+  productSnap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      price: data.sellingPrice  // 🔥 FIX
+    };
+  })
+);
 
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
