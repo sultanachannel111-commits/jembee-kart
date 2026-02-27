@@ -335,13 +335,6 @@ export default function HomePage() {
                 )}
               </div>
 
-              <button
-                onClick={() => addToCart(product)}
-                className="w-full mt-2 bg-pink-600 text-white text-xs py-2 rounded-lg"
-              >
-                Add to Cart
-              </button>
-
             </div>
           ))}
         </div>
