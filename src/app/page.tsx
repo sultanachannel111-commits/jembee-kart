@@ -27,7 +27,11 @@ import { auth } from "@/lib/firebase";
 export default function HomePage() {
   const { cart } = useCart();
   const pathname = usePathname();
+  const { user } = useAuth();
 
+const handleLogout = async () => {
+  await signOut(auth);
+};
   const [categories, setCategories] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -139,11 +143,26 @@ export default function HomePage() {
         </h1>
 
         <div className="flex items-center gap-3">
-          <Link href="/login">
-            <button className="bg-white text-pink-600 px-4 py-2 rounded-md shadow font-semibold">
-              Login
-            </button>
-          </Link>
+{user ? (
+  <>
+    <span className="text-sm font-semibold text-white">
+      Hi, {user.displayName || user.email?.split("@")[0]}
+    </span>
+
+    <button
+      onClick={handleLogout}
+      className="bg-white text-red-600 px-4 py-2 rounded-md shadow font-semibold"
+    >
+      Logout
+    </button>
+  </>
+) : (
+  <Link href="/login">
+    <button className="bg-white text-pink-600 px-4 py-2 rounded-md shadow font-semibold">
+      Login
+    </button>
+  </Link>
+}
 
           <Link href="/cart" className="relative">
             <ShoppingCart size={22} />
