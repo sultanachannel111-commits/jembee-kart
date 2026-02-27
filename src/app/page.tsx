@@ -20,7 +20,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { signOut } from "firebase/auth";
 
 export default function HomePage() {
-  const { cart, addToCart } = useCart();
+  const { cartCount, addToCart } = useCart();
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -184,11 +184,11 @@ export default function HomePage() {
 
           <Link href="/cart" className="relative">
             <ShoppingCart size={22} />
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
-                {cart.length}
-              </span>
-            )}
+            {cartCount > 0 && (
+  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-1 rounded-full">
+    {cartCount}
+  </span>
+)}
           </Link>
         </div>
       </div>
