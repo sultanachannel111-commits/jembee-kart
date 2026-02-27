@@ -12,12 +12,7 @@ import {
   Star,
   Heart,
 } from "lucide-react";
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { usePathname } from "next/navigation";
@@ -134,7 +129,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[120px]">
+    <div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-20 pt-[136px]">
 
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pink-200 to-pink-400 px-4 h-[72px] flex justify-between items-center">
@@ -188,21 +183,57 @@ export default function HomePage() {
           />
           <Mic size={16} onClick={startVoice} className="cursor-pointer" />
         </div>
-
-        {suggestions.length > 0 && (
-          <div className="absolute left-4 right-4 bg-white shadow-lg rounded-xl mt-2 z-50">
-            {suggestions.map((s) => (
-              <Link key={s.id} href={`/product/${s.id}`}>
-                <div className="p-2 hover:bg-gray-100 text-sm">
-                  {s.name}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Remaining sections same as your existing (Festival, Category, Slider, Products, Bottom Nav) */}
+      {/* CATEGORY */}
+      <div className="bg-white py-4 px-3 overflow-x-auto flex gap-4 mt-2">
+        {categories.map((cat) => (
+          <div
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.name)}
+            className="flex flex-col items-center min-w-[75px] cursor-pointer"
+          >
+            <div
+              className={`w-16 h-16 rounded-full border-2 p-1 ${
+                selectedCategory === cat.name
+                  ? "border-pink-600"
+                  : "border-gray-300"
+              }`}
+            >
+              {cat.image && (
+                <img
+                  src={cat.image}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              )}
+            </div>
+            <span className="text-xs mt-2">{cat.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* PRODUCTS */}
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-bold text-purple-600 mb-4">
+          Best of JembeeKart
+        </h2>
+
+        <div className="grid grid-cols-2 gap-4">
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="bg-white rounded-xl shadow p-3">
+              <Link href={`/product/${product.id}`}>
+                <img
+                  src={product.image}
+                  className="rounded-lg w-full h-40 object-cover"
+                />
+              </Link>
+              <div className="mt-2 text-sm font-medium truncate">
+                {product.name}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
     </div>
   );
