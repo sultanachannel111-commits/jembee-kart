@@ -7,6 +7,9 @@ import {
   ReactNode,
   useEffect,
 } from "react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/providers/auth-provider";
 
 type CartItem = {
   id: string;
@@ -30,9 +33,10 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // ✅ Load cart from localStorage on first render
+  // 🔹 Load from localStorage first
   useEffect(() => {
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
@@ -40,12 +44,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ✅ Save cart whenever cart changes
+  // 🔹 Sync with Firestore when user logs in
+  useEffect(() => {
+    if (!user) return;
+
+    const syncCart = async () => {
+      const docRef = doc(db, "cart", user.uid);
+      const snap = await getDoc(docRef);
+
+      if (snap.exists()) {
+        const firestoreCart = snap.data().items || [];
+        setCart(firestoreCart);
+        localStorage.setItem("cart", JSON.stringify(firestoreCart));
+      } else {
+        await setDoc(docRef, { items: cart });
+      }
+    };
+
+    syncCart();
+  }, [user]);
+
+  // 🔹 Save to localStorage + Firestore
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
 
-  // ✅ Add To Cart
+    if (user) {
+      const docRef = doc(db, "cart", user.uid);
+      setDoc(docRef, { items: cart }, { merge: true });
+    }
+  }, [cart, user]);
+
+  // 🔹 Add To Cart
   const addToCart = (item: CartItem) => {
     setCart((prev) => {
       const existing = prev.find((p) => p.id === item.id);
@@ -62,12 +91,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // ✅ Remove Product
   const removeFromCart = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // ✅ Increase Quantity
   const increaseQty = (id: string) => {
     setCart((prev) =>
       prev.map((item) =>
@@ -78,7 +105,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // ✅ Decrease Quantity
   const decreaseQty = (id: string) => {
     setCart((prev) =>
       prev.map((item) =>
@@ -89,18 +115,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // ✅ Clear Cart (after order placed)
   const clearCart = () => {
     setCart([]);
   };
 
-  // ✅ Total Price
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  // ✅ Total Item Count
   const cartCount = cart.reduce(
     (sum, item) => sum + item.quantity,
     0
