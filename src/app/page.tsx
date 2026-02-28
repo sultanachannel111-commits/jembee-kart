@@ -358,10 +358,10 @@ export default function HomePage() {
           <Grid size={20} />
           Categories
         </Link>
-        <Link href="/wishlist" className="flex flex-col items-center text-xs">
-          <Heart size={20} />
-          Wishlist
-        </Link>
+        <Link href="/offers" className="flex flex-col items-center text-xs">
+  <Flame size={20} />
+  Offers
+</Link>
         <Link href="/profile" className="flex flex-col items-center text-xs">
           <User size={20} />
           Profile
