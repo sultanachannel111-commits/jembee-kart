@@ -9,7 +9,7 @@ import {
   Home,
   Grid,
   User,
-  Star,
+  Flame,
 } from "lucide-react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
