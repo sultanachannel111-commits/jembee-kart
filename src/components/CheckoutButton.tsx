@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { generateUpiLink } from "@/utils/payment";
 
 export default function CheckoutButton({ product }: any) {
   const [loading, setLoading] = useState(false);
@@ -11,45 +12,42 @@ export default function CheckoutButton({ product }: any) {
     setMessage("");
 
     try {
+      // 1️⃣ Create Order (Pending)
       const response = await fetch("/api/orders/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          product: {
-            id: product.id,
-            sellerId: product.sellerId,
-            sku: product.sku,
-            printTypeId: product.printTypeId,
-            costPrice: product.costPrice,
-            sellingPrice: product.sellingPrice,
-            designLink: product.designLink,
-            mockupLink: product.mockupLink,
-          },
-          customer: {
-            firstName: "Ali",
-            lastName: "Test",
-            address: "Test Street 123",
-            phone: "9999999999",
-            email: "test@example.com",
-            city: "Jamshedpur",
-            pincode: "832110",
-            state: "Jharkhand",
-          },
+          product,
           quantity: 1,
-          paymentMethod: "COD",
+          paymentMethod: "UPI",
+          status: "pending",
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        setMessage("✅ Order Placed Successfully!");
-      } else {
-        // 🔥 FULL ERROR SHOW
-        setMessage("❌ " + JSON.stringify(data, null, 2));
+      if (!data.success) {
+        setMessage("❌ Order creation failed");
+        setLoading(false);
+        return;
       }
+
+      // 2️⃣ Generate UPI Link
+      const orderId = data.orderId; // API se orderId return hona chahiye
+      const totalAmount = product.sellingPrice;
+
+      const upiLink = generateUpiLink(totalAmount, orderId);
+
+      if (!upiLink) {
+        setMessage("❌ Payment link error");
+        setLoading(false);
+        return;
+      }
+
+      // 3️⃣ Open UPI Apps
+      window.location.href = upiLink;
 
     } catch (error: any) {
       setMessage("❌ Server Error: " + error?.message);
@@ -63,9 +61,9 @@ export default function CheckoutButton({ product }: any) {
       <button
         onClick={handleCheckout}
         disabled={loading}
-        className="w-full bg-black text-white py-3 rounded-lg"
+        className="w-full bg-green-600 text-white py-3 rounded-lg"
       >
-        {loading ? "Processing..." : "Place Order"}
+        {loading ? "Processing..." : "Pay with UPI"}
       </button>
 
       {message && (
