@@ -16,6 +16,7 @@ export default function AdminOffersPage() {
   const [category, setCategory] = useState("");
   const [productId, setProductId] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
+  const [discountPercent, setDiscountPercent] = useState(0);
   const [endDate, setEndDate] = useState("");
   const [offers, setOffers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -51,6 +52,30 @@ export default function AdminOffersPage() {
     };
   }, []);
 
+useEffect(() => {
+  if (type !== "product") return;
+
+  const selectedProduct = products.find(p => p.id === productId);
+
+  if (!selectedProduct || !discountAmount) {
+    setDiscountPercent(0);
+    return;
+  }
+
+  const price = Number(selectedProduct.sellingPrice || 0);
+  const amount = Number(discountAmount || 0);
+
+  if (!price || amount > price) {
+    setDiscountPercent(0);
+    return;
+  }
+
+  const percent = Math.round((amount / price) * 100);
+  setDiscountPercent(percent);
+
+}, [discountAmount, productId, products, type]);
+
+const addOffer = async () => {
   const addOffer = async () => {
     setError("");
 
