@@ -9,7 +9,9 @@ import {
   Home,
   Grid,
   User,
+  Star,
   Flame,
+  Heart,   // ✅ YE WAPAS ADD KARO
 } from "lucide-react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
