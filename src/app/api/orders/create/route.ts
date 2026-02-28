@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { product } = body;
+const { product, paymentMethod } = body;
 
     const clientId = process.env.QIKINK_CLIENT_ID;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           order_number: orderNumber,
           qikink_shipping: "1",
-          gateway: "COD",
+          gateway: paymentMethod === "Prepaid" ? "Prepaid" : "COD",
           total_order_value: product.sellingPrice.toString(),
           line_items: [
             {
@@ -113,9 +113,10 @@ export async function POST(req: NextRequest) {
     const orderData = JSON.parse(orderText);
 
     return NextResponse.json({
-      success: true,
-      orderData
-    });
+  success: true,
+  orderId: orderNumber,   // ✅ Ye line add karni hai
+  orderData
+});
 
   } catch (err: any) {
     return NextResponse.json({
