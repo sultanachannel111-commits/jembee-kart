@@ -71,7 +71,7 @@ const productsWithOffers = productSnap.docs.map(d => {
   const baseProduct = {
     id: d.id,
     ...data,
-    price: data.sellingPrice
+    price: Number(data.sellingPrice || data.price || 0)
   };
 
   let matchedOffer = activeOffers.find((o: any) => {
@@ -93,15 +93,19 @@ const productsWithOffers = productSnap.docs.map(d => {
 
   if (!matchedOffer) return baseProduct;
 
-  const discountAmount =
-    (baseProduct.price * matchedOffer.discount) / 100;
+const price = Number(baseProduct.price || 0);
+const discountPercent = Number(matchedOffer.discount || 0);
 
-  return {
-    ...baseProduct,
-    originalPrice: baseProduct.price,
-    price: Math.round(baseProduct.price - discountAmount),
-    discount: matchedOffer.discount
-  };
+if (!price) return baseProduct;
+
+const discountAmount = (price * discountPercent) / 100;
+
+return {
+  ...baseProduct,
+  originalPrice: price,
+  price: Math.round(price - discountAmount),
+  discount: discountPercent
+};
 });
 
 setProducts(productsWithOffers);
