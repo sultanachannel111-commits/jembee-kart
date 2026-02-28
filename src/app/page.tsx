@@ -173,12 +173,12 @@ export default function HomePage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           {user ? (
             <>
-              <span className="text-sm font-semibold text-white">
+              <span className="hidden sm:block text-sm font-semibold text-white">
                 Hi, {user.displayName || user.email?.split("@")[0]}
               </span>
               <button
                 onClick={handleLogout}
-                className="bg-white text-red-600 px-4 py-2 rounded-md shadow font-semibold"
+                className="hidden sm:block bg-white text-red-600 px-4 py-2 rounded-md shadow font-semibold"
               >
                 Logout
               </button>
@@ -191,7 +191,7 @@ export default function HomePage() {
             </Link>
           )}
 
-          <Link href="/cart" className="relative">
+          <Link href="/cart" className="relative flex-shrink-0">
             <ShoppingCart size={22} />
             {cartCount > 0 && (
   <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-1 rounded-full">
