@@ -54,18 +54,57 @@ export default function HomePage() {
 
     const bannerSnap = await getDocs(collection(db, "banners"));
     setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const offerSnap = await getDocs(collection(db, "offers"));
 
+const activeOffers = offerSnap.docs
+  .map(d => ({ id: d.id, ...d.data() }))
+  .filter(
+    (o: any) =>
+      o.active &&
+      new Date(o.endDate).getTime() > new Date().getTime()
+  );
     const productSnap = await getDocs(collection(db, "products"));
-    setProducts(
-  productSnap.docs.map(d => {
-    const data = d.data();
-    return {
-      id: d.id,
-      ...data,
-      price: data.sellingPrice  // 🔥 FIX
-    };
-  })
-);
+
+const productsWithOffers = productSnap.docs.map(d => {
+  const data = d.data();
+
+  const baseProduct = {
+    id: d.id,
+    ...data,
+    price: data.sellingPrice
+  };
+
+  let matchedOffer = activeOffers.find((o: any) => {
+
+    // Product offer
+    if (o.type === "product" && o.productId === d.id)
+      return true;
+
+    // Category offer
+    if (
+      o.type === "category" &&
+      o.category?.trim().toLowerCase() ===
+      data.category?.trim().toLowerCase()
+    )
+      return true;
+
+    return false;
+  });
+
+  if (!matchedOffer) return baseProduct;
+
+  const discountAmount =
+    (baseProduct.price * matchedOffer.discount) / 100;
+
+  return {
+    ...baseProduct,
+    originalPrice: baseProduct.price,
+    price: Math.round(baseProduct.price - discountAmount),
+    discount: matchedOffer.discount
+  };
+});
+
+setProducts(productsWithOffers);
 
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
