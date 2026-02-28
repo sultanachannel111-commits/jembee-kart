@@ -161,9 +161,9 @@ discount: discountPercent,
         <input
           type="number"
           placeholder="Discount %"
-          value={discount}
+          value={discountAmount}
           onChange={(e) =>
-            setDiscount(
+            setDiscountAmount(
               e.target.value === "" ? "" : Number(e.target.value)
             )
           }
