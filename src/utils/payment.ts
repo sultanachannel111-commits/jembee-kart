@@ -4,23 +4,23 @@ export const generateUpiLink = (
   amount: number,
   orderId: string
 ): string => {
-  const upiId = "sultana9212@axl"; // ✅ Your UPI ID
+  const upiId = "sultana9212@axl";
   const merchantName = "JembeeKart";
 
-  // Ensure valid number
-  const finalAmount = Number(amount);
+  // Convert & fix to 2 decimal places
+  const finalAmount = Number(amount).toFixed(2);
 
-  // Extra safety check
-  if (!finalAmount || finalAmount <= 0) {
+  if (!amount || Number(amount) <= 0) {
     console.error("Invalid payment amount");
     return "";
   }
 
-  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
-    merchantName
-  )}&am=${finalAmount}&cu=INR&tr=${orderId}&tn=${encodeURIComponent(
-    "JembeeKart Order"
-  )}`;
+  const upiUrl = `upi://pay?pa=${upiId}
+  &pn=${encodeURIComponent(merchantName)}
+  &am=${finalAmount}
+  &cu=INR
+  &tr=${encodeURIComponent(orderId)}
+  &tn=${encodeURIComponent(`Order ${orderId}`)}`.replace(/\s+/g, "");
 
   return upiUrl;
 };
