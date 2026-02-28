@@ -1,5 +1,3 @@
-// src/utils/payment.ts
-
 export const generateUpiLink = (
   amount: number,
   orderId: string
@@ -7,7 +5,6 @@ export const generateUpiLink = (
   const upiId = "sultana9212@axl";
   const merchantName = "JembeeKart";
 
-  // Convert & fix to 2 decimal places
   const finalAmount = Number(amount).toFixed(2);
 
   if (!amount || Number(amount) <= 0) {
@@ -15,12 +12,9 @@ export const generateUpiLink = (
     return "";
   }
 
-  const upiUrl = `upi://pay?pa=${upiId}
-  &pn=${encodeURIComponent(merchantName)}
-  &am=${finalAmount}
-  &cu=INR
-  &tr=${encodeURIComponent(orderId)}
-  &tn=${encodeURIComponent(`Order ${orderId}`)}`.replace(/\s+/g, "");
-
-  return upiUrl;
+  return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+    merchantName
+  )}&am=${finalAmount}&cu=INR&tr=${orderId}&tn=${encodeURIComponent(
+    "JembeeKart Order"
+  )}`;
 };
