@@ -352,11 +352,11 @@ setProducts(productsWithOffers);
                 />
               </Link>
 
-              {calculateDiscount(product.price, product.originalPrice) && (
-                <span className="absolute top-3 left-3 bg-green-600 text-white text-xs px-2 py-1 rounded">
-                  {calculateDiscount(product.price, product.originalPrice)}% OFF
-                </span>
-              )}
+              {product.discount && (
+  <span className="absolute top-3 left-3 bg-red-600 text-white text-xs px-2 py-1 rounded">
+    {product.discount}% OFF
+  </span>
+)}
 
               <div className="mt-2 text-sm font-medium truncate">
                 {product.name}
