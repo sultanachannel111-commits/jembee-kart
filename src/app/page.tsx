@@ -170,7 +170,7 @@ export default function HomePage() {
           <span className="text-pink-700">Kart</span>
         </h1>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {user ? (
             <>
               <span className="text-sm font-semibold text-white">
