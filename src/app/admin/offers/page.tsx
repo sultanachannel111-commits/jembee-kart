@@ -25,6 +25,7 @@ export default function AdminOffersPage() {
 
   const [, forceUpdate] = useState(0);
 
+  // Live Timer Refresh
   useEffect(() => {
     const timer = setInterval(() => {
       forceUpdate((prev) => prev + 1);
@@ -32,17 +33,18 @@ export default function AdminOffersPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Firestore Listeners
   useEffect(() => {
-    const unsub1 = onSnapshot(collection(db, "offers"), snap =>
-      setOffers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const unsub1 = onSnapshot(collection(db, "offers"), (snap) =>
+      setOffers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
 
-    const unsub2 = onSnapshot(collection(db, "qikinkCategories"), snap =>
-      setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const unsub2 = onSnapshot(collection(db, "qikinkCategories"), (snap) =>
+      setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
 
-    const unsub3 = onSnapshot(collection(db, "products"), snap =>
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    const unsub3 = onSnapshot(collection(db, "products"), (snap) =>
+      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
 
     return () => {
@@ -52,30 +54,30 @@ export default function AdminOffersPage() {
     };
   }, []);
 
-useEffect(() => {
-  if (type !== "product") return;
+  // Auto Calculate Percent From Amount
+  useEffect(() => {
+    if (type !== "product") return;
 
-  const selectedProduct = products.find(p => p.id === productId);
+    const selectedProduct = products.find((p) => p.id === productId);
 
-  if (!selectedProduct || !discountAmount) {
-    setDiscountPercent(0);
-    return;
-  }
+    if (!selectedProduct || !discountAmount) {
+      setDiscountPercent(0);
+      return;
+    }
 
-  const price = Number(selectedProduct.sellingPrice || 0);
-  const amount = Number(discountAmount || 0);
+    const price = Number(selectedProduct.sellingPrice || 0);
+    const amount = Number(discountAmount || 0);
 
-  if (!price || amount > price) {
-    setDiscountPercent(0);
-    return;
-  }
+    if (!price || amount > price) {
+      setDiscountPercent(0);
+      return;
+    }
 
-  const percent = Math.round((amount / price) * 100);
-  setDiscountPercent(percent);
+    const percent = Math.round((amount / price) * 100);
+    setDiscountPercent(percent);
+  }, [discountAmount, productId, products, type]);
 
-}, [discountAmount, productId, products, type]);
-
-const addOffer = async () => {
+  // Add Offer
   const addOffer = async () => {
     setError("");
 
@@ -87,23 +89,13 @@ const addOffer = async () => {
 
     if (type === "product" && !productId)
       return setError("Select product");
-let discountPercent = 0;
 
-if (type === "product") {
-  const selectedProduct = products.find(p => p.id === productId);
-
-  if (selectedProduct && discountAmount) {
-    discountPercent = Math.round(
-      (Number(discountAmount) / selectedProduct.sellingPrice) * 100
-    );
-  }
-}
     await addDoc(collection(db, "offers"), {
       type,
       category: type === "category" ? category : null,
       productId: type === "product" ? productId : null,
       discountAmount: Number(discountAmount),
-discount: discountPercent,
+      discount: type === "product" ? discountPercent : Number(discountAmount),
       endDate,
       active: true,
       createdAt: new Date(),
@@ -112,6 +104,7 @@ discount: discountPercent,
     setCategory("");
     setProductId("");
     setDiscountAmount("");
+    setDiscountPercent(0);
     setEndDate("");
   };
 
@@ -138,12 +131,9 @@ discount: discountPercent,
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">
-        Offer Management
-      </h1>
+      <h1 className="text-2xl font-bold mb-6">Offer Management</h1>
 
       <div className="grid md:grid-cols-6 gap-3 mb-4">
-
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
@@ -185,15 +175,17 @@ discount: discountPercent,
 
         <input
           type="number"
-          placeholder="Discount %"
+          placeholder="Discount Amount"
           value={discountAmount}
-          onChange={(e) =>
-            setDiscountAmount(
-              e.target.value === "" ? "" : Number(e.target.value)
-            )
-          }
+          onChange={(e) => setDiscountAmount(e.target.value)}
           className="border px-3 py-2 rounded"
         />
+
+        {type === "product" && discountPercent > 0 && (
+          <div className="flex items-center font-semibold text-pink-600">
+            {discountPercent}% OFF
+          </div>
+        )}
 
         <input
           type="datetime-local"
@@ -220,18 +212,18 @@ discount: discountPercent,
                 ? `Category: ${o.category}`
                 : `Product ID: ${o.productId}`}
             </p>
+
             <p className="text-pink-600 font-bold">
               {o.discount}% OFF
             </p>
+
             <p className="text-sm">
               Ends: {getRemaining(o.endDate)}
             </p>
 
             <div className="flex gap-2 mt-3">
               <button
-                onClick={() =>
-                  toggleActive(o.id, o.active)
-                }
+                onClick={() => toggleActive(o.id, o.active)}
                 className="bg-green-500 text-white px-3 py-1 rounded text-sm"
               >
                 {o.active ? "Active" : "Inactive"}
