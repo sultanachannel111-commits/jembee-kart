@@ -10,7 +10,6 @@ import {
   Grid,
   User,
   Star,
-  Heart,
 } from "lucide-react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
