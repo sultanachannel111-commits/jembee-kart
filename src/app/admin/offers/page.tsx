@@ -36,7 +36,7 @@ export default function AdminOffersPage() {
       setOffers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
 
-    const unsub2 = onSnapshot(collection(db, "categories"), snap =>
+    const unsub2 = onSnapshot(collection(db, "qikinkCategories"), snap =>
       setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
 
