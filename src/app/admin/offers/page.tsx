@@ -15,7 +15,7 @@ export default function AdminOffersPage() {
   const [type, setType] = useState("category");
   const [category, setCategory] = useState("");
   const [productId, setProductId] = useState("");
-  const [discount, setDiscount] = useState<number | "">("");
+  const [discountAmount, setDiscountAmount] = useState("");
   const [endDate, setEndDate] = useState("");
   const [offers, setOffers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -54,7 +54,7 @@ export default function AdminOffersPage() {
   const addOffer = async () => {
     setError("");
 
-    if (!discount) return setError("Enter discount");
+    if (!discountAmount) return setError("Enter discount amount");
     if (!endDate) return setError("Select end time");
 
     if (type === "category" && !category)
@@ -62,12 +62,23 @@ export default function AdminOffersPage() {
 
     if (type === "product" && !productId)
       return setError("Select product");
+let discountPercent = 0;
 
+if (type === "product") {
+  const selectedProduct = products.find(p => p.id === productId);
+
+  if (selectedProduct && discountAmount) {
+    discountPercent = Math.round(
+      (Number(discountAmount) / selectedProduct.sellingPrice) * 100
+    );
+  }
+}
     await addDoc(collection(db, "offers"), {
       type,
       category: type === "category" ? category : null,
       productId: type === "product" ? productId : null,
-      discount: Number(discount),
+      discountAmount: Number(discountAmount),
+discount: discountPercent,
       endDate,
       active: true,
       createdAt: new Date(),
@@ -75,7 +86,7 @@ export default function AdminOffersPage() {
 
     setCategory("");
     setProductId("");
-    setDiscount("");
+    setDiscountAmount("");
     setEndDate("");
   };
 
