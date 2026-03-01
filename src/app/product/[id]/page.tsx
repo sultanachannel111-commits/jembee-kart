@@ -175,7 +175,7 @@ const handleAddToCart = async () => {
       await setDoc(itemRef, {
         productId: product.id,
         name: product.name,
-        price: product.sellingPrice,
+        price: finalPrice,
         image: selectedImage,
         quantity,
         createdAt: new Date(),
