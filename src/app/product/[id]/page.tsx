@@ -148,74 +148,63 @@ const discountPercent = isOfferActive
 
   /* ---------------- FIRESTORE CART ---------------- */
 
-  const handleAddToCart = async () => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+  /* ---------------- REAL FIRESTORE CART ---------------- */
 
-      if (!user) {
-        alert("Please login first");
-        return;
-      }
+const handleAddToCart = async () => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-      if (!product?.stock || product.stock === 0) {
-        alert("Product is out of stock");
-        return;
-      }
-
-      if (quantity > product.stock) {
-        alert("Not enough stock available");
-        return;
-      }
-
-      const cartRef = doc(db, "cart", user.uid);
-      const snap = await getDoc(cartRef);
-
-      let updatedProducts = [];
-
-      if (snap.exists()) {
-        const existingProducts = snap.data().products || [];
-
-        const existingIndex = existingProducts.findIndex(
-          (item: any) => item.id === product.id
-        );
-
-        if (existingIndex >= 0) {
-          existingProducts[existingIndex].quantity += quantity;
-          updatedProducts = existingProducts;
-        } else {
-          updatedProducts = [
-            ...existingProducts,
-            {
-              id: product.id,
-              name: product.name,
-              image: selectedImage,
-              price: finalPrice,
-              quantity,
-            },
-          ];
-        }
-      } else {
-        updatedProducts = [
-          {
-            id: product.id,
-            name: product.name,
-            image: selectedImage,
-            price: finalPrice,
-            quantity,
-          },
-        ];
-      }
-
-      await setDoc(cartRef, { products: updatedProducts });
-
-      alert("Added to Cart ✅");
-
-    } catch (error) {
-      console.log("Cart Error:", error);
-      alert("Something went wrong ❌");
+    if (!user) {
+      alert("Please login first");
+      return;
     }
-  };
+
+    if (!product?.stock || product.stock === 0) {
+      alert("Product is out of stock");
+      return;
+    }
+
+    if (quantity > product.stock) {
+      alert("Not enough stock available");
+      return;
+    }
+
+    // Cart subcollection reference
+    const itemRef = doc(
+      db,
+      "cart",
+      user.uid,
+      "items",
+      product.id
+    );
+
+    const existing = await getDoc(itemRef);
+
+    if (existing.exists()) {
+      const oldQty = existing.data().quantity || 0;
+
+      await setDoc(itemRef, {
+        ...existing.data(),
+        quantity: oldQty + quantity,
+      });
+    } else {
+      await setDoc(itemRef, {
+        productId: product.id,
+        name: product.name,
+        price: finalPrice,
+        image: selectedImage,
+        quantity: quantity,
+        createdAt: new Date(),
+      });
+    }
+
+    alert("Added to cart 🛒");
+  } catch (error) {
+    console.log("Cart error:", error);
+    alert("Something went wrong ❌");
+  }
+};
 
   const handleBuyNow = async () => {
     await handleAddToCart();
