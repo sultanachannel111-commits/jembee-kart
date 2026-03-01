@@ -6,8 +6,10 @@ import {
   collection,
   addDoc,
   doc,
-  getDoc,
+  getDocs,
   deleteDoc,
+  updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -16,10 +18,11 @@ export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("COD");
 
   const router = useRouter();
 
-  /* 🔥 AUTH + FETCH CART */
+  /* ================= FETCH CART ================= */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -29,34 +32,44 @@ export default function CheckoutPage() {
 
       setUser(currentUser);
 
-      const snap = await getDoc(doc(db, "cart", currentUser.uid));
+      const itemsRef = collection(
+        db,
+        "cart",
+        currentUser.uid,
+        "items"
+      );
 
-      if (snap.exists()) {
-        setCartItems(snap.data().products || []);
-      }
+      const snap = await getDocs(itemsRef);
+
+      const items: any[] = [];
+
+      snap.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+
+      setCartItems(items);
     });
 
     return () => unsubscribe();
   }, []);
 
-  /* 🔥 CALCULATE TOTAL */
+  /* ================= TOTAL ================= */
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  /* 🔥 PLACE ORDER */
+  /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
     if (!user || cartItems.length === 0) return;
 
     setLoading(true);
 
     try {
-      // ✅ STOCK VALIDATION
+      /* ===== STOCK VALIDATION ===== */
       for (const item of cartItems) {
-        const productSnap = await getDoc(
-          doc(db, "products", item.id)
-        );
+        const productRef = doc(db, "products", item.productId);
+        const productSnap = await getDoc(productRef);
 
         if (!productSnap.exists()) {
           alert(`${item.name} not found ❌`);
@@ -75,15 +88,16 @@ export default function CheckoutPage() {
         }
       }
 
-      // ✅ CREATE ORDER
+      /* ===== CREATE ORDER ===== */
       await addDoc(collection(db, "orders"), {
         userId: user.uid,
         products: cartItems,
         totalAmount: totalAmount,
 
         status: "Placed",
-        paymentStatus: "Pending",
-        paymentMethod: "COD",
+        paymentMethod: paymentMethod,
+        paymentStatus:
+          paymentMethod === "COD" ? "Pending" : "Paid",
 
         returnRequested: false,
         returnReason: "",
@@ -91,21 +105,34 @@ export default function CheckoutPage() {
         createdAt: new Date(),
       });
 
-      // ✅ REDUCE STOCK
+      /* ===== REDUCE STOCK ===== */
       for (const item of cartItems) {
-        const productRef = doc(db, "products", item.id);
-        const snap = await getDoc(productRef);
+        const productRef = doc(db, "products", item.productId);
+        const productSnap = await getDoc(productRef);
 
-        if (snap.exists()) {
-          const data = snap.data();
+        if (productSnap.exists()) {
+          const data = productSnap.data();
+
           await updateDoc(productRef, {
             stock: data.stock - item.quantity,
           });
         }
       }
 
-      // ✅ CLEAR CART
-      await deleteDoc(doc(db, "cart", user.uid));
+      /* ===== CLEAR CART ===== */
+      const itemsRef = collection(
+        db,
+        "cart",
+        user.uid,
+        "items"
+      );
+
+      const snap = await getDocs(itemsRef);
+
+      for (const document of snap.docs) {
+        await deleteDoc(document.ref);
+      }
+
       setCartItems([]);
 
       alert("Order Placed Successfully 🎉");
@@ -130,6 +157,7 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <>
+          {/* ===== CART SUMMARY ===== */}
           <div className="bg-white p-4 rounded-xl shadow mb-4">
             {cartItems.map((item, index) => (
               <div
@@ -153,6 +181,36 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* ===== PAYMENT METHOD ===== */}
+          <div className="bg-white p-4 rounded-xl shadow mb-4">
+            <h2 className="font-semibold mb-3">
+              Select Payment Method
+            </h2>
+
+            <div
+              onClick={() => setPaymentMethod("COD")}
+              className={`p-3 border rounded-lg mb-2 cursor-pointer ${
+                paymentMethod === "COD"
+                  ? "border-pink-600 bg-pink-50"
+                  : "border-gray-300"
+              }`}
+            >
+              💵 Cash on Delivery
+            </div>
+
+            <div
+              onClick={() => setPaymentMethod("ONLINE")}
+              className={`p-3 border rounded-lg cursor-pointer ${
+                paymentMethod === "ONLINE"
+                  ? "border-pink-600 bg-pink-50"
+                  : "border-gray-300"
+              }`}
+            >
+              💳 Online Payment
+            </div>
+          </div>
+
+          {/* ===== PLACE ORDER BUTTON ===== */}
           <button
             onClick={placeOrder}
             disabled={loading}
