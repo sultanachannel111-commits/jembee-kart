@@ -1,12 +1,12 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, onSnapshot } from "firebase/firestore"; // 💯
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import Link from "next/link";
-
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
