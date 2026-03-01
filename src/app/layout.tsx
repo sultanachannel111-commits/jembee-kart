@@ -36,7 +36,7 @@ export default function RootLayout({
         </AuthProvider>
 
         {/* 🔥 BOTTOM NAVBAR WITH LIVE CART BADGE */}
-        <Navbar />
+        {/* <Navbar /> */}
       </body>
     </html>
   );
