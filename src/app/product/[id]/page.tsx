@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import Link from "next/link";
@@ -71,49 +71,80 @@ export default function ProductPage() {
 
   /* ---------------- OFFER ---------------- */
 
-  const isOfferActive =
-    product?.offerEnd?.seconds &&
-    new Date(product.offerEnd.seconds * 1000) > new Date();
+const [activeOffer, setActiveOffer] = useState<any>(null);
 
-  const finalPrice = isOfferActive
-    ? product?.offerPrice ?? product?.price
-    : product?.sellingPrice ?? product?.price ?? 0;
+useEffect(() => {
+  if (!product) return;
 
-  const discountPercent =
-    isOfferActive &&
-    product?.sellingPrice &&
-    product?.offerPrice
-      ? Math.round(
-          ((product.sellingPrice - product.offerPrice) /
-            product.sellingPrice) *
-            100
+  const unsub = onSnapshot(collection(db, "offers"), (snap) => {
+    const now = new Date();
+
+    const matched = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .find((o: any) => {
+        if (!o.active) return false;
+        if (new Date(o.endDate) <= now) return false;
+
+        // Product offer
+        if (o.type === "product" && o.productId === product.id)
+          return true;
+
+        // Category offer
+        if (
+          o.type === "category" &&
+          o.category?.trim().toLowerCase() ===
+            product.category?.trim().toLowerCase()
         )
-      : null;
+          return true;
+
+        return false;
+      });
+
+    setActiveOffer(matched || null);
+  });
+
+  return () => unsub();
+}, [product]);
+
+const isOfferActive = !!activeOffer;
+
+const finalPrice =
+  product && isOfferActive
+    ? Math.round(
+        product.sellingPrice -
+          (product.sellingPrice * activeOffer.discount) / 100
+      )
+    : product?.sellingPrice ?? 0;
+
+const discountPercent = isOfferActive
+  ? activeOffer.discount
+  : null;
 
   /* ---------------- COUNTDOWN ---------------- */
 
   useEffect(() => {
-    if (!product?.offerEnd?.seconds) return;
+  if (!activeOffer?.endDate) return;
 
-    const interval = setInterval(() => {
-      const diff =
-        new Date(product.offerEnd.seconds * 1000).getTime() -
-        new Date().getTime();
+  const interval = setInterval(() => {
+    const diff =
+      new Date(activeOffer.endDate).getTime() -
+      new Date().getTime();
 
-      if (diff <= 0) {
-        setTimeLeft("Offer Ended");
-        clearInterval(interval);
-      } else {
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor(
-          (diff % (1000 * 60 * 60)) / (1000 * 60)
-        );
-        setTimeLeft(`${hours}h ${minutes}m left`);
-      }
-    }, 1000);
+    if (diff <= 0) {
+      setTimeLeft("Offer Ended");
+      clearInterval(interval);
+    } else {
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        (diff % (1000 * 60 * 60)) / (1000 * 60)
+      );
 
-    return () => clearInterval(interval);
-  }, [product?.offerEnd?.seconds]);
+      setTimeLeft(`${hours}h ${minutes}m left`);
+    }
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [activeOffer]);
 
   /* ---------------- FIRESTORE CART ---------------- */
 
