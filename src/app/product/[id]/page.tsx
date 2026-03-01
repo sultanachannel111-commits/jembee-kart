@@ -277,7 +277,40 @@ const discountPercent = isOfferActive
           <p className="text-3xl text-green-600 font-bold mt-3">
             ₹{finalPrice}
           </p>
+          {/* ---------------- STOCK STATUS ---------------- */}
 
+{product?.stock === 0 && (
+  <div className="mt-3 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg font-semibold text-sm">
+    ❌ Out of Stock
+  </div>
+)}
+
+{product?.stock > 0 && product.stock <= 2 && (
+  <div className="mt-3 bg-orange-50 border border-orange-200 p-3 rounded-lg">
+    <div className="flex items-center justify-between">
+      <span className="text-orange-700 font-semibold text-sm animate-pulse">
+        🔥 Hurry! Only {product.stock} left
+      </span>
+    </div>
+
+    <div className="w-full bg-orange-200 h-2 rounded-full mt-2 overflow-hidden">
+      <div
+        className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+        style={{
+          width: `${(product.stock / 5) * 100}%`,
+        }}
+      />
+    </div>
+  </div>
+)}
+
+{product?.stock > 2 && product.stock <= 5 && (
+  <div className="mt-3 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+    <span className="text-yellow-700 font-medium text-sm">
+      ⚡ Limited Stock Available
+    </span>
+  </div>
+)}
           {isOfferActive && (
             <div className="mt-2">
               <span className="line-through text-gray-400 mr-3">
