@@ -18,7 +18,6 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [photo, setPhoto] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [editingAddress, setEditingAddress] = useState(false);
 
@@ -36,11 +35,13 @@ export default function ProfilePage() {
           collection(db, "orders"),
           where("userId", "==", currentUser.uid)
         );
+
         const snapshot = await getDocs(q);
         const orderData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+
         setOrders(orderData);
 
         // Fetch Address
@@ -61,24 +62,15 @@ export default function ProfilePage() {
     router.push("/");
   };
 
-  const handlePhotoUpload = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const saveAddress = async () => {
     if (!user) return;
+
     await setDoc(
       doc(db, "users", user.uid),
       { address },
       { merge: true }
     );
+
     setEditingAddress(false);
   };
 
@@ -96,24 +88,10 @@ export default function ProfilePage() {
       {/* PROFILE CARD */}
       <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
 
+        {/* Avatar */}
         <div className="flex justify-center">
-          <div className="relative">
-            <img
-              src={
-                photo ||
-                user?.photoURL ||
-                "https://ui-avatars.com/api/?name=" + user?.email
-              }
-              className="w-24 h-24 rounded-full object-cover border-4 border-pink-200"
-            />
-            <label className="absolute bottom-0 right-0 bg-pink-600 text-white p-1 rounded-full cursor-pointer text-xs">
-              ✏
-              <input
-                type="file"
-                className="hidden"
-                onChange={handlePhotoUpload}
-              />
-            </label>
+          <div className="w-24 h-24 rounded-full bg-pink-500 flex items-center justify-center text-white text-3xl font-bold">
+            {user?.email?.charAt(0).toUpperCase()}
           </div>
         </div>
 
@@ -205,4 +183,4 @@ export default function ProfilePage() {
 
     </div>
   );
-            }
+}
