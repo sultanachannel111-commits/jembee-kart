@@ -4,7 +4,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 
 export default function OrderSuccess() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
