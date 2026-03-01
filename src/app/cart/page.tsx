@@ -74,50 +74,11 @@ export default function CartPage() {
   };
 
   /* 🔥 CHECKOUT */
-  const checkout = async () => {
-    if (!userId || items.length === 0) return;
+  const checkout = () => {
+  if (!userId || items.length === 0) return;
 
-    setProcessing(true);
-
-    const totalAmount = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
-    try {
-      const orderId = "ORD" + Date.now().toString().slice(-8);
-
-      const expires = new Date();
-      expires.setMinutes(expires.getMinutes() + 15);
-
-      const docRef = await addDoc(collection(db, "orders"), {
-        userId,
-        orderId,
-        amount: totalAmount,
-        paymentStatus: "INITIATED",
-        paymentMethod: "UPI",
-        products: items,
-        createdAt: new Date(),
-        expiresAt: expires,
-      });
-
-      // 🔥 CLEAR CART ITEMS
-      const itemsRef = collection(db, "cart", userId, "items");
-      const snap = await getDocs(itemsRef);
-
-      for (const docItem of snap.docs) {
-        await deleteDoc(docItem.ref);
-      }
-
-      setItems([]);
-
-      router.push(`/payment/${docRef.id}`);
-    } catch (error) {
-      console.log("Checkout error:", error);
-    }
-
-    setProcessing(false);
-  };
+  router.push("/checkout"); // 👉 direct checkout page open karega
+};
 
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
