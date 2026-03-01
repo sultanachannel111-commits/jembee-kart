@@ -61,6 +61,7 @@ export default function Navbar() {
         </Link>
 
         <NavItem href="/profile" icon={<User size={20} />} label="Profile" />
+
       </div>
     </div>
   );
