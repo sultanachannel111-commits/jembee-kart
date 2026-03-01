@@ -1,83 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-} from "firebase/firestore";
+import { useParams } from "next/navigation";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function MenPage() {
+export default function CategoryPage() {
+  const { slug } = useParams();
   const [products, setProducts] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [showSort, setShowSort] = useState(false);
-  const [sortType, setSortType] = useState("Latest");
-  const [maxPrice, setMaxPrice] = useState("");
-
-  /* 🔥 FETCH PRODUCTS (NO WHERE FILTER FOR SAFETY) */
   useEffect(() => {
     const fetchProducts = async () => {
-      try {
-        const snap = await getDocs(collection(db, "products"));
+      const snap = await getDocs(collection(db, "products"));
 
-        const data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+      const data = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-        // 🔥 FILTER MEN CATEGORY HERE (SAFE WAY)
-        const menProducts = data.filter(
-          (p) =>
-            p.category?.toLowerCase() === "men"
-        );
+      // 🔥 NAME BASED FILTER
+      const filtered = data.filter((p) =>
+        p.name?.toLowerCase().includes(slug.toString().toLowerCase())
+      );
 
-        setProducts(menProducts);
-        setFiltered(menProducts);
-      } catch (err) {
-        console.log("Fetch error:", err);
-      }
-
+      setProducts(filtered);
       setLoading(false);
     };
 
     fetchProducts();
-  }, []);
-
-  /* 🔥 APPLY FILTER BUTTON FUNCTION */
-  const applyFilter = () => {
-    let temp = [...products];
-
-    if (maxPrice) {
-      temp = temp.filter(
-        (p) => Number(p.price) <= Number(maxPrice)
-      );
-    }
-
-    if (sortType === "Price Low → High") {
-      temp.sort((a, b) => a.price - b.price);
-    }
-
-    if (sortType === "Price High → Low") {
-      temp.sort((a, b) => b.price - a.price);
-    }
-
-    if (sortType === "Latest") {
-      temp.sort(
-        (a, b) =>
-          new Date(b.createdAt) -
-          new Date(a.createdAt)
-      );
-    }
-
-    setFiltered(temp);
-  };
+  }, [slug]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading products...
+        Loading...
       </div>
     );
   }
@@ -85,51 +42,17 @@ export default function MenPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6 pt-[90px]">
 
-      {/* 🔥 TITLE */}
-      <h1 className="text-4xl font-extrabold mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-        Men
+      <h1 className="text-4xl font-extrabold mb-6 capitalize bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+        {slug}
       </h1>
 
-      {/* 🔥 FILTER BAR */}
-      <div className="flex gap-4 mb-6">
-
-        {/* SORT BUTTON */}
-        <button
-          onClick={() => setShowSort(true)}
-          className="bg-white p-3 rounded-xl shadow w-32"
-        >
-          {sortType} ▼
-        </button>
-
-        {/* MAX PRICE */}
-        <input
-          type="number"
-          placeholder="Max Price"
-          value={maxPrice}
-          onChange={(e) =>
-            setMaxPrice(e.target.value)
-          }
-          className="flex-1 bg-white p-3 rounded-xl shadow outline-none"
-        />
-
-        {/* APPLY BUTTON */}
-        <button
-          onClick={applyFilter}
-          className="bg-pink-600 text-white px-4 rounded-xl shadow"
-        >
-          Filter
-        </button>
-
-      </div>
-
-      {/* 🔥 PRODUCTS GRID */}
-      {filtered.length === 0 ? (
+      {products.length === 0 ? (
         <div className="text-center text-gray-500 mt-10">
           No products found
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-6">
-          {filtered.map((product) => (
+          {products.map((product) => (
             <div
               key={product.id}
               className="bg-white rounded-2xl shadow-lg overflow-hidden"
@@ -145,49 +68,11 @@ export default function MenPage() {
                 </h2>
 
                 <p className="text-pink-600 font-bold mt-2">
-                  ₹{product.price}
+                  ₹{product.sellingPrice}
                 </p>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* 🔥 SORT BOTTOM SHEET */}
-      {showSort && (
-        <div
-          className="fixed inset-0 bg-black/30 z-50"
-          onClick={() => setShowSort(false)}
-        >
-          <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold mb-4">
-              Sort By
-            </h2>
-
-            {[
-              "Latest",
-              "Price Low → High",
-              "Price High → Low",
-            ].map((option) => (
-              <div
-                key={option}
-                onClick={() => {
-                  setSortType(option);
-                  setShowSort(false);
-                }}
-                className="flex justify-between items-center p-4 rounded-xl hover:bg-gray-100 cursor-pointer"
-              >
-                <span>{option}</span>
-
-                {sortType === option && (
-                  <span>✔</span>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
