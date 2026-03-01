@@ -156,18 +156,16 @@ const handleAddToCart = async () => {
     const user = auth.currentUser;
 
     if (!user) {
-      alert("Please login first");
-      return;
-    }
+  router.push("/login");
+  return;
+}
 
     if (!product?.stock || product.stock === 0) {
-      alert("Product is out of stock");
-      return;
-    }
+  return;
+}
 
     if (quantity > product.stock) {
-      alert("Not enough stock available");
-      return;
+  return;
     }
 
     // Cart subcollection reference
@@ -199,7 +197,7 @@ const handleAddToCart = async () => {
       });
     }
 
-    alert("Added to cart 🛒");
+    router.push("/cart");
   } catch (error) {
     console.log("Cart error:", error);
     alert("Something went wrong ❌");
