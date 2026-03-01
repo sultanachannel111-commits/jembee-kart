@@ -156,48 +156,35 @@ const handleAddToCart = async () => {
     const user = auth.currentUser;
 
     if (!user) {
-  router.push("/login");
-  return;
-}
-
-    if (!product?.stock || product.stock === 0) {
-  return;
-}
-
-    if (quantity > product.stock) {
-  return;
+      router.push("/login");
+      return;
     }
 
-    // Cart subcollection reference
-    const itemRef = doc(
-      db,
-      "cart",
-      user.uid,
-      "items",
-      product.id
-    );
+    if (!product?.stock || product.stock === 0) return;
+    if (quantity > product.stock) return;
 
+    const itemRef = doc(db, "cart", user.uid, "items", product.id);
     const existing = await getDoc(itemRef);
 
     if (existing.exists()) {
-      const oldQty = existing.data().quantity || 0;
-
       await setDoc(itemRef, {
         ...existing.data(),
-        quantity: oldQty + quantity,
+        quantity: existing.data().quantity + quantity,
+        updatedAt: new Date(),
       });
     } else {
       await setDoc(itemRef, {
         productId: product.id,
         name: product.name,
-        price: finalPrice,
+        price: product.sellingPrice,
         image: selectedImage,
-        quantity: quantity,
+        quantity,
         createdAt: new Date(),
       });
     }
 
     router.push("/cart");
+
   } catch (error) {
     console.log("Cart error:", error);
     console.log("Something went wrong");
