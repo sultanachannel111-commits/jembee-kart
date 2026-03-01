@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc, collection, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import Link from "next/link";
@@ -200,7 +200,7 @@ const handleAddToCart = async () => {
     router.push("/cart");
   } catch (error) {
     console.log("Cart error:", error);
-    alert("Something went wrong ❌");
+    console.log("Something went wrong");
   }
 };
 
