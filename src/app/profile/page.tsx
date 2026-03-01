@@ -12,6 +12,8 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  writeBatch,
+  increment
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -65,7 +67,45 @@ export default function ProfilePage() {
 
     return () => unsubscribe();
   }, []);
+  const cancelOrder = async (orderId: string) => {
+  try {
+    const orderRef = doc(db, "orders", orderId);
+    const orderSnap = await getDoc(orderRef);
 
+    if (!orderSnap.exists()) return;
+
+    const orderData = orderSnap.data();
+
+    if (orderData.status === "Cancelled") {
+      alert("Already Cancelled");
+      return;
+    }
+
+    const batch = writeBatch(db);
+
+    // Update order status
+    batch.update(orderRef, {
+      status: "Cancelled",
+    });
+
+    // Restore stock
+    for (const item of orderData.products) {
+      const productRef = doc(db, "products", item.productId);
+
+      batch.update(productRef, {
+        stock: increment(item.quantity),
+      });
+    }
+
+    await batch.commit();
+
+    alert("Order Cancelled & Stock Restored ✅");
+
+  } catch (error) {
+    console.error(error);
+    alert("Cancel failed ❌");
+  }
+};
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/");
