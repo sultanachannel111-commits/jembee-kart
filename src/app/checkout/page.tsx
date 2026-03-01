@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import {
   collection,
-  addDoc,
   doc,
   getDocs,
-  deleteDoc,
-  updateDoc,
   getDoc,
+  writeBatch,
+  serverTimestamp,
+  increment
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -60,92 +60,84 @@ export default function CheckoutPage() {
   );
 
   /* ================= PLACE ORDER ================= */
-  const placeOrder = async () => {
-    if (!user || cartItems.length === 0) return;
+  /* ================= PLACE ORDER ================= */
+const placeOrder = async () => {
+  if (!user || cartItems.length === 0) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      /* ===== STOCK VALIDATION ===== */
-      for (const item of cartItems) {
-        const productRef = doc(db, "products", item.productId);
-        const productSnap = await getDoc(productRef);
+  try {
+    const batch = writeBatch(db);
 
-        if (!productSnap.exists()) {
-          alert(`${item.name} not found ❌`);
-          setLoading(false);
-          return;
-        }
+    /* ===== STOCK VALIDATION ===== */
+    for (const item of cartItems) {
+      const productRef = doc(db, "products", item.productId);
+      const productSnap = await getDoc(productRef);
 
-        const productData = productSnap.data();
-
-        if (productData.stock < item.quantity) {
-          alert(
-            `Only ${productData.stock} left for ${item.name}`
-          );
-          setLoading(false);
-          return;
-        }
+      if (!productSnap.exists()) {
+        alert(`${item.name} not found ❌`);
+        setLoading(false);
+        return;
       }
 
-      /* ===== CREATE ORDER ===== */
-      await addDoc(collection(db, "orders"), {
-        userId: user.uid,
-        products: cartItems,
-        totalAmount: totalAmount,
+      const productData = productSnap.data();
 
-        status: "Placed",
-        paymentMethod: paymentMethod,
-        paymentStatus:
-          paymentMethod === "COD" ? "Pending" : "Paid",
-
-        returnRequested: false,
-        returnReason: "",
-
-        createdAt: new Date(),
-      });
-
-      /* ===== REDUCE STOCK ===== */
-      for (const item of cartItems) {
-        const productRef = doc(db, "products", item.productId);
-        const productSnap = await getDoc(productRef);
-
-        if (productSnap.exists()) {
-          const data = productSnap.data();
-
-          await updateDoc(productRef, {
-            stock: data.stock - item.quantity,
-          });
-        }
+      if (productData.stock < item.quantity) {
+        alert(`Only ${productData.stock} left for ${item.name}`);
+        setLoading(false);
+        return;
       }
-
-      /* ===== CLEAR CART ===== */
-      const itemsRef = collection(
-        db,
-        "cart",
-        user.uid,
-        "items"
-      );
-
-      const snap = await getDocs(itemsRef);
-
-      for (const document of snap.docs) {
-        await deleteDoc(document.ref);
-      }
-
-      setCartItems([]);
-
-      alert("Order Placed Successfully 🎉");
-
-      router.push("/profile");
-
-    } catch (error) {
-      console.error(error);
-      alert("Something went wrong ❌");
     }
 
-    setLoading(false);
-  };
+    /* ===== CREATE ORDER ===== */
+    const orderRef = doc(collection(db, "orders"));
+
+    batch.set(orderRef, {
+      userId: user.uid,
+      products: cartItems,
+      totalAmount: totalAmount,
+      status: "Placed",
+      paymentMethod: paymentMethod,
+      paymentStatus:
+        paymentMethod === "COD" ? "Pending" : "Paid",
+      returnRequested: false,
+      returnReason: "",
+      createdAt: serverTimestamp(),
+    });
+
+    /* ===== REDUCE STOCK SAFELY ===== */
+    for (const item of cartItems) {
+      const productRef = doc(db, "products", item.productId);
+
+      batch.update(productRef, {
+        stock: increment(-item.quantity),
+      });
+    }
+
+    /* ===== CLEAR CART ===== */
+    const itemsRef = collection(db, "cart", user.uid, "items");
+    const snap = await getDocs(itemsRef);
+
+    snap.forEach((document) => {
+      batch.delete(document.ref);
+    });
+
+    /* ===== COMMIT EVERYTHING TOGETHER ===== */
+    await batch.commit();
+
+    setCartItems([]);
+
+    alert("Order Placed Successfully 🎉");
+
+    router.push(`/order-success/${orderRef.id}`);
+
+  } catch (error) {
+    console.error(error);
+    alert("Something went wrong ❌");
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="min-h-screen p-6 pt-[96px] bg-gradient-to-b from-pink-100 to-white">
