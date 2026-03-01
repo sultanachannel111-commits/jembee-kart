@@ -1,106 +1,39 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import Link from "next/link";
 
-/* ============================= */
-/*        CSS VARIABLES          */
-/* ============================= */
+export default function CategoriesPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6 pt-[90px]">
 
-@layer base {
-  :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+      {/* 🔥 TITLE */}
+      <h1 className="text-4xl font-extrabold mb-10 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+        All Categories
+      </h1>
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+      {/* 🔥 GRID */}
+      <div className="grid grid-cols-2 gap-6">
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+        {[
+          { name: "Men", icon: "👕", link: "/categories/men" },
+          { name: "Women", icon: "👚", link: "/categories/women" },
+          { name: "Kids", icon: "🧒", link: "/categories/kids" },
+          { name: "New Arrivals", icon: "🔥", link: "/categories/new-arrivals" },
+        ].map((cat, index) => (
+          <Link
+            key={index}
+            href={cat.link}
+            className="group backdrop-blur-xl bg-white/40 border border-white/60 shadow-xl rounded-2xl p-6 flex items-center gap-4 hover:scale-105 hover:shadow-2xl transition-all duration-300"
+          >
+            <div className="text-4xl group-hover:scale-110 transition">
+              {cat.icon}
+            </div>
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+            <div className="font-semibold text-lg text-gray-800">
+              {cat.name}
+            </div>
+          </Link>
+        ))}
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-}
-
-/* ============================= */
-/*         GLOBAL STYLES        */
-/* ============================= */
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-family: theme('fontFamily.body');
-  }
-}
-
-/* ============================= */
-/*        GLASS EFFECT UI       */
-/* ============================= */
-
-.glass {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.glass-dark {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+      </div>
+    </div>
+  );
 }
