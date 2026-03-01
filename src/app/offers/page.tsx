@@ -31,20 +31,27 @@ export default function OffersPage() {
         let matchedOffer = activeOffers.find((o: any) => {
           if (o.type === "product" && o.productId === product.id)
             return true;
-          if (o.type === "category" && o.category === product.category)
-            return true;
+          if (
+  o.type === "category" &&
+  o.category?.trim().toLowerCase() ===
+  product.category?.trim().toLowerCase()
+)
+  return true;
           return false;
         });
 
         if (!matchedOffer) return null;
 
-        const discountAmount =
-          (product.price * matchedOffer.discount) / 100;
+        const basePrice = Number(product.sellingPrice || 0);
+const discountPercent = Number(matchedOffer.discount || 0);
 
-        return {
-          ...product,
-          discount: matchedOffer.discount,
-          finalPrice: Math.round(product.price - discountAmount),
+const discountAmount = (basePrice * discountPercent) / 100;
+
+return {
+  ...product,
+  discount: discountPercent,
+  finalPrice: Math.round(basePrice - discountAmount),
+};
         };
       }).filter(Boolean);
 
@@ -87,7 +94,7 @@ export default function OffersPage() {
                   ₹{p.finalPrice}
                 </span>
                 <span className="text-gray-400 line-through text-xs">
-                  ₹{p.price}
+                  ₹₹{p.sellingPrice}
                 </span>
               </div>
             </Link>
