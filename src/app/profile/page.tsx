@@ -135,17 +135,6 @@ export default function ProfilePage() {
     setEditingAddress(false);
   };
 
-  const cancelOrder = async (orderId: string) => {
-    await updateDoc(doc(db, "orders", orderId), {
-      status: "Cancelled",
-    });
-
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId ? { ...o, status: "Cancelled" } : o
-      )
-    );
-  };
 
   if (loading) {
     return (
