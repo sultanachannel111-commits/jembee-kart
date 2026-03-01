@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import {
   collection,
   getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -18,36 +16,42 @@ export default function MenPage() {
   const [sortType, setSortType] = useState("Latest");
   const [maxPrice, setMaxPrice] = useState("");
 
-  /* 🔥 FETCH MEN PRODUCTS */
+  /* 🔥 FETCH PRODUCTS (NO WHERE FILTER FOR SAFETY) */
   useEffect(() => {
     const fetchProducts = async () => {
-      const q = query(
-        collection(db, "products"),
-        where("category", "==", "Men")
-      );
+      try {
+        const snap = await getDocs(collection(db, "products"));
 
-      const snap = await getDocs(q);
+        const data = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        // 🔥 FILTER MEN CATEGORY HERE (SAFE WAY)
+        const menProducts = data.filter(
+          (p) =>
+            p.category?.toLowerCase() === "men"
+        );
 
-      setProducts(data);
-      setFiltered(data);
+        setProducts(menProducts);
+        setFiltered(menProducts);
+      } catch (err) {
+        console.log("Fetch error:", err);
+      }
+
       setLoading(false);
     };
 
     fetchProducts();
   }, []);
 
-  /* 🔥 APPLY FILTER + SORT */
-  useEffect(() => {
+  /* 🔥 APPLY FILTER BUTTON FUNCTION */
+  const applyFilter = () => {
     let temp = [...products];
 
     if (maxPrice) {
       temp = temp.filter(
-        (p) => p.price <= Number(maxPrice)
+        (p) => Number(p.price) <= Number(maxPrice)
       );
     }
 
@@ -62,13 +66,13 @@ export default function MenPage() {
     if (sortType === "Latest") {
       temp.sort(
         (a, b) =>
-          b.createdAt?.seconds -
-          a.createdAt?.seconds
+          new Date(b.createdAt) -
+          new Date(a.createdAt)
       );
     }
 
     setFiltered(temp);
-  }, [sortType, maxPrice, products]);
+  };
 
   if (loading) {
     return (
@@ -87,14 +91,17 @@ export default function MenPage() {
       </h1>
 
       {/* 🔥 FILTER BAR */}
-      <div className="flex gap-4 mb-8">
+      <div className="flex gap-4 mb-6">
+
+        {/* SORT BUTTON */}
         <button
           onClick={() => setShowSort(true)}
-          className="flex-1 bg-white/70 backdrop-blur-lg p-3 rounded-xl shadow font-medium"
+          className="bg-white p-3 rounded-xl shadow w-32"
         >
           {sortType} ▼
         </button>
 
+        {/* MAX PRICE */}
         <input
           type="number"
           placeholder="Max Price"
@@ -102,46 +109,61 @@ export default function MenPage() {
           onChange={(e) =>
             setMaxPrice(e.target.value)
           }
-          className="flex-1 bg-white/70 backdrop-blur-lg p-3 rounded-xl shadow outline-none"
+          className="flex-1 bg-white p-3 rounded-xl shadow outline-none"
         />
+
+        {/* APPLY BUTTON */}
+        <button
+          onClick={applyFilter}
+          className="bg-pink-600 text-white px-4 rounded-xl shadow"
+        >
+          Filter
+        </button>
+
       </div>
 
       {/* 🔥 PRODUCTS GRID */}
-      <div className="grid grid-cols-2 gap-6">
-        {filtered.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition"
-          >
-            <img
-              src={product.image}
-              className="w-full h-48 object-cover"
-            />
+      {filtered.length === 0 ? (
+        <div className="text-center text-gray-500 mt-10">
+          No products found
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-6">
+          {filtered.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-2xl shadow-lg overflow-hidden"
+            >
+              <img
+                src={product.image}
+                className="w-full h-48 object-cover"
+              />
 
-            <div className="p-4">
-              <h2 className="font-semibold text-lg">
-                {product.name}
-              </h2>
+              <div className="p-4">
+                <h2 className="font-semibold text-lg">
+                  {product.name}
+                </h2>
 
-              <p className="text-pink-600 font-bold mt-2">
-                ₹{product.price}
-              </p>
+                <p className="text-pink-600 font-bold mt-2">
+                  ₹{product.price}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* 🔥 PREMIUM SORT BOTTOM SHEET */}
+      {/* 🔥 SORT BOTTOM SHEET */}
       {showSort && (
         <div
           className="fixed inset-0 bg-black/30 z-50"
           onClick={() => setShowSort(false)}
         >
           <div
-            className="fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-2xl rounded-t-3xl shadow-2xl p-6 animate-slideUp"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-4 text-gray-800">
+            <h2 className="text-xl font-bold mb-4">
               Sort By
             </h2>
 
@@ -156,17 +178,13 @@ export default function MenPage() {
                   setSortType(option);
                   setShowSort(false);
                 }}
-                className="flex justify-between items-center p-4 rounded-xl hover:bg-white/60 transition cursor-pointer"
+                className="flex justify-between items-center p-4 rounded-xl hover:bg-gray-100 cursor-pointer"
               >
-                <span className="text-lg font-medium text-gray-700">
-                  {option}
-                </span>
+                <span>{option}</span>
 
-                <div className="w-6 h-6 rounded-full border-2 border-purple-500 flex items-center justify-center">
-                  {sortType === option && (
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                  )}
-                </div>
+                {sortType === option && (
+                  <span>✔</span>
+                )}
               </div>
             ))}
           </div>
