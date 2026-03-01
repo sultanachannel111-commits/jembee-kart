@@ -7,7 +7,15 @@ import {
   ReactNode,
   useEffect,
 } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+
+import {
+  collection,
+  onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
+
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -21,13 +29,13 @@ type CartItem = {
 
 type CartContextType = {
   cart: CartItem[];
-  addToCart: (item: CartItem) => void;
-  removeFromCart: (id: string) => void;
-  increaseQty: (id: string) => void;
-  decreaseQty: (id: string) => void;
-  clearCart: () => void;
-  total: number;
   cartCount: number;
+  total: number;
+  addToCart: (item: CartItem) => Promise<void>;
+  increaseQty: (id: string) => Promise<void>;
+  decreaseQty: (id: string) => Promise<void>;
+  removeFromCart: (id: string) => Promise<void>;
+  clearCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -35,111 +43,89 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // 🔹 Load Local Cart First
+  // 🔥 REAL-TIME FIRESTORE LISTENER
   useEffect(() => {
-    const saved = localStorage.getItem("cart");
-    if (saved) {
-      setCart(JSON.parse(saved));
+    if (!user) {
+      setCart([]);
+      return;
     }
-    setLoading(false);
-  }, []);
 
-  // 🔹 Sync From Firestore When User Login
-  useEffect(() => {
-    if (!user) return;
+    const cartRef = collection(db, "cart", user.uid, "items");
 
-    const loadFirestoreCart = async () => {
-      const snap = await getDoc(doc(db, "cart", user.uid));
+    const unsubscribe = onSnapshot(cartRef, (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as CartItem[];
 
-      if (snap.exists()) {
-        const firestoreCart = snap.data().items || [];
-        setCart(firestoreCart);
-        localStorage.setItem("cart", JSON.stringify(firestoreCart));
-      } else {
-        await setDoc(doc(db, "cart", user.uid), {
-          items: cart,
-        });
-      }
-    };
+      setCart(items);
+    });
 
-    loadFirestoreCart();
+    return () => unsubscribe();
   }, [user]);
 
-  // 🔹 Sync To Firestore + Local
-  useEffect(() => {
-    if (loading) return;
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-
-    if (user) {
-      setDoc(
-        doc(db, "cart", user.uid),
-        { items: cart },
-        { merge: true }
-      );
-    }
-  }, [cart, user, loading]);
-
   // 🔹 Add To Cart
-  const addToCart = (item: CartItem) => {
-    setCart((prev) => {
-      const existing = prev.find((p) => p.id === item.id);
+  const addToCart = async (item: CartItem) => {
+    if (!user) return;
 
-      if (existing) {
-        return prev.map((p) =>
-          p.id === item.id
-            ? { ...p, quantity: p.quantity + 1 }
-            : p
-        );
-      }
+    const itemRef = doc(db, "cart", user.uid, "items", item.id);
 
-      return [...prev, { ...item, quantity: 1 }];
-    });
-  };
-
-  // 🔹 Remove Completely
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+    await setDoc(itemRef, item, { merge: true });
   };
 
   // 🔹 Increase Qty
-  const increaseQty = (id: string) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      )
-    );
+  const increaseQty = async (id: string) => {
+    if (!user) return;
+
+    const item = cart.find((i) => i.id === id);
+    if (!item) return;
+
+    const itemRef = doc(db, "cart", user.uid, "items", id);
+
+    await setDoc(itemRef, {
+      ...item,
+      quantity: item.quantity + 1,
+    });
   };
 
-  // 🔹 Decrease Qty (Remove if 0)
-  const decreaseQty = (id: string) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.id === id
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
+  // 🔹 Decrease Qty
+  const decreaseQty = async (id: string) => {
+    if (!user) return;
+
+    const item = cart.find((i) => i.id === id);
+    if (!item) return;
+
+    if (item.quantity <= 1) {
+      await deleteDoc(doc(db, "cart", user.uid, "items", id));
+    } else {
+      await setDoc(doc(db, "cart", user.uid, "items", id), {
+        ...item,
+        quantity: item.quantity - 1,
+      });
+    }
+  };
+
+  // 🔹 Remove Item
+  const removeFromCart = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, "cart", user.uid, "items", id));
   };
 
   // 🔹 Clear Cart
-  const clearCart = () => {
-    setCart([]);
+  const clearCart = async () => {
+    if (!user) return;
+
+    for (const item of cart) {
+      await deleteDoc(doc(db, "cart", user.uid, "items", item.id));
+    }
   };
 
-  // 🔹 Correct Total
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  // 🔹 Correct Count (Badge)
   const cartCount = cart.reduce(
     (sum, item) => sum + item.quantity,
     0
@@ -149,13 +135,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     <CartContext.Provider
       value={{
         cart,
+        cartCount,
+        total,
         addToCart,
-        removeFromCart,
         increaseQty,
         decreaseQty,
+        removeFromCart,
         clearCart,
-        total,
-        cartCount,
       }}
     >
       {children}
