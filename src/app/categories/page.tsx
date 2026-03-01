@@ -6,26 +6,36 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function CategoryPage() {
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params?.slug as string;
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!slug) return;
+
     const fetchProducts = async () => {
-      const snap = await getDocs(collection(db, "products"));
+      try {
+        const snap = await getDocs(collection(db, "products"));
 
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        const data = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      // 🔥 NAME BASED FILTER
-      const filtered = data.filter((p) =>
-        p.name?.toLowerCase().includes(slug.toString().toLowerCase())
-      );
+        // 🔥 NAME BASED FILTER (SAFE)
+        const filtered = data.filter((p) =>
+          p.name?.toLowerCase().includes(slug.toLowerCase())
+        );
 
-      setProducts(filtered);
-      setLoading(false);
+        setProducts(filtered);
+      } catch (err) {
+        console.log("Category fetch error:", err);
+      } finally {
+        // 🔥 ALWAYS RUNS
+        setLoading(false);
+      }
     };
 
     fetchProducts();
@@ -55,11 +65,12 @@ export default function CategoryPage() {
           {products.map((product) => (
             <div
               key={product.id}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden"
+              className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition"
             >
               <img
                 src={product.image}
                 className="w-full h-48 object-cover"
+                alt={product.name}
               />
 
               <div className="p-4">
@@ -68,7 +79,7 @@ export default function CategoryPage() {
                 </h2>
 
                 <p className="text-pink-600 font-bold mt-2">
-                  ₹{product.sellingPrice}
+                  ₹{product.sellingPrice || product.price}
                 </p>
               </div>
             </div>
