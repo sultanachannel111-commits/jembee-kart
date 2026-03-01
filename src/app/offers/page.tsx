@@ -52,7 +52,6 @@ return {
   discount: discountPercent,
   finalPrice: Math.round(basePrice - discountAmount),
 };
-        };
       }).filter(Boolean);
 
       setProducts(discountedProducts);
