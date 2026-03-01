@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/providers/auth-provider";
+import Navbar from "@/components/Navbar"; // 🔥 ADD THIS
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "JembeeKart",
   description: "Modern Ecommerce Platform",
-  themeColor: "#f472b6", // Header Pink Match
+  themeColor: "#f472b6",
 };
 
 export default function RootLayout({
@@ -20,18 +21,22 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Android Chrome Status Bar Color */}
         <meta name="theme-color" content="#f472b6" />
-        {/* iPhone Status Bar Style */}
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="default"
+        />
       </head>
 
-      <body className={`${inter.className} bg-pink-50`}>
+      <body className={`${inter.className} bg-pink-50 pb-16`}>
         <AuthProvider>
           <CartProvider>
             {children}
           </CartProvider>
         </AuthProvider>
+
+        {/* 🔥 BOTTOM NAVBAR WITH LIVE CART BADGE */}
+        <Navbar />
       </body>
     </html>
   );
