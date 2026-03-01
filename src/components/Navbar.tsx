@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, Home, User, Grid } from "lucide-react";
+import { Home, Grid, ShoppingCart, User } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -38,34 +38,50 @@ export default function Navbar() {
   }, []);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-md flex justify-around py-3 z-50">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-50">
+      <div className="backdrop-blur-xl bg-white/30 border border-white/40 shadow-2xl rounded-2xl flex justify-around py-3 px-4">
 
-      <Link href="/" className="flex flex-col items-center text-xs">
-        <Home size={20} />
-        Home
-      </Link>
+        <NavItem href="/" icon={<Home size={20} />} label="Home" />
 
-      <Link href="/categories" className="flex flex-col items-center text-xs">
-        <Grid size={20} />
-        Categories
-      </Link>
+        <NavItem href="/categories" icon={<Grid size={20} />} label="Categories" />
 
-      {/* 🔥 CART WITH LIVE BADGE */}
-      <Link href="/cart" className="relative flex flex-col items-center text-xs">
-        <ShoppingCart size={20} />
-        Cart
+        {/* 🔥 CART WITH ANIMATED BADGE */}
+        <Link
+          href="/cart"
+          className="relative flex flex-col items-center text-xs text-gray-800"
+        >
+          <ShoppingCart size={20} />
+          <span className="mt-1">Cart</span>
 
-        {cartCount > 0 && (
-          <span className="absolute -top-1 right-4 bg-red-600 text-white text-[10px] px-2 py-[2px] rounded-full">
-            {cartCount}
-          </span>
-        )}
-      </Link>
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] px-2 py-[2px] rounded-full animate-bounce shadow-md">
+              {cartCount}
+            </span>
+          )}
+        </Link>
 
-      <Link href="/profile" className="flex flex-col items-center text-xs">
-        <User size={20} />
-        Profile
-      </Link>
+        <NavItem href="/profile" icon={<User size={20} />} label="Profile" />
+      </div>
     </div>
+  );
+}
+
+function NavItem({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center text-xs text-gray-800 hover:scale-110 transition-transform duration-200"
+    >
+      {icon}
+      <span className="mt-1">{label}</span>
+    </Link>
   );
 }
