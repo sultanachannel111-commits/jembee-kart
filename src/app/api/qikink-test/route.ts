@@ -12,9 +12,9 @@ export async function POST() {
       });
     }
 
-    // =========================
-    // 1️⃣ TOKEN REQUEST
-    // =========================
+    // ============================
+    // 1️⃣ GENERATE ACCESS TOKEN
+    // ============================
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -52,9 +52,9 @@ export async function POST() {
 
     const accessToken = tokenData.Accesstoken;
 
-    // =========================
-    // 2️⃣ CREATE ORDER
-    // =========================
+    // ============================
+    // 2️⃣ CREATE UNIQUE ORDER
+    // ============================
     const orderNumber = "JB" + Date.now().toString().slice(-8);
 
     const orderPayload = {
@@ -67,11 +67,14 @@ export async function POST() {
           search_from_my_products: 0,
           quantity: "1",
           price: "1",
+          print_type_id: 1, // ✅ REQUIRED
           sku: "MVnHs-Wh-S",
           designs: [
             {
               design_code: "TEST123",
               placement_sku: "fr",
+              width_inches: "8",
+              height_inches: "10",
               design_link:
                 "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
               mockup_link:
@@ -93,6 +96,9 @@ export async function POST() {
       },
     };
 
+    // ============================
+    // 3️⃣ CREATE ORDER
+    // ============================
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -129,6 +135,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
+      message: "Order Created Successfully",
       orderNumber,
       orderData,
     });
