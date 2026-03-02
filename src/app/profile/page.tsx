@@ -274,27 +274,41 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 h-2 rounded-full">
-                  <div
-                    className="bg-green-500 h-2 rounded-full"
-                    style={{
-                      width:
-                        order.status === "Placed"
-                          ? "25%"
-                          : order.status === "Processing"
-                          ? "50%"
-                          : order.status === "Shipped"
-                          ? "75%"
-                          : order.status === "Delivered"
-                          ? "100%"
-                          : order.status === "Cancelled"
-                          ? "100%"
-                          : "25%",
-                    }}
-                  />
-                </div>
-              </div>
+<div className="mt-3">
+  <div className="w-full bg-gray-200 h-2 rounded-full">
+    <div
+      className={`h-2 rounded-full ${
+        order.status?.toLowerCase() === "cancelled"
+          ? "bg-red-500"
+          : order.status?.toLowerCase() === "delivered"
+          ? "bg-green-500"
+          : order.status?.toLowerCase() === "shipped"
+          ? "bg-yellow-500"
+          : order.status?.toLowerCase() === "processing"
+          ? "bg-blue-500"
+          : order.status?.toLowerCase() === "placed"
+          ? "bg-purple-500"
+          : "bg-gray-400"
+      }`}
+      style={{
+        width:
+          order.status?.toLowerCase() === "placed"
+            ? "25%"
+            : order.status?.toLowerCase() === "processing"
+            ? "50%"
+            : order.status?.toLowerCase() === "shipped"
+            ? "75%"
+            : order.status?.toLowerCase() === "delivered"
+            ? "100%"
+            : order.status?.toLowerCase() === "cancelled"
+            ? "100%"
+            : "25%",
+      }}
+    />
+  </div>
+</div>
+  </div>
+</div>
 
               <div className="text-sm text-gray-600 mt-2">
                 ₹{order.totalAmount}
