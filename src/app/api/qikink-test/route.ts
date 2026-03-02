@@ -4,7 +4,19 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 1️⃣ Generate Token
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return NextResponse.json({
+        success: false,
+        error: "Missing QIKINK environment variables",
+      });
+    }
+
+    // =============================
+    // 1️⃣ GENERATE ACCESS TOKEN
+    // =============================
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -13,15 +25,15 @@ export async function POST(req: Request) {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          ClientId: process.env.QIKINK_CLIENT_ID as string,
-          client_secret: process.env.QIKINK_CLIENT_SECRET as string,
+          ClientId: clientId,
+          client_secret: clientSecret,
         }),
       }
     );
 
     const tokenData = await tokenResponse.json();
 
-    if (!tokenData.Accesstoken) {
+    if (!tokenResponse.ok || !tokenData.Accesstoken) {
       return NextResponse.json({
         success: false,
         step: "Token Generation Failed",
@@ -31,57 +43,60 @@ export async function POST(req: Request) {
 
     const accessToken = tokenData.Accesstoken;
 
-    const orderNumber =
-      "ORD" + Date.now().toString().slice(-10);
+    // =============================
+    // 2️⃣ CREATE UNIQUE ORDER NUMBER
+    // =============================
+    const orderNumber = "JB" + Date.now().toString().slice(-8);
 
-    // 2️⃣ Create Order
+    const orderPayload = {
+      order_number: orderNumber,
+      qikink_shipping: "1",
+      gateway: "COD",
+      total_order_value: "1",
+      line_items: [
+        {
+          search_from_my_products: 0,
+          quantity: "1",
+          price: "1",
+          sku: body?.sku || "MVnHs-Wh-S",
+          designs: [
+            {
+              design_code: "TEST123",
+              placement_sku: "fr",
+              design_link:
+                "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+              mockup_link:
+                "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+            },
+          ],
+        },
+      ],
+      shipping_address: {
+        first_name: "MD",
+        last_name: "Alim",
+        address1: "Test Street",
+        phone: "9999999999",
+        email: "test@gmail.com",
+        city: "Delhi",
+        zip: "110001",
+        province: "DL", // ✅ IMPORTANT FIX
+        country_code: "IN",
+      },
+    };
+
+    // =============================
+    // 3️⃣ CREATE ORDER
+    // =============================
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ClientId: process.env.QIKINK_CLIENT_ID as string,
+          ClientId: clientId,
           Accesstoken: accessToken,
         },
-        body: JSON.stringify({
-          order_number: orderNumber,
-          qikink_shipping: "1",
-          gateway: "COD",
-          total_order_value: "1",
-          line_items: [
-            {
-              search_from_my_products: 0,
-              quantity: "1",
-              price: "1",
-              sku: body.sku || "MVnHs-Wh-S",
-              print_type_id: 1,
-              designs: [
-                {
-                  design_code: "TEST123",
-                  placement_sku: "fr",
-                  width_inches: "8",
-                  height_inches: "10",
-                  design_link:
-                    "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
-                  mockup_link:
-                    "https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
-                },
-              ],
-            },
-          ],
-          shipping_address: {
-            first_name: "Test",
-            last_name: "User",
-            address1: "Test Street",
-            phone: "9999999999",
-            email: "test@gmail.com",
-            city: "Delhi",
-            zip: "110001",
-            province: "Delhi",
-            country_code: "IN",
-          },
-        }),
+        body: JSON.stringify(orderPayload),
       }
     );
 
@@ -105,7 +120,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error?.message || "Server error",
     });
   }
 }
