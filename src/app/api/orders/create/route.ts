@@ -1,21 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-const { product, paymentMethod } = body;
+    const { product, customer, paymentMethod } = body;
 
-    const clientId = process.env.QIKINK_CLIENT_ID;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json({
-        success: false,
-        error: "Missing Qikink ENV variables"
-      });
+    if (!product || !customer) {
+      return NextResponse.json(
+        { success: false, error: "Missing product or customer data" },
+        { status: 400 }
+      );
     }
 
-    // TOKEN
+    const clientId = process.env.QIKINK_CLIENT_ID!;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
+
+    if (!clientId || !clientSecret) {
+      return NextResponse.json(
+        { success: false, error: "Missing ENV variables" },
+        { status: 500 }
+      );
+    }
+
+    // ✅ Unique Order Number
+    const orderNumber = "JB" + Date.now().toString().slice(-8);
+
+    // ✅ Save Initial Order in Firestore
+    const orderRef = await addDoc(collection(db, "orders"), {
+      orderNumber,
+      product,
+      customer,
+      paymentMethod,
+      status: "Pending",
+      createdAt: new Date(),
+    });
+
+    // ==============================
+    // 🔐 STEP 1: GET ACCESS TOKEN
+    // ==============================
+
     const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
       method: "POST",
       headers: {
@@ -27,30 +52,55 @@ const { product, paymentMethod } = body;
       }),
     });
 
-    const tokenText = await tokenRes.text();
-
-    if (!tokenRes.ok) {
-      return NextResponse.json({
-        success: false,
-        error: "Token API failed",
-        raw: tokenText
-      });
-    }
-
-    const tokenData = JSON.parse(tokenText);
+    const tokenData = await tokenRes.json();
 
     if (!tokenData.Accesstoken) {
       return NextResponse.json({
         success: false,
-        error: "Access token missing",
-        tokenData
+        error: "Access token failed",
       });
     }
 
     const accessToken = tokenData.Accesstoken;
 
-    const orderNumber =
-      "JB" + Date.now().toString().slice(-8);
+    // ==============================
+    // 📦 STEP 2: CREATE QIKINK ORDER
+    // ==============================
+
+    const orderPayload = {
+      order_number: orderNumber,
+      qikink_shipping: "1",
+      gateway: paymentMethod === "Prepaid" ? "Prepaid" : "COD",
+      total_order_value: product.sellingPrice.toString(),
+      line_items: [
+        {
+          search_from_my_products: 0,
+          quantity: "1",
+          print_type_id: product.printTypeId,
+          price: product.sellingPrice.toString(),
+          sku: product.sku,
+          designs: [
+            {
+              design_code: "design1",
+              placement_sku: "fr",
+              design_link: product.designLink,
+              mockup_link: product.mockupLink,
+            },
+          ],
+        },
+      ],
+      shipping_address: {
+        first_name: customer.firstName,
+        last_name: customer.lastName,
+        address1: customer.address,
+        phone: customer.phone,
+        email: customer.email,
+        city: customer.city,
+        zip: customer.zip,
+        province: customer.state,
+        country_code: "IN",
+      },
+    };
 
     const orderRes = await fetch(
       "https://sandbox.qikink.com/api/order/create",
@@ -61,68 +111,44 @@ const { product, paymentMethod } = body;
           ClientId: clientId,
           Accesstoken: accessToken,
         },
-        body: JSON.stringify({
-          order_number: orderNumber,
-          qikink_shipping: "1",
-          gateway: paymentMethod === "Prepaid" ? "Prepaid" : "COD",
-          total_order_value: product.sellingPrice.toString(),
-          line_items: [
-            {
-              search_from_my_products: 0,
-              quantity: "1",
-              print_type_id: product.printTypeId,
-              price: product.sellingPrice.toString(),
-              sku: product.sku,
-              designs: [
-                {
-                  design_code: "test",
-                  width_inches: "",
-                  height_inches: "",
-                  placement_sku: "fr",
-                  design_link: product.designLink,
-                  mockup_link: product.mockupLink,
-                },
-              ],
-            },
-          ],
-          shipping_address: {
-            first_name: "Ali",
-            last_name: "Test",
-            address1: "Test Street 123",
-            phone: "9999999999",
-            email: "test@example.com",
-            city: "Jamshedpur",
-            zip: "832110",
-            province: "Jharkhand",
-            country_code: "IN",
-          },
-        }),
+        body: JSON.stringify(orderPayload),
       }
     );
 
-    const orderText = await orderRes.text();
+    const orderData = await orderRes.json();
 
     if (!orderRes.ok) {
+      await updateDoc(doc(db, "orders", orderRef.id), {
+        status: "Failed",
+      });
+
       return NextResponse.json({
         success: false,
-        error: "Order API failed",
-        raw: orderText
+        error: "Qikink order failed",
+        orderData,
       });
     }
 
-    const orderData = JSON.parse(orderText);
-
-    return NextResponse.json({
-  success: true,
-  orderId: orderNumber,   // ✅ Ye line add karni hai
-  orderData
-});
-
-  } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: "Server Crash",
-      message: err?.message || "Unknown error"
+    // ✅ Update Firestore with Qikink Order ID
+    await updateDoc(doc(db, "orders", orderRef.id), {
+      status: "Processing",
+      qikinkOrderId: orderData?.order_id || null,
     });
+
+    return NextResponse.json({
+      success: true,
+      orderNumber,
+      qikinkResponse: orderData,
+    });
+
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Server Crash",
+        message: error.message,
+      },
+      { status: 500 }
+    );
   }
 }
