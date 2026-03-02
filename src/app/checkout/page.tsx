@@ -125,11 +125,16 @@ const placeOrder = async () => {
     /* ===== COMMIT EVERYTHING TOGETHER ===== */
 await batch.commit();
 
-setCartItems([]);
+setCartItems([])
 
-alert("Order Placed Successfully 🎉");
+    alert("Order Placed Successfully 🎉");
 
-router.push(`/order-success/${orderRef.id}`);
+if (paymentMethod === "UPI") {
+  const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+  window.location.href = upiLink;
+} else {
+  router.push(`/order-success/${orderRef.id}`);
+}
 
 } catch (error) {
   console.error(error);
