@@ -334,7 +334,11 @@ const handleAddToCart = async () => {
             </span>
 
             <button
-              onClick={() => setQuantity((q) => q + 1)}
+              onClick={() =>
+  setQuantity((q) =>
+    q < product.stock ? q + 1 : q
+  )
+              }
               className="px-3 py-1 border rounded"
             >
               +
