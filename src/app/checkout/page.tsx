@@ -128,9 +128,7 @@ const placeOrder = async () => {
     setCartItems([]);
 
     alert("Order Placed Successfully 🎉");
-    if (paymentMethod === "ONLINE") {
-  router.push(`/payment/${orderRef.id}`);
-} else {
+    
   router.push(`/order-success/${orderRef.id}`);
 }
 
