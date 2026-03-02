@@ -128,8 +128,11 @@ const placeOrder = async () => {
     setCartItems([]);
 
     alert("Order Placed Successfully 🎉");
-
-    router.push(`/order-success/${orderRef.id}`);
+    if (paymentMethod === "ONLINE") {
+  router.push(`/payment/${orderRef.id}`);
+} else {
+  router.push(`/order-success/${orderRef.id}`);
+}
 
   } catch (error) {
     console.error(error);
