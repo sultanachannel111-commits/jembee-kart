@@ -11,9 +11,8 @@ import {
   doc,
   setDoc,
   getDoc,
-  updateDoc,
   writeBatch,
-  increment
+  increment,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -66,46 +65,48 @@ export default function ProfilePage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
+
   const cancelOrder = async (orderId: string) => {
-  try {
-    const orderRef = doc(db, "orders", orderId);
-    const orderSnap = await getDoc(orderRef);
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      const orderSnap = await getDoc(orderRef);
 
-    if (!orderSnap.exists()) return;
+      if (!orderSnap.exists()) return;
 
-    const orderData = orderSnap.data();
+      const orderData = orderSnap.data();
 
-    if (orderData.status === "Cancelled") {
-      alert("Already Cancelled");
-      return;
+      if (orderData.status === "Cancelled") {
+        alert("Already Cancelled");
+        return;
+      }
+
+      const batch = writeBatch(db);
+
+      batch.update(orderRef, { status: "Cancelled" });
+
+      for (const item of orderData.products || []) {
+        const productRef = doc(db, "products", item.productId);
+        batch.update(productRef, {
+          stock: increment(item.quantity),
+        });
+      }
+
+      await batch.commit();
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, status: "Cancelled" } : o
+        )
+      );
+
+      alert("Order Cancelled & Stock Restored ✅");
+    } catch (error) {
+      console.error(error);
+      alert("Cancel failed ❌");
     }
+  };
 
-    const batch = writeBatch(db);
-
-    // Update order status
-    batch.update(orderRef, {
-      status: "Cancelled",
-    });
-
-    // Restore stock
-    for (const item of orderData.products) {
-      const productRef = doc(db, "products", item.productId);
-
-      batch.update(productRef, {
-        stock: increment(item.quantity),
-      });
-    }
-
-    await batch.commit();
-
-    alert("Order Cancelled & Stock Restored ✅");
-
-  } catch (error) {
-    console.error(error);
-    alert("Cancel failed ❌");
-  }
-};
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/");
@@ -135,7 +136,6 @@ export default function ProfilePage() {
     setEditingAddress(false);
   };
 
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -146,11 +146,9 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-white p-4 pt-[96px]">
-
+      
       {/* PROFILE CARD */}
       <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-
-        {/* Avatar */}
         <div className="flex justify-center">
           <div className="w-24 h-24 rounded-full bg-pink-500 flex items-center justify-center text-white text-3xl font-bold">
             {user?.email?.charAt(0).toUpperCase()}
@@ -165,14 +163,12 @@ export default function ProfilePage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name"
             />
-
             <input
               className="w-full border rounded-lg p-2 mt-3"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone Number"
             />
-
             <button
               onClick={saveProfile}
               className="mt-3 bg-green-500 text-white px-4 py-2 rounded-lg w-full"
@@ -185,13 +181,10 @@ export default function ProfilePage() {
             <h2 className="text-xl font-bold mt-4">
               {name || "Jembee User"}
             </h2>
-
             <p className="text-gray-500 text-sm">{user?.email}</p>
-
             <p className="text-gray-600 text-sm mt-1">
               📱 {phone || "No phone added"}
             </p>
-
             <button
               onClick={() => setEditingProfile(true)}
               className="mt-2 text-pink-600 text-sm font-semibold"
@@ -216,7 +209,7 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* ADDRESS SECTION */}
+      {/* ADDRESS */}
       <div className="mt-6 bg-white rounded-2xl shadow-lg p-4">
         <h3 className="font-bold mb-2">🏠 Delivery Address</h3>
 
@@ -274,46 +267,44 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress Bar */}
-<div className="mt-3">
-  <div className="w-full bg-gray-200 h-2 rounded-full">
-    <div
-      className={`h-2 rounded-full ${
-        order.status?.toLowerCase() === "cancelled"
-          ? "bg-red-500"
-          : order.status?.toLowerCase() === "delivered"
-          ? "bg-green-500"
-          : order.status?.toLowerCase() === "shipped"
-          ? "bg-yellow-500"
-          : order.status?.toLowerCase() === "processing"
-          ? "bg-blue-500"
-          : order.status?.toLowerCase() === "placed"
-          ? "bg-purple-500"
-          : "bg-gray-400"
-      }`}
-      style={{
-        width:
-          order.status?.toLowerCase() === "placed"
-            ? "25%"
-            : order.status?.toLowerCase() === "processing"
-            ? "50%"
-            : order.status?.toLowerCase() === "shipped"
-            ? "75%"
-            : order.status?.toLowerCase() === "delivered"
-            ? "100%"
-            : order.status?.toLowerCase() === "cancelled"
-            ? "100%"
-            : "25%",
-      }}
-    />
-  </div>
-</div>
-  </div>
+              <div className="mt-3">
+                <div className="w-full bg-gray-200 h-2 rounded-full">
+                  <div
+                    className={`h-2 rounded-full ${
+                      order.status?.toLowerCase() === "cancelled"
+                        ? "bg-red-500"
+                        : order.status?.toLowerCase() === "delivered"
+                        ? "bg-green-500"
+                        : order.status?.toLowerCase() === "shipped"
+                        ? "bg-yellow-500"
+                        : order.status?.toLowerCase() === "processing"
+                        ? "bg-blue-500"
+                        : order.status?.toLowerCase() === "placed"
+                        ? "bg-purple-500"
+                        : "bg-gray-400"
+                    }`}
+                    style={{
+                      width:
+                        order.status?.toLowerCase() === "placed"
+                          ? "25%"
+                          : order.status?.toLowerCase() === "processing"
+                          ? "50%"
+                          : order.status?.toLowerCase() === "shipped"
+                          ? "75%"
+                          : order.status?.toLowerCase() === "delivered"
+                          ? "100%"
+                          : order.status?.toLowerCase() === "cancelled"
+                          ? "100%"
+                          : "25%",
+                    }}
+                  />
+                </div>
+              </div>
 
               <div className="text-sm text-gray-600 mt-2">
                 ₹{order.totalAmount}
               </div>
 
-              {/* Cancel Button */}
               {order.status !== "Shipped" &&
                 order.status !== "Delivered" &&
                 order.status !== "Cancelled" && (
