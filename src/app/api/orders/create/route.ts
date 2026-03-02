@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
+import { doc, setDoc, updateDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const clientId = process.env.QIKINK_CLIENT_ID!;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
@@ -24,24 +24,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Unique Order Number
+    // 🔥 UNIQUE ORDER NUMBER
     const orderNumber = "JB" + Date.now().toString().slice(-8);
 
-    // ✅ Save Initial Order in Firestore
-    const orderRef = await addDoc(collection(db, "orders"), {
+    // ==========================
+    // 💾 SAVE ORDER IN FIRESTORE
+    // ==========================
+    await setDoc(doc(db, "orders", orderNumber), {
       orderNumber,
       product,
       customer,
       paymentMethod,
       status: "Pending",
+      qikinkOrderId: null,
       createdAt: new Date(),
     });
 
-    // ==============================
-    // 🔐 STEP 1: GET ACCESS TOKEN
-    // ==============================
-
-    const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+    // ==========================
+    // 🔐 STEP 1: GET ACCESS TOKEN (LIVE)
+    // ==========================
+    const tokenRes = await fetch("https://api.qikink.com/api/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -55,18 +57,17 @@ export async function POST(req: NextRequest) {
     const tokenData = await tokenRes.json();
 
     if (!tokenData.Accesstoken) {
-      return NextResponse.json({
-        success: false,
-        error: "Access token failed",
-      });
+      return NextResponse.json(
+        { success: false, error: "Token generation failed" },
+        { status: 400 }
+      );
     }
 
     const accessToken = tokenData.Accesstoken;
 
-    // ==============================
-    // 📦 STEP 2: CREATE QIKINK ORDER
-    // ==============================
-
+    // ==========================
+    // 📦 STEP 2: CREATE QIKINK ORDER (LIVE)
+    // ==========================
     const orderPayload = {
       order_number: orderNumber,
       qikink_shipping: "1",
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
     };
 
     const orderRes = await fetch(
-      "https://sandbox.qikink.com/api/order/create",
+      "https://api.qikink.com/api/order/create",
       {
         method: "POST",
         headers: {
@@ -118,30 +119,32 @@ export async function POST(req: NextRequest) {
     const orderData = await orderRes.json();
 
     if (!orderRes.ok) {
-      await updateDoc(doc(db, "orders", orderRef.id), {
+      await updateDoc(doc(db, "orders", orderNumber), {
         status: "Failed",
       });
 
-      return NextResponse.json({
-        success: false,
-        error: "Qikink order failed",
-        orderData,
-      });
+      return NextResponse.json(
+        { success: false, error: "Order creation failed", orderData },
+        { status: 400 }
+      );
     }
 
-    // ✅ Update Firestore with Qikink Order ID
-    await updateDoc(doc(db, "orders", orderRef.id), {
+    // ==========================
+    // 🔄 UPDATE FIRESTORE (SUCCESS)
+    // ==========================
+    await updateDoc(doc(db, "orders", orderNumber), {
       status: "Processing",
-      qikinkOrderId: orderData?.order_id || null,
+      qikinkOrderId: orderData.order_id || null,
     });
 
     return NextResponse.json({
       success: true,
       orderNumber,
-      qikinkResponse: orderData,
+      qikinkOrderId: orderData.order_id,
     });
 
   } catch (error: any) {
+    console.error("Order Error:", error);
     return NextResponse.json(
       {
         success: false,
