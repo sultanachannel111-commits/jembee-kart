@@ -159,8 +159,17 @@ const handleAddToCart = async () => {
       return;
     }
 
-    if (!product?.stock || product.stock === 0) return;
-    if (quantity > product.stock) return;
+    if (!product) return;
+
+    if (product.stock === 0) {
+      alert("❌ Out of Stock");
+      return;
+    }
+
+    if (quantity > product.stock) {
+      alert(`Only ${product.stock} items available`);
+      return;
+    }
 
     const itemRef = doc(db, "cart", user.uid, "items", product.id);
     const existing = await getDoc(itemRef);
@@ -182,11 +191,12 @@ const handleAddToCart = async () => {
       });
     }
 
+    alert("✅ Added to Cart");
     router.push("/cart");
 
   } catch (error) {
     console.log("Cart error:", error);
-    console.log("Something went wrong");
+    alert("Something went wrong ❌");
   }
 };
 
