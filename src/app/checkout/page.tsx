@@ -9,7 +9,7 @@ import {
   getDoc,
   writeBatch,
   serverTimestamp,
-  increment
+  increment,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("COD");
 
   const router = useRouter();
@@ -42,12 +43,12 @@ export default function CheckoutPage() {
       const snap = await getDocs(itemsRef);
 
       const items: any[] = [];
-
       snap.forEach((doc) => {
         items.push({ id: doc.id, ...doc.data() });
       });
 
       setCartItems(items);
+      setInitialLoading(false);
     });
 
     return () => unsubscribe();
@@ -60,87 +61,99 @@ export default function CheckoutPage() {
   );
 
   /* ================= PLACE ORDER ================= */
-  /* ================= PLACE ORDER ================= */
-const placeOrder = async () => {
-  if (!user || cartItems.length === 0) return;
+  const placeOrder = async () => {
+    if (!user || cartItems.length === 0) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const batch = writeBatch(db);
+    try {
+      const batch = writeBatch(db);
 
-    /* ===== STOCK VALIDATION ===== */
-    for (const item of cartItems) {
-      const productRef = doc(db, "products", item.productId);
-      const productSnap = await getDoc(productRef);
+      /* ===== STOCK VALIDATION ===== */
+      for (const item of cartItems) {
+        const productRef = doc(db, "products", item.productId);
+        const productSnap = await getDoc(productRef);
 
-      if (!productSnap.exists()) {
-        alert(`${item.name} not found ❌`);
-        setLoading(false);
-        return;
+        if (!productSnap.exists()) {
+          alert(`${item.name} not found ❌`);
+          setLoading(false);
+          return;
+        }
+
+        const productData = productSnap.data();
+
+        if (productData.stock < item.quantity) {
+          alert(`Only ${productData.stock} left for ${item.name}`);
+          setLoading(false);
+          return;
+        }
       }
 
-      const productData = productSnap.data();
+      /* ===== CREATE ORDER ===== */
+      const orderRef = doc(collection(db, "orders"));
 
-      if (productData.stock < item.quantity) {
-        alert(`Only ${productData.stock} left for ${item.name}`);
-        setLoading(false);
-        return;
-      }
-    }
-
-    /* ===== CREATE ORDER ===== */
-    const orderRef = doc(collection(db, "orders"));
-
-    batch.set(orderRef, {
-      userId: user.uid,
-      products: cartItems,
-      totalAmount: totalAmount,
-      status: "Placed",
-      paymentMethod: paymentMethod,
-      paymentStatus:
-        paymentMethod === "COD" ? "Pending" : "Paid",
-      returnRequested: false,
-      returnReason: "",
-      createdAt: serverTimestamp(),
-    });
-
-    /* ===== REDUCE STOCK SAFELY ===== */
-    for (const item of cartItems) {
-      const productRef = doc(db, "products", item.productId);
-
-      batch.update(productRef, {
-        stock: increment(-item.quantity),
+      batch.set(orderRef, {
+        userId: user.uid,
+        products: cartItems,
+        totalAmount: totalAmount,
+        status: "Placed",
+        paymentMethod: paymentMethod,
+        paymentStatus:
+          paymentMethod === "COD" ? "Pending" : "Paid",
+        returnRequested: false,
+        returnReason: "",
+        createdAt: serverTimestamp(),
       });
+
+      /* ===== REDUCE STOCK ===== */
+      for (const item of cartItems) {
+        const productRef = doc(db, "products", item.productId);
+        batch.update(productRef, {
+          stock: increment(-item.quantity),
+        });
+      }
+
+      /* ===== CLEAR CART ===== */
+      const itemsRef = collection(db, "cart", user.uid, "items");
+      const snap = await getDocs(itemsRef);
+      snap.forEach((document) => {
+        batch.delete(document.ref);
+      });
+
+      /* ===== COMMIT ===== */
+      await batch.commit();
+
+      setCartItems([]);
+
+      /* ===== PAYMENT LOGIC ===== */
+      if (paymentMethod === "ONLINE") {
+        const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+
+        // Open UPI
+        window.location.href = upiLink;
+
+        // After 2 sec redirect to success page
+        setTimeout(() => {
+          router.push(`/order-success/${orderRef.id}`);
+        }, 2000);
+      } else {
+        router.push(`/order-success/${orderRef.id}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong ❌");
     }
 
-    /* ===== CLEAR CART ===== */
-    const itemsRef = collection(db, "cart", user.uid, "items");
-    const snap = await getDocs(itemsRef);
+    setLoading(false);
+  };
 
-    snap.forEach((document) => {
-      batch.delete(document.ref);
-    });
-
-    /* ===== COMMIT EVERYTHING TOGETHER ===== */
-await batch.commit();
-
-setCartItems([])
-
-    if (paymentMethod === "ONLINE") {
-  const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
-  window.open(upiLink, "_self");
-} else {
-  router.push(`/order-success/${orderRef.id}`);
-}
-
-} catch (error) {
-  console.error(error);
-  alert("Something went wrong ❌");
-}
-
-setLoading(false);
-};
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading Checkout...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 pt-[96px] bg-gradient-to-b from-pink-100 to-white">
@@ -152,19 +165,14 @@ setLoading(false);
         </div>
       ) : (
         <>
-          {/* ===== CART SUMMARY ===== */}
+          {/* CART SUMMARY */}
           <div className="bg-white p-4 rounded-xl shadow mb-4">
             {cartItems.map((item, index) => (
-              <div
-                key={index}
-                className="flex justify-between mb-2"
-              >
+              <div key={index} className="flex justify-between mb-2">
                 <span>
                   {item.name} x {item.quantity}
                 </span>
-                <span>
-                  ₹{item.price * item.quantity}
-                </span>
+                <span>₹{item.price * item.quantity}</span>
               </div>
             ))}
 
@@ -176,7 +184,7 @@ setLoading(false);
             </div>
           </div>
 
-          {/* ===== PAYMENT METHOD ===== */}
+          {/* PAYMENT METHOD */}
           <div className="bg-white p-4 rounded-xl shadow mb-4">
             <h2 className="font-semibold mb-3">
               Select Payment Method
@@ -201,11 +209,11 @@ setLoading(false);
                   : "border-gray-300"
               }`}
             >
-              💳 Online Payment
+              💳 Online Payment (UPI)
             </div>
           </div>
 
-          {/* ===== PLACE ORDER BUTTON ===== */}
+          {/* PLACE ORDER */}
           <button
             onClick={placeOrder}
             disabled={loading}
