@@ -43,8 +43,8 @@ export default function CheckoutPage() {
       const snap = await getDocs(itemsRef);
 
       const items: any[] = [];
-      snap.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
+      snap.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
       });
 
       setCartItems(items);
@@ -99,7 +99,7 @@ export default function CheckoutPage() {
         status: "Placed",
         paymentMethod: paymentMethod,
         paymentStatus:
-          paymentMethod === "COD" ? "Pending" : "Paid",
+          paymentMethod === "COD" ? "Pending" : "Pending",
         returnRequested: false,
         returnReason: "",
         createdAt: serverTimestamp(),
@@ -129,16 +129,15 @@ export default function CheckoutPage() {
       if (paymentMethod === "ONLINE") {
         const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
 
-        // Open UPI
+        // Open UPI App
         window.location.href = upiLink;
 
-        // After 2 sec redirect to success page
-        setTimeout(() => {
-          router.push(`/order-success/${orderRef.id}`);
-        }, 2000);
-      } else {
-        router.push(`/order-success/${orderRef.id}`);
+        return; // Stop here (no auto redirect)
       }
+
+      // COD Success Page
+      router.push(`/order-success/${orderRef.id}`);
+
     } catch (error) {
       console.error(error);
       alert("Something went wrong ❌");
@@ -213,7 +212,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* PLACE ORDER */}
+          {/* PLACE ORDER BUTTON */}
           <button
             onClick={placeOrder}
             disabled={loading}
