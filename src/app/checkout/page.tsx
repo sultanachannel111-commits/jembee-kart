@@ -123,21 +123,20 @@ const placeOrder = async () => {
     });
 
     /* ===== COMMIT EVERYTHING TOGETHER ===== */
-    await batch.commit();
+await batch.commit();
 
-    setCartItems([]);
+setCartItems([]);
 
-    alert("Order Placed Successfully 🎉");
-    
-  router.push(`/order-success/${orderRef.id}`);
+alert("Order Placed Successfully 🎉");
+
+router.push(`/order-success/${orderRef.id}`);
+
+} catch (error) {
+  console.error(error);
+  alert("Something went wrong ❌");
 }
 
-  } catch (error) {
-    console.error(error);
-    alert("Something went wrong ❌");
-  }
-
-  setLoading(false);
+setLoading(false);
 };
 
   return (
