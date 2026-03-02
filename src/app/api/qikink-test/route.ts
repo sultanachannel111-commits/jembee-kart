@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const body = await req.json();
-
     const clientId = process.env.QIKINK_CLIENT_ID;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({
         success: false,
-        error: "Missing QIKINK environment variables",
+        error: "Environment variables missing",
       });
     }
 
-    // =============================
-    // 1️⃣ GENERATE ACCESS TOKEN
-    // =============================
+    // =========================
+    // 1️⃣ TOKEN REQUEST
+    // =========================
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -31,9 +29,20 @@ export async function POST(req: Request) {
       }
     );
 
-    const tokenData = await tokenResponse.json();
+    const tokenText = await tokenResponse.text();
 
-    if (!tokenResponse.ok || !tokenData.Accesstoken) {
+    let tokenData;
+    try {
+      tokenData = JSON.parse(tokenText);
+    } catch {
+      return NextResponse.json({
+        success: false,
+        step: "Token JSON Parse Failed",
+        rawResponse: tokenText,
+      });
+    }
+
+    if (!tokenResponse.ok || !tokenData?.Accesstoken) {
       return NextResponse.json({
         success: false,
         step: "Token Generation Failed",
@@ -43,9 +52,9 @@ export async function POST(req: Request) {
 
     const accessToken = tokenData.Accesstoken;
 
-    // =============================
-    // 2️⃣ CREATE UNIQUE ORDER NUMBER
-    // =============================
+    // =========================
+    // 2️⃣ CREATE ORDER
+    // =========================
     const orderNumber = "JB" + Date.now().toString().slice(-8);
 
     const orderPayload = {
@@ -58,7 +67,7 @@ export async function POST(req: Request) {
           search_from_my_products: 0,
           quantity: "1",
           price: "1",
-          sku: body?.sku || "MVnHs-Wh-S",
+          sku: "MVnHs-Wh-S",
           designs: [
             {
               design_code: "TEST123",
@@ -79,14 +88,11 @@ export async function POST(req: Request) {
         email: "test@gmail.com",
         city: "Delhi",
         zip: "110001",
-        province: "DL", // ✅ IMPORTANT FIX
+        province: "DL",
         country_code: "IN",
       },
     };
 
-    // =============================
-    // 3️⃣ CREATE ORDER
-    // =============================
     const orderResponse = await fetch(
       "https://sandbox.qikink.com/api/order/create",
       {
@@ -100,7 +106,18 @@ export async function POST(req: Request) {
       }
     );
 
-    const orderData = await orderResponse.json();
+    const orderText = await orderResponse.text();
+
+    let orderData;
+    try {
+      orderData = JSON.parse(orderText);
+    } catch {
+      return NextResponse.json({
+        success: false,
+        step: "Order JSON Parse Failed",
+        rawResponse: orderText,
+      });
+    }
 
     if (!orderResponse.ok) {
       return NextResponse.json({
@@ -112,7 +129,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Order Created Successfully",
       orderNumber,
       orderData,
     });
@@ -120,7 +136,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error?.message || "Server error",
+      error: error?.message || "Server Error",
     });
   }
 }
