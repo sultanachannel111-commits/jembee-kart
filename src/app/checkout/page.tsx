@@ -127,11 +127,9 @@ await batch.commit();
 
 setCartItems([])
 
-    alert("Order Placed Successfully 🎉");
-
-if (paymentMethod === "UPI") {
+    if (paymentMethod === "ONLINE") {
   const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
-  window.location.href = upiLink;
+  window.open(upiLink, "_self");
 } else {
   router.push(`/order-success/${orderRef.id}`);
 }
