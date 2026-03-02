@@ -17,17 +17,17 @@ import { useRouter } from "next/navigation";
 export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("COD");
 
   const router = useRouter();
 
-  /* ================= FETCH CART ================= */
+  /* ================= AUTH + FETCH CART ================= */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
-        router.push("/login");
+        setInitialLoading(false);
         return;
       }
 
@@ -69,7 +69,7 @@ export default function CheckoutPage() {
     try {
       const batch = writeBatch(db);
 
-      /* ===== STOCK VALIDATION ===== */
+      /* ===== STOCK CHECK ===== */
       for (const item of cartItems) {
         const productRef = doc(db, "products", item.productId);
         const productSnap = await getDoc(productRef);
@@ -95,13 +95,10 @@ export default function CheckoutPage() {
       batch.set(orderRef, {
         userId: user.uid,
         products: cartItems,
-        totalAmount: totalAmount,
+        totalAmount,
         status: "Placed",
-        paymentMethod: paymentMethod,
-        paymentStatus:
-          paymentMethod === "COD" ? "Pending" : "Pending",
-        returnRequested: false,
-        returnReason: "",
+        paymentMethod,
+        paymentStatus: "Pending",
         createdAt: serverTimestamp(),
       });
 
@@ -120,22 +117,19 @@ export default function CheckoutPage() {
         batch.delete(document.ref);
       });
 
-      /* ===== COMMIT ===== */
       await batch.commit();
 
       setCartItems([]);
 
-      /* ===== PAYMENT LOGIC ===== */
+      /* ===== PAYMENT FLOW ===== */
       if (paymentMethod === "ONLINE") {
         const upiLink = `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${totalAmount}&cu=INR`;
 
-        // Open UPI App
         window.location.href = upiLink;
-
-        return; // Stop here (no auto redirect)
+        return;
       }
 
-      // COD Success Page
+      // COD Success
       router.push(`/order-success/${orderRef.id}`);
 
     } catch (error) {
@@ -146,9 +140,10 @@ export default function CheckoutPage() {
     setLoading(false);
   };
 
+  /* ================= LOADING SCREEN ================= */
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center text-lg">
         Loading Checkout...
       </div>
     );
@@ -156,7 +151,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen p-6 pt-[96px] bg-gradient-to-b from-pink-100 to-white">
-      <h1 className="text-2xl font-bold mb-4">Checkout</h1>
+      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
 
       {cartItems.length === 0 ? (
         <div className="bg-white p-6 rounded-xl shadow text-center">
@@ -177,7 +172,7 @@ export default function CheckoutPage() {
 
             <hr className="my-2" />
 
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between font-bold text-lg">
               <span>Total</span>
               <span>₹{totalAmount}</span>
             </div>
@@ -212,7 +207,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* PLACE ORDER BUTTON */}
+          {/* PLACE ORDER */}
           <button
             onClick={placeOrder}
             disabled={loading}
