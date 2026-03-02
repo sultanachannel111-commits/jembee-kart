@@ -4,6 +4,7 @@ export async function POST() {
   try {
     const clientId = process.env.QIKINK_CLIENT_ID;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
+    const mode = process.env.QIKINK_MODE === "live";
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({
@@ -12,8 +13,14 @@ export async function POST() {
       });
     }
 
-    // STEP 1: TOKEN REQUEST
-    const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+    // 🔥 AUTO SWITCH BASE URL
+    const BASE_URL = mode
+      ? "https://api.qikink.com"
+      : "https://sandbox.qikink.com";
+
+    /* ================= TOKEN REQUEST ================= */
+
+    const tokenRes = await fetch(`${BASE_URL}/api/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -46,14 +53,17 @@ export async function POST() {
 
     const accessToken = tokenData.Accesstoken;
 
-    // STEP 2: SHORT ORDER NUMBER (max 15 chars)
+    /* ================= ORDER NUMBER ================= */
+
     const uniqueOrderNumber =
       "JB" + Date.now().toString().slice(-8);
+
+    /* ================= ORDER PAYLOAD ================= */
 
     const orderPayload = {
       order_number: uniqueOrderNumber,
       qikink_shipping: "1",
-      gateway: "COD",
+      gateway: "COD", // later dynamic kar sakte hain
       total_order_value: "10",
       line_items: [
         {
@@ -89,9 +99,10 @@ export async function POST() {
       },
     };
 
-    // STEP 3: CREATE ORDER
+    /* ================= CREATE ORDER ================= */
+
     const orderRes = await fetch(
-      "https://sandbox.qikink.com/api/order/create",
+      `${BASE_URL}/api/order/create`,
       {
         method: "POST",
         headers: {
@@ -117,6 +128,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
+      mode: mode ? "LIVE" : "SANDBOX",
       orderData,
     });
 
