@@ -2,24 +2,41 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const response = await fetch(
-      "https://sandbox.qikink.com/api/authentication",
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return NextResponse.json({
+        success: false,
+        error: "Missing ENV variables",
+      });
+    }
+
+    const tokenRes = await fetch(
+      "https://sandbox.qikink.com/api/token",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({
-          client_id: process.env.QIKINK_CLIENT_ID,
-          client_secret: process.env.QIKINK_CLIENT_SECRET,
+        body: new URLSearchParams({
+          ClientId: clientId,
+          client_secret: clientSecret,
         }),
       }
     );
 
-    const data = await response.json();
+    const tokenData = await tokenRes.json();
 
-    return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json({ error: "Auth failed" }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      tokenData,
+    });
+
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    });
   }
 }
