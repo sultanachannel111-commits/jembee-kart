@@ -1,114 +1,130 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "Qikink API working ✅ Use POST to create order.",
-    mode: process.env.QIKINK_MODE || "sandbox",
-  });
+export async function POST() {
+try {
+const clientId = process.env.QIKINK_CLIENT_ID;
+const clientSecret = process.env.QIKINK_CLIENT_SECRET;
+
+if (!clientId || !clientSecret) {
+return NextResponse.json({
+success: false,
+error: "Missing environment variables",
+});
 }
 
-export async function POST() {
-  try {
-    const clientId = process.env.QIKINK_CLIENT_ID;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
-    const mode = process.env.QIKINK_MODE || "sandbox";
+// STEP 1: TOKEN REQUEST
+const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+method: "POST",
+headers: {
+"Content-Type": "application/x-www-form-urlencoded",
+},
+body: new URLSearchParams({
+ClientId: clientId,
+client_secret: clientSecret,
+}),
+});
 
-    if (!clientId || !clientSecret) {
-      return NextResponse.json({
-        success: false,
-        error: "Missing environment variables",
-      });
-    }
+const tokenText = await tokenRes.text();
 
-    const baseUrl =
-      mode === "live"
-        ? "https://api.qikink.com"
-        : "https://sandbox.qikink.com";
+if (!tokenRes.ok) {
+return NextResponse.json({
+success: false,
+error: "Token API failed",
+raw: tokenText,
+});
+}
 
-    // STEP 1: TOKEN REQUEST
-    const tokenRes = await fetch(`${baseUrl}/api/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        ClientId: clientId,
-        client_secret: clientSecret,
-      }),
-    });
+const tokenData = JSON.parse(tokenText);
 
-    const tokenData = await tokenRes.json();
+if (!tokenData.Accesstoken) {
+return NextResponse.json({
+success: false,
+error: "Access token missing",
+tokenData,
+});
+}
 
-    if (!tokenRes.ok || !tokenData.Accesstoken) {
-      return NextResponse.json({
-        success: false,
-        error: "Token API failed",
-        tokenData,
-      });
-    }
+const accessToken = tokenData.Accesstoken;
 
-    const accessToken = tokenData.Accesstoken;
+// STEP 2: SHORT ORDER NUMBER (max 15 chars)
+const uniqueOrderNumber =
+"JB" + Date.now().toString().slice(-8);
 
-    // UNIQUE ORDER NUMBER (max 15 chars)
-    const uniqueOrderNumber =
-      "JB" + Date.now().toString().slice(-8);
+const orderPayload = {
+order_number: uniqueOrderNumber,
+qikink_shipping: "1",
+gateway: "COD",
+total_order_value: "10",
+line_items: [
+{
+search_from_my_products: 0,
+quantity: "1",
+print_type_id: 1,
+price: "10",
+sku: "MVnHs-Wh-S",
+designs: [
+{
+design_code: "test1",
+width_inches: "",
+height_inches: "",
+placement_sku: "fr",
+design_link:
+"https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+mockup_link:
+"https://sgp1.digitaloceanspaces.com/cdn.qikink.com/erp2/assets/designs/83/1696668376.jpg",
+},
+],
+},
+],
+shipping_address: {
+first_name: "Ali",
+last_name: "Test",
+address1: "Test Street 123",
+phone: "9999999999",
+email: "test@example.com",
+city: "Jamshedpur",
+zip: "832110",
+province: "Jharkhand",
+country_code: "IN",
+},
+};
 
-    // ⚠ IMPORTANT: Replace SKU with your real Product SKU
-    const orderPayload = {
-      order_number: uniqueOrderNumber,
-      qikink_shipping: "1",
-      gateway: "COD",
-      total_order_value: "475.10",
-      line_items: [
-        {
-          search_from_my_products: 1,
-          quantity: "1",
-          print_type_id: 1,
-          price: "475.10",
-          sku: "UHd-Wh-XS", // 👈 Replace if needed
-        },
-      ],
-      shipping_address: {
-        first_name: "Ali",
-        last_name: "Test",
-        address1: "Test Street 123",
-        phone: "9999999999",
-        email: "test@example.com",
-        city: "Jamshedpur",
-        zip: "832110",
-        province: "Jharkhand",
-        country_code: "IN",
-      },
-    };
+// STEP 3: CREATE ORDER
+const orderRes = await fetch(
+"https://sandbox.qikink.com/api/order/create",
+{
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+ClientId: clientId,
+Accesstoken: accessToken,
+},
+body: JSON.stringify(orderPayload),
+}
+);
 
-    // STEP 2: CREATE ORDER
-    const orderRes = await fetch(
-      `${baseUrl}/api/order/create`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ClientId: clientId,
-          Accesstoken: accessToken,
-        },
-        body: JSON.stringify(orderPayload),
-      }
-    );
+const orderText = await orderRes.text();
 
-    const orderData = await orderRes.json();
+if (!orderRes.ok) {
+return NextResponse.json({
+success: false,
+error: "Order API failed",
+raw: orderText,
+});
+}
 
-    return NextResponse.json({
-      success: orderRes.ok,
-      mode,
-      orderData,
-    });
+const orderData = JSON.parse(orderText);
 
-  } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: "Server Crash",
-      message: err?.message || "Unknown error",
-    });
-  }
+return NextResponse.json({
+success: true,
+orderData,
+});
+
+} catch (err: any) {
+return NextResponse.json({
+success: false,
+error: "Server Crash",
+message: err?.message || "Unknown error",
+});
+}
 }
