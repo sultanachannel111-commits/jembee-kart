@@ -308,7 +308,6 @@ export default function ProfilePage() {
   </div>
 </div>
   </div>
-</div>
 
               <div className="text-sm text-gray-600 mt-2">
                 ₹{order.totalAmount}
