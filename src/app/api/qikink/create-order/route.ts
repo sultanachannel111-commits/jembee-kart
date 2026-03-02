@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 
+/* ================= GET METHOD (Browser Test) ================= */
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    message: "Qikink API route working ✅ Use POST method to create order.",
+    mode: process.env.QIKINK_MODE || "not set",
+  });
+}
+
+/* ================= POST METHOD (CREATE ORDER) ================= */
 export async function POST() {
   try {
     const clientId = process.env.QIKINK_CLIENT_ID;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
-    const mode = process.env.QIKINK_MODE === "live";
+    const isLive = process.env.QIKINK_MODE === "live";
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({
@@ -13,13 +23,12 @@ export async function POST() {
       });
     }
 
-    // 🔥 AUTO SWITCH BASE URL
-    const BASE_URL = mode
+    /* ================= BASE URL AUTO SWITCH ================= */
+    const BASE_URL = isLive
       ? "https://api.qikink.com"
       : "https://sandbox.qikink.com";
 
-    /* ================= TOKEN REQUEST ================= */
-
+    /* ================= STEP 1: GET TOKEN ================= */
     const tokenRes = await fetch(`${BASE_URL}/api/token`, {
       method: "POST",
       headers: {
@@ -53,17 +62,15 @@ export async function POST() {
 
     const accessToken = tokenData.Accesstoken;
 
-    /* ================= ORDER NUMBER ================= */
-
+    /* ================= STEP 2: CREATE UNIQUE ORDER NUMBER ================= */
     const uniqueOrderNumber =
       "JB" + Date.now().toString().slice(-8);
 
-    /* ================= ORDER PAYLOAD ================= */
-
+    /* ================= STEP 3: ORDER PAYLOAD ================= */
     const orderPayload = {
       order_number: uniqueOrderNumber,
       qikink_shipping: "1",
-      gateway: "COD", // later dynamic kar sakte hain
+      gateway: "COD",
       total_order_value: "10",
       line_items: [
         {
@@ -99,8 +106,7 @@ export async function POST() {
       },
     };
 
-    /* ================= CREATE ORDER ================= */
-
+    /* ================= STEP 4: CREATE ORDER ================= */
     const orderRes = await fetch(
       `${BASE_URL}/api/order/create`,
       {
@@ -128,7 +134,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      mode: mode ? "LIVE" : "SANDBOX",
+      mode: isLive ? "LIVE" : "SANDBOX",
       orderData,
     });
 
