@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
-    const { order_id } = await req.json();
+    const { order_id, orderNumber } = await req.json();
 
-    if (!order_id) {
+    if (!order_id || !orderNumber) {
       return NextResponse.json(
-        { error: "Order ID is required" },
+        { error: "order_id and orderNumber required" },
         { status: 400 }
       );
     }
@@ -14,9 +16,9 @@ export async function POST(req: Request) {
     const clientId = process.env.QIKINK_CLIENT_ID!;
     const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
 
-    // 🔐 STEP 1 — Generate Access Token
+    // 🔐 STEP 1 — GET TOKEN (LIVE)
     const tokenResponse = await fetch(
-      "https://sandbox.qikink.com/api/token",
+      "https://api.qikink.com/api/token",
       {
         method: "POST",
         headers: {
@@ -34,16 +36,15 @@ export async function POST(req: Request) {
 
     if (!accessToken) {
       return NextResponse.json(
-        { error: "Token generation failed", tokenData },
+        { error: "Token generation failed" },
         { status: 400 }
       );
     }
 
-    // 🚚 STEP 2 — Get Tracking Info
+    // 🚚 STEP 2 — GET ORDER DETAILS (LIVE)
     const trackingResponse = await fetch(
-      `https://sandbox.qikink.com/api/order/status/${order_id}`,
+      `https://api.qikink.com/api/order?id=${order_id}`,
       {
-        method: "GET",
         headers: {
           ClientId: clientId,
           Accesstoken: accessToken,
@@ -53,14 +54,30 @@ export async function POST(req: Request) {
 
     const trackingData = await trackingResponse.json();
 
-    return NextResponse.json(trackingData, {
-      status: trackingResponse.status,
+    if (!trackingResponse.ok) {
+      return NextResponse.json(trackingData, {
+        status: trackingResponse.status,
+      });
+    }
+
+    // 🔄 STEP 3 — UPDATE FIRESTORE
+    await updateDoc(doc(db, "orders", orderNumber), {
+      status: trackingData.status || "Processing",
+      qikinkTrackingId: trackingData.shipping?.awb || null,
+      courier: trackingData.shipping?.courier || null,
+      trackingLink: trackingData.shipping?.tracking_link || null,
+      updatedAt: new Date(),
     });
 
-  } catch (error) {
+    return NextResponse.json({
+      success: true,
+      trackingData,
+    });
+
+  } catch (error: any) {
     console.error("Tracking Error:", error);
     return NextResponse.json(
-      { error: "Tracking failed ❌" },
+      { error: "Tracking failed", message: error.message },
       { status: 500 }
     );
   }
