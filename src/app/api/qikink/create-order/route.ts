@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
@@ -12,14 +18,14 @@ export async function POST(req: Request) {
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
-        { error: "Missing Qikink ENV variables" },
+        { error: "Missing Live API credentials" },
         { status: 500 }
       );
     }
 
     const orderNumber = "JB" + Date.now().toString().slice(-8);
 
-    // 🔥 STEP 1 — SAVE ORDER FIRST
+    /* ================= SAVE ORDER FIRST ================= */
     const orderRef = await addDoc(collection(db, "orders"), {
       orderNumber,
       product,
@@ -29,8 +35,8 @@ export async function POST(req: Request) {
       createdAt: serverTimestamp(),
     });
 
-    // 🔐 STEP 2 — GET TOKEN
-    const tokenRes = await fetch("https://sandbox.qikink.com/api/token", {
+    /* ================= GET LIVE TOKEN ================= */
+    const tokenRes = await fetch("https://api.qikink.com/api/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -44,16 +50,19 @@ export async function POST(req: Request) {
     const tokenData = await tokenRes.json();
 
     if (!tokenData.Accesstoken) {
-      return NextResponse.json({ error: "Token failed" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Live token generation failed" },
+        { status: 400 }
+      );
     }
 
     const accessToken = tokenData.Accesstoken;
 
-    // 📦 STEP 3 — CREATE QIKINK ORDER
+    /* ================= CREATE LIVE ORDER ================= */
     const orderPayload = {
       order_number: orderNumber,
       qikink_shipping: "1",
-      gateway: paymentMethod === "Prepaid" ? "Prepaid" : "COD",
+      gateway: paymentMethod === "ONLINE" ? "Prepaid" : "COD",
       total_order_value: product.sellingPrice.toString(),
       line_items: [
         {
@@ -86,7 +95,7 @@ export async function POST(req: Request) {
     };
 
     const orderRes = await fetch(
-      "https://sandbox.qikink.com/api/order/create",
+      "https://api.qikink.com/api/order/create",
       {
         method: "POST",
         headers: {
@@ -105,10 +114,13 @@ export async function POST(req: Request) {
         status: "Failed",
       });
 
-      return NextResponse.json({ error: "Qikink failed" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Live Qikink order failed", orderData },
+        { status: 400 }
+      );
     }
 
-    // 🔥 STEP 4 — UPDATE FIRESTORE
+    /* ================= UPDATE FIRESTORE ================= */
     await updateDoc(doc(db, "orders", orderRef.id), {
       status: "Processing",
       qikinkOrderId: orderData.order_id || null,
