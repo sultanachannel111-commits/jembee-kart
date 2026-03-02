@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
-    const { order_id } = await req.json();
+    const body = await req.json();
+    const order_id = body.order_id;
 
     if (!order_id) {
       return NextResponse.json(
@@ -11,10 +14,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const clientId = process.env.QIKINK_CLIENT_ID!;
-    const clientSecret = process.env.QIKINK_CLIENT_SECRET!;
+    const clientId = process.env.QIKINK_CLIENT_ID;
+    const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
-    // 🔐 STEP 1 — Generate Access Token
+    if (!clientId || !clientSecret) {
+      return NextResponse.json(
+        { error: "Missing ENV variables" },
+        { status: 500 }
+      );
+    }
+
+    // 🔥 STEP 1 — Generate Token
     const tokenResponse = await fetch(
       "https://sandbox.qikink.com/api/token",
       {
@@ -39,7 +49,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ❌ STEP 2 — Cancel Order
+    // 🔥 STEP 2 — Cancel Order in Qikink
     const cancelResponse = await fetch(
       "https://sandbox.qikink.com/api/order/cancel",
       {
@@ -49,22 +59,33 @@ export async function POST(req: Request) {
           ClientId: clientId,
           Accesstoken: accessToken,
         },
-        body: JSON.stringify({
-          order_id: order_id,
-        }),
+        body: JSON.stringify({ order_id }),
       }
     );
 
     const cancelData = await cancelResponse.json();
 
-    return NextResponse.json(cancelData, {
-      status: cancelResponse.status,
+    if (!cancelResponse.ok) {
+      return NextResponse.json(cancelData, {
+        status: cancelResponse.status,
+      });
+    }
+
+    // 🔥 STEP 3 — Update Firestore Status
+    await updateDoc(doc(db, "orders", order_id), {
+      status: "Cancelled",
+      cancelledAt: new Date(),
     });
 
-  } catch (error) {
-    console.error("Cancel Error:", error);
+    return NextResponse.json({
+      success: true,
+      message: "Order cancelled successfully",
+      cancelData,
+    });
+
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Cancel failed ❌" },
+      { error: error.message },
       { status: 500 }
     );
   }
