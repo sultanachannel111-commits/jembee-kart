@@ -1,17 +1,12 @@
+"use client";
+
 import "./globals.css";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar"; // 🔥 ADD THIS
+import Navbar from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "JembeeKart",
-  description: "Modern Ecommerce Platform",
-  themeColor: "#f472b6",
-};
 
 export default function RootLayout({
   children,
@@ -32,11 +27,10 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             {children}
+            {/* Bottom Navbar */}
+            {/* <Navbar /> */}
           </CartProvider>
         </AuthProvider>
-
-        {/* 🔥 BOTTOM NAVBAR WITH LIVE CART BADGE */}
-        {/* <Navbar /> */}
       </body>
     </html>
   );
