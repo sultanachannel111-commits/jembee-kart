@@ -1,147 +1,59 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useEffect,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { doc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
-import {
-  collection,
-  onSnapshot,
-  doc,
-  setDoc,
-  deleteDoc,
-} from "firebase/firestore";
+const CartContext = createContext<any>(null);
 
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/providers/auth-provider";
+export function CartProvider({ children }: any) {
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
-type CartItem = {
-  id: string;
-  name: string;
-  image: string;
-  price: number;
-  quantity: number;
-};
-
-type CartContextType = {
-  cart: CartItem[];
-  cartCount: number;
-  total: number;
-  addToCart: (item: CartItem) => Promise<void>;
-  increaseQty: (id: string) => Promise<void>;
-  decreaseQty: (id: string) => Promise<void>;
-  removeFromCart: (id: string) => Promise<void>;
-  clearCart: () => Promise<void>;
-};
-
-const CartContext = createContext<CartContextType | undefined>(undefined);
-
-export function CartProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [cart, setCart] = useState<CartItem[]>([]);
-
-  // 🔥 REAL-TIME FIRESTORE LISTENER
   useEffect(() => {
-    if (!user) {
-      setCart([]);
-      return;
-    }
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u) loadCart(u.uid);
+    });
+    return () => unsub();
+  }, []);
 
-    const cartRef = collection(db, "cart", user.uid, "items");
+  const loadCart = async (uid: string) => {
+    const snap = await getDocs(collection(db, "cart", uid, "items"));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setCartItems(items);
+  };
 
-    const unsubscribe = onSnapshot(cartRef, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CartItem[];
+  const addToCart = async (product: any) => {
+    if (!user) return alert("Login required");
 
-      setCart(items);
+    const ref = doc(db, "cart", user.uid, "items", product.id);
+
+    await setDoc(ref, {
+      name: product.name,
+      price: product.sellingPrice,
+      image: product.image || "",
+      quantity: 1,
+      createdAt: new Date()
     });
 
-    return () => unsubscribe();
-  }, [user]);
-
-  // 🔹 Add To Cart
-  const addToCart = async (item: CartItem) => {
-    if (!user) return;
-
-    const itemRef = doc(db, "cart", user.uid, "items", item.id);
-
-    await setDoc(itemRef, item, { merge: true });
+    loadCart(user.uid);
   };
 
-  // 🔹 Increase Qty
-  const increaseQty = async (id: string) => {
-    if (!user) return;
-
-    const item = cart.find((i) => i.id === id);
-    if (!item) return;
-
-    const itemRef = doc(db, "cart", user.uid, "items", id);
-
-    await setDoc(itemRef, {
-      ...item,
-      quantity: item.quantity + 1,
-    });
-  };
-
-  // 🔹 Decrease Qty
-  const decreaseQty = async (id: string) => {
-    if (!user) return;
-
-    const item = cart.find((i) => i.id === id);
-    if (!item) return;
-
-    if (item.quantity <= 1) {
-      await deleteDoc(doc(db, "cart", user.uid, "items", id));
-    } else {
-      await setDoc(doc(db, "cart", user.uid, "items", id), {
-        ...item,
-        quantity: item.quantity - 1,
-      });
-    }
-  };
-
-  // 🔹 Remove Item
   const removeFromCart = async (id: string) => {
     if (!user) return;
     await deleteDoc(doc(db, "cart", user.uid, "items", id));
+    loadCart(user.uid);
   };
-
-  // 🔹 Clear Cart
-  const clearCart = async () => {
-    if (!user) return;
-
-    for (const item of cart) {
-      await deleteDoc(doc(db, "cart", user.uid, "items", item.id));
-    }
-  };
-
-  const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  const cartCount = cart.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
 
   return (
     <CartContext.Provider
       value={{
-        cart,
-        cartCount,
-        total,
+        cartItems,
+        cartCount: cartItems.length,
         addToCart,
-        increaseQty,
-        decreaseQty,
-        removeFromCart,
-        clearCart,
+        removeFromCart
       }}
     >
       {children}
@@ -149,10 +61,4 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useCart() {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error("useCart must be used inside CartProvider");
-  }
-  return context;
-}
+export const useCart = () => useContext(CartContext);
