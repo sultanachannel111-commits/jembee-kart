@@ -1,9 +1,11 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
   Package,
