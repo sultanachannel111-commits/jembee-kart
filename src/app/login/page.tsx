@@ -42,9 +42,11 @@ export default function LoginPage() {
       setLoadingType("login");
       setMessage("");
       await loginWithEmail(email, password);
-      setMessage("Login Successful ✅");
-    } catch {
-      setMessage("Login Failed ❌");
+setMessage("Login Successful ✅");
+} catch (error: any) {
+console.log("ERROR CODE:", error.code);
+console.log("ERROR MESSAGE:", error.message);
+setMessage(error.code || "Login Failed ❌");
     } finally {
       setLoadingType(null);
     }
