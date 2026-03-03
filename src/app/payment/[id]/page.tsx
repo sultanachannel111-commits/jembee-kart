@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  addDoc,
+  collection,
+  increment,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
 
@@ -13,6 +20,7 @@ export default function PaymentPage() {
   const [txn, setTxn] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
   const [expired, setExpired] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   /* 🔥 FETCH ORDER */
   useEffect(() => {
@@ -51,7 +59,6 @@ export default function PaymentPage() {
         await updateDoc(doc(db, "orders", order.id), {
           paymentStatus: "EXPIRED",
         });
-
       } else {
         const m = Math.floor(diff / 60000);
         const s = Math.floor((diff % 60000) / 1000);
@@ -74,14 +81,8 @@ export default function PaymentPage() {
     "JembeeKart Order"
   )}`;
 
-  /* 🔥 FORCE OPEN UPI */
   const openUpi = () => {
     window.location.href = upiLink;
-
-    // fallback after 2 seconds
-    setTimeout(() => {
-      window.location.href = upiLink;
-    }, 2000);
   };
 
   /* 🔥 SUBMIT PAYMENT */
@@ -91,13 +92,51 @@ export default function PaymentPage() {
       return;
     }
 
-    await updateDoc(doc(db, "orders", order.id), {
-      paymentStatus: "UNDER_REVIEW",
-      transactionId: txn,
-    });
+    if (processing) return;
 
-    alert("Payment submitted successfully ✅");
-    router.push("/thank-you");
+    setProcessing(true);
+
+    try {
+      /* 1️⃣ Update Order Status */
+      await updateDoc(doc(db, "orders", order.id), {
+        paymentStatus: "UNDER_REVIEW",
+        transactionId: txn,
+        submittedAt: new Date(),
+      });
+
+      /* 2️⃣ Reduce Product Stock */
+      await updateDoc(doc(db, "products", order.productId), {
+        stock: increment(-order.quantity),
+      });
+
+      /* 3️⃣ Create Admin Notification */
+      await addDoc(collection(db, "notifications"), {
+        message: `💰 Payment Submitted: ${order.productName} x${order.quantity}`,
+        orderId: order.id,
+        createdAt: new Date(),
+        read: false,
+      });
+
+      /* 4️⃣ Trigger Qikink Backend API */
+      await fetch("/api/qikink-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+        }),
+      });
+
+      alert("Payment submitted successfully ✅");
+      router.push("/order-success");
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    }
+
+    setProcessing(false);
   };
 
   return (
@@ -137,10 +176,11 @@ export default function PaymentPage() {
             />
 
             <button
+              disabled={processing}
               onClick={submitPayment}
               className="w-full bg-black text-white py-3 rounded-xl"
             >
-              I Have Paid
+              {processing ? "Processing..." : "I Have Paid"}
             </button>
           </>
         )}
@@ -155,4 +195,3 @@ export default function PaymentPage() {
     </div>
   );
 }
- 
