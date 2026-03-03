@@ -337,17 +337,22 @@ setProducts(productsWithOffers);
 
         <div className="grid grid-cols-2 gap-4">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
+  <div key={product.id} className="bg-white rounded-xl shadow p-3 relative">
 
-              <Heart
-                size={18}
-                onClick={() => toggleWishlist(product.id)}
-                className={`absolute top-3 right-3 cursor-pointer ${
-                  wishlist.includes(product.id)
-                    ? "text-red-500"
-                    : "text-gray-400"
-                }`}
-              />
+    {/* 🔴 DEBUG ID YAHAN */}
+    <div className="text-xs text-red-500">
+      ID: {product.id}
+    </div>
+
+    <Heart
+      size={18}
+      onClick={() => toggleWishlist(product.id)}
+      className={`absolute top-3 right-3 cursor-pointer ${
+        wishlist.includes(product.id)
+          ? "text-red-500"
+          : "text-gray-400"
+      }`}
+    />
 
               <Link href={`/product/${product.id}`}>
                 <img
