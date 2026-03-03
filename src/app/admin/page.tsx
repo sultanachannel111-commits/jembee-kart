@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AdminPushSetup from "@/components/AdminPushSetup"; // ✅ ADD KIYA
 
 export default function AdminDashboard() {
   const [result, setResult] = useState<any>(null);
@@ -26,6 +27,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-8">
+
+      {/* ✅ PUSH SETUP AUTO RUN */}
+      <AdminPushSetup />
+
       <h1 className="text-3xl font-bold text-pink-600 mb-6">
         Admin Dashboard
       </h1>
