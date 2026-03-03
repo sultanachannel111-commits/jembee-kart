@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AddProduct() {
   const { user } = useAuth();
