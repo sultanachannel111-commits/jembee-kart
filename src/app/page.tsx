@@ -17,7 +17,7 @@ import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 
 export default function HomePage() {
