@@ -1,94 +1,98 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { doc, getDoc, collection, addDoc, setDoc } from "firebase/firestore";
+import { useParams, useRouter } from "next/navigation";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  addDoc,
+  setDoc,
+  increment,
+} from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function ProductPage() {
-  const params = useParams();
+  const { id } = useParams();
+  const router = useRouter();
+
   const [product, setProduct] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
 
-  /* 🔐 AUTH */
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  /* 📦 FETCH PRODUCT */
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!params?.id) return;
-
-      const snap = await getDoc(doc(db, "products", params.id as string));
+      const snap = await getDoc(doc(db, "products", id as string));
       if (snap.exists()) {
         setProduct({ id: snap.id, ...snap.data() });
       }
     };
-
     fetchProduct();
-  }, [params]);
+  }, [id]);
 
-  /* 🛒 ADD TO CART */
   const addToCart = async () => {
-    if (!user) {
-      alert("Please login first");
-      return;
-    }
+    if (!user) return alert("Login first");
 
-    if (!product) return;
+    const productRef = doc(db, "products", product.id);
+    const productSnap = await getDoc(productRef);
+    const stock = productSnap.data()?.stock || 0;
 
-    setLoading(true);
+    if (stock <= 0) return alert("Out of stock");
 
-    try {
-      // ensure cart document exists
-      await setDoc(
-        doc(db, "cart", user.uid),
-        { createdAt: new Date() },
-        { merge: true }
-      );
+    await setDoc(doc(db, "cart", user.uid), { createdAt: new Date() }, { merge: true });
 
-      // add item in subcollection
-      await addDoc(collection(db, "cart", user.uid, "items"), {
+    const itemsRef = collection(db, "cart", user.uid, "items");
+    const q = query(itemsRef, where("productId", "==", product.id));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const existing = snap.docs[0];
+      if (existing.data().quantity >= stock) {
+        return alert("Stock limit reached");
+      }
+      await updateDoc(existing.ref, { quantity: increment(1) });
+    } else {
+      await addDoc(itemsRef, {
         productId: product.id,
         name: product.name,
         price: product.price,
         quantity: 1,
-        image: product.image || "",
-        createdAt: new Date(),
       });
-
-      alert("Added to cart ✅");
-    } catch (error) {
-      console.error(error);
-      alert("Failed ❌");
     }
 
-    setLoading(false);
+    alert("Added to cart ✅");
   };
 
-  if (!product) {
-    return <div className="p-6">Loading...</div>;
-  }
+  const buyNow = async () => {
+    await addToCart();
+    router.push("/checkout");
+  };
+
+  if (!product) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen p-6 pt-[100px]">
-      <h1 className="text-2xl font-bold mb-4">{product.name}</h1>
+    <div className="p-6 pt-[100px]">
+      <h1 className="text-2xl font-bold">{product.name}</h1>
+      <p>₹{product.price}</p>
 
-      <p className="mb-4">₹{product.price}</p>
+      <div className="flex gap-4 mt-4">
+        <button onClick={addToCart} className="bg-pink-600 text-white px-6 py-3 rounded">
+          Add to Cart
+        </button>
 
-      <button
-        onClick={addToCart}
-        disabled={loading}
-        className="bg-pink-600 text-white px-6 py-3 rounded-xl"
-      >
-        {loading ? "Adding..." : "Add To Cart"}
-      </button>
+        <button onClick={buyNow} className="bg-black text-white px-6 py-3 rounded">
+          Buy Now
+        </button>
+      </div>
     </div>
   );
 }
