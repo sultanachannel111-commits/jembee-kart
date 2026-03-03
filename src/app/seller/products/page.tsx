@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
@@ -10,7 +12,7 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SellerProducts() {
   const { user } = useAuth();
