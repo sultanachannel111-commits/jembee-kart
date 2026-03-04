@@ -83,7 +83,7 @@ type="submit"
 disabled={loading}
 className="w-full bg-pink-500 text-white py-2 rounded"
 
-«»
+
 
 {loading ? "Logging in..." : "Login"}
 </button>
