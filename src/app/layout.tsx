@@ -5,6 +5,8 @@ import { Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
+import { useEffect } from "react";
+import { loadTheme } from "@/lib/themeLoader";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,6 +15,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+
+  useEffect(()=>{
+loadTheme();
+},[]);
   return (
     <html lang="en">
       <head>
