@@ -1,1 +1,55 @@
+"use client";
 
+import { useEffect, useState } from "react";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+
+export default function SellerAccount() {
+
+const [role,setRole] = useState("");
+const [email,setEmail] = useState("");
+
+useEffect(()=>{
+
+const fetchUser = async () => {
+
+const user = auth.currentUser;
+
+if(!user) return;
+
+setEmail(user.email || "");
+
+const ref = doc(db,"users",user.uid);
+const snap = await getDoc(ref);
+
+if(snap.exists()){
+setRole(snap.data().role);
+}
+
+};
+
+fetchUser();
+
+},[]);
+
+return(
+
+<div className="p-6">
+
+<h1 className="text-2xl font-bold mb-4">
+Seller Account
+</h1>
+
+<div className="bg-white p-4 rounded shadow">
+
+<p><b>Email:</b> {email}</p>
+
+<p><b>Role:</b> {role}</p>
+
+</div>
+
+</div>
+
+);
+
+}
