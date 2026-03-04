@@ -1,19 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 
 export default function ProductPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id as string;
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -55,16 +58,32 @@ export default function ProductPage() {
 
   const outOfStock = product.stock <= 0;
 
+  // 🛒 Add To Cart Function
+  const handleAddToCart = async () => {
+    if (outOfStock) return;
+
+    setAdding(true);
+
+    await addToCart({ ...product, quantity });
+
+    setShowPopup(true);
+
+    setTimeout(() => {
+      router.push("/");
+    }, 900);
+  };
+
   // 🔥 DIRECT UPI PAYMENT
   const buyNow = async () => {
     if (outOfStock) return;
 
     const totalAmount = product.sellingPrice * quantity;
 
-    // Add to cart with quantity
     await addToCart({ ...product, quantity });
 
-    const upiLink = `upi://pay?pa=${product.upiId || "sultana9212@axl"}&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+    const upiLink = `upi://pay?pa=${
+      product.upiId || "sultana9212@axl"
+    }&pn=JembeeKart&am=${totalAmount}&cu=INR`;
 
     window.location.href = upiLink;
   };
@@ -90,12 +109,12 @@ export default function ProductPage() {
         ₹{product.sellingPrice}
       </p>
 
-      {/* STOCK STATUS */}
+      {/* STOCK */}
       <p className={`mt-2 font-semibold ${outOfStock ? "text-red-600" : "text-green-600"}`}>
         {outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
       </p>
 
-      {/* QUANTITY SELECTOR */}
+      {/* QUANTITY */}
       {!outOfStock && (
         <div className="flex items-center gap-4 mt-6">
           <button
@@ -129,18 +148,23 @@ export default function ProductPage() {
 
       {/* BUTTONS */}
       <div className="flex gap-4 mt-8">
+
+        {/* ADD TO CART */}
         <button
-          disabled={outOfStock}
-          onClick={() => addToCart({ ...product, quantity })}
-          className={`px-6 py-3 rounded-xl w-full ${
+          disabled={outOfStock || adding}
+          onClick={handleAddToCart}
+          className={`px-6 py-3 rounded-xl w-full transition-all ${
             outOfStock
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-pink-600 text-white"
+              : adding
+              ? "bg-gray-500"
+              : "bg-pink-600 text-white hover:bg-pink-700"
           }`}
         >
-          Add to Cart
+          {adding ? "Adding..." : "Add to Cart"}
         </button>
 
+        {/* PAY NOW */}
         <button
           disabled={outOfStock}
           onClick={buyNow}
@@ -152,7 +176,15 @@ export default function ProductPage() {
         >
           Pay Now (UPI)
         </button>
+
       </div>
+
+      {/* POPUP */}
+      {showPopup && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-5 py-3 rounded-lg shadow-lg">
+          Added to Cart ✅
+        </div>
+      )}
 
     </div>
   );
