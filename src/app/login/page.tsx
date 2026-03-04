@@ -6,77 +6,63 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-export default function LoginPage(){
+export default function LoginPage() {
 
-const router = useRouter()
+const router = useRouter();
 
-const [email,setEmail] = useState("")
-const [password,setPassword] = useState("")
-const [loading,setLoading] = useState(false)
-const [error,setError] = useState("")
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [loading,setLoading] = useState(false);
 
 async function handleLogin(e:any){
 
-e.preventDefault()
+e.preventDefault();
 
 try{
 
-setLoading(true)
-setError("")
+setLoading(true);
 
-const res = await signInWithEmailAndPassword(auth,email,password)
+const res = await signInWithEmailAndPassword(auth,email,password);
 
-const user = res.user
+const user = res.user;
 
-// Firestore se role check
-const snap = await getDoc(doc(db,"users",user.uid))
+const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
-router.push("/")
-return
+router.push("/");
+return;
 }
 
-const data = snap.data()
+const data = snap.data();
 
-// Admin
 if(data.role === "admin"){
-router.push("/dashboard")
-return
+router.push("/dashboard");
+return;
 }
 
-// Seller
 if(data.role === "seller"){
-router.push("/seller")
-return
+router.push("/seller");
+return;
 }
 
-// Normal user
-router.push("/")
+router.push("/");
 
-}catch(err:any){
-
-console.log(err)
-setError("Login failed")
-
+}catch(err){
+console.log(err);
 }
 
-setLoading(false)
+setLoading(false);
 
 }
 
-return(
+return (
 
 <div className="flex items-center justify-center min-h-screen bg-gray-100"><form
 onSubmit={handleLogin}
 className="bg-white p-6 rounded shadow w-80 space-y-4"
 ><h2 className="text-xl font-bold text-center">
 Login
-</h2>{error && (
-
-<p className="text-red-500 text-sm text-center">
-{error}
-</p>
-)}<input
+</h2><input
 type="email"
 placeholder="Email"
 value={email}
@@ -100,7 +86,8 @@ className="w-full bg-pink-500 text-white py-2 rounded"
 «»
 
 {loading ? "Logging in..." : "Login"}
+</button>
 
-</button></form></div>)
+</form></div>);
 
 }
