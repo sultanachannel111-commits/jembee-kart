@@ -38,68 +38,76 @@ const AuthContext = createContext<AuthType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 
-  const [user,setUser] = useState<User | null>(null);
-  const [loading,setLoading] = useState(true);
-  const [role,setRole] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
 
-  useEffect(()=>{
+  useEffect(() => {
 
-    const unsubscribe = onAuthStateChanged(auth, async(currentUser)=>{
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
 
       setUser(currentUser);
 
-      if(currentUser){
+      if (currentUser) {
 
-        try{
+        try {
 
-          const snap = await getDoc(doc(db,"users",currentUser.uid));
+          const snap = await getDoc(doc(db, "users", currentUser.uid));
 
-          if(snap.exists()){
+          if (snap.exists()) {
+
             const data = snap.data();
             setRole(data.role || "customer");
-          }else{
+
+          } else {
+
             setRole("customer");
+
           }
 
-        }catch(e){
+        } catch (e) {
+
           console.log(e);
           setRole("customer");
+
         }
 
-      }else{
+      } else {
+
         setRole(null);
+
       }
 
       setLoading(false);
 
     });
 
-    return ()=>unsubscribe();
+    return () => unsubscribe();
 
-  },[]);
+  }, []);
 
-  const loginWithEmail = (email:string,password:string)=>{
-    return signInWithEmailAndPassword(auth,email,password);
+  const loginWithEmail = (email: string, password: string) => {
+    return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const registerWithEmail = (email:string,password:string)=>{
-    return createUserWithEmailAndPassword(auth,email,password);
+  const registerWithEmail = (email: string, password: string) => {
+    return createUserWithEmailAndPassword(auth, email, password);
   };
 
-  const loginWithGoogle = ()=>{
+  const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth,provider);
+    return signInWithPopup(auth, provider);
   };
 
-  const loginAsGuest = ()=>{
+  const loginAsGuest = () => {
     return signInAnonymously(auth);
   };
 
-  const logout = ()=>{
+  const logout = () => {
     return signOut(auth);
   };
 
-  return(
+  return (
     <AuthContext.Provider
       value={{
         user,
@@ -117,8 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useAuth = ()=>{
+export const useAuth = () => {
+
   const context = useContext(AuthContext);
-  if(!context) throw new Error("useAuth must be used inside AuthProvider");
+
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+
   return context;
 };
