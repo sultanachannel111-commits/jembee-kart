@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+
 import {
   LayoutDashboard,
   Package,
@@ -28,25 +29,35 @@ export default function SellerLayout({
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // 🔥 ROLE BASED REDIRECT
   useEffect(() => {
 
     if (loading) return;
 
-    if (role === null) return;
+    if (role === "admin") {
+      router.replace("/admin");
+      return;
+    }
 
     if (role !== "seller") {
       router.replace("/auth");
+      return;
     }
 
   }, [role, loading, router]);
 
-  if (loading || role === null) {
+
+
+  // 🔥 LOADING SCREEN
+  if (loading) {
     return (
-      <div className="p-10 text-center">
+      <div className="min-h-screen flex items-center justify-center text-lg">
         Loading Seller Panel...
       </div>
     );
   }
+
+
 
   const navItem = (href: string, label: string, Icon: any) => {
 
@@ -69,10 +80,12 @@ export default function SellerLayout({
     );
   };
 
+
+
   return (
     <div className="min-h-screen flex bg-gray-100">
 
-      {/* Mobile Overlay */}
+      {/* MOBILE OVERLAY */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -80,16 +93,17 @@ export default function SellerLayout({
         />
       )}
 
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       <div
         className={`fixed md:static z-50 top-0 left-0 
         min-h-screen overflow-y-auto w-64 
-        bg-black text-white p-5 transform transition-transform duration-300
+        bg-black text-white p-5 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0`}
       >
 
         <div className="flex justify-between items-center mb-8">
+
           <h2 className="text-2xl font-bold text-pink-500">
             Jembee Seller
           </h2>
@@ -100,22 +114,33 @@ export default function SellerLayout({
           >
             <X size={22} />
           </button>
+
         </div>
 
         <nav className="space-y-3">
+
           {navItem("/seller", "Dashboard", LayoutDashboard)}
+
           {navItem("/seller/orders", "My Orders", ShoppingCart)}
+
           {navItem("/seller/products", "My Products", Package)}
+
           {navItem("/seller/add-product", "Add Product", PlusCircle)}
+
           {navItem("/seller/revenue", "Revenue", DollarSign)}
+
         </nav>
 
       </div>
 
-      {/* Main */}
+
+
+      {/* MAIN CONTENT */}
       <div className="flex-1 min-h-screen overflow-y-auto">
 
+        {/* TOP BAR */}
         <div className="bg-white shadow p-4 flex items-center justify-between md:hidden">
+
           <button onClick={() => setSidebarOpen(true)}>
             <Menu size={24} />
           </button>
@@ -123,8 +148,12 @@ export default function SellerLayout({
           <h1 className="font-semibold text-pink-600">
             Seller Panel
           </h1>
+
         </div>
 
+
+
+        {/* PAGE CONTENT */}
         <div className="p-6 animate-fadeIn">
           {children}
         </div>
