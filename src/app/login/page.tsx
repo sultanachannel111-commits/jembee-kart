@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+
   const {
     user,
     role,
@@ -19,88 +20,155 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loadingType, setLoadingType] = useState<
     "login" | "register" | "google" | "guest" | null
   >(null);
+
   const [message, setMessage] = useState("");
 
   // 🔥 AUTO REDIRECT BASED ON ROLE
   useEffect(() => {
+
     if (!loading && user && role) {
+
       if (role === "seller") {
         router.replace("/seller");
-      } else if (role === "admin") {
+      }
+
+      else if (role === "admin") {
         router.replace("/admin");
-      } else {
+      }
+
+      else {
         router.replace("/");
       }
+
     }
+
   }, [user, role, loading, router]);
 
+
+
   const handleLogin = async () => {
+
     try {
+
       setLoadingType("login");
       setMessage("");
+
       await loginWithEmail(email, password);
-setMessage("Login Successful ✅");
-} catch (error: any) {
-console.log("ERROR CODE:", error.code);
-console.log("ERROR MESSAGE:", error.message);
-setMessage(error.code || "Login Failed ❌");
+
+      setMessage("Login Successful ✅");
+
+    } catch (error: any) {
+
+      console.log("ERROR CODE:", error.code);
+      console.log("ERROR MESSAGE:", error.message);
+
+      setMessage(error.code || "Login Failed ❌");
+
     } finally {
+
       setLoadingType(null);
+
     }
+
   };
+
+
 
   const handleRegister = async () => {
+
     try {
+
       setLoadingType("register");
       setMessage("");
+
       await registerWithEmail(email, password);
+
       setMessage("Registration Successful ✅");
+
     } catch {
+
       setMessage("Registration Failed ❌");
+
     } finally {
+
       setLoadingType(null);
+
     }
+
   };
+
+
 
   const handleGoogle = async () => {
+
     try {
+
       setLoadingType("google");
       setMessage("");
+
       await loginWithGoogle();
+
       setMessage("Google Login Successful ✅");
+
     } catch {
+
       setMessage("Google Login Failed ❌");
+
     } finally {
+
       setLoadingType(null);
+
     }
+
   };
+
+
 
   const handleGuest = async () => {
+
     try {
+
       setLoadingType("guest");
       setMessage("");
+
       await loginAsGuest();
+
       setMessage("Guest Login Successful ✅");
+
     } catch {
+
       setMessage("Guest Login Failed ❌");
+
     } finally {
+
       setLoadingType(null);
+
     }
+
   };
 
+
+
   if (loading) {
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         Checking authentication...
       </div>
     );
+
   }
 
+
+
   return (
+
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+
       <div className="bg-white p-8 rounded-xl shadow-md w-80 space-y-4">
 
         <h2 className="text-xl font-bold text-center">Login</h2>
@@ -164,6 +232,8 @@ setMessage(error.code || "Login Failed ❌");
         </button>
 
       </div>
+
     </div>
+
   );
 }
