@@ -4,52 +4,47 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-export default function SellerAccount() {
+export default function Account(){
 
-const [role,setRole] = useState("");
-const [email,setEmail] = useState("");
+const [user,setUser] = useState<any>(null)
 
 useEffect(()=>{
 
-const fetchUser = async () => {
+async function loadUser(){
 
-const user = auth.currentUser;
+const current = auth.currentUser
 
-if(!user) return;
+if(!current) return
 
-setEmail(user.email || "");
-
-const ref = doc(db,"users",user.uid);
-const snap = await getDoc(ref);
+const snap = await getDoc(doc(db,"users",current.uid))
 
 if(snap.exists()){
-setRole(snap.data().role);
+setUser(snap.data())
 }
 
-};
+}
 
-fetchUser();
+loadUser()
 
-},[]);
+},[])
 
 return(
 
-<div className="p-6">
-
-<h1 className="text-2xl font-bold mb-4">
+<div><h1 className="text-2xl font-bold mb-6">
 Seller Account
-</h1>
+</h1>{!user && (
 
-<div className="bg-white p-4 rounded shadow">
+<p>Loading account...</p>
+)}{user && (
 
-<p><b>Email:</b> {email}</p>
+<div className="bg-white p-6 rounded shadow max-w-lg"><p className="mb-3">
+<b>Name:</b> {user.name || "Not set"}
+</p><p className="mb-3">
+<b>Email:</b> {auth.currentUser?.email}
+</p><p className="mb-3">
+<b>Role:</b> {user.role}
+</p></div>)}
 
-<p><b>Role:</b> {role}</p>
-
-</div>
-
-</div>
-
-);
+</div>)
 
 }
