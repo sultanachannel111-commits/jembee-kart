@@ -1,137 +1,78 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/context/AuthContext";
+import { db, auth } from "@/lib/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
-export default function SellerOrders() {
-  const { user } = useAuth();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function Orders(){
 
-  useEffect(() => {
-    if (!user) return;
+const [orders,setOrders] = useState<any[]>([])
+const [loading,setLoading] = useState(true)
 
-    const fetchOrders = async () => {
-      try {
-        const q = query(
-          collection(db, "orders"),
-          where("sellerId", "==", user.uid)
-        );
+useEffect(()=>{
 
-        const snapshot = await getDocs(q);
+async function loadOrders(){
 
-        const orderList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+try{
 
-        setOrders(orderList);
-      } catch (error) {
-        console.error(error);
-      }
-      setLoading(false);
-    };
+const user = auth.currentUser
 
-    fetchOrders();
-  }, [user]);
+if(!user){
+setLoading(false)
+return
+}
 
-  // 🔄 Status Update (Manual until webhook setup)
-  const updateStatus = async (id: string, newStatus: string) => {
-    await updateDoc(doc(db, "orders", id), {
-      status: newStatus,
-    });
+const q = query(
+collection(db,"orders"),
+where("sellerId","==",user.uid)
+)
 
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === id ? { ...order, status: newStatus } : order
-      )
-    );
-  };
+const snap = await getDocs(q)
 
-  if (loading) return <p className="p-6">Loading Orders...</p>;
+const list = snap.docs.map(d=>({
+id:d.id,
+...d.data()
+}))
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-black">
-        My Orders
-      </h1>
+setOrders(list)
 
-      {orders.length === 0 ? (
-        <p>No Orders Found</p>
-      ) : (
-        <div className="space-y-6">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white shadow-lg rounded-xl p-5 border"
-            >
-              <div className="flex justify-between">
-                <div>
-                  <p className="font-semibold">
-                    Order ID: {order.qikinkOrderId || order.id}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Customer: {order.customerName}
-                  </p>
-                </div>
+}catch(err){
 
-                <div className="text-right">
-                  <p className="font-bold text-pink-600">
-                    ₹{order.sellingPrice}
-                  </p>
-                  <p className="text-green-600 text-sm">
-                    Profit: ₹{order.profit}
-                  </p>
-                </div>
-              </div>
+console.log(err)
 
-              <div className="mt-3 text-sm">
-                <p>Status: 
-                  <span className="ml-2 font-semibold text-blue-600">
-                    {order.status}
-                  </span>
-                </p>
+}
 
-                {order.qikinkTrackingId && (
-                  <p>Tracking: {order.qikinkTrackingId}</p>
-                )}
+setLoading(false)
 
-                {order.courier && (
-                  <p>Courier: {order.courier}</p>
-                )}
-              </div>
+}
 
-              {/* Manual Status Buttons */}
-              <div className="mt-4 flex gap-2 flex-wrap">
-                <button
-                  onClick={() => updateStatus(order.id, "Processing")}
-                  className="px-3 py-1 bg-yellow-500 text-white rounded"
-                >
-                  Processing
-                </button>
+loadOrders()
 
-                <button
-                  onClick={() => updateStatus(order.id, "Shipped")}
-                  className="px-3 py-1 bg-blue-500 text-white rounded"
-                >
-                  Shipped
-                </button>
+},[])
 
-                <button
-                  onClick={() => updateStatus(order.id, "Delivered")}
-                  className="px-3 py-1 bg-green-600 text-white rounded"
-                >
-                  Delivered
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+if(loading){
+return <p className="text-gray-500">Loading orders...</p>
+}
+
+return(
+
+<div><h1 className="text-2xl font-bold mb-6">
+My Orders
+</h1>{orders.length===0 && (
+
+<p>No orders yet</p>
+)}<div className="space-y-4">{orders.map((o:any)=>(
+
+<div key={o.id} className="bg-white shadow p-4 rounded"><h3 className="font-bold">
+{o.productName}
+</h3><p>
+Customer: {o.customerName}
+</p><p>
+Price: ₹{o.price}
+</p><p className="text-blue-600">
+Status: {o.status}
+</p></div>))}
+
+</div></div>)
+
 }
