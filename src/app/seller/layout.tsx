@@ -1,72 +1,62 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, Bell, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { auth, db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function SellerLayout({
 children,
-}: {
-children: React.ReactNode;
-}) {
+}:{
+children:React.ReactNode
+}){
 
-const [open,setOpen] = useState(true);
+const router = useRouter()
+const [loading,setLoading] = useState(true)
 
-return (
+useEffect(()=>{
 
-  <div className="flex min-h-screen bg-gray-100">{/* Sidebar */}
+const unsub = onAuthStateChanged(auth, async(user)=>{
 
-<div className={`bg-black text-white transition-all duration-300 
-${open ? "w-64" : "w-16"} p-5`}>
+if(!user){
+router.replace("/login")
+return
+}
 
-  <button onClick={()=>setOpen(!open)} className="mb-6">
-    <Menu/>
-  </button>
+try{
 
-  {open && (
-    <h2 className="text-xl font-bold text-pink-500 mb-6">
-      Seller Panel
-    </h2>
-  )}
+const snap = await getDoc(doc(db,"users",user.uid))
 
-  <nav className="flex flex-col space-y-4">
+if(!snap.exists()){
+router.replace("/")
+return
+}
 
-    <a href="/seller">Dashboard</a>
-    <a href="/seller/add-product">Add Product</a>
-    <a href="/seller/products">Products</a>
-    <a href="/seller/orders">Orders</a>
-    <a href="/seller/revenue">Revenue</a>
-    <a href="/seller/account">Account</a>
+const data = snap.data()
 
-  </nav>
+if(data.role !== "seller"){
+router.replace("/")
+return
+}
 
-</div>
+setLoading(false)
 
-{/* Main */}
+}catch(err){
+console.log(err)
+router.replace("/")
+}
 
-<div className="flex-1 flex flex-col">
+})
 
-  {/* Top bar */}
+return ()=> unsub()
 
-  <div className="bg-white shadow p-4 flex justify-between items-center">
+},[])
 
-    <h1 className="font-bold text-lg">
-      JembeeKart Seller
-    </h1>
+if(loading){
+return <div className="p-10">Checking seller access...</div>
+}
 
-    <div className="flex gap-4 items-center">
-      <Bell/>
-      <User/>
-    </div>
+return <>{children}</>
 
-  </div>
-
-  {/* Page Content */}
-
-  <div className="p-6">
-    {children}
-  </div>
-
-</div>
-
-  </div>);
 }
