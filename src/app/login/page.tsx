@@ -5,222 +5,197 @@ import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signInAnonymously,
+signInWithEmailAndPassword,
+createUserWithEmailAndPassword,
+signInWithPopup,
+GoogleAuthProvider,
+sendPasswordResetEmail
 } from "firebase/auth";
 
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-export default function LoginPage() {
+export default function LoginPage(){
 
-  const router = useRouter();
+const router = useRouter()
 
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
-  const [message,setMessage] = useState("");
-  const [loading,setLoading] = useState(false);
+const [email,setEmail] = useState("")
+const [password,setPassword] = useState("")
+const [show,setShow] = useState(false)
+const [mode,setMode] = useState("login")
+const [role,setRole] = useState("customer")
 
+const handleLogin = async()=>{
 
+const res = await signInWithEmailAndPassword(auth,email,password)
 
-  // 🔥 EMAIL LOGIN
-  const handleLogin = async () => {
+const snap = await getDoc(doc(db,"users",res.user.uid))
 
-    try{
+if(snap.exists()){
 
-      setLoading(true);
-      setMessage("");
+const data:any = snap.data()
 
-      const res = await signInWithEmailAndPassword(auth,email,password);
+if(data.role==="seller"){
+router.replace("/seller")
+return
+}
 
-      const uid = res.user.uid;
+}
 
-      const snap = await getDoc(doc(db,"users",uid));
+router.replace("/")
 
-      if(snap.exists()){
+}
 
-        const data:any = snap.data();
+const handleRegister = async()=>{
 
-        if(data.role === "seller"){
-          router.replace("/seller");
-        }
+const res = await createUserWithEmailAndPassword(auth,email,password)
 
-        else if(data.role === "admin"){
-          router.replace("/admin");
-        }
+await setDoc(doc(db,"users",res.user.uid),{
+email,
+role
+})
 
-        else{
-          router.replace("/");
-        }
+if(role==="seller"){
+router.replace("/seller")
+}else{
+router.replace("/")
+}
 
-      }else{
-        router.replace("/");
-      }
+}
 
-    }catch(error:any){
+const googleLogin = async()=>{
 
-      setMessage(error.message);
+const provider = new GoogleAuthProvider()
 
-    }
+const res = await signInWithPopup(auth,provider)
 
-    setLoading(false);
+const snap = await getDoc(doc(db,"users",res.user.uid))
 
-  };
+if(!snap.exists()){
 
+await setDoc(doc(db,"users",res.user.uid),{
+email:res.user.email,
+role:"customer"
+})
 
+}
 
-  // 🔥 REGISTER
-  const handleRegister = async () => {
+router.replace("/")
 
-    try{
+}
 
-      setLoading(true);
-      setMessage("");
+const forgotPassword = async()=>{
 
-      const res = await createUserWithEmailAndPassword(auth,email,password);
+await sendPasswordResetEmail(auth,email)
 
-      const uid = res.user.uid;
+alert("Reset link sent")
 
-      await setDoc(doc(db,"users",uid),{
-        email,
-        role:"customer",
-        createdAt: new Date()
-      });
+}
 
-      router.replace("/");
+return(
 
-    }catch(error:any){
+<div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-      setMessage(error.message);
+<div className="bg-white p-8 rounded-xl shadow-xl w-96 space-y-4">
 
-    }
+<h2 className="text-2xl font-bold text-center">
+JembeeKart Login
+</h2>
 
-    setLoading(false);
+<div className="flex gap-2">
 
-  };
+<button
+onClick={()=>setRole("customer")}
+className={`flex-1 py-2 rounded ${role==="customer"?"bg-yellow-400":"bg-gray-200"}`}
+>
+Customer
+</button>
 
+<button
+onClick={()=>setRole("seller")}
+className={`flex-1 py-2 rounded ${role==="seller"?"bg-yellow-400":"bg-gray-200"}`}
+>
+Seller
+</button>
 
+</div>
 
-  // 🔥 GOOGLE LOGIN
-  const handleGoogle = async () => {
+<input
+type="email"
+placeholder="Email"
+className="w-full border p-2 rounded"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+/>
 
-    try{
+<div className="flex border rounded">
 
-      const provider = new GoogleAuthProvider();
+<input
+type={show?"text":"password"}
+placeholder="Password"
+className="flex-1 p-2 outline-none"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+/>
 
-      const res = await signInWithPopup(auth,provider);
+<button onClick={()=>setShow(!show)} className="px-3">
+{show?"Hide":"Show"}
+</button>
 
-      const uid = res.user.uid;
+</div>
 
-      const snap = await getDoc(doc(db,"users",uid));
+{mode==="login" ? (
 
-      if(!snap.exists()){
+<button
+onClick={handleLogin}
+className="w-full bg-black text-white py-2 rounded"
+>
+Login
+</button>
 
-        await setDoc(doc(db,"users",uid),{
-          email:res.user.email,
-          role:"customer",
-          createdAt:new Date()
-        });
+):( 
 
-      }
+<button
+onClick={handleRegister}
+className="w-full bg-black text-white py-2 rounded"
+>
+Register
+</button>
 
-      router.replace("/");
+)}
 
-    }catch(error:any){
+<button
+onClick={googleLogin}
+className="w-full bg-red-500 text-white py-2 rounded"
+>
+Login with Google
+</button>
 
-      setMessage(error.message);
+<button
+onClick={forgotPassword}
+className="text-red-500 text-sm"
+>
+Forgot Password
+</button>
 
-    }
+<p className="text-center text-sm">
 
-  };
+{mode==="login"?"No account?":"Already have account?"}
 
+<span
+onClick={()=>setMode(mode==="login"?"register":"login")}
+className="text-blue-500 cursor-pointer ml-1"
+>
 
+{mode==="login"?"Register":"Login"}
 
-  // 🔥 GUEST LOGIN
-  const handleGuest = async () => {
+</span>
 
-    try{
+</p>
 
-      await signInAnonymously(auth);
+</div>
 
-      router.replace("/");
+</div>
 
-    }catch(error:any){
-
-      setMessage(error.message);
-
-    }
-
-  };
-
-
-
-  return (
-
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-
-      <div className="bg-white p-8 rounded-xl shadow-md w-80 space-y-4">
-
-        <h2 className="text-xl font-bold text-center">
-          Login
-        </h2>
-
-        {message && (
-          <div className="text-red-500 text-sm text-center">
-            {message}
-          </div>
-        )}
-
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full border p-2 rounded"
-          value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full border p-2 rounded"
-          value={password}
-          onChange={(e)=>setPassword(e.target.value)}
-        />
-
-        <button
-          onClick={handleLogin}
-          className="w-full bg-black text-white py-2 rounded"
-        >
-          {loading ? "Please wait..." : "Login"}
-        </button>
-
-        <button
-          onClick={handleRegister}
-          className="w-full bg-gray-700 text-white py-2 rounded"
-        >
-          Register
-        </button>
-
-        <button
-          onClick={handleGoogle}
-          className="w-full bg-red-500 text-white py-2 rounded"
-        >
-          Login with Google
-        </button>
-
-        <button
-          onClick={handleGuest}
-          className="w-full bg-green-500 text-white py-2 rounded"
-        >
-          Continue as Guest
-        </button>
-
-      </div>
-
-    </div>
-
-  );
+)
 
 }
