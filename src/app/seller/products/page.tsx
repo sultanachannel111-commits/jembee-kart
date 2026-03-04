@@ -1,89 +1,79 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  deleteDoc,
-  doc,
-} from "firebase/firestore";
-import { useAuth } from "@/context/AuthContext";
+import { db, auth } from "@/lib/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
-export default function SellerProducts() {
-  const { user } = useAuth();
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function Products(){
 
-  const fetchProducts = async (uid: string) => {
-    const q = query(
-      collection(db, "products"),
-      where("sellerId", "==", uid)
-    );
+const [products,setProducts] = useState<any[]>([])
+const [loading,setLoading] = useState(true)
 
-    const snapshot = await getDocs(q);
+useEffect(()=>{
 
-    const list = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+async function loadProducts(){
 
-    setProducts(list);
-    setLoading(false);
-  };
+try{
 
-  useEffect(() => {
-    if (user?.uid) {
-      fetchProducts(user.uid);
-    }
-  }, [user]);
+const user = auth.currentUser
 
-  const handleDelete = async (id: string) => {
-    await deleteDoc(doc(db, "products", id));
-    if (user?.uid) fetchProducts(user.uid);
-  };
+if(!user){
+setLoading(false)
+return
+}
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">
-        My Products
-      </h1>
+const q = query(
+collection(db,"products"),
+where("sellerId","==",user.uid)
+)
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : products.length === 0 ? (
-        <p>No products found</p>
-      ) : (
-        <div className="space-y-4">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white p-4 rounded shadow"
-            >
-              <h2 className="font-bold">
-                {product.name}
-              </h2>
+const snap = await getDocs(q)
 
-              <p>
-                ₹ {product.sellingPrice || product.price}
-              </p>
+const list = snap.docs.map(d=>({
+id:d.id,
+...d.data()
+}))
 
-              <p>Status: {product.status}</p>
+setProducts(list)
 
-              <button
-                onClick={() => handleDelete(product.id)}
-                className="bg-red-500 text-white px-4 py-1 mt-2 rounded"
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+}catch(err){
+
+console.log(err)
+
+}
+
+setLoading(false)
+
+}
+
+loadProducts()
+
+},[])
+
+if(loading){
+return <p className="text-gray-500">Loading products...</p>
+}
+
+return(
+
+<div><h1 className="text-2xl font-bold mb-6">
+My Products
+</h1>{products.length===0 && (
+
+<p>No products added yet</p>
+)}<div className="grid md:grid-cols-3 gap-6">{products.map((p:any)=>(
+
+<div key={p.id} className="bg-white shadow rounded p-4"><img
+src={p.image}
+className="w-full h-40 object-cover rounded"
+/>
+
+<h3 className="font-bold mt-2">
+{p.title}
+</h3><p className="text-pink-600 font-semibold">
+₹{p.price}
+</p></div>))}
+
+</div></div>)
+
 }
