@@ -115,6 +115,7 @@ export default function AdminLayout({
           {navItem("/admin/products", "Products", Package)}
           {navItem("/admin/orders", "Orders", ShoppingCart)}
           {navItem("/admin/users", "Users", Users)}
+          {navItem("/admin/sellers", "Sellers", Users)}
           {navItem("/admin/banners", "Banners", Image)}
 
           {/* ✅ NEW ITEMS ADDED BELOW */}
