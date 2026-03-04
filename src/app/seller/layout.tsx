@@ -27,10 +27,16 @@ export default function SellerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-  if (!loading && role !== "seller") {
-    router.replace("/");
+    if (loading) return;
+
+    if (role !== "seller") {
+      router.replace("/auth");
+    }
+  }, [role, loading, router]);
+
+  if (loading) {
+    return <div className="p-10">Loading Seller Panel...</div>;
   }
-}, [role, loading]);
 
   const navItem = (href: string, label: string, Icon: any) => {
     const isActive = pathname === href;
@@ -63,7 +69,7 @@ export default function SellerLayout({
         />
       )}
 
-      {/* Sidebar FIXED */}
+      {/* Sidebar */}
       <div
         className={`fixed md:static z-50 top-0 left-0 
         min-h-screen overflow-y-auto w-64 
@@ -93,7 +99,7 @@ export default function SellerLayout({
         </nav>
       </div>
 
-      {/* Main Area FIXED */}
+      {/* Main Area */}
       <div className="flex-1 min-h-screen overflow-y-auto">
 
         {/* Top Bar */}
