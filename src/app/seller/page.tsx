@@ -1,101 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+export default function SellerDashboard(){
 
-export default function LoginPage() {
+return(
 
-const router = useRouter();
-
-const [email,setEmail] = useState("");
-const [password,setPassword] = useState("");
-const [loading,setLoading] = useState(false);
-const [error,setError] = useState("");
-
-async function handleLogin(e:any){
-
-e.preventDefault();
-
-try{
-
-setLoading(true);
-setError("");
-
-const res = await signInWithEmailAndPassword(auth,email,password);
-
-const user = res.user;
-
-const snap = await getDoc(doc(db,"users",user.uid));
-
-if(!snap.exists()){
-router.push("/");
-return;
-}
-
-const data = snap.data();
-
-if(data.role === "admin"){
-router.push("/dashboard");
-return;
-}
-
-if(data.role === "seller"){
-router.push("/seller");
-return;
-}
-
-router.push("/");
-
-}catch(err){
-
-console.log(err);
-setError("Login failed");
-
-}
-
-setLoading(false);
-
-}
-
-return (
-
-<div className="flex items-center justify-center min-h-screen bg-gray-100"><form
-onSubmit={handleLogin}
-className="bg-white p-6 rounded shadow w-80 space-y-4"
-><h2 className="text-xl font-bold text-center">
-Login
-</h2>{error && (
-
-<p className="text-red-500 text-center text-sm">
-{error}
-</p>
-)}<input
-type="email"
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-className="w-full border p-2 rounded"
-/>
-
-<input
-type="password"
-placeholder="Password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-className="w-full border p-2 rounded"
-/>
-
-<button
-type="submit"
-disabled={loading}
-className="w-full bg-pink-500 text-white py-2 rounded"
-
-{loading ? "Logging in..." : "Login"}
-</button>
-
-</form></div>);
+<div className="space-y-6"><h1 className="text-2xl font-bold">
+Seller Dashboard
+</h1><div className="grid grid-cols-2 gap-4"><div className="bg-white p-4 rounded shadow">
+<p>Total Orders</p>
+<h2 className="text-xl font-bold">0</h2>
+</div><div className="bg-white p-4 rounded shadow">
+<p>Revenue</p>
+<h2 className="text-xl font-bold">₹0</h2>
+</div><div className="bg-white p-4 rounded shadow">
+<p>Products</p>
+<h2 className="text-xl font-bold">0</h2>
+</div><div className="bg-white p-4 rounded shadow">
+<p>Pending Orders</p>
+<h2 className="text-xl font-bold">0</h2>
+</div></div></div>)
 
 }
