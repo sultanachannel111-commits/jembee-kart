@@ -21,24 +21,35 @@ export default function SellerLayout({
 }: {
   children: React.ReactNode;
 }) {
+
   const { role, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+
     if (loading) return;
+
+    if (role === null) return;
 
     if (role !== "seller") {
       router.replace("/auth");
     }
+
   }, [role, loading, router]);
 
-  if (loading) {
-    return <div className="p-10">Loading Seller Panel...</div>;
+  if (loading || role === null) {
+    return (
+      <div className="p-10 text-center">
+        Loading Seller Panel...
+      </div>
+    );
   }
 
   const navItem = (href: string, label: string, Icon: any) => {
+
     const isActive = pathname === href;
 
     return (
@@ -61,7 +72,7 @@ export default function SellerLayout({
   return (
     <div className="min-h-screen flex bg-gray-100">
 
-      {/* Overlay Mobile */}
+      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -73,10 +84,11 @@ export default function SellerLayout({
       <div
         className={`fixed md:static z-50 top-0 left-0 
         min-h-screen overflow-y-auto w-64 
-        bg-black text-white p-5 transform transition-transform duration-300 ease-in-out
+        bg-black text-white p-5 transform transition-transform duration-300
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0`}
       >
+
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-pink-500">
             Jembee Seller
@@ -97,12 +109,12 @@ export default function SellerLayout({
           {navItem("/seller/add-product", "Add Product", PlusCircle)}
           {navItem("/seller/revenue", "Revenue", DollarSign)}
         </nav>
+
       </div>
 
-      {/* Main Area */}
+      {/* Main */}
       <div className="flex-1 min-h-screen overflow-y-auto">
 
-        {/* Top Bar */}
         <div className="bg-white shadow p-4 flex items-center justify-between md:hidden">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu size={24} />
@@ -113,11 +125,12 @@ export default function SellerLayout({
           </h1>
         </div>
 
-        {/* Page Content */}
         <div className="p-6 animate-fadeIn">
           {children}
         </div>
+
       </div>
+
     </div>
   );
 }
