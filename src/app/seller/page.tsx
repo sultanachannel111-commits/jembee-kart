@@ -1,35 +1,103 @@
-export default function SellerDashboard(){
+"use client";
 
-return(
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
-<div>
+export default function LoginPage() {
 
-<h1 className="text-2xl font-bold mb-4">
-Seller Dashboard
-</h1>
+const router = useRouter();
 
-<div className="grid grid-cols-2 gap-4">
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [loading,setLoading] = useState(false);
+const [error,setError] = useState("");
 
-<div className="bg-white shadow p-4 rounded">
-Total Orders
-</div>
+async function handleLogin(e:any){
 
-<div className="bg-white shadow p-4 rounded">
-Revenue
-</div>
+e.preventDefault();
 
-<div className="bg-white shadow p-4 rounded">
-Products
-</div>
+try{
 
-<div className="bg-white shadow p-4 rounded">
-Pending Orders
-</div>
+setLoading(true);
+setError("");
 
-</div>
+const res = await signInWithEmailAndPassword(auth,email,password);
 
-</div>
+const user = res.user;
 
-)
+const snap = await getDoc(doc(db,"users",user.uid));
+
+if(!snap.exists()){
+router.push("/");
+return;
+}
+
+const data = snap.data();
+
+if(data.role === "admin"){
+router.push("/dashboard");
+return;
+}
+
+if(data.role === "seller"){
+router.push("/seller");
+return;
+}
+
+router.push("/");
+
+}catch(err){
+
+console.log(err);
+setError("Login failed");
+
+}
+
+setLoading(false);
+
+}
+
+return (
+
+<div className="flex items-center justify-center min-h-screen bg-gray-100"><form
+onSubmit={handleLogin}
+className="bg-white p-6 rounded shadow w-80 space-y-4"
+><h2 className="text-xl font-bold text-center">
+Login
+</h2>{error && (
+
+<p className="text-red-500 text-center text-sm">
+{error}
+</p>
+)}<input
+type="email"
+placeholder="Email"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+className="w-full border p-2 rounded"
+/>
+
+<input
+type="password"
+placeholder="Password"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+className="w-full border p-2 rounded"
+/>
+
+<button
+type="submit"
+disabled={loading}
+className="w-full bg-pink-500 text-white py-2 rounded"
+
+«»
+
+{loading ? "Logging in..." : "Login"}
+</button>
+
+</form></div>);
 
 }
