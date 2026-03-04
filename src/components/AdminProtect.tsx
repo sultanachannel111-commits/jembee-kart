@@ -15,7 +15,6 @@ export default function AdminProtect({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
 
       if (!user) {
@@ -24,7 +23,6 @@ export default function AdminProtect({
       }
 
       try {
-
         const userDoc = await getDoc(doc(db, "users", user.uid));
 
         if (!userDoc.exists()) {
@@ -34,8 +32,8 @@ export default function AdminProtect({
 
         const data = userDoc.data();
 
-        // ✅ Only admin allowed
-        if (data.role !== "admin") {
+        // ✅ admin aur seller dono allowed
+        if (data.role !== "admin" && data.role !== "seller") {
           router.push("/");
           return;
         }
@@ -50,8 +48,7 @@ export default function AdminProtect({
     });
 
     return () => unsubscribe();
-
-  }, []);
+  }, [router]);
 
   if (loading) {
     return <div className="p-10">Checking access...</div>;
