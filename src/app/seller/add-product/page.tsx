@@ -82,6 +82,7 @@ export default function AddProduct() {
         description: form.description,
         designLink: form.designLink,
         mockupLink: form.mockupLink,
+        imageUrl: form.imageUrl,
         costPrice: Number(form.costPrice),
         sellingPrice: Number(form.sellingPrice),
         profit: profit,
@@ -111,6 +112,7 @@ export default function AddProduct() {
         description: "",
         designLink: "",
         mockupLink: "",
+        imageUrl: "",
         costPrice: "",
         sellingPrice: "",
         stock: "",
@@ -168,7 +170,14 @@ export default function AddProduct() {
             onChange={handleChange}
             className="w-full border px-4 py-2 rounded"
           />
-
+          {/* Product Image URL */}
+<input
+  name="imageUrl"
+  placeholder="Product Image URL"
+  value={form.imageUrl || ""}
+  onChange={handleChange}
+  className="w-full border px-4 py-2 rounded"
+/>
           {/* 🔥 Qikink Dynamic Category */}
           <select
             value={form.category}
