@@ -24,7 +24,7 @@ export default function AdminProtect({
       const userDoc = await getDoc(doc(db, "users", user.uid));
 
       if (!userDoc.exists()) {
-  router.push("/")
+  router.push("/");
   return;
 }
 
