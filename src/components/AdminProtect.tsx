@@ -11,7 +11,6 @@ export default function AdminProtect({
 }: {
   children: React.ReactNode;
 }) {
-
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +34,7 @@ export default function AdminProtect({
 
         const data = userDoc.data();
 
-        // ✅ ADMIN CHECK
+        // ✅ Only admin allowed
         if (data.role !== "admin") {
           router.push("/");
           return;
@@ -52,9 +51,11 @@ export default function AdminProtect({
 
     return () => unsubscribe();
 
-  }, [router]);
+  }, []);
 
-  if (loading) return <div className="p-10">Checking access...</div>;
+  if (loading) {
+    return <div className="p-10">Checking access...</div>;
+  }
 
   return <>{children}</>;
 }
