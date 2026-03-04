@@ -1,126 +1,136 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
+
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInAnonymously,
+} from "firebase/auth";
+
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export default function LoginPage() {
 
-  const {
-    user,
-    role,
-    loading,
-    loginWithGoogle,
-    registerWithEmail,
-    loginWithEmail,
-    loginAsGuest,
-  } = useAuth();
-
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+  const [message,setMessage] = useState("");
+  const [loading,setLoading] = useState(false);
 
-  const [loadingType, setLoadingType] = useState<
-    "login" | "register" | "google" | "guest" | null
-  >(null);
 
-  const [message, setMessage] = useState("");
 
-  // 🔥 AUTO REDIRECT BASED ON ROLE
-  useEffect(() => {
+  // 🔥 EMAIL LOGIN
+  const handleLogin = async () => {
 
-    if (!loading && user && role) {
+    try{
 
-      if (role === "seller") {
-        router.replace("/seller");
-      }
+      setLoading(true);
+      setMessage("");
 
-      else if (role === "admin") {
-        router.replace("/admin");
-      }
+      const res = await signInWithEmailAndPassword(auth,email,password);
 
-      else {
+      const uid = res.user.uid;
+
+      const snap = await getDoc(doc(db,"users",uid));
+
+      if(snap.exists()){
+
+        const data:any = snap.data();
+
+        if(data.role === "seller"){
+          router.replace("/seller");
+        }
+
+        else if(data.role === "admin"){
+          router.replace("/admin");
+        }
+
+        else{
+          router.replace("/");
+        }
+
+      }else{
         router.replace("/");
       }
 
-    }
+    }catch(error:any){
 
-  }, [user, role, loading, router]);
-
-
-
-  const handleLogin = async () => {
-
-    try {
-
-      setLoadingType("login");
-      setMessage("");
-
-      await loginWithEmail(email, password);
-
-      setMessage("Login Successful ✅");
-
-    } catch (error: any) {
-
-      console.log("ERROR CODE:", error.code);
-      console.log("ERROR MESSAGE:", error.message);
-
-      setMessage(error.code || "Login Failed ❌");
-
-    } finally {
-
-      setLoadingType(null);
+      setMessage(error.message);
 
     }
+
+    setLoading(false);
 
   };
 
 
 
+  // 🔥 REGISTER
   const handleRegister = async () => {
 
-    try {
+    try{
 
-      setLoadingType("register");
+      setLoading(true);
       setMessage("");
 
-      await registerWithEmail(email, password);
+      const res = await createUserWithEmailAndPassword(auth,email,password);
 
-      setMessage("Registration Successful ✅");
+      const uid = res.user.uid;
 
-    } catch {
+      await setDoc(doc(db,"users",uid),{
+        email,
+        role:"customer",
+        createdAt: new Date()
+      });
 
-      setMessage("Registration Failed ❌");
+      router.replace("/");
 
-    } finally {
+    }catch(error:any){
 
-      setLoadingType(null);
+      setMessage(error.message);
 
     }
+
+    setLoading(false);
 
   };
 
 
 
+  // 🔥 GOOGLE LOGIN
   const handleGoogle = async () => {
 
-    try {
+    try{
 
-      setLoadingType("google");
-      setMessage("");
+      const provider = new GoogleAuthProvider();
 
-      await loginWithGoogle();
+      const res = await signInWithPopup(auth,provider);
 
-      setMessage("Google Login Successful ✅");
+      const uid = res.user.uid;
 
-    } catch {
+      const snap = await getDoc(doc(db,"users",uid));
 
-      setMessage("Google Login Failed ❌");
+      if(!snap.exists()){
 
-    } finally {
+        await setDoc(doc(db,"users",uid),{
+          email:res.user.email,
+          role:"customer",
+          createdAt:new Date()
+        });
 
-      setLoadingType(null);
+      }
+
+      router.replace("/");
+
+    }catch(error:any){
+
+      setMessage(error.message);
 
     }
 
@@ -128,40 +138,22 @@ export default function LoginPage() {
 
 
 
+  // 🔥 GUEST LOGIN
   const handleGuest = async () => {
 
-    try {
+    try{
 
-      setLoadingType("guest");
-      setMessage("");
+      await signInAnonymously(auth);
 
-      await loginAsGuest();
+      router.replace("/");
 
-      setMessage("Guest Login Successful ✅");
+    }catch(error:any){
 
-    } catch {
-
-      setMessage("Guest Login Failed ❌");
-
-    } finally {
-
-      setLoadingType(null);
+      setMessage(error.message);
 
     }
 
   };
-
-
-
-  if (loading) {
-
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Checking authentication...
-      </div>
-    );
-
-  }
 
 
 
@@ -171,10 +163,12 @@ export default function LoginPage() {
 
       <div className="bg-white p-8 rounded-xl shadow-md w-80 space-y-4">
 
-        <h2 className="text-xl font-bold text-center">Login</h2>
+        <h2 className="text-xl font-bold text-center">
+          Login
+        </h2>
 
         {message && (
-          <div className="text-center text-sm font-medium">
+          <div className="text-red-500 text-sm text-center">
             {message}
           </div>
         )}
@@ -184,7 +178,7 @@ export default function LoginPage() {
           placeholder="Email"
           className="w-full border p-2 rounded"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e)=>setEmail(e.target.value)}
         />
 
         <input
@@ -192,43 +186,35 @@ export default function LoginPage() {
           placeholder="Password"
           className="w-full border p-2 rounded"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e)=>setPassword(e.target.value)}
         />
 
         <button
           onClick={handleLogin}
-          disabled={loadingType !== null}
           className="w-full bg-black text-white py-2 rounded"
         >
-          {loadingType === "login" ? "Please wait..." : "Login"}
+          {loading ? "Please wait..." : "Login"}
         </button>
 
         <button
           onClick={handleRegister}
-          disabled={loadingType !== null}
           className="w-full bg-gray-700 text-white py-2 rounded"
         >
-          {loadingType === "register" ? "Please wait..." : "Register"}
+          Register
         </button>
 
         <button
           onClick={handleGoogle}
-          disabled={loadingType !== null}
           className="w-full bg-red-500 text-white py-2 rounded"
         >
-          {loadingType === "google"
-            ? "Please wait..."
-            : "Login with Google"}
+          Login with Google
         </button>
 
         <button
           onClick={handleGuest}
-          disabled={loadingType !== null}
           className="w-full bg-green-500 text-white py-2 rounded"
         >
-          {loadingType === "guest"
-            ? "Please wait..."
-            : "Continue as Guest"}
+          Continue as Guest
         </button>
 
       </div>
@@ -236,4 +222,5 @@ export default function LoginPage() {
     </div>
 
   );
+
 }
