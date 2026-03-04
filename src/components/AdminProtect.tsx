@@ -23,10 +23,10 @@ export default function AdminProtect({
 
       const userDoc = await getDoc(doc(db, "users", user.uid));
 
-      if (!userDoc.exists() || userDoc.data().role !== "seller") {
-        router.push("/");
-        return;
-      }
+      if (!userDoc.exists()) {
+  router.push("/")
+  return;
+}
 
       setLoading(false);
     });
