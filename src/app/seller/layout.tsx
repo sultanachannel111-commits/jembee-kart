@@ -1,43 +1,72 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import { Menu, Bell, User } from "lucide-react";
 
 export default function SellerLayout({
-  children,
+children,
 }: {
-  children: React.ReactNode;
+children: React.ReactNode;
 }) {
 
-  const { loading } = useAuth();
+const [open,setOpen] = useState(true);
 
-  if (loading) {
-    return (
-      <div className="p-10">
-        Loading seller panel...
-      </div>
-    );
-  }
+return (
 
-  return (
-    <div className="flex min-h-screen">
+  <div className="flex min-h-screen bg-gray-100">{/* Sidebar */}
 
-      <div className="w-64 bg-black text-white p-6 space-y-4">
+<div className={`bg-black text-white transition-all duration-300 
+${open ? "w-64" : "w-16"} p-5`}>
 
-        <h2 className="text-xl font-bold text-pink-500">
-          Seller Panel
-        </h2>
+  <button onClick={()=>setOpen(!open)} className="mb-6">
+    <Menu/>
+  </button>
 
-        <a href="/seller">Dashboard</a>
-        <a href="/seller/products">Products</a>
-        <a href="/seller/orders">Orders</a>
-        <a href="/seller/revenue">Revenue</a>
+  {open && (
+    <h2 className="text-xl font-bold text-pink-500 mb-6">
+      Seller Panel
+    </h2>
+  )}
 
-      </div>
+  <nav className="flex flex-col space-y-4">
 
-      <div className="flex-1 p-6">
-        {children}
-      </div>
+    <a href="/seller">Dashboard</a>
+    <a href="/seller/add-product">Add Product</a>
+    <a href="/seller/products">Products</a>
+    <a href="/seller/orders">Orders</a>
+    <a href="/seller/revenue">Revenue</a>
+    <a href="/seller/account">Account</a>
 
+  </nav>
+
+</div>
+
+{/* Main */}
+
+<div className="flex-1 flex flex-col">
+
+  {/* Top bar */}
+
+  <div className="bg-white shadow p-4 flex justify-between items-center">
+
+    <h1 className="font-bold text-lg">
+      JembeeKart Seller
+    </h1>
+
+    <div className="flex gap-4 items-center">
+      <Bell/>
+      <User/>
     </div>
-  );
+
+  </div>
+
+  {/* Page Content */}
+
+  <div className="p-6">
+    {children}
+  </div>
+
+</div>
+
+  </div>);
 }
