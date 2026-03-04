@@ -27,7 +27,10 @@ export default function SellerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-  }, [role, loading]);
+  if (!loading && role !== "seller") {
+    router.replace("/");
+  }
+}, [role, loading]);
 
   const navItem = (href: string, label: string, Icon: any) => {
     const isActive = pathname === href;
