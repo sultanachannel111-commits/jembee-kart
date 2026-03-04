@@ -52,11 +52,17 @@ setButton(button);
 
 return(
 
-<div className="p-6 space-y-6"><h1 className="text-3xl font-bold">
-Website Theme Control
-</h1>{/* COLOR PICKERS */}
+<div className="p-6 space-y-6">
 
-<div className="space-y-3"><div>
+<h1 className="text-3xl font-bold">
+Website Theme Control
+</h1>
+
+{/* COLOR PICKERS */}
+
+<div className="space-y-3">
+
+<div>
 Background Color
 <input
 type="color"
@@ -64,7 +70,9 @@ value={bg}
 onChange={(e)=>setBg(e.target.value)}
 className="ml-3"
 />
-</div><div>
+</div>
+
+<div>
 Header Color
 <input
 type="color"
@@ -72,7 +80,9 @@ value={header}
 onChange={(e)=>setHeader(e.target.value)}
 className="ml-3"
 />
-</div><div>
+</div>
+
+<div>
 Button Color
 <input
 type="color"
@@ -80,16 +90,26 @@ value={button}
 onChange={(e)=>setButton(e.target.value)}
 className="ml-3"
 />
-</div></div>{/* PREVIEW */}
+</div>
 
-<div className="border p-6 rounded shadow"><h2 className="font-bold mb-3">
+</div>
+
+{/* PREVIEW */}
+
+<div className="border p-6 rounded shadow">
+
+<h2 className="font-bold mb-3">
 Live Preview
-</h2><div
+</h2>
+
+<div
 style={{
 background:bg,
 padding:"20px"
 }}
-><div
+>
+
+<div
 style={{
 background:header,
 color:"#fff",
@@ -97,24 +117,27 @@ padding:"10px"
 }}
 >
 Header Preview
-</div><button
+</div>
+
+<button
 style={{
 background:button,
 color:"#fff",
 padding:"10px 20px",
 marginTop:"10px"
 }}
-
-
+>
 Button Preview
 </button>
 
 </div>
+
 </div>
 
 {/* PRESET COLOR THEMES */}
 
 <div className="space-y-2">
+
 <h2 className="font-bold">
 Color Themes
 </h2>
@@ -152,4 +175,5 @@ Save Theme
 </div>
 
 );
+
 }
