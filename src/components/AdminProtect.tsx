@@ -19,7 +19,6 @@ export default function AdminProtect({
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
 
-      // User login check
       if (!user) {
         router.push("/auth");
         return;
@@ -29,7 +28,6 @@ export default function AdminProtect({
 
         const userDoc = await getDoc(doc(db, "users", user.uid));
 
-        // User document check
         if (!userDoc.exists()) {
           router.push("/");
           return;
@@ -37,17 +35,16 @@ export default function AdminProtect({
 
         const data = userDoc.data();
 
-        // Admin role check
+        // ✅ ADMIN CHECK
         if (data.role !== "admin") {
           router.push("/");
           return;
         }
 
-        // Allow admin
         setLoading(false);
 
       } catch (error) {
-        console.error("Admin check error:", error);
+        console.log(error);
         router.push("/");
       }
 
@@ -57,9 +54,7 @@ export default function AdminProtect({
 
   }, [router]);
 
-  if (loading) {
-    return <div className="p-10">Checking access...</div>;
-  }
+  if (loading) return <div className="p-10">Checking access...</div>;
 
   return <>{children}</>;
 }
