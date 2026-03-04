@@ -123,6 +123,7 @@ export default function AdminLayout({
           {navItem("/admin/offers", "Discount & Offer Timer", Timer)}
           {navItem("/admin/monitor","System Monitor", Activity)}
           {navItem("/admin/diagnostics","Diagnostics", Activity)}
+          {navItem("/admin/settings","Theme Control", Activity)}
         </nav>
 
         <button
