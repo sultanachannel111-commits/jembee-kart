@@ -29,7 +29,7 @@ loadTheme();
         />
       </head>
 
-      <body className={`${inter.className} bg-pink-50 pb-16`}>
+      <body className={`${inter.className} pb-16`}>
         <AuthProvider>
           <CartProvider>
             {children}
