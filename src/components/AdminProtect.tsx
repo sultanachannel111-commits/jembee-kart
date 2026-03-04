@@ -11,30 +11,55 @@ export default function AdminProtect({
 }: {
   children: React.ReactNode;
 }) {
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+
+      // User login check
       if (!user) {
         router.push("/auth");
         return;
       }
 
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      try {
 
-      if (!userDoc.exists()) {
-  router.push("/");
-  return;
-}
+        const userDoc = await getDoc(doc(db, "users", user.uid));
 
-      setLoading(false);
+        // User document check
+        if (!userDoc.exists()) {
+          router.push("/");
+          return;
+        }
+
+        const data = userDoc.data();
+
+        // Admin role check
+        if (data.role !== "admin") {
+          router.push("/");
+          return;
+        }
+
+        // Allow admin
+        setLoading(false);
+
+      } catch (error) {
+        console.error("Admin check error:", error);
+        router.push("/");
+      }
+
     });
 
     return () => unsubscribe();
-  }, []);
 
-  if (loading) return <div className="p-10">Checking access...</div>;
+  }, [router]);
+
+  if (loading) {
+    return <div className="p-10">Checking access...</div>;
+  }
 
   return <>{children}</>;
 }
