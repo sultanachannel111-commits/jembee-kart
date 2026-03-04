@@ -105,7 +105,6 @@ padding:"10px 20px",
 marginTop:"10px"
 }}
 
-«»
 
 Button Preview
 </button>
@@ -118,7 +117,6 @@ Color Themes
 onClick={()=>setTheme("#ffffff","#000000","#e91e63")}
 className="border px-3 py-2 mr-2"
 
-«»
 
 Classic
 </button>
@@ -127,7 +125,6 @@ Classic
 onClick={()=>setTheme("#f5f5f5","#3f51b5","#ff9800")}
 className="border px-3 py-2 mr-2"
 
-«»
 
 Modern
 </button>
@@ -136,7 +133,6 @@ Modern
 onClick={()=>setTheme("#1e1e1e","#000000","#4caf50")}
 className="border px-3 py-2 mr-2 text-white"
 
-«»
 
 Dark
 </button>
@@ -145,7 +141,6 @@ Dark
 onClick={saveTheme}
 className="bg-pink-600 text-white px-4 py-2 rounded"
 
-«»
 
 Save Theme
 </button>
