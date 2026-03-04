@@ -92,12 +92,12 @@ export default function ProductPage() {
     <div className="min-h-screen p-6 pt-[100px] bg-gradient-to-b from-pink-100 to-white">
 
       {/* IMAGE */}
-      {product.image && (
-        <img
-          src={product.image}
-          className="w-full h-80 object-cover rounded-xl"
-        />
-      )}
+      {(product.image || product.imageUrl) && (
+  <img
+    src={product.image || product.imageUrl}
+    className="w-full h-80 object-cover rounded-xl"
+  />
+)}
 
       {/* NAME */}
       <h1 className="text-2xl font-bold mt-6">
