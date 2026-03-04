@@ -11,10 +11,12 @@ export default function AdminProtect({
 }: {
   children: React.ReactNode;
 }) {
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
 
       if (!user) {
@@ -23,22 +25,23 @@ export default function AdminProtect({
       }
 
       try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
 
-        if (!userDoc.exists()) {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
           router.push("/");
           return;
         }
 
-        const data = userDoc.data();
+        const data = userSnap.data();
 
-        // ✅ admin aur seller dono allowed
-        if (data.role !== "admin" && data.role !== "seller") {
+        // ✅ Admin OR Seller allowed
+        if (data.role === "admin" || data.role === "seller") {
+          setLoading(false);
+        } else {
           router.push("/");
-          return;
         }
-
-        setLoading(false);
 
       } catch (error) {
         console.log(error);
@@ -48,10 +51,15 @@ export default function AdminProtect({
     });
 
     return () => unsubscribe();
+
   }, [router]);
 
   if (loading) {
-    return <div className="p-10">Checking access...</div>;
+    return (
+      <div className="p-10 text-center">
+        Checking access...
+      </div>
+    );
   }
 
   return <>{children}</>;
