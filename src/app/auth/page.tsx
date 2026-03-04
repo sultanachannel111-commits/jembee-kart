@@ -7,10 +7,11 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
+
   const router = useRouter();
 
   const [isLogin, setIsLogin] = useState(true);
@@ -20,63 +21,96 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
 
   const handleAuth = async () => {
+
     if (!email || !password) {
       alert("Please fill all fields");
       return;
     }
 
     try {
-      if (isLogin) {
-        // LOGIN
-        await signInWithEmailAndPassword(auth, email, password);
 
-        if (role === "seller") {
-          router.push("/admin/dashboard");
-        } else {
+      if (isLogin) {
+
+        // LOGIN
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        // GET ROLE FROM FIRESTORE
+        const userDoc = await getDoc(
+          doc(db, "users", userCredential.user.uid)
+        );
+
+        if (!userDoc.exists()) {
+          router.push("/");
+          return;
+        }
+
+        const data = userDoc.data();
+
+        // ROLE BASED REDIRECT
+        if (data.role === "admin") {
+          router.push("/admin");
+        } 
+        else if (data.role === "seller") {
+          router.push("/seller");
+        } 
+        else {
           router.push("/");
         }
-      } else {
-        // SIGNUP
-        const userCredential =
-          await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password
-          );
 
-        // Save role in Firestore
+      } else {
+
+        // SIGNUP
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        // SAVE ROLE IN FIRESTORE
         await setDoc(doc(db, "users", userCredential.user.uid), {
           email,
           role,
           createdAt: new Date(),
         });
 
+        // REDIRECT AFTER SIGNUP
         if (role === "seller") {
-          router.push("/admin/dashboard");
+          router.push("/seller");
         } else {
           router.push("/");
         }
+
       }
+
     } catch (error: any) {
       alert(error.message);
     }
   };
 
   const handleForgotPassword = async () => {
+
     if (!email) {
       alert("Enter your email first");
       return;
     }
 
     try {
+
       await sendPasswordResetEmail(auth, email);
       alert("Password reset link sent to your email");
+
     } catch (error: any) {
       alert(error.message);
     }
+
   };
 
   return (
+
     <div className="min-h-screen flex items-center justify-center bg-[#f1f3f6]">
 
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
@@ -87,6 +121,7 @@ export default function AuthPage() {
 
         {/* ROLE SELECT */}
         <div className="flex gap-4 mb-4 justify-center">
+
           <button
             onClick={() => setRole("customer")}
             className={`px-4 py-2 rounded ${
@@ -108,6 +143,7 @@ export default function AuthPage() {
           >
             Seller
           </button>
+
         </div>
 
         {/* EMAIL */}
@@ -151,15 +187,18 @@ export default function AuthPage() {
           {isLogin
             ? "Don't have an account?"
             : "Already have an account?"}
+
           <span
             onClick={() => setIsLogin(!isLogin)}
             className="text-blue-600 cursor-pointer ml-1"
           >
             {isLogin ? "Sign Up" : "Login"}
           </span>
+
         </p>
 
       </div>
+
     </div>
   );
 }
