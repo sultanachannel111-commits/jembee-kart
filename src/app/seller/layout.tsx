@@ -1,98 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import Link from "next/link";
 
-export default function LoginPage(){
-
-const router = useRouter()
-
-const [email,setEmail] = useState("")
-const [password,setPassword] = useState("")
-const [loading,setLoading] = useState(false)
-
-async function handleLogin(e:any){
-
-e.preventDefault()
-
-try{
-
-setLoading(true)
-
-const res = await signInWithEmailAndPassword(auth,email,password)
-
-const user = res.user
-
-// Firestore role check
-const snap = await getDoc(doc(db,"users",user.uid))
-
-if(!snap.exists()){
-router.push("/")
-return
-}
-
-const data = snap.data()
-
-// Admin redirect
-if(data.role === "admin"){
-router.push("/dashboard")
-return
-}
-
-// Seller redirect
-if(data.role === "seller"){
-router.push("/seller")
-return
-}
-
-// Normal user
-router.push("/")
-
-}catch(err){
-
-console.log(err)
-alert("Login failed")
-
-}
-
-setLoading(false)
-
-}
+export default function SellerLayout({
+children,
+}:{
+children:React.ReactNode
+}){
 
 return(
 
-<div className="flex items-center justify-center min-h-screen bg-gray-100"><form
-onSubmit={handleLogin}
-className="bg-white p-6 rounded shadow w-80 space-y-4"
-><h2 className="text-xl font-bold text-center">
-Login
-</h2><input
-type="email"
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-className="w-full border p-2 rounded"
-/>
+<div className="flex min-h-screen">
 
-<input
-type="password"
-placeholder="Password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-className="w-full border p-2 rounded"
-/>
+{/* Sidebar */}
 
-<button
-className="w-full bg-pink-500 text-white py-2 rounded"
-disabled={loading}
+<div className="w-64 bg-black text-white p-6 space-y-4">
 
-«»
+<h2 className="text-xl font-bold text-pink-500">
+Seller Panel
+</h2>
 
-{loading ? "Logging in..." : "Login"}
+<Link href="/seller">Dashboard</Link>
 
-</button></form></div>)
+<Link href="/seller/add-product">
+Add Product
+</Link>
+
+<Link href="/seller/products">
+Products
+</Link>
+
+<Link href="/seller/orders">
+Orders
+</Link>
+
+<Link href="/seller/revenue">
+Revenue
+</Link>
+
+<Link href="/seller/account">
+Account
+</Link>
+
+</div>
+
+{/* Content */}
+
+<div className="flex-1 p-6 bg-gray-100">
+
+{children}
+
+</div>
+
+</div>
+
+)
 
 }
