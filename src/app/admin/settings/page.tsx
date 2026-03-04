@@ -109,42 +109,47 @@ marginTop:"10px"
 Button Preview
 </button>
 
-</div></div>{/* PRESET COLOR THEMES */}
+</div>
+</div>
 
-<div className="space-y-2"><h2 className="font-bold">
+{/* PRESET COLOR THEMES */}
+
+<div className="space-y-2">
+<h2 className="font-bold">
 Color Themes
-</h2><button
+</h2>
+
+<button
 onClick={()=>setTheme("#ffffff","#000000","#e91e63")}
 className="border px-3 py-2 mr-2"
-
-
+>
 Classic
 </button>
 
 <button
 onClick={()=>setTheme("#f5f5f5","#3f51b5","#ff9800")}
 className="border px-3 py-2 mr-2"
-
-
+>
 Modern
 </button>
 
 <button
 onClick={()=>setTheme("#1e1e1e","#000000","#4caf50")}
 className="border px-3 py-2 mr-2 text-white"
-
-
+>
 Dark
 </button>
 
-</div><button
+</div>
+
+<button
 onClick={saveTheme}
 className="bg-pink-600 text-white px-4 py-2 rounded"
-
-
+>
 Save Theme
 </button>
 
-</div>);
+</div>
 
+);
 }
