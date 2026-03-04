@@ -122,6 +122,7 @@ export default function AdminLayout({
           {navItem("/admin/festival", "Festival Banner", Image)}
           {navItem("/admin/offers", "Discount & Offer Timer", Timer)}
           {navItem("/admin/monitor","System Monitor", Activity)}
+          {navItem("/admin/diagnostics","Diagnostics", Activity)}
         </nav>
 
         <button
