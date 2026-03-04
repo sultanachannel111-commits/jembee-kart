@@ -4,7 +4,7 @@ import { Package, ShoppingCart, DollarSign } from "lucide-react";
 
 export default function SellerDashboard() {
   return (
-    <div className="animate-fadeIn">
+    <div className="animate-fadeIn p-6">
 
       <h1 className="text-3xl font-bold mb-8 text-brand-pink">
         Seller Dashboard
@@ -13,6 +13,7 @@ export default function SellerDashboard() {
       {/* Stats Grid */}
       <div className="grid md:grid-cols-3 gap-6">
 
+        {/* Total Products */}
         <div className="bg-white p-6 rounded-xl shadow hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
@@ -23,6 +24,7 @@ export default function SellerDashboard() {
           </div>
         </div>
 
+        {/* Total Orders */}
         <div className="bg-white p-6 rounded-xl shadow hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
@@ -33,6 +35,7 @@ export default function SellerDashboard() {
           </div>
         </div>
 
+        {/* Total Revenue */}
         <div className="bg-white p-6 rounded-xl shadow hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
@@ -44,6 +47,7 @@ export default function SellerDashboard() {
         </div>
 
       </div>
+
     </div>
   );
 }
