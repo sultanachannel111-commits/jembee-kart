@@ -2,164 +2,166 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  PlusCircle,
-  DollarSign,
-  Menu,
-  X,
+LayoutDashboard,
+Package,
+ShoppingCart,
+PlusCircle,
+DollarSign,
+Menu,
+X,
 } from "lucide-react";
 
 export default function SellerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+children,
+}:{
+children:React.ReactNode
+}){
 
-  const { role, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+const { role, loading } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+const router = useRouter();
+const pathname = usePathname();
 
-  // 🔥 ROLE BASED REDIRECT
-  useEffect(() => {
-
-    if (loading) return;
-
-    if (role === "admin") {
-      router.replace("/admin");
-      return;
-    }
-
-    if (role !== "seller") {
-      router.replace("/auth");
-      return;
-    }
-
-  }, [role, loading, router]);
+const [sidebarOpen,setSidebarOpen] = useState(false);
 
 
 
-  // 🔥 LOADING SCREEN
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-lg">
-        Loading Seller Panel...
-      </div>
-    );
-  }
+useEffect(()=>{
+
+if(loading) return;
+
+if(role !== "seller"){
+router.replace("/");
+}
+
+},[role,loading,router]);
 
 
 
-  const navItem = (href: string, label: string, Icon: any) => {
+if(loading){
 
-    const isActive = pathname === href;
+return(
+<div className="p-10 text-center">
+Checking seller access...
+</div>
+);
 
-    return (
-      <Link
-        href={href}
-        onClick={() => setSidebarOpen(false)}
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-300
-        ${
-          isActive
-            ? "bg-pink-600 text-white shadow-lg"
-            : "text-gray-300 hover:bg-pink-500 hover:text-white"
-        }`}
-      >
-        <Icon size={18} />
-        {label}
-      </Link>
-    );
-  };
+}
 
 
 
-  return (
-    <div className="min-h-screen flex bg-gray-100">
+const navItem = (href:string,label:string,Icon:any)=>{
 
-      {/* MOBILE OVERLAY */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+const isActive = pathname === href;
 
-      {/* SIDEBAR */}
-      <div
-        className={`fixed md:static z-50 top-0 left-0 
-        min-h-screen overflow-y-auto w-64 
-        bg-black text-white p-5 transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-        md:translate-x-0`}
-      >
+return(
 
-        <div className="flex justify-between items-center mb-8">
+<Link
+href={href}
+onClick={()=>setSidebarOpen(false)}
+className={`flex items-center gap-3 px-4 py-2 rounded-lg
+${isActive
+? "bg-pink-600 text-white"
+: "text-gray-300 hover:bg-pink-500 hover:text-white"
+}`}
+>
 
-          <h2 className="text-2xl font-bold text-pink-500">
-            Jembee Seller
-          </h2>
+<Icon size={18}/>
 
-          <button
-            className="md:hidden text-white"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X size={22} />
-          </button>
+{label}
 
-        </div>
+</Link>
 
-        <nav className="space-y-3">
+);
 
-          {navItem("/seller", "Dashboard", LayoutDashboard)}
-
-          {navItem("/seller/orders", "My Orders", ShoppingCart)}
-
-          {navItem("/seller/products", "My Products", Package)}
-
-          {navItem("/seller/add-product", "Add Product", PlusCircle)}
-
-          {navItem("/seller/revenue", "Revenue", DollarSign)}
-
-        </nav>
-
-      </div>
+};
 
 
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 min-h-screen overflow-y-auto">
+return(
 
-        {/* TOP BAR */}
-        <div className="bg-white shadow p-4 flex items-center justify-between md:hidden">
+<div className="min-h-screen flex bg-gray-100">
 
-          <button onClick={() => setSidebarOpen(true)}>
-            <Menu size={24} />
-          </button>
+{/* overlay mobile */}
 
-          <h1 className="font-semibold text-pink-600">
-            Seller Panel
-          </h1>
+{sidebarOpen && (
 
-        </div>
+<div
+className="fixed inset-0 bg-black/40 z-40 md:hidden"
+onClick={()=>setSidebarOpen(false)}
+/>
 
+)}
 
 
-        {/* PAGE CONTENT */}
-        <div className="p-6 animate-fadeIn">
-          {children}
-        </div>
 
-      </div>
+{/* sidebar */}
 
-    </div>
-  );
+<div
+className={`fixed md:static z-50 top-0 left-0
+min-h-screen w-64 bg-black text-white p-5
+transform transition-transform duration-300
+${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+md:translate-x-0`}
+>
+
+<div className="flex justify-between items-center mb-8">
+
+<h2 className="text-2xl font-bold text-pink-500">
+Jembee Seller
+</h2>
+
+<button
+className="md:hidden"
+onClick={()=>setSidebarOpen(false)}
+>
+
+<X size={22}/>
+
+</button>
+
+</div>
+
+
+
+<nav className="space-y-3">
+
+{navItem("/seller","Dashboard",LayoutDashboard)}
+
+{navItem("/seller/orders","My Orders",ShoppingCart)}
+
+{navItem("/seller/products","My Products",Package)}
+
+{navItem("/seller/add-product","Add Product",PlusCircle)}
+
+{navItem("/seller/revenue","Revenue",DollarSign)}
+
+</nav>
+
+</div>
+
+
+
+{/* main */}
+
+<div className="flex-1">
+
+<div className="p-6">
+
+{children}
+
+</div>
+
+</div>
+
+</div>
+
+);
+
 }
