@@ -16,7 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 
 export default function HomePage() {
-  const { cartCount, addToCart } = useCart();
+  const { cartCount } = useCart();
   const pathname = usePathname();
   const { user } = useAuth();
 
