@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 export const generateAutoLayout = async ()=>{
 
 const offers = await getDocs(collection(db,"offers"));
-const festival = await getDocs(collection(db,"festivalBanner"));
+const festival = await getDocs(collection(db,"festival"));
 const products = await getDocs(collection(db,"products"));
 
 let layout=[];
