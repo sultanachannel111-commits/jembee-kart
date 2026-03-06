@@ -8,18 +8,6 @@ import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  Search,
-  Mic,
-  ShoppingCart,
-  Home,
-  Grid,
-  User,
-  Star,
-  Flame,
-  Heart,   // ✅ YE WAPAS ADD KARO
-} from "lucide-react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
