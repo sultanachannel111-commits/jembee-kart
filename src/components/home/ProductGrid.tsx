@@ -3,76 +3,86 @@
 import Link from "next/link";
 import { Heart, Star } from "lucide-react";
 
-export default function ProductGrid({products}:any){
+type Props = {
+  products: any[];
+  title?: string;
+};
 
-return(
+export default function ProductGrid({ products, title }: Props) {
 
-<div className="grid grid-cols-2 gap-4">
+  if (!products || products.length === 0) return null;
 
-{products.map((product:any)=>(
+  return (
+    <div className="mt-4">
 
-<div
-key={product.id}
-className="bg-white rounded-xl shadow p-3 relative"
->
+      {/* Section Title */}
+      {title && (
+        <h2 className="text-lg font-bold mb-3">{title}</h2>
+      )}
 
-<Heart
-size={18}
-className="absolute top-2 right-2 text-gray-400"
-/>
+      {/* Product Grid */}
+      <div className="grid grid-cols-2 gap-4">
 
-<Link href={`/product/${product.id}`}>
+        {products.map((product: any) => (
 
-<img
-src={product.image}
-className="w-full h-40 object-cover rounded-lg"
-/>
+          <div
+            key={product.id}
+            className="bg-white rounded-xl shadow p-3 relative"
+          >
 
-</Link>
+            {/* Wishlist Icon */}
+            <Heart
+              size={18}
+              className="absolute top-2 right-2 text-gray-400"
+            />
 
-{product.discount && (
+            {/* Product Image */}
+            <Link href={`/product/${product.id}`}>
+              <img
+                src={product.image}
+                className="w-full h-40 object-cover rounded-lg"
+              />
+            </Link>
 
-<span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-1 rounded">
+            {/* Discount Badge */}
+            {product.discount && (
+              <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                {product.discount}% OFF
+              </span>
+            )}
 
-{product.discount}% OFF
+            {/* Product Name */}
+            <div className="mt-2 text-sm truncate">
+              {product.name}
+            </div>
 
-</span>
+            {/* Rating */}
+            <div className="flex items-center gap-1 text-xs mt-1">
+              <Star size={12} className="text-yellow-500 fill-yellow-500" />
+              <span>{product.rating || 4.5}</span>
+            </div>
 
-)}
+            {/* Price */}
+            <div className="flex items-center gap-2 mt-1">
 
-<div className="mt-2 text-sm truncate">
-{product.name}
-</div>
+              <span className="font-bold">
+                ₹{product.price}
+              </span>
 
-<div className="flex items-center gap-1 text-xs mt-1">
+              {product.originalPrice && (
+                <span className="line-through text-gray-400 text-xs">
+                  ₹{product.originalPrice}
+                </span>
+              )}
 
-<Star size={12} className="text-yellow-500 fill-yellow-500"/>
-<span>{product.rating || "4.5"}</span>
+            </div>
 
-</div>
+          </div>
 
-<div className="flex items-center gap-2 mt-1">
+        ))}
 
-<span className="font-bold">₹{product.price}</span>
+      </div>
 
-{product.originalPrice && (
-
-<span className="line-through text-gray-400 text-xs">
-
-₹{product.originalPrice}
-
-</span>
-
-)}
-
-</div>
-
-</div>
-
-))}
-
-</div>
-
-);
-
+    </div>
+  );
 }
