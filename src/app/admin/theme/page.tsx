@@ -1,10 +1,9 @@
 "use client";
 
-import { useState,useEffect } from "react";
-import { doc,getDoc,setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useEffect,useState } from "react";
+import { getTheme,saveTheme } from "@/services/themeService";
 
-export default function AdminThemePage(){
+export default function ThemePage(){
 
 const [background,setBackground]=useState("#ffffff");
 const [header,setHeader]=useState("#ec4899");
@@ -14,52 +13,40 @@ const [card,setCard]=useState("#ffffff");
 const [loading,setLoading]=useState(true);
 
 
-// LOAD THEME
+/* LOAD THEME */
 
 useEffect(()=>{
 
-async function loadTheme(){
+async function load(){
 
-const snap = await getDoc(
-doc(db,"settings","theme")
-);
+const theme:any = await getTheme();
 
-if(snap.exists()){
-
-const data:any = snap.data();
-
-setBackground(data.background || "#ffffff");
-setHeader(data.header || "#ec4899");
-setButton(data.button || "#ec4899");
-setCard(data.card || "#ffffff");
-
-}
+setBackground(theme.background);
+setHeader(theme.header);
+setButton(theme.button);
+setCard(theme.card);
 
 setLoading(false);
 
 }
 
-loadTheme();
+load();
 
 },[]);
 
 
-// SAVE THEME
+/* SAVE */
 
-async function saveTheme(){
+async function save(){
 
-await setDoc(
-doc(db,"settings","theme"),
-{
+await saveTheme({
 background,
 header,
 button,
-card,
-updatedAt:new Date()
-}
-);
+card
+});
 
-alert("Theme Saved Successfully");
+alert("Theme Updated");
 
 }
 
@@ -77,14 +64,108 @@ Loading Theme...
 
 return(
 
-<div className="p-6 space-y-6">
+<div className="p-6 space-y-8">
 
-<h1 className="text-3xl font-bold text-pink-600">
-Website Theme Control
+
+{/* TITLE */}
+
+<h1 className="text-3xl font-bold text-purple-600">
+Website Theme Builder
 </h1>
 
 
-{/* COLOR CONTROLS */}
+
+{/* ------------------------
+HOMEPAGE PREVIEW
+------------------------ */}
+
+<div
+className="rounded-xl shadow p-6"
+style={{background}}
+>
+
+{/* HEADER */}
+
+<div
+className="text-white p-4 rounded mb-6"
+style={{background:header}}
+>
+
+<h2 className="font-bold text-lg">
+JembeeKart
+</h2>
+
+</div>
+
+
+{/* CATEGORY GRID */}
+
+<div className="grid grid-cols-4 gap-4">
+
+<div
+className="p-4 rounded text-center shadow"
+style={{background:card}}
+>
+Tshirts
+</div>
+
+<div
+className="p-4 rounded text-center shadow"
+style={{background:card}}
+>
+Hoodies
+</div>
+
+<div
+className="p-4 rounded text-center shadow"
+style={{background:card}}
+>
+Caps
+</div>
+
+<div
+className="p-4 rounded text-center shadow"
+style={{background:card}}
+>
+Mugs
+</div>
+
+</div>
+
+
+{/* PRODUCT CARD */}
+
+<div
+className="mt-6 p-4 rounded shadow"
+style={{background:card}}
+>
+
+<p className="font-semibold">
+Sample Product
+</p>
+
+<p className="text-pink-600 font-bold">
+₹499
+</p>
+
+<button
+className="mt-2 text-white px-4 py-2 rounded"
+style={{background:button}}
+>
+
+Buy Now
+
+</button>
+
+</div>
+
+</div>
+
+
+
+{/* ------------------------
+THEME CONTROLS
+------------------------ */}
 
 <div className="grid md:grid-cols-2 gap-6">
 
@@ -148,61 +229,21 @@ onChange={(e)=>setCard(e.target.value)}
 
 </div>
 
-
 </div>
 
 
-{/* PREVIEW */}
 
-<div
-className="p-6 rounded shadow"
-style={{background:background}}
->
-
-<div
-className="p-4 rounded text-white"
-style={{background:header}}
->
-
-Header Preview
-
-</div>
-
-
-<div className="mt-4">
+{/* SAVE BUTTON */}
 
 <button
-style={{background:button}}
-className="text-white px-5 py-2 rounded"
->
-
-Button Preview
-
-</button>
-
-</div>
-
-
-<div
-className="mt-4 p-4 rounded shadow"
-style={{background:card}}
->
-
-Card Preview
-
-</div>
-
-</div>
-
-
-<button
-onClick={saveTheme}
-className="bg-pink-600 text-white px-5 py-2 rounded"
+onClick={save}
+className="bg-purple-600 text-white px-6 py-2 rounded"
 >
 
 Save Theme
 
 </button>
+
 
 </div>
 
