@@ -1,4 +1,11 @@
 "use client";
+import Header from "@/components/home/Header";
+import SearchBar from "@/components/home/SearchBar";
+import BannerSlider from "@/components/home/BannerSlider";
+import CategoryList from "@/components/home/CategoryList";
+import ProductGrid from "@/components/home/ProductGrid";
+import BottomNav from "@/components/home/BottomNav";
+import FestivalBanner from "@/components/home/FestivalBanner";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
