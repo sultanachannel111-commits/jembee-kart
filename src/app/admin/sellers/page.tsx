@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect,useState } from "react";
-import { collection,getDocs,updateDoc,doc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function SellersPage(){
+export default function SellersPage() {
 
 const [sellers,setSellers]=useState<any[]>([]);
 
@@ -14,7 +14,9 @@ loadSellers();
 
 async function loadSellers(){
 
-const snap = await getDocs(collection(db,"users"));
+const snap = await getDocs(
+collection(db,"users")
+);
 
 const list:any[]=[];
 
@@ -39,9 +41,12 @@ setSellers(list);
 
 async function toggleSeller(id:string,active:boolean){
 
-await updateDoc(doc(db,"users",id),{
+await updateDoc(
+doc(db,"users",id),
+{
 active:!active
-});
+}
+);
 
 loadSellers();
 
@@ -64,6 +69,7 @@ View and manage all platform sellers
 </p>
 
 </div>
+
 
 {/* SELLERS GRID */}
 
@@ -90,6 +96,7 @@ Seller Name
 
 </div>
 
+
 {/* EMAIL */}
 
 <div>
@@ -103,6 +110,7 @@ Email
 </p>
 
 </div>
+
 
 {/* STATUS */}
 
@@ -121,6 +129,7 @@ s.active
 </span>
 
 </div>
+
 
 {/* ACTION */}
 
