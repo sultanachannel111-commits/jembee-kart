@@ -1,164 +1,191 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  serverTimestamp,
-} from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function AddProduct() {
 
-  const router = useRouter();
+const [name,setName] = useState("");
+const [category,setCategory] = useState("");
+const [basePrice,setBasePrice] = useState("");
+const [sellPrice,setSellPrice] = useState("");
 
-  const [categories,setCategories] = useState<any[]>([]);
+const [variations,setVariations] = useState<any[]>([]);
 
-  const [form,setForm] = useState({
 
-    name:"",
-    image:"",
-    category:"",
-    basePrice:"",
-    sellingPrice:""
+const addVariation = () => {
 
-  });
+setVariations([
+...variations,
+{
+type:"",
+options:[""]
+}
+]);
 
-  useEffect(()=>{
+};
 
-    loadCategories();
 
-  },[]);
+const updateVariationType = (index:number,value:string) => {
 
-  const loadCategories = async ()=>{
+const updated = [...variations];
+updated[index].type = value;
+setVariations(updated);
 
-    const snap = await getDocs(collection(db,"categories"));
+};
 
-    setCategories(
-      snap.docs.map(doc=>({
 
-        id:doc.id,
-        ...doc.data()
+const updateOption = (vIndex:number,oIndex:number,value:string) => {
 
-      }))
-    );
+const updated = [...variations];
+updated[vIndex].options[oIndex] = value;
+setVariations(updated);
 
-  };
+};
 
-  const handleChange = (e:any)=>{
 
-    setForm({
+const addOption = (index:number) => {
 
-      ...form,
-      [e.target.name]:e.target.value
+const updated = [...variations];
+updated[index].options.push("");
+setVariations(updated);
 
-    });
+};
 
-  };
 
-  const handleSubmit = async (e:any)=>{
+return (
 
-    e.preventDefault();
+<div className="p-6 max-w-2xl">
 
-    await addDoc(collection(db,"products"),{
+<h1 className="text-2xl font-bold mb-6">
+Add Product
+</h1>
 
-      name:form.name,
-      image:form.image,
-      category:form.category,
 
-      basePrice:Number(form.basePrice),
-      sellingPrice:Number(form.sellingPrice),
+{/* PRODUCT NAME */}
 
-      status:"approved",
-      isActive:true,
+<input
+placeholder="Product Name"
+value={name}
+onChange={(e)=>setName(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
 
-      createdAt:serverTimestamp()
 
-    });
+{/* CATEGORY */}
 
-    router.push("/admin/products");
+<input
+placeholder="Category"
+value={category}
+onChange={(e)=>setCategory(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
 
-  };
 
-  return (
+{/* PRICES */}
 
-    <div className="p-6 max-w-xl">
+<input
+placeholder="Qikink Base Price"
+value={basePrice}
+onChange={(e)=>setBasePrice(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
 
-      <h1 className="text-2xl font-bold mb-6">
-        Add Product
-      </h1>
+<input
+placeholder="Admin Sell Price"
+value={sellPrice}
+onChange={(e)=>setSellPrice(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow p-6 rounded-xl space-y-4"
-      >
 
-        <input
-          name="name"
-          placeholder="Product Name"
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
 
-        <input
-          name="image"
-          placeholder="Image Link"
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
+{/* VARIATIONS */}
 
-        {/* CATEGORY SELECT */}
+<div className="mt-6">
 
-        <select
-          name="category"
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        >
+<h2 className="font-bold mb-3">
+Variations
+</h2>
 
-          <option value="">
-            Select Category
-          </option>
+{variations.map((v,index)=>(
 
-          {categories.map((c)=>(
-            <option
-              key={c.id}
-              value={c.name}
-            >
-              {c.name}
-            </option>
-          ))}
+<div key={index} className="border p-4 mb-4 rounded">
 
-        </select>
 
-        <input
-          name="basePrice"
-          type="number"
-          placeholder="Base Price"
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
+{/* TYPE */}
 
-        <input
-          name="sellingPrice"
-          type="number"
-          placeholder="Selling Price"
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
+<select
+value={v.type}
+onChange={(e)=>updateVariationType(index,e.target.value)}
+className="border p-2 w-full mb-3"
+>
 
-        <button
-          type="submit"
-          className="bg-purple-600 text-white px-4 py-2 rounded"
-        >
-          Add Product
-        </button>
+<option value="">Select Variation</option>
 
-      </form>
+<option value="Size">Size</option>
+<option value="Color">Color</option>
+<option value="Number">Number</option>
+<option value="Age">Age</option>
+<option value="Custom">Custom</option>
 
-    </div>
+</select>
 
-  );
+
+{/* OPTIONS */}
+
+{v.options.map((o:any,oIndex:number)=>(
+
+<input
+key={oIndex}
+placeholder="Option (S, M, L / Black / 5-7 Years)"
+value={o}
+onChange={(e)=>updateOption(index,oIndex,e.target.value)}
+className="border p-2 w-full mb-2"
+/>
+
+))}
+
+
+<button
+onClick={()=>addOption(index)}
+className="bg-gray-200 px-3 py-1 rounded text-sm"
+>
+
+Add Option
+
+</button>
+
+</div>
+
+))}
+
+
+
+<button
+onClick={addVariation}
+className="bg-blue-600 text-white px-4 py-2 rounded"
+>
+
+Add Variation
+
+</button>
+
+</div>
+
+
+{/* SAVE BUTTON */}
+
+<button
+className="bg-green-600 text-white px-5 py-2 rounded mt-6"
+>
+
+Save Product
+
+</button>
+
+
+</div>
+
+);
 
 }
