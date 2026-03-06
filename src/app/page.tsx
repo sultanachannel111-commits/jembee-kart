@@ -184,19 +184,30 @@ setProducts(productsWithOffers);
   }, [search]);
 
   const startVoice = () => {
-    const SpeechRecognition =
-      (window as any).webkitSpeechRecognition ||
-      (window as any).SpeechRecognition;
 
-    if (!SpeechRecognition) return;
+  const SpeechRecognition =
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition;
 
-    const recognition = new SpeechRecognition();
-    recognition.start();
+  if (!SpeechRecognition) {
+    alert("Voice search not supported");
+    return;
+  }
 
-    recognition.onresult = (event: any) => {
-      setSearch(event.results[0][0].transcript);
-    };
+  const recognition = new SpeechRecognition();
+
+  recognition.lang = "en-IN";
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  recognition.start();
+
+  recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript;
+    setSearch(transcript);
   };
+
+};
 
   const toggleWishlist = (id: string) => {
     if (wishlist.includes(id)) {
