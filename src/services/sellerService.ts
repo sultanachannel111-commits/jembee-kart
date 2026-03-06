@@ -4,81 +4,92 @@ import {
   addDoc,
   getDocs,
   doc,
-  updateDoc,
-  deleteDoc,
   getDoc,
+  serverTimestamp,
+  query,
+  where
 } from "firebase/firestore";
 
-const sellerCollection = collection(db, "sellers");
-
 /* ---------------------------
-ADD NEW SELLER
+GET ADMIN PRODUCTS
+Seller dashboard में दिखाने के लिए
 ----------------------------*/
-export const registerSeller = async (seller: any) => {
-  const ref = await addDoc(sellerCollection, {
-    ...seller,
-    status: "pending",
-    createdAt: new Date(),
-  });
 
-  return ref.id;
-};
+export const getAdminProducts = async () => {
 
-/* ---------------------------
-GET ALL SELLERS
-----------------------------*/
-export const getAllSellers = async () => {
-  const snapshot = await getDocs(sellerCollection);
+  const snapshot = await getDocs(collection(db,"products"));
 
-  return snapshot.docs.map((d) => ({
-    id: d.id,
-    ...d.data(),
+  return snapshot.docs.map(d => ({
+    id:d.id,
+    ...d.data()
   }));
+
 };
 
 /* ---------------------------
-GET SINGLE SELLER
+SELLER ADD PRODUCT (RESELL)
 ----------------------------*/
-export const getSellerById = async (id: string) => {
-  const ref = doc(db, "sellers", id);
-  const snap = await getDoc(ref);
 
-  if (!snap.exists()) return null;
+export const addSellerProduct = async (
+  sellerId:string,
+  productId:string,
+  resalePrice:number
+) => {
 
-  return {
-    id: snap.id,
-    ...snap.data(),
+  const productRef = doc(db,"products",productId);
+  const productSnap = await getDoc(productRef);
+
+  if(!productSnap.exists()){
+    throw new Error("Product not found");
+  }
+
+  const product:any = productSnap.data();
+
+  const basePrice = Number(product.basePrice || product.price || 0);
+
+  const profit = resalePrice - basePrice;
+
+  const sellerProduct = {
+    sellerId,
+    productId,
+    productName:product.name,
+    image:product.image,
+    basePrice,
+    resalePrice,
+    profit,
+    createdAt:serverTimestamp()
   };
+
+  await addDoc(collection(db,"sellerProducts"), sellerProduct);
+
 };
 
 /* ---------------------------
-APPROVE SELLER (ADMIN)
+GET SELLER PRODUCTS
 ----------------------------*/
-export const approveSeller = async (id: string) => {
-  await updateDoc(doc(db, "sellers", id), {
-    status: "approved",
-  });
+
+export const getSellerProducts = async (sellerId:string) => {
+
+  const q = query(
+    collection(db,"sellerProducts"),
+    where("sellerId","==",sellerId)
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(d => ({
+    id:d.id,
+    ...d.data()
+  }));
+
 };
 
 /* ---------------------------
-BLOCK SELLER
+DELETE SELLER PRODUCT
 ----------------------------*/
-export const blockSeller = async (id: string) => {
-  await updateDoc(doc(db, "sellers", id), {
-    status: "blocked",
-  });
-};
 
-/* ---------------------------
-UPDATE SELLER PROFILE
-----------------------------*/
-export const updateSeller = async (id: string, data: any) => {
-  await updateDoc(doc(db, "sellers", id), data);
-};
+export const deleteSellerProduct = async (id:string) => {
 
-/* ---------------------------
-DELETE SELLER
-----------------------------*/
-export const deleteSeller = async (id: string) => {
-  await deleteDoc(doc(db, "sellers", id));
+  await deleteDoc(doc(db,"sellerProducts",id));
+
 };
