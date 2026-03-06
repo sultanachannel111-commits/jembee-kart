@@ -28,7 +28,7 @@ async function runCheck(){
 setLoading(true);
 
 const bannerSnap = await getDocs(collection(db,"banners"));
-const categorySnap = await getDocs(collection(db,"qikinkcategories"));
+const categorySnap = await getDocs(collection(db,"qikinkCategories"));
 const productSnap = await getDocs(collection(db,"products"));
 
 let missingProductImages = 0;
