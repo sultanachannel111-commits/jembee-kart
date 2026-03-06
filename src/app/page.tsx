@@ -280,3 +280,4 @@ products={recommended}
 </div>
 
 );
+  }
