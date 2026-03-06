@@ -39,12 +39,9 @@ setSellers(list);
 
 async function toggleSeller(id:string,active:boolean){
 
-await updateDoc(
-doc(db,"users",id),
-{
+await updateDoc(doc(db,"users",id),{
 active:!active
-}
-);
+});
 
 loadSellers();
 
@@ -67,7 +64,6 @@ View and manage all platform sellers
 </p>
 
 </div>
-
 
 {/* SELLERS GRID */}
 
@@ -94,7 +90,6 @@ Seller Name
 
 </div>
 
-
 {/* EMAIL */}
 
 <div>
@@ -108,7 +103,6 @@ Email
 </p>
 
 </div>
-
 
 {/* STATUS */}
 
@@ -128,8 +122,7 @@ s.active
 
 </div>
 
-
-{/* ACTION BUTTON */}
+{/* ACTION */}
 
 <button
 onClick={()=>toggleSeller(s.id,s.active)}
