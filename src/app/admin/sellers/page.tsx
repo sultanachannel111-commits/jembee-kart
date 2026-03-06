@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 export default function SellersPage() {
 
 const [sellers,setSellers]=useState<any[]>([]);
+const [loading,setLoading]=useState(false);
 
 useEffect(()=>{
 loadSellers();
@@ -14,26 +15,14 @@ loadSellers();
 
 async function loadSellers(){
 
-const snap = await getDocs(
-collection(db,"users")
-);
+const snap = await getDocs(collection(db,"users"));
 
-const list:any[]=[];
-
-snap.forEach((d)=>{
-
-const data=d.data();
-
-if(data.role==="seller"){
-
-list.push({
+const list = snap.docs
+.map(d=>({
 id:d.id,
-...data
-});
-
-}
-
-});
+...d.data()
+}))
+.filter((u:any)=>u.role==="seller");
 
 setSellers(list);
 
@@ -41,14 +30,15 @@ setSellers(list);
 
 async function toggleSeller(id:string,active:boolean){
 
-await updateDoc(
-doc(db,"users",id),
-{
-active:!active
-}
-);
+setLoading(true);
 
-loadSellers();
+await updateDoc(doc(db,"users",id),{
+active:!active
+});
+
+await loadSellers();
+
+setLoading(false);
 
 }
 
@@ -72,6 +62,14 @@ View and manage all platform sellers
 
 
 {/* SELLERS GRID */}
+
+{sellers.length===0 && (
+
+<p className="text-gray-500">
+No sellers found
+</p>
+
+)}
 
 <div className="grid md:grid-cols-2 gap-6">
 
@@ -134,6 +132,7 @@ s.active
 {/* ACTION */}
 
 <button
+disabled={loading}
 onClick={()=>toggleSeller(s.id,s.active)}
 className={`px-4 py-2 rounded text-white ${
 s.active
