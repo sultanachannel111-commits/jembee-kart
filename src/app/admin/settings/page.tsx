@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState,useEffect } from "react";
+import { doc,setDoc,getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ThemeSettings(){
 
@@ -10,11 +12,20 @@ const [button,setButton]=useState("#e91e63");
 
 useEffect(()=>{
 
-const saved = localStorage.getItem("theme");
+loadTheme();
 
-if(saved){
+},[]);
 
-const t = JSON.parse(saved);
+
+async function loadTheme(){
+
+const snap = await getDoc(
+doc(db,"settings","theme")
+);
+
+if(snap.exists()){
+
+const t = snap.data();
 
 setBg(t.bg);
 setHeader(t.header);
@@ -22,17 +33,19 @@ setButton(t.button);
 
 }
 
-},[]);
+}
 
-function saveTheme(){
 
-const theme={
+async function saveTheme(){
+
+await setDoc(
+doc(db,"settings","theme"),
+{
 bg,
 header,
 button
-};
-
-localStorage.setItem("theme",JSON.stringify(theme));
+}
+);
 
 document.documentElement.style.setProperty("--bg",bg);
 document.documentElement.style.setProperty("--header",header);
@@ -42,13 +55,15 @@ alert("Theme Saved");
 
 }
 
-function setTheme(bg,header,button){
+
+function setTheme(bg:string,header:string,button:string){
 
 setBg(bg);
 setHeader(header);
 setButton(button);
 
 }
+
 
 return(
 
@@ -57,6 +72,7 @@ return(
 <h1 className="text-3xl font-bold">
 Website Theme Control
 </h1>
+
 
 {/* COLOR PICKERS */}
 
@@ -93,6 +109,7 @@ className="ml-3"
 </div>
 
 </div>
+
 
 {/* PREVIEW */}
 
@@ -134,7 +151,8 @@ Button Preview
 
 </div>
 
-{/* PRESET COLOR THEMES */}
+
+{/* PRESET THEMES */}
 
 <div className="space-y-2">
 
@@ -164,6 +182,7 @@ Dark
 </button>
 
 </div>
+
 
 <button
 onClick={saveTheme}
