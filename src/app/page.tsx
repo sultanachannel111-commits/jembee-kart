@@ -420,4 +420,4 @@ setProducts(productsWithOffers);
 
     </div>
   );
-}
+} 
