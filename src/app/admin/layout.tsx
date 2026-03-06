@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
   ShoppingCart,
   Users,
+  Store,
+  Tag,
+  Settings,
   Image,
-  Folder,
-  Timer,
-  Activity,
-  LogOut,
-  Menu,
-  X,
+  Gift,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -23,123 +20,132 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
-  const [authorized, setAuthorized] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (pathname === "/admin/login") {
-      setAuthorized(true);
-      setChecking(false);
-      return;
-    }
-
-    const isLogged = localStorage.getItem("adminLoggedIn");
-
-    if (isLogged === "true") {
-      setAuthorized(true);
-    } else {
-      router.replace("/admin/login");
-    }
-
-    setChecking(false);
-  }, [pathname, router]);
-
-  const logout = () => {
-    localStorage.removeItem("adminLoggedIn");
-    router.push("/admin/login");
-  };
-
-  const navItem = (href: string, label: string, Icon: any) => {
-    const active = pathname === href;
-
-    return (
-      <Link
-        href={href}
-        onClick={() => setOpen(false)}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition
-        ${
-          active
-            ? "bg-pink-600 text-white"
-            : "text-gray-300 hover:bg-pink-500 hover:text-white"
-        }`}
-      >
-        <Icon size={18} />
-        {label}
-      </Link>
-    );
-  };
-
-  if (checking) return <div className="p-10">Loading...</div>;
-  if (!authorized) return null;
-
-  if (pathname === "/admin/login") {
-    return <>{children}</>;
-  }
+  const menu = [
+    {
+      name: "Dashboard",
+      icon: LayoutDashboard,
+      path: "/admin",
+    },
+    {
+      name: "Products",
+      icon: Package,
+      path: "/admin/products",
+    },
+    {
+      name: "Categories",
+      icon: Tag,
+      path: "/admin/categories",
+    },
+    {
+      name: "Orders",
+      icon: ShoppingCart,
+      path: "/admin/orders",
+    },
+    {
+      name: "Banners",
+      icon: Image,
+      path: "/admin/banners",
+    },
+    {
+      name: "Festival Banner",
+      icon: Gift,
+      path: "/admin/festival",
+    },
+    {
+      name: "Sellers",
+      icon: Store,
+      path: "/admin/sellers",
+    },
+    {
+      name: "Users",
+      icon: Users,
+      path: "/admin/users",
+    },
+    {
+      name: "Settings",
+      icon: Settings,
+      path: "/admin/settings",
+    },
+  ];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
 
-      {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-black text-white flex justify-between items-center p-4 z-50">
-        <h2 className="text-pink-500 font-bold">Jembee Admin</h2>
-        <button onClick={() => setOpen(true)}>
-          <Menu />
-        </button>
-      </div>
+      {/* SIDEBAR */}
 
-      {/* Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
+      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed md:static top-0 left-0 h-full w-64 bg-black text-white p-6 space-y-6 transform transition-transform duration-300 z-50
-        ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
-      >
-        <div className="flex justify-between items-center md:hidden">
-          <h2 className="text-pink-500 font-bold">Jembee Admin</h2>
-          <button onClick={() => setOpen(false)}>
-            <X />
-          </button>
+        <div className="p-6 border-b">
+          <h1 className="text-2xl font-bold text-purple-600">
+            JembeeKart
+          </h1>
+          <p className="text-xs text-gray-500">
+            Admin Panel
+          </p>
         </div>
 
-        <nav className="space-y-2 mt-6">
-          {navItem("/admin", "Dashboard", LayoutDashboard)}
-          {navItem("/admin/products", "Products", Package)}
-          {navItem("/admin/orders", "Orders", ShoppingCart)}
-          {navItem("/admin/users", "Users", Users)}
-          {navItem("/admin/sellers", "Sellers", Users)}
-          {navItem("/admin/banners", "Banners", Image)}
+        <nav className="flex-1 p-4 space-y-2">
 
-          {/* ✅ NEW ITEMS ADDED BELOW */}
-          {navItem("/admin/categories", "Categories", Folder)}
-          {navItem("/admin/festival", "Festival Banner", Image)}
-          {navItem("/admin/offers", "Discount & Offer Timer", Timer)}
-          {navItem("/admin/monitor","System Monitor", Activity)}
-          {navItem("/admin/diagnostics","Diagnostics", Activity)}
-          {navItem("/admin/settings","Theme Control", Activity)}
+          {menu.map((item, index) => {
+            const Icon = item.icon;
+            const active = pathname === item.path;
+
+            return (
+              <Link
+                key={index}
+                href={item.path}
+                className={`flex items-center gap-3 p-3 rounded-lg transition
+                ${
+                  active
+                    ? "bg-purple-100 text-purple-700"
+                    : "hover:bg-gray-100 text-gray-700"
+                }`}
+              >
+                <Icon size={18} />
+                <span className="text-sm font-medium">
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+
         </nav>
 
-        <button
-          onClick={logout}
-          className="mt-10 flex items-center gap-2 text-red-400"
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 md:ml-0 mt-16 md:mt-0">
-        {children}
-      </main>
+      {/* MAIN AREA */}
+
+      <div className="flex-1 flex flex-col">
+
+        {/* HEADER */}
+
+        <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+
+          <h2 className="text-lg font-semibold text-gray-700">
+            Admin Dashboard
+          </h2>
+
+          <div className="flex items-center gap-4">
+
+            <div className="text-sm text-gray-500">
+              Welcome Admin
+            </div>
+
+            <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+              A
+            </div>
+
+          </div>
+
+        </header>
+
+        {/* PAGE CONTENT */}
+
+        <main className="p-6">{children}</main>
+
+      </div>
+
     </div>
   );
 }
