@@ -111,7 +111,15 @@ return {
 });
 
 setProducts(productsWithOffers);
+    
+    const trendingProducts = await getTrendingProducts();
+setTrending(trendingProducts);
 
+const clearanceProducts = await getClearanceProducts();
+setClearance(clearanceProducts);
+
+const recommendedProducts = await getRecommendedProducts();
+setRecommended(recommendedProducts);
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
 
