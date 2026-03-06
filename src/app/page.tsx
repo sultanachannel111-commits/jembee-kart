@@ -7,6 +7,10 @@ import ProductGrid from "@/components/home/ProductGrid";
 import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
 
+import { getTrendingProducts } from "@/services/trendingService";
+import { getClearanceProducts } from "@/services/clearanceService";
+import { getRecommendedProducts } from "@/services/recommendService";
+
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -35,6 +39,9 @@ export default function HomePage() {
   const [ratings, setRatings] = useState<any>({});
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [timeLeft, setTimeLeft] = useState<any>(null);
+  const [trending, setTrending] = useState<any[]>([]);
+  const [clearance, setClearance] = useState<any[]>([]);
+  const [recommended, setRecommended] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -242,6 +249,20 @@ setSelectedCategory={setSelectedCategory}
 
 <ProductGrid
 products={filteredProducts}
+/>
+  <ProductGrid
+title="🔥 Trending Products"
+products={trending}
+/>
+
+<ProductGrid
+title="⚡ Clearance Sale"
+products={clearance}
+/>
+
+<ProductGrid
+title="⭐ Recommended For You"
+products={recommended}
 />
 
 </div>
