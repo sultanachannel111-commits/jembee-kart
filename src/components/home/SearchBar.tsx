@@ -1,35 +1,44 @@
 "use client";
 
 import { Search, Mic } from "lucide-react";
-import { startVoiceSearch } from "@/services/voiceSearchService";
+
+type Props = {
+  search: string;
+  setSearch: (value: string) => void;
+  startVoice: () => void;
+};
 
 export default function SearchBar({
-search,
-setSearch
-}:any){
+  search,
+  setSearch,
+  startVoice
+}: Props) {
 
-return(
+  return (
 
-<div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
+    <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
 
-<Search size={18}/>
+      {/* Search Icon */}
+      <Search size={18} />
 
-<input
-type="text"
-placeholder="Search products..."
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-className="flex-1 outline-none"
-/>
+      {/* Input */}
+      <input
+        type="text"
+        placeholder="Search products..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-1 outline-none text-sm"
+      />
 
-<Mic
-size={20}
-className="cursor-pointer text-gray-600"
-onClick={()=>startVoiceSearch(setSearch)}
-/>
+      {/* Mic Button */}
+      <Mic
+        size={20}
+        onClick={startVoice}
+        className="cursor-pointer text-gray-600 hover:text-black"
+      />
 
-</div>
+    </div>
 
-);
+  );
 
 }
