@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect,useState } from "react";
-import { collection,getDocs } from "firebase/firestore";
+import { collection,getDocs,updateDoc,doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import Link from "next/link";
 
 export default function SellersPage(){
 
@@ -15,20 +14,18 @@ loadSellers();
 
 async function loadSellers(){
 
-const snap = await getDocs(
-collection(db,"users")
-);
+const snap = await getDocs(collection(db,"users"));
 
 const list:any[]=[];
 
-snap.forEach((doc)=>{
+snap.forEach((d)=>{
 
-const data=doc.data();
+const data=d.data();
 
 if(data.role==="seller"){
 
 list.push({
-id:doc.id,
+id:d.id,
 ...data
 });
 
@@ -37,6 +34,19 @@ id:doc.id,
 });
 
 setSellers(list);
+
+}
+
+async function toggleSeller(id:string,active:boolean){
+
+await updateDoc(
+doc(db,"users",id),
+{
+active:!active
+}
+);
+
+loadSellers();
 
 }
 
@@ -67,7 +77,7 @@ View and manage all platform sellers
 
 <div
 key={s.id}
-className="bg-white shadow rounded-xl p-5 space-y-3"
+className="bg-white shadow rounded-xl p-5 space-y-4"
 >
 
 {/* NAME */}
@@ -111,22 +121,28 @@ s.active
 : "bg-red-100 text-red-700"
 }`}
 >
-{s.active ? "Active" : "Inactive"}
+
+{s.active ? "Active" : "Blocked"}
+
 </span>
 
 </div>
 
 
-{/* ACTION */}
+{/* ACTION BUTTON */}
 
-<Link
-href={`/admin/sellers/${s.id}`}
-className="inline-block bg-purple-600 text-white px-4 py-2 rounded"
+<button
+onClick={()=>toggleSeller(s.id,s.active)}
+className={`px-4 py-2 rounded text-white ${
+s.active
+? "bg-red-500"
+: "bg-green-600"
+}`}
 >
 
-View Seller Panel
+{s.active ? "Block Seller" : "Activate Seller"}
 
-</Link>
+</button>
 
 </div>
 
