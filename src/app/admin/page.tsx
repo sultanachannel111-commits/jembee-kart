@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Package,
-  Users,
-  ShoppingCart,
-  DollarSign,
-  Tag,
-  Store,
-} from "lucide-react";
+import { Package, Users, ShoppingCart, Store } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function AdminDashboard() {
 
@@ -21,18 +16,32 @@ export default function AdminDashboard() {
   });
 
   useEffect(()=>{
+    loadStats();
+  },[]);
 
-    // future me yaha firestore service connect hogi
-    // abhi dummy data
+  async function loadStats(){
 
-    setStats({
-      products:120,
-      orders:85,
-      users:320,
-      sellers:25
+    const productSnap = await getDocs(collection(db,"products"));
+    const orderSnap = await getDocs(collection(db,"orders"));
+    const userSnap = await getDocs(collection(db,"users"));
+
+    let sellerCount = 0;
+
+    userSnap.docs.forEach(doc=>{
+      const d:any = doc.data();
+      if(d.role==="seller"){
+        sellerCount++;
+      }
     });
 
-  },[]);
+    setStats({
+      products:productSnap.size,
+      orders:orderSnap.size,
+      users:userSnap.size,
+      sellers:sellerCount
+    });
+
+  }
 
   return (
 
@@ -50,7 +59,7 @@ export default function AdminDashboard() {
       </div>
 
 
-      {/* STATS CARDS */}
+      {/* STATS */}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
 
@@ -93,118 +102,76 @@ export default function AdminDashboard() {
 
       <div className="grid md:grid-cols-3 gap-6">
 
-        <Link href="/admin/products">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <Package className="mb-3 text-purple-600"/>
-            <h3 className="font-bold text-lg">Manage Products</h3>
-            <p className="text-sm text-gray-500">
-              Add, edit or delete products
-            </p>
-          </div>
+        <Link
+          href="/admin/products"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <Package className="mb-3 text-purple-600"/>
+          <h3 className="font-bold text-lg">Manage Products</h3>
+          <p className="text-sm text-gray-500">
+            Add, edit or delete products
+          </p>
         </Link>
 
-        <Link href="/admin/orders">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <ShoppingCart className="mb-3 text-green-600"/>
-            <h3 className="font-bold text-lg">Manage Orders</h3>
-            <p className="text-sm text-gray-500">
-              View and update order status
-            </p>
-          </div>
+        <Link
+          href="/admin/orders"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <ShoppingCart className="mb-3 text-green-600"/>
+          <h3 className="font-bold text-lg">Manage Orders</h3>
+          <p className="text-sm text-gray-500">
+            View and update order status
+          </p>
         </Link>
 
-        <Link href="/admin/categories">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <Tag className="mb-3 text-blue-600"/>
-            <h3 className="font-bold text-lg">Manage Categories</h3>
-            <p className="text-sm text-gray-500">
-              Create and manage categories
-            </p>
-          </div>
+        <Link
+          href="/admin/categories"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <Package className="mb-3 text-blue-600"/>
+          <h3 className="font-bold text-lg">Manage Categories</h3>
+          <p className="text-sm text-gray-500">
+            Create and manage categories
+          </p>
         </Link>
 
-        <Link href="/admin/banners">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <Tag className="mb-3 text-pink-600"/>
-            <h3 className="font-bold text-lg">Home Banners</h3>
-            <p className="text-sm text-gray-500">
-              Control homepage banners
-            </p>
-          </div>
+        <Link
+          href="/admin/banners"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <Package className="mb-3 text-pink-600"/>
+          <h3 className="font-bold text-lg">Home Banners</h3>
+          <p className="text-sm text-gray-500">
+            Control homepage banners
+          </p>
         </Link>
 
-        <Link href="/admin/festival">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <Tag className="mb-3 text-yellow-600"/>
-            <h3 className="font-bold text-lg">Festival Banner</h3>
-            <p className="text-sm text-gray-500">
-              Manage festival promotions
-            </p>
-          </div>
+        <Link
+          href="/admin/festival"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <Package className="mb-3 text-yellow-600"/>
+          <h3 className="font-bold text-lg">Festival Banner</h3>
+          <p className="text-sm text-gray-500">
+            Manage festival promotions
+          </p>
         </Link>
 
-        <Link href="/admin/sellers">
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition cursor-pointer">
-            <Users className="mb-3 text-orange-600"/>
-            <h3 className="font-bold text-lg">Sellers</h3>
-            <p className="text-sm text-gray-500">
-              Approve or block sellers
-            </p>
-          </div>
+        <Link
+          href="/admin/sellers"
+          className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition block"
+        >
+          <Users className="mb-3 text-orange-600"/>
+          <h3 className="font-bold text-lg">Sellers</h3>
+          <p className="text-sm text-gray-500">
+            Approve or block sellers
+          </p>
         </Link>
-
-      </div>
-
-
-      {/* RECENT ORDERS */}
-
-      <div className="mt-12 bg-white rounded-xl shadow p-6">
-
-        <h2 className="text-xl font-bold mb-4">
-          Recent Orders
-        </h2>
-
-        <table className="w-full text-sm">
-
-          <thead className="border-b">
-            <tr className="text-left">
-              <th className="py-2">Order ID</th>
-              <th>Customer</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            <tr className="border-b">
-              <td className="py-2">#JB1022</td>
-              <td>Rahul</td>
-              <td>₹799</td>
-              <td className="text-green-600">Delivered</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="py-2">#JB1023</td>
-              <td>Ali</td>
-              <td>₹599</td>
-              <td className="text-yellow-600">Processing</td>
-            </tr>
-
-            <tr>
-              <td className="py-2">#JB1024</td>
-              <td>Sara</td>
-              <td>₹999</td>
-              <td className="text-red-500">Pending</td>
-            </tr>
-
-          </tbody>
-
-        </table>
 
       </div>
 
     </div>
+
   );
 
 }
