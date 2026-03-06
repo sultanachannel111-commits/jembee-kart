@@ -50,7 +50,11 @@ export default function HomePage() {
   const loadData = async () => {
     const catSnap = await getDocs(collection(db, "qikinkCategories"));
     setCategories([
-      { id: "all", name: "All" },
+      { 
+  id: "all", 
+  name: "All",
+  image: "https://cdn-icons-png.flaticon.com/512/3081/3081559.png"
+ },
       ...catSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     ]);
 
