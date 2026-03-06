@@ -13,120 +13,231 @@ import {
 } from "firebase/firestore";
 
 export default function AdminCategories() {
-  const [name, setName] = useState("");
-  const [image, setImage] = useState("");
-  const [categories, setCategories] = useState<any[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [name,setName] = useState("");
+  const [image,setImage] = useState("");
+  const [categories,setCategories] = useState<any[]>([]);
+  const [editId,setEditId] = useState<string | null>(null);
+  const [search,setSearch] = useState("");
+
+  /* ==============================
+     LOAD CATEGORIES
+  ============================== */
+
+  useEffect(()=>{
+
     const unsub = onSnapshot(
-      collection(db, "qikinkCategories"),
-      (snap) => {
+      collection(db,"qikinkCategories"),
+      (snap)=>{
+
         setCategories(
-          snap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
+          snap.docs.map((d)=>({
+            id:d.id,
+            ...d.data()
           }))
         );
+
       }
     );
-    return () => unsub();
-  }, []);
 
-  const saveCategory = async () => {
-    if (!name || !image) return;
+    return ()=>unsub();
 
-    if (editId) {
-      await updateDoc(doc(db, "qikinkCategories", editId), {
-        name,
-        image,
-      });
+  },[]);
+
+  /* ==============================
+     SAVE CATEGORY
+  ============================== */
+
+  const saveCategory = async ()=>{
+
+    if(!name || !image){
+      alert("Enter name and image");
+      return;
+    }
+
+    if(editId){
+
+      await updateDoc(
+        doc(db,"qikinkCategories",editId),
+        {
+          name,
+          image
+        }
+      );
+
       setEditId(null);
+
     } else {
-      await addDoc(collection(db, "qikinkCategories"), {
-        name,
-        image,
-        isActive: true,
-        createdAt: serverTimestamp(),
-      });
+
+      await addDoc(
+        collection(db,"qikinkCategories"),
+        {
+          name,
+          image,
+          isActive:true,
+          createdAt:serverTimestamp()
+        }
+      );
+
     }
 
     setName("");
     setImage("");
+
   };
 
-  const editCategory = (cat: any) => {
+  /* ==============================
+     EDIT
+  ============================== */
+
+  const editCategory = (cat:any)=>{
+
     setName(cat.name);
     setImage(cat.image);
     setEditId(cat.id);
+
   };
 
-  const deleteCategory = async (id: string) => {
-    await deleteDoc(doc(db, "qikinkCategories", id));
+  /* ==============================
+     DELETE
+  ============================== */
+
+  const deleteCategory = async (id:string)=>{
+
+    const ok = confirm("Delete this category?");
+
+    if(!ok) return;
+
+    await deleteDoc(
+      doc(db,"qikinkCategories",id)
+    );
+
   };
+
+  /* ==============================
+     FILTER
+  ============================== */
+
+  const filtered = categories.filter((c:any)=>
+    c.name?.toLowerCase().includes(
+      search.toLowerCase()
+    )
+  );
+
+  /* ==============================
+     UI
+  ============================== */
 
   return (
+
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">
-        Admin Qikink Categories
+
+      {/* TITLE */}
+
+      <h1 className="text-3xl font-bold mb-6">
+        Qikink Categories
       </h1>
 
-      <div className="space-y-3 mb-6">
+
+      {/* SEARCH */}
+
+      <input
+        placeholder="Search category"
+        value={search}
+        onChange={(e)=>setSearch(e.target.value)}
+        className="border p-2 rounded w-full mb-6"
+      />
+
+
+      {/* FORM */}
+
+      <div className="bg-white shadow p-6 rounded-xl mb-8">
+
+        <h2 className="font-semibold mb-3">
+          {editId ? "Edit Category" : "Add Category"}
+        </h2>
+
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e)=>setName(e.target.value)}
           placeholder="Category Name"
-          className="border px-3 py-2 rounded w-full"
+          className="border px-3 py-2 rounded w-full mb-3"
         />
 
         <input
           value={image}
-          onChange={(e) => setImage(e.target.value)}
+          onChange={(e)=>setImage(e.target.value)}
           placeholder="Image URL"
-          className="border px-3 py-2 rounded w-full"
+          className="border px-3 py-2 rounded w-full mb-3"
         />
+
+        {/* IMAGE PREVIEW */}
+
+        {image && (
+
+          <img
+            src={image}
+            className="w-24 h-24 object-cover rounded-full mb-3"
+          />
+
+        )}
 
         <button
           onClick={saveCategory}
           className="bg-black text-white px-4 py-2 rounded"
         >
-          {editId ? "Update" : "Add"}
+          {editId ? "Update Category" : "Add Category"}
         </button>
+
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {categories.map((c) => (
-          <div key={c.id} className="border p-3 rounded">
+
+      {/* CATEGORY GRID */}
+
+      <div className="grid md:grid-cols-4 gap-6">
+
+        {filtered.map((c:any)=>(
+
+          <div
+            key={c.id}
+            className="bg-white p-4 rounded-xl shadow text-center"
+          >
 
             <img
               src={c.image}
-              alt={c.name}
               className="w-20 h-20 rounded-full object-cover mx-auto"
             />
 
-            <p className="text-center mt-2 font-semibold">
+            <p className="mt-3 font-semibold">
               {c.name}
             </p>
 
-            <div className="flex justify-between mt-3">
+            <div className="flex justify-center gap-4 mt-4">
+
               <button
-                onClick={() => editCategory(c)}
+                onClick={()=>editCategory(c)}
                 className="text-blue-600"
               >
                 Edit
               </button>
 
               <button
-                onClick={() => deleteCategory(c.id)}
+                onClick={()=>deleteCategory(c.id)}
                 className="text-red-600"
               >
                 Delete
               </button>
+
             </div>
 
           </div>
+
         ))}
+
       </div>
+
     </div>
+
   );
+
 }
