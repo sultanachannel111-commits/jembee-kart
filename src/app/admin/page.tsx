@@ -45,6 +45,19 @@ Manage products
 </Link>
 
 
+{/* ADD PRODUCT */}
+
+<Link href="/admin/products/add">
+<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+<Package className="text-purple-700 mb-2"/>
+<h3 className="font-bold">Add Product</h3>
+<p className="text-sm text-gray-500">
+Add new Qikink product
+</p>
+</div>
+</Link>
+  
+
 {/* ORDERS */}
 
 <Link href="/admin/orders">
