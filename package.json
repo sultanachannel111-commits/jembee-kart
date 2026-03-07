@@ -44,6 +44,7 @@
     "genkit": "^1.28.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.475.0",
+    "react-hot-toast": "^2.4.1",
     "next": "15.5.9",
     "openai": "^4.56.0",
     "patch-package": "^8.0.0",
