@@ -15,7 +15,8 @@ Truck,
 RefreshCcw,
 HelpCircle,
 Monitor,
-DollarSign
+DollarSign,
+Flame
 } from "lucide-react";
 
 export default function AdminDashboard(){
@@ -67,6 +68,25 @@ Add new Qikink product
 <p className="text-sm text-gray-500">
 Manage orders
 </p>
+</div>
+</Link>
+  
+
+{/* FLASH SALE */}
+
+<Link href="/admin/flash-sale">
+<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+
+<Flame className="text-red-500 mb-2"/>
+
+<h3 className="font-bold">
+Flash Sale
+</h3>
+
+<p className="text-sm text-gray-500">
+Control flash sale timer
+</p>
+
 </div>
 </Link>
 
