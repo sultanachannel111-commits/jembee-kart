@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import {
 signInWithEmailAndPassword,
 GoogleAuthProvider,
@@ -9,7 +10,10 @@ signInWithPopup
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
+
 import { Eye, EyeOff } from "lucide-react";
+
+import toast from "react-hot-toast";
 
 export default function LoginPage(){
 
@@ -19,24 +23,24 @@ const [email,setEmail] = useState("");
 const [password,setPassword] = useState("");
 const [show,setShow] = useState(false);
 const [loading,setLoading] = useState(false);
-const [error,setError] = useState("");
 
 const handleLogin = async(e:any)=>{
 
 e.preventDefault();
 
 setLoading(true);
-setError("");
 
 try{
 
 await signInWithEmailAndPassword(auth,email,password);
 
+toast.success("Login successful");
+
 router.push("/");
 
 }catch(err){
 
-setError("Invalid email or password");
+toast.error("Invalid email or password");
 
 }
 
@@ -52,11 +56,13 @@ const provider = new GoogleAuthProvider();
 
 await signInWithPopup(auth,provider);
 
+toast.success("Logged in with Google");
+
 router.push("/");
 
-}catch(err){
+}catch{
 
-setError("Google login failed");
+toast.error("Google login failed");
 
 }
 
@@ -66,9 +72,9 @@ return(
 
 <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600 p-4">
 
-<div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+<div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
 
-<h1 className="text-3xl font-bold text-center text-pink-600 mb-1">
+<h1 className="text-4xl font-bold text-center text-pink-600 mb-2">
 JembeeKart
 </h1>
 
@@ -80,10 +86,10 @@ Welcome back! Login to continue
 
 <input
 type="email"
-placeholder="Email"
+placeholder="Email address"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
 />
 
 <div className="relative">
@@ -93,7 +99,7 @@ type={show ? "text" : "password"}
 placeholder="Password"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
 />
 
 <button
@@ -108,15 +114,9 @@ className="absolute right-3 top-3 text-gray-500"
 
 </div>
 
-{error && (
-<p className="text-red-500 text-sm">
-{error}
-</p>
-)}
-
 <button
 type="submit"
-className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-700 transition"
+className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow-lg hover:scale-105 transition"
 >
 
 {loading ? "Logging in..." : "Login"}
@@ -132,14 +132,18 @@ Forgot password?
 <div className="flex items-center my-4">
 
 <div className="flex-1 border-t"></div>
-<span className="px-3 text-gray-400 text-sm">OR</span>
+
+<span className="px-3 text-gray-400 text-sm">
+OR
+</span>
+
 <div className="flex-1 border-t"></div>
 
 </div>
 
 <button
 onClick={googleLogin}
-className="w-full border py-3 rounded-lg font-medium hover:bg-gray-100"
+className="w-full border py-3 rounded-xl font-medium hover:bg-gray-100"
 >
 
 Continue with Google
@@ -147,10 +151,14 @@ Continue with Google
 </button>
 
 <p className="text-center text-sm mt-6">
+
 New user? 
 <span className="text-pink-600 font-semibold cursor-pointer">
+
  Create account
+
 </span>
+
 </p>
 
 </div>
