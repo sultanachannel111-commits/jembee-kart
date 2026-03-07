@@ -248,10 +248,12 @@ banners={banners}
 slide={slide}
 />
 
+{festival?.active && (
 <FestivalBanner
 festival={festival}
 timeLeft={timeLeft}
 />
+)}
 
 <CategoryList
 categories={categories}
