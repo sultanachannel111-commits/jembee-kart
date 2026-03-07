@@ -7,6 +7,8 @@ signInWithEmailAndPassword,
 GoogleAuthProvider,
 signInWithPopup
 } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
@@ -27,11 +29,25 @@ setLoading(true);
 
 try{
 
-await signInWithEmailAndPassword(auth,email,password);
+const userCred = await signInWithEmailAndPassword(auth,email,password);
+
+const uid = userCred.user.uid;
+
+const userDoc = await getDoc(doc(db,"users",uid));
+
+const role = userDoc.data()?.role;
 
 toast.success("Login successful");
 
+if(role === "admin"){
+router.push("/admin");
+}
+else if(role === "seller"){
+router.push("/seller");
+}
+else{
 router.push("/");
+}
 
 }catch{
 
