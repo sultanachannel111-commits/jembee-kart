@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function FlashSale() {
+export default function FlashSale(){
 
 const [time,setTime] = useState({
 hours:2,
@@ -17,6 +17,10 @@ const timer = setInterval(()=>{
 setTime(prev=>{
 
 let {hours,minutes,seconds} = prev;
+
+if(hours===0 && minutes===0 && seconds===0){
+return prev;
+}
 
 if(seconds>0){
 
@@ -34,7 +38,7 @@ minutes--;
 
 minutes=59;
 
-hours--;
+if(hours>0) hours--;
 
 }
 
@@ -52,13 +56,13 @@ return ()=>clearInterval(timer);
 
 return(
 
-<div className="bg-red-500 text-white rounded-xl p-4 flex justify-between items-center">
+<div className="bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl p-4 flex justify-between items-center shadow">
 
-<h2 className="font-bold">
+<h2 className="font-bold text-lg">
 🔥 Flash Sale
 </h2>
 
-<div className="flex gap-3 font-bold">
+<div className="flex gap-3 font-bold text-lg">
 
 <span>{time.hours}h</span>
 <span>{time.minutes}m</span>
