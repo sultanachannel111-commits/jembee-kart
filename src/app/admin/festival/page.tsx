@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function AdminFestivalPage() {
@@ -20,18 +20,24 @@ export default function AdminFestivalPage() {
 
     const fetchFestival = async ()=>{
 
-      const snap = await getDoc(
-        doc(db,"settings","festival")
-      );
+      try{
 
-      if(snap.exists()){
+        const snap = await getDoc(
+          doc(db,"settings","festival")
+        );
 
-        const data = snap.data();
+        if(snap.exists()){
 
-        setImage(data.image || "");
-        setTitle(data.title || "");
-        setActive(data.active || false);
+          const data:any = snap.data();
 
+          setImage(data.image || "");
+          setTitle(data.title || "");
+          setActive(data.active || false);
+
+        }
+
+      }catch(err){
+        console.error("Festival fetch error:",err);
       }
 
       setLoading(false);
@@ -42,29 +48,50 @@ export default function AdminFestivalPage() {
 
   },[]);
 
+
   /* =========================
-     SAVE
+     SAVE FESTIVAL
   ========================= */
 
   const saveFestival = async ()=>{
 
-    setSaving(true);
+    if(!image || !title){
+      alert("Title and Image required");
+      return;
+    }
 
-    await setDoc(
-      doc(db,"settings","festival"),
-      {
-        image,
-        title,
-        active,
-        updatedAt:new Date()
-      }
-    );
+    try{
+
+      setSaving(true);
+
+      await setDoc(
+        doc(db,"settings","festival"),
+        {
+          image:image,
+          title:title,
+          active:active,
+          updatedAt:serverTimestamp()
+        },
+        { merge:true }
+      );
+
+      alert("Festival banner saved successfully 🎉");
+
+    }catch(err){
+
+      console.error("Festival save error:",err);
+      alert("Error saving banner");
+
+    }
 
     setSaving(false);
 
-    alert("Festival Updated Successfully 🎉");
-
   };
+
+
+  /* =========================
+     LOADING
+  ========================= */
 
   if(loading){
 
@@ -76,11 +103,14 @@ export default function AdminFestivalPage() {
 
   }
 
+
+  /* =========================
+     UI
+  ========================= */
+
   return (
 
     <div className="p-6 max-w-2xl">
-
-      {/* HEADER */}
 
       <div className="mb-8">
 
@@ -95,9 +125,8 @@ export default function AdminFestivalPage() {
       </div>
 
 
-      {/* FORM CARD */}
-
       <div className="bg-white shadow rounded-xl p-6 space-y-5">
+
 
         {/* TITLE */}
 
@@ -135,7 +164,7 @@ export default function AdminFestivalPage() {
         </div>
 
 
-        {/* IMAGE PREVIEW */}
+        {/* PREVIEW */}
 
         {image && (
 
@@ -147,6 +176,7 @@ export default function AdminFestivalPage() {
 
             <img
               src={image}
+              alt="festival preview"
               className="w-full h-56 object-cover rounded-lg"
             />
 
@@ -155,7 +185,7 @@ export default function AdminFestivalPage() {
         )}
 
 
-        {/* ACTIVE TOGGLE */}
+        {/* ACTIVE SWITCH */}
 
         <label className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
 
@@ -182,6 +212,7 @@ export default function AdminFestivalPage() {
         >
           {saving ? "Saving..." : "Save Festival Banner"}
         </button>
+
 
       </div>
 
