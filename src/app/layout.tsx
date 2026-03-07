@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,6 +34,7 @@ loadTheme();
         <AuthProvider>
           <CartProvider>
             {children}
+            <Toaster position="top-center" />
             {/* Bottom Navbar */}
             {/* <Navbar /> */}
           </CartProvider>
