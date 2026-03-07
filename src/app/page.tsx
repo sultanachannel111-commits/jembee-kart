@@ -249,25 +249,25 @@ setSearch={setSearch}
 startVoice={startVoice}
 />
 
+<CategoryList
+categories={categories}
+selectedCategory={selectedCategory}
+setSelectedCategory={setSelectedCategory}
+/>
+
 <BannerSlider
 banners={banners}
 slide={slide}
 />
 
 <FlashSale />
-  
+
 {festival?.active && (
 <FestivalBanner
 festival={festival}
 timeLeft={timeLeft}
 />
 )}
-
-<CategoryList
-categories={categories}
-selectedCategory={selectedCategory}
-setSelectedCategory={setSelectedCategory}
-/>
 
 <ProductGrid
 products={filteredProducts}
@@ -277,8 +277,8 @@ products={filteredProducts}
 title="⚡ Lightning Deals"
 products={lightning}
 />
-  
-  <ProductGrid
+
+<ProductGrid
 title="🔥 Trending Products"
 products={trending}
 />
