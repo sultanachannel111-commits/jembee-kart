@@ -27,15 +27,17 @@ const timer = setInterval(()=>{
 
 const diff = end - new Date().getTime();
 
-if(diff<=0){
+if(diff <= 0){
+
 setTimeLeft(null);
 clearInterval(timer);
+
 }else{
 
 setTimeLeft({
-hours:Math.floor(diff/(1000*60*60)),
-minutes:Math.floor((diff/(1000*60))%60),
-seconds:Math.floor((diff/1000)%60)
+hours: Math.floor(diff / (1000*60*60)),
+minutes: Math.floor((diff / (1000*60)) % 60),
+seconds: Math.floor((diff / 1000) % 60)
 });
 
 }
@@ -48,7 +50,7 @@ loadFlashSale();
 
 },[]);
 
-if(!active) return null;
+if(!active || !timeLeft) return null;
 
 return(
 
@@ -60,9 +62,9 @@ return(
 
 <div className="flex gap-3 font-bold">
 
-<span>{timeLeft?.hours || 0}h</span>
-<span>{timeLeft?.minutes || 0}m</span>
-<span>{timeLeft?.seconds || 0}s</span>
+<span>{timeLeft.hours}h</span>
+<span>{timeLeft.minutes}m</span>
+<span>{timeLeft.seconds}s</span>
 
 </div>
 
