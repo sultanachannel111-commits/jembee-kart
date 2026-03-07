@@ -3,106 +3,105 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
+import { Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+export default function LoginPage(){
 
-  const router = useRouter();
+const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [show,setShow] = useState(false);
+const [loading,setLoading] = useState(false);
+const [error,setError] = useState("");
 
-  async function handleLogin(e: any) {
-    e.preventDefault();
+const handleLogin = async(e:any)=>{
 
-    try {
+e.preventDefault();
 
-      setLoading(true);
-      setError("");
+setLoading(true);
+setError("");
 
-      const res = await signInWithEmailAndPassword(auth, email, password);
-      const user = res.user;
+try{
 
-      const snap = await getDoc(doc(db, "users", user.uid));
+await signInWithEmailAndPassword(auth,email,password);
 
-      if (!snap.exists()) {
-        router.push("/");
-        return;
-      }
+router.push("/");
 
-      const data = snap.data();
+}catch(err){
 
-      if (data.role === "admin") {
-        router.push("/dashboard");
-        return;
-      }
+setError("Invalid email or password");
 
-      if (data.role === "seller") {
-        router.push("/seller");
-        return;
-      }
+}
 
-      router.push("/");
+setLoading(false);
 
-    } catch (err) {
+};
 
-      console.log(err);
-      setError("Login failed");
+return(
 
-    }
+<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600 p-4">
 
-    setLoading(false);
-  }
+<div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
 
-  return (
+<h1 className="text-3xl font-bold text-center mb-6">
+Login
+</h1>
 
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+<form onSubmit={handleLogin} className="space-y-4">
 
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded shadow w-80 space-y-4"
-      >
+<input
+type="email"
+placeholder="Email"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+className="w-full border rounded-lg px-4 py-3"
+/>
 
-        <h2 className="text-xl font-bold text-center">
-          Login
-        </h2>
+<div className="relative">
 
-        {error && (
-          <p className="text-red-500 text-center text-sm">
-            {error}
-          </p>
-        )}
+<input
+type={show ? "text" : "password"}
+placeholder="Password"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+className="w-full border rounded-lg px-4 py-3"
+/>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+<button
+type="button"
+onClick={()=>setShow(!show)}
+className="absolute right-3 top-3 text-gray-500"
+>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+{show ? <EyeOff size={20}/> : <Eye size={20}/>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-pink-500 text-white py-2 rounded"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
+</button>
 
-      </form>
+</div>
 
-    </div>
+{error && (
+<p className="text-red-500 text-sm">
+{error}
+</p>
+)}
 
-  );
+<button
+type="submit"
+className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold"
+>
+
+{loading ? "Logging in..." : "Login"}
+
+</button>
+
+</form>
+
+</div>
+
+</div>
+
+);
+
 }
