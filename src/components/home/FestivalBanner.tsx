@@ -9,7 +9,18 @@ if(!festival) return null;
 
 return(
 
-<div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl p-4">
+<div className="rounded-xl overflow-hidden">
+
+{/* IMAGE */}
+{festival.image && (
+<img
+src={festival.image}
+className="w-full h-40 object-cover rounded-xl"
+/>
+)}
+
+{/* TITLE + TIMER */}
+<div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 -mt-2 rounded-b-xl">
 
 <h2 className="font-bold text-lg">
 {festival.title}
@@ -24,6 +35,8 @@ return(
 
 </div>
 )}
+
+</div>
 
 </div>
 
