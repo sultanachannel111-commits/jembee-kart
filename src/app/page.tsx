@@ -6,7 +6,7 @@ import CategoryList from "@/components/home/CategoryList";
 import ProductGrid from "@/components/home/ProductGrid";
 import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
-
+import FlashSale from "@/components/home/FlashSale";
 import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
@@ -254,6 +254,8 @@ banners={banners}
 slide={slide}
 />
 
+<FlashSale />
+  
 {festival?.active && (
 <FestivalBanner
 festival={festival}
