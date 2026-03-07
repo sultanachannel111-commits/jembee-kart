@@ -19,6 +19,8 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 
+import { getLightningDeals } from "@/services/lightningService";
+
 export default function HomePage() {
   const { cartCount } = useCart();
   const pathname = usePathname();
@@ -42,7 +44,8 @@ export default function HomePage() {
   const [trending, setTrending] = useState<any[]>([]);
   const [clearance, setClearance] = useState<any[]>([]);
   const [recommended, setRecommended] = useState<any[]>([]);
-
+  const [lightning, setLightning] = useState<any[]>([]);
+  
   useEffect(() => {
     loadData();
   }, []);
@@ -124,6 +127,9 @@ setClearance(clearanceProducts);
 
 const recommendedProducts = await getRecommendedProducts();
 setRecommended(recommendedProducts);
+
+const lightningDeals = await getLightningDeals();
+setLightning(lightningDeals);    
     const festSnap = await getDoc(doc(db, "settings", "festival"));
     if (festSnap.exists()) setFestival(festSnap.data());
 
@@ -264,6 +270,12 @@ setSelectedCategory={setSelectedCategory}
 <ProductGrid
 products={filteredProducts}
 />
+
+<ProductGrid
+title="⚡ Lightning Deals"
+products={lightning}
+/>
+  
   <ProductGrid
 title="🔥 Trending Products"
 products={trending}
