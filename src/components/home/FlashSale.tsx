@@ -1,72 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect,useState } from "react";
+import { doc,getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function FlashSale(){
 
-const [time,setTime] = useState({
-hours:2,
-minutes:59,
-seconds:59
-});
+const [timeLeft,setTimeLeft] = useState<any>(null);
+const [active,setActive] = useState(false);
 
 useEffect(()=>{
 
-const timer = setInterval(()=>{
-
-setTime(prev=>{
-
-let {hours,minutes,seconds} = prev;
-
-if(hours===0 && minutes===0 && seconds===0){
-return prev;
-}
-
-if(seconds>0){
-
-seconds--;
-
-}else{
-
-seconds=59;
-
-if(minutes>0){
-
-minutes--;
-
-}else{
-
-minutes=59;
-
-if(hours>0) hours--;
-
-}
-
-}
-
-return {hours,minutes,seconds};
-
-});
-
-},1000);
-
-return ()=>clearInterval(timer);
+loadFlashSale();
 
 },[]);
 
+const loadFlashSale = async ()=>{
+
+const snap = await getDoc(doc(db,"settings","flashSale"));
+
+if(!snap.exists()) return;
+
+const data = snap.data();
+
+setActive(data.active);
+
+const end = new Date(data.endTime).getTime();
+
+setInterval(()=>{
+
+const diff = end - new Date().getTime();
+
+if(diff<=0){
+
+setTimeLeft(null);
+
+}else{
+
+setTimeLeft({
+hours:Math.floor(diff/(1000*60*60)),
+minutes:Math.floor((diff/(1000*60))%60),
+seconds:Math.floor((diff/1000)%60)
+});
+
+}
+
+},1000);
+
+};
+
+if(!active || !timeLeft) return null;
+
 return(
 
-<div className="bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl p-4 flex justify-between items-center shadow">
+<div className="bg-red-500 text-white rounded-xl p-4 flex justify-between items-center">
 
-<h2 className="font-bold text-lg">
+<h2 className="font-bold">
 🔥 Flash Sale
 </h2>
 
-<div className="flex gap-3 font-bold text-lg">
+<div className="flex gap-3 font-bold">
 
-<span>{time.hours}h</span>
-<span>{time.minutes}m</span>
-<span>{time.seconds}s</span>
+<span>{timeLeft.hours}h</span>
+<span>{timeLeft.minutes}m</span>
+<span>{timeLeft.seconds}s</span>
 
 </div>
 
