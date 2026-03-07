@@ -5,7 +5,7 @@ festival,
 timeLeft
 }: any){
 
-if(!festival || !timeLeft) return null;
+if(!festival) return null;
 
 return(
 
@@ -15,6 +15,7 @@ return(
 {festival.title}
 </h2>
 
+{timeLeft && (
 <div className="flex gap-4 mt-2 font-bold">
 
 <span>{timeLeft.hours}h</span>
@@ -22,6 +23,7 @@ return(
 <span>{timeLeft.seconds}s</span>
 
 </div>
+)}
 
 </div>
 
