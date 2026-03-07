@@ -1,7 +1,7 @@
 "use client";
 
-import { useState,useEffect } from "react";
-import { doc,setDoc,getDoc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function AdminFlashSale(){
@@ -24,7 +24,22 @@ if(snap.exists()){
 const data = snap.data();
 
 setActive(data.active || false);
-setEndTime(data.endTime || "");
+
+if(data.endTime){
+const date = new Date(data.endTime);
+const formatted =
+date.getFullYear() +
+"-" +
+String(date.getMonth()+1).padStart(2,"0") +
+"-" +
+String(date.getDate()).padStart(2,"0") +
+"T" +
+String(date.getHours()).padStart(2,"0") +
+":" +
+String(date.getMinutes()).padStart(2,"0");
+
+setEndTime(formatted);
+}
 
 }
 
@@ -33,8 +48,10 @@ setEndTime(data.endTime || "");
 const saveFlashSale = async ()=>{
 
 await setDoc(doc(db,"settings","flashSale"),{
+
 active,
-endTime
+endTime: new Date(endTime).toISOString()
+
 });
 
 alert("Flash Sale Updated");
