@@ -2,17 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
 import {
 signInWithEmailAndPassword,
 GoogleAuthProvider,
 signInWithPopup
 } from "firebase/auth";
-
 import { auth } from "@/lib/firebase";
-
-import { Eye, EyeOff } from "lucide-react";
-
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function LoginPage(){
@@ -24,8 +20,7 @@ const [password,setPassword] = useState("");
 const [show,setShow] = useState(false);
 const [loading,setLoading] = useState(false);
 
-const handleLogin = async(e:any)=>{
-
+const login = async(e:any)=>{
 e.preventDefault();
 
 setLoading(true);
@@ -38,14 +33,13 @@ toast.success("Login successful");
 
 router.push("/");
 
-}catch(err){
+}catch{
 
 toast.error("Invalid email or password");
 
 }
 
 setLoading(false);
-
 };
 
 const googleLogin = async()=>{
@@ -70,36 +64,44 @@ toast.error("Google login failed");
 
 return(
 
-<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600 p-4">
+<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-pink-400 to-purple-600 p-4">
 
-<div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+<div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-6 w-full max-w-sm">
 
-<h1 className="text-4xl font-bold text-center text-pink-600 mb-2">
+<h1 className="text-3xl font-bold text-center text-pink-600">
 JembeeKart
 </h1>
 
-<p className="text-center text-gray-500 mb-6">
-Welcome back! Login to continue
+<p className="text-center text-gray-500 mt-1 mb-6">
+Login
 </p>
 
-<form onSubmit={handleLogin} className="space-y-4">
+<form onSubmit={login} className="space-y-4">
+
+<div className="relative">
+
+<Mail className="absolute left-3 top-3 text-gray-400" size={18}/>
 
 <input
 type="email"
-placeholder="Email address"
+placeholder="Email"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+className="w-full border rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
 />
 
+</div>
+
 <div className="relative">
+
+<Lock className="absolute left-3 top-3 text-gray-400" size={18}/>
 
 <input
 type={show ? "text" : "password"}
 placeholder="Password"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+className="w-full border rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
 />
 
 <button
@@ -116,7 +118,7 @@ className="absolute right-3 top-3 text-gray-500"
 
 <button
 type="submit"
-className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow-lg hover:scale-105 transition"
+className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow-md hover:opacity-90 transition"
 >
 
 {loading ? "Logging in..." : "Login"}
@@ -125,7 +127,7 @@ className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 r
 
 </form>
 
-<p className="text-center text-sm mt-4 text-gray-500 cursor-pointer">
+<p className="text-center text-sm text-gray-500 mt-4 cursor-pointer">
 Forgot password?
 </p>
 
@@ -143,8 +145,13 @@ OR
 
 <button
 onClick={googleLogin}
-className="w-full border py-3 rounded-xl font-medium hover:bg-gray-100"
+className="w-full border py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100"
 >
+
+<img
+src="https://www.svgrepo.com/show/475656/google-color.svg"
+className="w-5 h-5"
+/>
 
 Continue with Google
 
