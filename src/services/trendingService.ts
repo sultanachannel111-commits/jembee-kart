@@ -3,17 +3,27 @@ import { collection, getDocs } from "firebase/firestore";
 
 export const getTrendingProducts = async () => {
 
-  const snap = await getDocs(collection(db, "products"));
+  try{
 
-  const products = snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+    const snap = await getDocs(collection(db,"products"));
 
-  const trending = products
-    .sort((a:any,b:any)=> (b.sales || 0) - (a.sales || 0))
-    .slice(0,8);
+    const products:any[] = snap.docs.map(doc=>({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-  return trending;
+    // SALES BASED TRENDING
+    const trending = products
+      .sort((a:any,b:any)=> (b.sales || 0) - (a.sales || 0))
+      .slice(0,8);
+
+    return trending;
+
+  }catch(error){
+
+    console.log("Trending error",error);
+    return [];
+
+  }
 
 };
