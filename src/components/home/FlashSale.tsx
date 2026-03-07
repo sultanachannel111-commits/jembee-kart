@@ -19,13 +19,16 @@ if(!snap.exists()) return;
 
 const data = snap.data();
 
-setActive(data.active);
+setActive(data.active || false);
+
+if(!data.endTime) return;
 
 const end = new Date(data.endTime).getTime();
 
 const timer = setInterval(()=>{
 
-const diff = end - new Date().getTime();
+const now = new Date().getTime();
+const diff = end - now;
 
 if(diff <= 0){
 
@@ -35,8 +38,8 @@ clearInterval(timer);
 }else{
 
 setTimeLeft({
-hours: Math.floor(diff / (1000*60*60)),
-minutes: Math.floor((diff / (1000*60)) % 60),
+hours: Math.floor(diff / (1000 * 60 * 60)),
+minutes: Math.floor((diff / (1000 * 60)) % 60),
 seconds: Math.floor((diff / 1000) % 60)
 });
 
@@ -50,7 +53,7 @@ loadFlashSale();
 
 },[]);
 
-if(!active || !timeLeft) return null;
+if(!active) return null;
 
 return(
 
@@ -62,9 +65,9 @@ return(
 
 <div className="flex gap-3 font-bold">
 
-<span>{timeLeft.hours}h</span>
-<span>{timeLeft.minutes}m</span>
-<span>{timeLeft.seconds}s</span>
+<span>{timeLeft?.hours ?? 0}h</span>
+<span>{timeLeft?.minutes ?? 0}m</span>
+<span>{timeLeft?.seconds ?? 0}s</span>
 
 </div>
 
