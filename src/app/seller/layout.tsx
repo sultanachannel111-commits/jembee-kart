@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -27,18 +28,49 @@ Trophy
 export default function SellerLayout({ children }: any){
 
 const router = useRouter();
-const [user,setUser] = useState<any>(null);
+const [checking,setChecking] = useState(true);
 
 useEffect(()=>{
 
-const unsub = onAuthStateChanged(auth,(u)=>{
+const unsub = onAuthStateChanged(auth, async (user)=>{
 
-if(!u){
+try{
+
+// ❌ login nahi
+if(!user){
 router.replace("/seller/login");
+setChecking(false);
 return;
 }
 
-setUser(u);
+const snap = await getDoc(doc(db,"users",user.uid));
+
+// ❌ firestore user nahi
+if(!snap.exists()){
+router.replace("/");
+setChecking(false);
+return;
+}
+
+const data = snap.data();
+
+// ❌ seller nahi
+if(data.role !== "seller"){
+router.replace("/");
+setChecking(false);
+return;
+}
+
+// ✅ seller verified
+setChecking(false);
+
+}catch(err){
+
+console.log(err);
+setChecking(false);
+router.replace("/");
+
+}
 
 });
 
@@ -46,11 +78,13 @@ return ()=>unsub();
 
 },[]);
 
-if(!user){
+if(checking){
 
 return(
 <div className="flex items-center justify-center h-screen">
-<p className="text-gray-500">Loading...</p>
+<p className="text-gray-500 text-lg">
+Loading...
+</p>
 </div>
 )
 
