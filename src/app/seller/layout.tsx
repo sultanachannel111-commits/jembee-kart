@@ -34,9 +34,8 @@ useEffect(()=>{
 
 const unsub = onAuthStateChanged(auth, async (user)=>{
 
-// user not logged in
+// 🔒 Login check
 if(!user){
-setLoading(false);
 router.replace("/seller/login");
 return;
 }
@@ -46,29 +45,26 @@ try{
 const ref = doc(db,"users",user.uid);
 const snap = await getDoc(ref);
 
-// user doc not found
+// 🔒 Firestore user check
 if(!snap.exists()){
-setLoading(false);
-router.replace("/");
+router.replace("/seller/login");
 return;
 }
 
 const data = snap.data();
 
-// not a seller
+// 🔒 Seller role check
 if(data.role !== "seller"){
-setLoading(false);
 router.replace("/");
 return;
 }
 
-// seller valid
+// ✅ Seller verified
 setLoading(false);
 
 }catch(err){
 
 console.log("Seller access error:",err);
-setLoading(false);
 router.replace("/");
 
 }
@@ -77,7 +73,7 @@ router.replace("/");
 
 return ()=>unsub();
 
-},[]);
+},[router]);
 
 if(loading){
 
