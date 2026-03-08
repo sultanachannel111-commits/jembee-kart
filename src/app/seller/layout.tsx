@@ -36,29 +36,29 @@ useEffect(()=>{
 const unsub = onAuthStateChanged(auth, async (user)=>{
 
 if(!user){
-
 router.push("/seller/login");
 return;
+}
 
+const snap = await getDoc(
+doc(db,"users",user.uid)
+);
+
+if(!snap.exists()){
+router.push("/");
+return;
 }
 
 const data = snap.data();
 
-if(data?.role !== "seller"){
-
+if(data.role !== "seller"){
 router.push("/");
 return;
-
 }
 
-const data = snap.data();
+setLoading(false);
 
-if(data?.role !== "seller"){
-
-router.push("/");
-return;
-
-}
+});
 
 setLoading(false);
 
