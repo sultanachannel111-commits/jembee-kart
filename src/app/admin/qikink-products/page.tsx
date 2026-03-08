@@ -27,7 +27,9 @@ export default function AdminQikinkProducts() {
   const [minPrice,setMinPrice] = useState("");
   const [category,setCategory] = useState("");
   const [categories,setCategories] = useState<any[]>([]);
-  const [variations,setVariations] = useState("");
+
+  const [type,setType] = useState("");
+  const [options,setOptions] = useState("");
 
   /* =========================
      LOAD CATEGORIES
@@ -72,7 +74,12 @@ export default function AdminQikinkProducts() {
         image,
         basePrice:Number(basePrice),
         minPrice:Number(minPrice),
-        variations:variations.split(","),
+
+        variations:{
+          type:type,
+          options:options.split(",")
+        },
+
         createdAt:serverTimestamp()
       }
     );
@@ -82,7 +89,8 @@ export default function AdminQikinkProducts() {
     setImage("");
     setBasePrice("");
     setMinPrice("");
-    setVariations("");
+    setType("");
+    setOptions("");
 
     alert("Product Added Successfully 🎉");
 
@@ -238,7 +246,11 @@ onChange={(e)=>setMinPrice(e.target.value)}
 placeholder="299"
 className="border w-full p-3 rounded-lg"
 />
-  {/* VARIATION */}
+
+</div>
+
+
+{/* VARIATION */}
 
 <div className="mt-4">
 
