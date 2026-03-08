@@ -1,51 +1,70 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db,auth } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
-collection,
-getDocs,
-addDoc,
-serverTimestamp
+  collection,
+  getDocs,
+  addDoc,
+  serverTimestamp
 } from "firebase/firestore";
 
-export default function SellerAddProduct(){
+export default function SellerAddProduct() {
 
-const [adminProducts,setAdminProducts] = useState<any[]>([])
-const [selectedProduct,setSelectedProduct] = useState<any>(null)
+const [adminProducts,setAdminProducts] = useState<any[]>([]);
+const [selectedProduct,setSelectedProduct] = useState<any | null>(null);
 
-const [description,setDescription] = useState("")
-const [price,setPrice] = useState("")
+const [description,setDescription] = useState("");
+const [price,setPrice] = useState("");
+const [loading,setLoading] = useState(false);
 
 useEffect(()=>{
 
-loadAdminProducts()
+loadAdminProducts();
 
-},[])
+},[]);
 
-const loadAdminProducts = async ()=>{
+const loadAdminProducts = async () => {
 
-const snap = await getDocs(
-collection(db,"adminProducts")
-)
+try{
 
-setAdminProducts(
-snap.docs.map(d=>({
+const snap = await getDocs(collection(db,"adminProducts"));
+
+const products = snap.docs.map((d)=>({
 id:d.id,
 ...d.data()
-}))
-)
+}));
 
+setAdminProducts(products);
+
+}catch(err){
+console.log("Load admin products error:",err);
 }
 
-const publishProduct = async ()=>{
+};
+
+const publishProduct = async () => {
 
 if(!selectedProduct){
-alert("Select product")
-return
+alert("Select product first");
+return;
 }
 
-const user = auth.currentUser
+const user = auth.currentUser;
+
+if(!user){
+alert("Login required");
+return;
+}
+
+if(!price){
+alert("Enter price");
+return;
+}
+
+try{
+
+setLoading(true);
 
 await addDoc(
 collection(db,"products"),
@@ -55,18 +74,31 @@ name:selectedProduct.name,
 image:selectedProduct.image,
 category:selectedProduct.category,
 
-sellerId:user?.uid,
+sellerId:user.uid,
 
-description,
+description:description,
 price:Number(price),
 
 createdAt:serverTimestamp()
 }
-)
+);
 
-alert("Product Published")
+alert("Product Published Successfully");
+
+setDescription("");
+setPrice("");
+setSelectedProduct(null);
+
+}catch(err){
+
+console.log("Publish product error:",err);
+alert("Publish failed");
 
 }
+
+setLoading(false);
+
+};
 
 return(
 
@@ -80,16 +112,16 @@ Add Product
 onChange={(e)=>{
 
 const p = adminProducts.find(
-x=>x.id===e.target.value
-)
+(x)=>x.id === e.target.value
+);
 
-setSelectedProduct(p)
+setSelectedProduct(p);
 
 }}
-className="border p-3 w-full mb-3 rounded"
+className="border p-3 w-full mb-4 rounded"
 >
 
-<option>Select Admin Product</option>
+<option value="">Select Admin Product</option>
 
 {adminProducts.map((p:any)=>(
 <option key={p.id} value={p.id}>
@@ -127,20 +159,20 @@ className="border p-3 w-full mb-3 rounded"
 placeholder="Your Sell Price"
 value={price}
 onChange={(e)=>setPrice(e.target.value)}
-className="border p-3 w-full mb-3 rounded"
+className="border p-3 w-full mb-4 rounded"
 />
 
 <button
 onClick={publishProduct}
-className="bg-black text-white px-5 py-3 rounded"
+className="bg-black text-white px-5 py-3 rounded w-full"
 >
 
-Publish Product
+{loading ? "Publishing..." : "Publish Product"}
 
 </button>
 
 </div>
 
-)
+);
 
 }
