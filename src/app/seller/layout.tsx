@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -28,60 +27,30 @@ Trophy
 export default function SellerLayout({ children }: any){
 
 const router = useRouter();
-const [loading,setLoading] = useState(true);
+const [user,setUser] = useState<any>(null);
 
 useEffect(()=>{
 
-const unsub = onAuthStateChanged(auth, async (user)=>{
+const unsub = onAuthStateChanged(auth,(u)=>{
 
-// 🔒 Login check
-if(!user){
+if(!u){
 router.replace("/seller/login");
 return;
 }
 
-try{
-
-const ref = doc(db,"users",user.uid);
-const snap = await getDoc(ref);
-
-// 🔒 Firestore user check
-if(!snap.exists()){
-router.replace("/seller/login");
-return;
-}
-
-const data = snap.data();
-
-// 🔒 Seller role check
-if(data.role !== "seller"){
-router.replace("/");
-return;
-}
-
-// ✅ Seller verified
-setLoading(false);
-
-}catch(err){
-
-console.log("Seller access error:",err);
-router.replace("/");
-
-}
+setUser(u);
 
 });
 
 return ()=>unsub();
 
-},[router]);
+},[]);
 
-if(loading){
+if(!user){
 
 return(
 <div className="flex items-center justify-center h-screen">
-<p className="text-gray-500 text-lg">
-Checking seller access...
-</p>
+<p className="text-gray-500">Loading...</p>
 </div>
 )
 
