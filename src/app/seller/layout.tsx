@@ -42,9 +42,14 @@ return;
 
 }
 
-const snap = await getDoc(
-doc(db,"users",user.uid)
-);
+const data = snap.data();
+
+if(data?.role !== "seller"){
+
+router.push("/");
+return;
+
+}
 
 const data = snap.data();
 
