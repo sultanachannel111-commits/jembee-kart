@@ -38,9 +38,10 @@ createdAt:Date.now()
 
 router.push("/seller/dashboard");
 
-}catch(err){
+}catch(error){
 
-alert("Signup Error");
+console.log(error);
+alert("Signup failed");
 
 }
 
