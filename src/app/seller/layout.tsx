@@ -1,34 +1,18 @@
-useEffect(()=>{
+"use client"
 
-const unsub = onAuthStateChanged(auth, async (user)=>{
+import Link from "next/link"
+import {
+LayoutDashboard,
+Package,
+ShoppingCart
+} from "lucide-react"
 
-console.log("AUTH USER:", user);
+export default function SellerLayout({ children }: any){
 
-if(!user){
-router.push("/seller/login");
-return;
+return(
+<div>
+{children}
+</div>
+)
+
 }
-
-const snap = await getDoc(doc(db,"users",user.uid));
-
-console.log("USER DOC:", snap.data());
-
-if(!snap.exists()){
-router.push("/");
-return;
-}
-
-const data:any = snap.data();
-
-if(data.role !== "seller"){
-router.push("/");
-return;
-}
-
-setLoading(false);
-
-});
-
-return ()=>unsub();
-
-},[]);
