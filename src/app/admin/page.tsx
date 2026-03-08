@@ -291,7 +291,20 @@ JembeeKart Admin Panel
 </div>
 </Link>
 
+{/* DATABASE CONTROL */}
 
+<Link href="/admin/database">
+<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+
+<h3 className="font-bold">Database Control</h3>
+
+<p className="text-sm text-gray-500">
+View edit delete firestore data
+</p>
+
+</div>
+</Link>
+  
 </div>
 
 </div>
