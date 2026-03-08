@@ -1,87 +1,86 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { createUserWithEmailAndPassword } from "firebase/auth"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function SellerSignup(){
 
-const router = useRouter()
+const router = useRouter();
 
-const [name,setName] = useState("")
-const [email,setEmail] = useState("")
-const [password,setPassword] = useState("")
-const [loading,setLoading] = useState(false)
+const [name,setName] = useState("");
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [loading,setLoading] = useState(false);
 
-async function handleSignup(){
+const signup = async(e:any)=>{
 
-if(!name || !email || !password){
-alert("Fill all fields")
-return
-}
+e.preventDefault();
 
-setLoading(true)
+setLoading(true);
 
 try{
 
-// Firebase Auth user create
 const res = await createUserWithEmailAndPassword(
 auth,
 email,
 password
-)
+);
 
-const uid = res.user.uid
+const user = res.user;
 
-// Firestore user create
-await setDoc(doc(db,"users",uid),{
-
+await setDoc(
+doc(db,"users",user.uid),
+{
 name:name,
 email:email,
 role:"seller",
 createdAt:serverTimestamp()
+}
+);
 
-})
+alert("Seller account created");
 
-alert("Seller account created")
-
-router.push("/seller/dashboard")
+router.push("/seller/dashboard");
 
 }catch(err){
 
-console.log(err)
-alert("Signup failed")
+console.log(err);
+alert("Signup failed");
 
 }
 
-setLoading(false)
+setLoading(false);
 
-}
+};
 
 return(
 
-<div className="flex items-center justify-center h-screen">
+<div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-<div className="bg-white p-6 shadow-lg w-80 space-y-4">
+<div className="bg-white p-8 rounded-xl shadow w-96">
 
-<h2 className="text-xl font-bold">
+<h1 className="text-2xl font-bold mb-6 text-center">
 Seller Signup
-</h2>
+</h1>
+
+<form onSubmit={signup} className="space-y-4">
 
 <input
-placeholder="Name"
+placeholder="Full Name"
 value={name}
 onChange={(e)=>setName(e.target.value)}
-className="border p-2 w-full"
+className="border w-full p-2 rounded"
 />
 
 <input
+type="email"
 placeholder="Email"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-className="border p-2 w-full"
+className="border w-full p-2 rounded"
 />
 
 <input
@@ -89,22 +88,24 @@ type="password"
 placeholder="Password"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-className="border p-2 w-full"
+className="border w-full p-2 rounded"
 />
 
 <button
-onClick={handleSignup}
-className="bg-black text-white w-full p-2"
+type="submit"
+className="bg-black text-white w-full p-2 rounded"
 >
 
 {loading ? "Creating..." : "Create Seller Account"}
 
 </button>
 
-</div>
+</form>
 
 </div>
 
-)
+</div>
+
+);
 
 }
