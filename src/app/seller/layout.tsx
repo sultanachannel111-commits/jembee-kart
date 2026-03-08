@@ -34,33 +34,42 @@ useEffect(()=>{
 
 const unsub = onAuthStateChanged(auth, async (user)=>{
 
+// user not logged in
 if(!user){
-router.push("/seller/login");
+setLoading(false);
+router.replace("/seller/login");
 return;
 }
 
 try{
 
-const snap = await getDoc(doc(db,"users",user.uid));
+const ref = doc(db,"users",user.uid);
+const snap = await getDoc(ref);
 
+// user doc not found
 if(!snap.exists()){
-router.push("/");
+setLoading(false);
+router.replace("/");
 return;
 }
 
 const data = snap.data();
 
+// not a seller
 if(data.role !== "seller"){
-router.push("/");
+setLoading(false);
+router.replace("/");
 return;
 }
 
+// seller valid
 setLoading(false);
 
 }catch(err){
 
-console.log(err);
-router.push("/");
+console.log("Seller access error:",err);
+setLoading(false);
+router.replace("/");
 
 }
 
@@ -73,13 +82,11 @@ return ()=>unsub();
 if(loading){
 
 return(
-
 <div className="flex items-center justify-center h-screen">
 <p className="text-gray-500 text-lg">
 Checking seller access...
 </p>
 </div>
-
 )
 
 }
