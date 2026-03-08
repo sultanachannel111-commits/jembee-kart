@@ -129,7 +129,18 @@ return (
       onClick={googleLogin}
       className="w-full border py-3 rounded-xl font-medium hover:bg-gray-100"
     >
-      Continue with Google
+     <div className="flex items-center justify-center gap-2">
+
+<img
+src="https://www.svgrepo.com/show/475656/google-color.svg"
+alt="google"
+className="w-5 h-5"
+/>
+
+Continue with Google
+
+</div>
+     
     </button>
 
     <p className="text-center text-sm text-gray-500 mt-5">
@@ -147,4 +158,4 @@ return (
 </div>
 
 );
-}
+} 
