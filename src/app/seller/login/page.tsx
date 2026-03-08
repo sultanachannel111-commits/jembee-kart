@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export default function SellerLogin(){
 
@@ -21,11 +22,31 @@ setLoading(true);
 
 try{
 
-await signInWithEmailAndPassword(auth,email,password);
+// Firebase login
+const res = await signInWithEmailAndPassword(auth,email,password);
+
+const uid = res.user.uid;
+
+// Firestore role check
+const snap = await getDoc(doc(db,"users",uid));
+
+if(!snap.exists()){
+alert("User not found");
+setLoading(false);
+return;
+}
+
+const data = snap.data();
+
+if(data.role !== "seller"){
+alert("This is not a seller account");
+setLoading(false);
+return;
+}
 
 router.push("/seller/dashboard");
 
-}catch{
+}catch(err){
 
 alert("Login failed");
 
@@ -73,6 +94,13 @@ className="bg-black text-white w-full p-2 rounded"
 </button>
 
 </form>
+
+<p className="text-center text-sm mt-4">
+No seller account?
+<a href="/seller/signup" className="text-blue-600 ml-1">
+Signup
+</a>
+</p>
 
 </div>
 
