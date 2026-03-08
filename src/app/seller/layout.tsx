@@ -39,6 +39,8 @@ router.push("/seller/login");
 return;
 }
 
+try{
+
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
@@ -54,6 +56,13 @@ return;
 }
 
 setLoading(false);
+
+}catch(err){
+
+console.log(err);
+router.push("/");
+
+}
 
 });
 
