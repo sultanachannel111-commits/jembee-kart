@@ -238,24 +238,34 @@ onChange={(e)=>setMinPrice(e.target.value)}
 placeholder="299"
 className="border w-full p-3 rounded-lg"
 />
+  {/* VARIATION */}
 
-</div>
+<div className="mt-4">
 
-
-{/* VARIATIONS */}
-
-<div>
-
-<label className="flex items-center gap-2 font-semibold mb-1">
-<Layers size={18}/>
-Variations
+<label className="font-semibold mb-1 block">
+Variation Type
 </label>
 
+<select
+value={type}
+onChange={(e)=>setType(e.target.value)}
+className="border p-2 w-full mb-3 rounded"
+>
+
+<option value="">Select Variation</option>
+<option value="Size">Size</option>
+<option value="Color">Color</option>
+<option value="Number">Number</option>
+<option value="Age">Age</option>
+<option value="Custom">Custom</option>
+
+</select>
+
 <input
-value={variations}
-onChange={(e)=>setVariations(e.target.value)}
-placeholder="S,M,L / Red,Blue / 5-7 Years"
-className="border w-full p-3 rounded-lg"
+value={options}
+onChange={(e)=>setOptions(e.target.value)}
+placeholder="Options (S,M,L / Red,Blue)"
+className="border p-2 w-full rounded"
 />
 
 </div>
