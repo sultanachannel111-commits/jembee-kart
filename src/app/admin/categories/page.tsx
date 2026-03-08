@@ -20,9 +20,9 @@ export default function AdminCategories() {
   const [editId,setEditId] = useState<string | null>(null);
   const [search,setSearch] = useState("");
 
-  /* ==============================
+  /* ==========================
      LOAD CATEGORIES
-  ============================== */
+  ========================== */
 
   useEffect(()=>{
 
@@ -30,12 +30,12 @@ export default function AdminCategories() {
       collection(db,"qikinkCategories"),
       (snap)=>{
 
-        setCategories(
-          snap.docs.map((d)=>({
-            id:d.id,
-            ...d.data()
-          }))
-        );
+        const list = snap.docs.map((d)=>({
+          id:d.id,
+          ...d.data()
+        }));
+
+        setCategories(list);
 
       }
     );
@@ -44,14 +44,23 @@ export default function AdminCategories() {
 
   },[]);
 
-  /* ==============================
+  /* ==========================
      SAVE CATEGORY
-  ============================== */
+  ========================== */
 
   const saveCategory = async ()=>{
 
     if(!name || !image){
       alert("Enter name and image");
+      return;
+    }
+
+    const exists = categories.find(
+      (c:any)=>c.name.toLowerCase()===name.toLowerCase()
+    );
+
+    if(exists && !editId){
+      alert("Category already exists");
       return;
     }
 
@@ -86,9 +95,9 @@ export default function AdminCategories() {
 
   };
 
-  /* ==============================
+  /* ==========================
      EDIT
-  ============================== */
+  ========================== */
 
   const editCategory = (cat:any)=>{
 
@@ -98,9 +107,9 @@ export default function AdminCategories() {
 
   };
 
-  /* ==============================
+  /* ==========================
      DELETE
-  ============================== */
+  ========================== */
 
   const deleteCategory = async (id:string)=>{
 
@@ -114,9 +123,24 @@ export default function AdminCategories() {
 
   };
 
-  /* ==============================
+  /* ==========================
+     TOGGLE ACTIVE
+  ========================== */
+
+  const toggleActive = async (cat:any)=>{
+
+    await updateDoc(
+      doc(db,"qikinkCategories",cat.id),
+      {
+        isActive:!cat.isActive
+      }
+    );
+
+  };
+
+  /* ==========================
      FILTER
-  ============================== */
+  ========================== */
 
   const filtered = categories.filter((c:any)=>
     c.name?.toLowerCase().includes(
@@ -124,9 +148,9 @@ export default function AdminCategories() {
     )
   );
 
-  /* ==============================
+  /* ==========================
      UI
-  ============================== */
+  ========================== */
 
   return (
 
@@ -149,7 +173,7 @@ export default function AdminCategories() {
       />
 
 
-      {/* FORM */}
+      {/* ADD FORM */}
 
       <div className="bg-white shadow p-6 rounded-xl mb-8">
 
@@ -200,7 +224,7 @@ export default function AdminCategories() {
 
           <div
             key={c.id}
-            className="bg-white p-4 rounded-xl shadow text-center"
+            className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition text-center"
           >
 
             <img
@@ -210,6 +234,10 @@ export default function AdminCategories() {
 
             <p className="mt-3 font-semibold">
               {c.name}
+            </p>
+
+            <p className="text-xs text-gray-500 mt-1">
+              {c.isActive ? "Active" : "Hidden"}
             </p>
 
             <div className="flex justify-center gap-4 mt-4">
@@ -226,6 +254,13 @@ export default function AdminCategories() {
                 className="text-red-600"
               >
                 Delete
+              </button>
+
+              <button
+                onClick={()=>toggleActive(c)}
+                className="text-gray-600"
+              >
+                {c.isActive ? "Hide" : "Show"}
               </button>
 
             </div>
