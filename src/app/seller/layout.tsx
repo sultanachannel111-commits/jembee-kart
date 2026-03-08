@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -31,17 +33,29 @@ const [loading,setLoading] = useState(true);
 
 useEffect(()=>{
 
-const unsub = onAuthStateChanged(auth,(user)=>{
+const unsub = onAuthStateChanged(auth, async (user)=>{
 
 if(!user){
 
 router.push("/seller/login");
-
-}else{
-
-setLoading(false);
+return;
 
 }
+
+const snap = await getDoc(
+doc(db,"users",user.uid)
+);
+
+const data = snap.data();
+
+if(data?.role !== "seller"){
+
+router.push("/");
+return;
+
+}
+
+setLoading(false);
 
 });
 
