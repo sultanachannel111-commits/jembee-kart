@@ -137,4 +137,20 @@ className="border p-3 w-full mb-3 rounded"
 placeholder="Your Sell Price"
 value={price}
 onChange={(e)=>setPrice(e.target.value)}
-className="border
+className="border p-3 w-full mb-4 rounded"
+/>
+
+<button
+onClick={publishProduct}
+className="bg-black text-white px-5 py-3 rounded w-full"
+>
+
+{loading ? "Publishing..." : "Publish Product"}
+
+</button>
+
+</div>
+
+)
+
+}
