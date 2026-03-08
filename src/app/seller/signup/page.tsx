@@ -10,9 +10,9 @@ export default function SellerSignup(){
 
 const router = useRouter();
 
+const [name,setName] = useState("");
 const [email,setEmail] = useState("");
 const [password,setPassword] = useState("");
-const [name,setName] = useState("");
 
 const handleSignup = async()=>{
 
@@ -48,9 +48,15 @@ alert("Signup Error");
 
 return(
 
-<div className="flex items-center justify-center h-screen"><div className="bg-white p-8 shadow-lg w-80 space-y-4"><h2 className="text-xl font-bold text-center">
+<div className="flex items-center justify-center h-screen">
+
+<div className="bg-white p-8 shadow-lg w-80 space-y-4">
+
+<h2 className="text-xl font-bold text-center">
 Seller Signup
-</h2><input
+</h2>
+
+<input
 className="border p-2 w-full"
 placeholder="Name"
 value={name}
@@ -75,12 +81,14 @@ onChange={(e)=>setPassword(e.target.value)}
 <button
 onClick={handleSignup}
 className="bg-black text-white w-full p-2"
-
-«»
-
+>
 Create Seller Account
 </button>
 
-</div></div>);
+</div>
+
+</div>
+
+);
 
 }
