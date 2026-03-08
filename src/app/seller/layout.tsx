@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import Link from "next/link";
 import {
@@ -28,7 +28,9 @@ Trophy
 export default function SellerLayout({ children }: any){
 
 const router = useRouter();
-const [checking,setChecking] = useState(true);
+const pathname = usePathname();
+
+const [loading,setLoading] = useState(true);
 
 useEffect(()=>{
 
@@ -38,17 +40,17 @@ try{
 
 // ❌ login nahi
 if(!user){
+setLoading(false);
 router.replace("/seller/login");
-setChecking(false);
 return;
 }
 
+// firestore check
 const snap = await getDoc(doc(db,"users",user.uid));
 
-// ❌ firestore user nahi
 if(!snap.exists()){
+setLoading(false);
 router.replace("/");
-setChecking(false);
 return;
 }
 
@@ -56,18 +58,18 @@ const data = snap.data();
 
 // ❌ seller nahi
 if(data.role !== "seller"){
+setLoading(false);
 router.replace("/");
-setChecking(false);
 return;
 }
 
 // ✅ seller verified
-setChecking(false);
+setLoading(false);
 
 }catch(err){
 
-console.log(err);
-setChecking(false);
+console.log("Seller check error:",err);
+setLoading(false);
 router.replace("/");
 
 }
@@ -78,7 +80,15 @@ return ()=>unsub();
 
 },[]);
 
-if(checking){
+
+// 🔹 login page par sidebar hide
+if(pathname === "/seller/login"){
+return children;
+}
+
+
+// 🔹 loading
+if(loading){
 
 return(
 <div className="flex items-center justify-center h-screen">
@@ -167,6 +177,7 @@ Seller Panel
 </Link>
 
 </div>
+
 
 {/* MAIN */}
 
