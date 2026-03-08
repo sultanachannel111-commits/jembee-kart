@@ -1,84 +1,86 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth,db } from "@/lib/firebase";
-import { doc,setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 export default function SellerSignup(){
 
 const router = useRouter();
 
-const [shopName,setShopName] = useState("");
 const [email,setEmail] = useState("");
 const [password,setPassword] = useState("");
+const [name,setName] = useState("");
 
-const signup = async(e:any)=>{
+const handleSignup = async()=>{
 
-e.preventDefault();
+try{
 
-const user = await createUserWithEmailAndPassword(auth,email,password);
+const res = await createUserWithEmailAndPassword(
+auth,
+email,
+password
+);
+
+const user = res.user;
 
 await setDoc(
-doc(db,"users",user.user.uid),
+doc(db,"users",user.uid),
 {
+name:name,
+email:email,
 role:"seller",
-shopName,
-email
+createdAt:Date.now()
 }
 );
 
 router.push("/seller/dashboard");
 
+}catch(err){
+
+alert("Signup Error");
+
+}
+
 };
 
 return(
 
-<div className="min-h-screen flex items-center justify-center bg-gray-100">
-
-<div className="bg-white p-8 rounded-xl shadow w-96">
-
-<h1 className="text-2xl font-bold mb-6 text-center">
+<div className="flex items-center justify-center h-screen"><div className="bg-white p-8 shadow-lg w-80 space-y-4"><h2 className="text-xl font-bold text-center">
 Seller Signup
-</h1>
-
-<form onSubmit={signup} className="space-y-4">
-
-<input
-placeholder="Shop Name"
-value={shopName}
-onChange={(e)=>setShopName(e.target.value)}
-className="border w-full p-2 rounded"
+</h2><input
+className="border p-2 w-full"
+placeholder="Name"
+value={name}
+onChange={(e)=>setName(e.target.value)}
 />
 
 <input
+className="border p-2 w-full"
 placeholder="Email"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-className="border w-full p-2 rounded"
 />
 
 <input
 type="password"
+className="border p-2 w-full"
 placeholder="Password"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-className="border w-full p-2 rounded"
 />
 
 <button
-className="bg-black text-white w-full p-2 rounded"
->
-Signup
+onClick={handleSignup}
+className="bg-black text-white w-full p-2"
+
+«»
+
+Create Seller Account
 </button>
 
-</form>
-
-</div>
-
-</div>
-
-);
+</div></div>);
 
 }
