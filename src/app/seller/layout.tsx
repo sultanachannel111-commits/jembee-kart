@@ -1,5 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 import Link from "next/link";
 import {
 LayoutDashboard,
@@ -19,7 +24,42 @@ Settings,
 Trophy
 } from "lucide-react";
 
-export default function SellerLayout({children}:any){
+export default function SellerLayout({ children }: any){
+
+const router = useRouter();
+const [loading,setLoading] = useState(true);
+
+useEffect(()=>{
+
+const unsub = onAuthStateChanged(auth,(user)=>{
+
+if(!user){
+
+router.push("/seller/login");
+
+}else{
+
+setLoading(false);
+
+}
+
+});
+
+return ()=>unsub();
+
+},[]);
+
+if(loading){
+
+return(
+
+<div className="flex items-center justify-center h-screen">
+<p className="text-gray-500">Checking seller login...</p>
+</div>
+
+)
+
+}
 
 return(
 
