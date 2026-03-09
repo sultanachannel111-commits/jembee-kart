@@ -98,12 +98,12 @@ className="bg-black text-white w-full p-2 rounded"
 
 </form>
 
-<p className="text-center text-sm mt-4">
-No seller account?
-<Link href="/seller/signup" className="text-blue-600 ml-1">
+<button
+onClick={()=>router.push("/seller/signup")}
+className="text-blue-600 ml-1"
+>
 Signup
-</Link>
-</p>
+</button>
 
 </div>
 
