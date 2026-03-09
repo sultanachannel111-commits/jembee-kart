@@ -46,16 +46,23 @@ const unsub = onAuthStateChanged(auth, async (user)=>{
 
 try{
 
+// ❌ login nahi
 if(!user){
 
-if(!publicPages.includes(pathname)){
-router.replace("/seller/login");
-}
-
 setLoading(false);
+
+// login aur signup page allow
+if(publicPages.includes(pathname)){
 return;
 }
 
+// baaki pages redirect
+router.replace("/seller/login");
+return;
+
+}
+
+// Firestore role check
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
@@ -76,6 +83,7 @@ return;
 
 }
 
+// ✅ seller verified
 setAllowed(true);
 setLoading(false);
 
@@ -93,14 +101,12 @@ return ()=>unsub();
 
 },[pathname]);
 
-/* login/signup page par sidebar hide */
-
+// login/signup page par sidebar hide
 if(publicPages.includes(pathname)){
-return <>{children}</>;
+return children;
 }
 
-/* loading screen */
-
+// loading screen
 if(loading){
 return(
 
@@ -115,14 +121,12 @@ Loading...
 )
 }
 
-/* access denied */
-
+// access denied
 if(!allowed){
 return null;
 }
 
-/* logout */
-
+// logout
 const logout = async ()=>{
 
 setLogouting(true);
