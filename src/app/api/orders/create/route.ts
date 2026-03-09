@@ -133,9 +133,12 @@ export async function POST(req: NextRequest) {
     // 🔄 UPDATE FIRESTORE (SUCCESS)
     // ==========================
     await updateDoc(doc(db, "orders", orderNumber), {
-      status: "Processing",
-      qikinkOrderId: orderData.order_id || null,
-    });
+  status: "Processing",
+  qikinkOrderId: orderData.order_id || null,
+  trackingId: orderData.tracking_id || null,
+  courier: orderData.courier || null,
+  estimatedDelivery: orderData.estimated_delivery || null
+});
 
     return NextResponse.json({
       success: true,
