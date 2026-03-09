@@ -5,7 +5,6 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
-
 import Link from "next/link";
 
 import {
@@ -38,7 +37,13 @@ const [allowed,setAllowed] = useState(false);
 const [menuOpen,setMenuOpen] = useState(false);
 const [logouting,setLogouting] = useState(false);
 
+/* 🔥 PUBLIC PAGES */
+
 const publicPages = ["/seller/login","/seller/signup"];
+
+if(publicPages.includes(pathname)){
+return children;
+}
 
 useEffect(()=>{
 
@@ -46,44 +51,28 @@ const unsub = onAuthStateChanged(auth, async (user)=>{
 
 try{
 
-// ❌ login nahi
 if(!user){
-
-setLoading(false);
-
-// login aur signup page allow
-if(publicPages.includes(pathname)){
-return;
-}
-
-// baaki pages redirect
 router.replace("/seller/login");
+setLoading(false);
 return;
-
 }
 
-// Firestore role check
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
-
 router.replace("/");
 setLoading(false);
 return;
-
 }
 
 const data:any = snap.data();
 
 if(data.role !== "seller"){
-
 router.replace("/");
 setLoading(false);
 return;
-
 }
 
-// ✅ seller verified
 setAllowed(true);
 setLoading(false);
 
@@ -99,34 +88,26 @@ setLoading(false);
 
 return ()=>unsub();
 
-},[pathname]);
+},[]);
 
-// login/signup page par sidebar hide
-if(publicPages.includes(pathname)){
-return children;
-}
+/* loading screen */
 
-// loading screen
 if(loading){
 return(
-
 <div className="flex items-center justify-center h-screen">
-
-<p className="text-gray-500 text-lg">
-Loading...
-</p>
-
+<p className="text-gray-500 text-lg">Loading...</p>
 </div>
-
 )
 }
 
-// access denied
+/* access denied */
+
 if(!allowed){
 return null;
 }
 
-// logout
+/* logout */
+
 const logout = async ()=>{
 
 setLogouting(true);
@@ -147,33 +128,25 @@ return(
 {/* MENU BUTTON */}
 
 {!menuOpen && (
-
 <button
 onClick={()=>setMenuOpen(true)}
 className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded-lg"
 >
-
 ☰
-
 </button>
-
 )}
 
 {/* SIDEBAR */}
 
 <div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 z-40 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
-<h2 className="text-2xl font-bold mb-6">
-Seller Panel
-</h2>
+<h2 className="text-2xl font-bold mb-6">Seller Panel</h2>
 
 <button
 onClick={()=>setMenuOpen(false)}
 className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 >
-
 ✕ Close
-
 </button>
 
 <Link href="/seller/dashboard" className="flex gap-2">
@@ -248,10 +221,8 @@ className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 onClick={logout}
 className="flex items-center gap-2 text-red-500 mt-6"
 >
-
 <LogOut size={18}/>
 Logout
-
 </button>
 
 </div>
@@ -259,9 +230,7 @@ Logout
 {/* MAIN */}
 
 <div className="flex-1 p-6">
-
 {children}
-
 </div>
 
 </div>
