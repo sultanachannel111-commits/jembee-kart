@@ -17,6 +17,8 @@ Gift,
 LogOut
 } from "lucide-react";
 
+import { getCookie, removeAdminCookie } from "@/lib/cookieAuth";
+
 export default function AdminLayout({
 children,
 }: {
@@ -30,10 +32,10 @@ const router = useRouter();
 
 useEffect(()=>{
 
-const logged = localStorage.getItem("adminLoggedIn");  
+const admin = getCookie("admin");
 
-if(logged !== "true"){  
-  router.replace("/admin/login");  
+if(admin !== "true"){
+router.replace("/admin/login");
 }
 
 },[]);
@@ -42,29 +44,29 @@ if(logged !== "true"){
 
 const logout = ()=>{
 
-localStorage.removeItem("adminLoggedIn");  
+removeAdminCookie();
 
-router.push("/admin/login");
+window.location.href = "/admin/login";
 
 };
 
 const menu = [
 
-{ name:"Dashboard", icon:LayoutDashboard, path:"/admin" },  
+{ name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
 
-{ name:"Products", icon:Package, path:"/admin/products" },  
+{ name:"Products", icon:Package, path:"/admin/products" },
 
-{ name:"Categories", icon:Tag, path:"/admin/categories" },  
+{ name:"Categories", icon:Tag, path:"/admin/categories" },
 
-{ name:"Orders", icon:ShoppingCart, path:"/admin/orders" },  
+{ name:"Orders", icon:ShoppingCart, path:"/admin/orders" },
 
-{ name:"Banners", icon:Image, path:"/admin/banners" },  
+{ name:"Banners", icon:Image, path:"/admin/banners" },
 
-{ name:"Festival Banner", icon:Gift, path:"/admin/festival" },  
+{ name:"Festival Banner", icon:Gift, path:"/admin/festival" },
 
-{ name:"Sellers", icon:Store, path:"/admin/sellers" },  
+{ name:"Sellers", icon:Store, path:"/admin/sellers" },
 
-{ name:"Users", icon:Users, path:"/admin/users" },  
+{ name:"Users", icon:Users, path:"/admin/users" },
 
 { name:"Settings", icon:Settings, path:"/admin/settings" },
 
@@ -72,114 +74,110 @@ const menu = [
 
 return (
 
-<div className="flex min-h-screen bg-gray-100">  
+<div className="flex min-h-screen bg-gray-100">
 
-  {/* SIDEBAR */}  
+{/* SIDEBAR */}
 
-  <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">  
+<aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
 
-    <div className="p-6 border-b">  
+<div className="p-6 border-b">
 
-      <h1 className="text-2xl font-bold text-purple-600">  
-        JembeeKart  
-      </h1>  
+<h1 className="text-2xl font-bold text-purple-600">
+JembeeKart
+</h1>
 
-      <p className="text-xs text-gray-500">  
-        Admin Panel  
-      </p>  
+<p className="text-xs text-gray-500">
+Admin Panel
+</p>
 
-    </div>  
+</div>
 
-    <nav className="flex-1 p-4 space-y-2">  
+<nav className="flex-1 p-4 space-y-2">
 
-      {menu.map((item,index)=>{  
+{menu.map((item,index)=>{
 
-        const Icon = item.icon;  
-        const active = pathname === item.path;  
+const Icon = item.icon;
+const active = pathname === item.path;
 
-        return(  
+return(
 
-          <Link  
-            key={index}  
-            href={item.path}  
-            className={`flex items-center gap-3 p-3 rounded-lg transition  
-            ${  
-              active  
-              ? "bg-purple-100 text-purple-700"  
-              : "hover:bg-gray-100 text-gray-700"  
-            }`}  
-          >  
+<Link
+key={index}
+href={item.path}
+className={`flex items-center gap-3 p-3 rounded-lg transition
+${
+active
+? "bg-purple-100 text-purple-700"
+: "hover:bg-gray-100 text-gray-700"
+}`}
+>
 
-            <Icon size={18}/>  
+<Icon size={18}/>
 
-            <span className="text-sm font-medium">  
-              {item.name}  
-            </span>  
+<span className="text-sm font-medium">
+{item.name}
+</span>
 
-          </Link>  
+</Link>
 
-        );  
+);
 
-      })}  
+})}
 
-    </nav>  
+</nav>
 
-  </aside>  
-
-
-
-  {/* MAIN */}  
-
-  <div className="flex-1 flex flex-col">  
-
-    {/* HEADER */}  
-
-    <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">  
-
-      <h2 className="text-lg font-semibold text-gray-700">  
-        Admin Dashboard  
-      </h2>  
+</aside>
 
 
-      <div className="flex items-center gap-4">  
+{/* MAIN */}
 
-        <div className="text-sm text-gray-500">  
-          Welcome Admin  
-        </div>  
+<div className="flex-1 flex flex-col">
+
+{/* HEADER */}
+
+<header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+
+<h2 className="text-lg font-semibold text-gray-700">
+Admin Dashboard
+</h2>
+
+<div className="flex items-center gap-4">
+
+<div className="text-sm text-gray-500">
+Welcome Admin
+</div>
+
+<div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+A
+</div>
+
+{/* LOGOUT BUTTON */}
+
+<button
+onClick={logout}
+className="flex items-center gap-1 text-red-500 text-sm"
+>
+
+<LogOut size={16}/>
+
+Logout
+
+</button>
+
+</div>
+
+</header>
 
 
-        <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">  
-          A  
-        </div>  
+{/* CONTENT */}
 
+<main className="p-6">
 
-        {/* LOGOUT BUTTON */}  
+{children}
 
-        <button  
-          onClick={logout}  
-          className="flex items-center gap-1 text-red-500 text-sm"  
-        >  
+</main>
 
-          <LogOut size={16}/>  
-
-          Logout  
-
-        </button>  
-
-      </div>  
-
-    </header>  
-
-
-    {/* CONTENT */}  
-
-    <main className="p-6">  
-
-      {children}  
-
-    </main>  
-
-  </div>  
+</div>
 
 </div>
 
