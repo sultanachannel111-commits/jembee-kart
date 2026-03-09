@@ -29,7 +29,56 @@ export default function ProfilePage() {
   const [editingAddress, setEditingAddress] = useState(false);
 
   const router = useRouter();
+  const getProgress = (status:any) => {
 
+switch(status?.toLowerCase()){
+
+case "placed":
+return 25;
+
+case "processing":
+return 50;
+
+case "shipped":
+return 75;
+
+case "delivered":
+return 100;
+
+case "cancelled":
+return 100;
+
+default:
+return 25;
+
+}
+
+};
+  const getStatusMessage = (status:any)=>{
+
+switch(status?.toLowerCase()){
+
+case "placed":
+return "📦 Order placed";
+
+case "processing":
+return "🖨 Product is being prepared";
+
+case "shipped":
+return "🚚 Product shipped";
+
+case "delivered":
+return "✅ Delivered";
+
+case "cancelled":
+return "❌ Order cancelled";
+
+default:
+return "";
+
+}
+
+};
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -264,6 +313,9 @@ export default function ProfilePage() {
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
                   {order.status || "Placed"}
                 </span>
+                <div className="text-xs text-gray-600 mt-1">
+{getStatusMessage(order.status)}
+</div>
               </div>
 
               {/* Progress Bar */}
