@@ -45,11 +45,41 @@ export default function HomePage() {
   const [clearance, setClearance] = useState<any[]>([]);
   const [recommended, setRecommended] = useState<any[]>([]);
   const [lightning, setLightning] = useState<any[]>([]);
+  const [question,setQuestion] = useState("");
+const [answer,setAnswer] = useState("");
+const [loadingAI,setLoadingAI] = useState(false);
   
   useEffect(() => {
     loadData();
   }, []);
+  const askAI = async () => {
 
+if(!question) return;
+
+setLoadingAI(true);
+
+try{
+
+const res = await fetch("/api/ai-answer",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({question})
+});
+
+const data = await res.json();
+
+setAnswer(data.answer);
+
+}catch(error){
+console.log(error)
+}
+
+setLoadingAI(false);
+
+};
+  
   const loadData = async () => {
     const catSnap = await getDocs(collection(db, "qikinkCategories"));
     setCategories([
@@ -249,6 +279,34 @@ setSearch={setSearch}
 startVoice={startVoice}
 />
 
+<div className="bg-white p-4 rounded-xl shadow mt-3 mx-3">
+
+<h3 className="font-semibold text-sm mb-2">
+🧠 Ask Jembee AI
+</h3>
+
+<input
+value={question}
+onChange={(e)=>setQuestion(e.target.value)}
+placeholder="Ask about products..."
+className="border w-full p-2 rounded mb-2"
+/>
+
+<button
+onClick={askAI}
+className="bg-black text-white px-4 py-2 rounded"
+>
+{loadingAI ? "Thinking..." : "Ask AI"}
+</button>
+
+{answer && (
+<div className="mt-3 text-sm text-gray-700">
+{answer}
+</div>
+)}
+
+</div>
+  
 <CategoryList
 categories={categories}
 selectedCategory={selectedCategory}
