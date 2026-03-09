@@ -278,34 +278,7 @@ search={search}
 setSearch={setSearch}
 startVoice={startVoice}
 />
-
-<div className="bg-white p-4 rounded-xl shadow mt-3 mx-3">
-
-<h3 className="font-semibold text-sm mb-2">
-🧠 Ask Jembee AI
-</h3>
-
-<input
-value={question}
-onChange={(e)=>setQuestion(e.target.value)}
-placeholder="Ask about products..."
-className="border w-full p-2 rounded mb-2"
-/>
-
-<button
-onClick={askAI}
-className="bg-black text-white px-4 py-2 rounded"
->
-{loadingAI ? "Thinking..." : "Ask AI"}
-</button>
-
-{answer && (
-<div className="mt-3 text-sm text-gray-700">
-{answer}
-</div>
-)}
-
-</div>
+</div>)
   
 <CategoryList
 categories={categories}
