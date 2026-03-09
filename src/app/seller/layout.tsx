@@ -23,7 +23,8 @@ Bell,
 User,
 Settings,
 Trophy,
-LogOut
+LogOut,
+IdCard
 } from "lucide-react";
 
 export default function SellerLayout({ children }: any){
@@ -169,6 +170,11 @@ Seller Panel
 <Wallet size={18}/> Withdraw
 </Link>
 
+<Link href="/seller/kyc" className="flex items-center gap-2">
+  <IdCard size={18} />
+  KYC Verification
+</Link>
+  
 <Link href="/seller/reviews" className="flex gap-2">
 <Star size={18}/> Reviews
 </Link>
