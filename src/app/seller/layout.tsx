@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 
 import Link from "next/link";
+
 import {
 LayoutDashboard,
 Package,
@@ -34,8 +35,10 @@ const pathname = usePathname();
 
 const [loading,setLoading] = useState(true);
 const [allowed,setAllowed] = useState(false);
-const [logouting,setLogouting] = useState(false);
 const [menuOpen,setMenuOpen] = useState(false);
+const [logouting,setLogouting] = useState(false);
+
+const publicPages = ["/seller/login","/seller/signup"];
 
 useEffect(()=>{
 
@@ -44,28 +47,33 @@ const unsub = onAuthStateChanged(auth, async (user)=>{
 try{
 
 if(!user){
-setAllowed(false);
-setLoading(false);
+
+if(!publicPages.includes(pathname)){
 router.replace("/seller/login");
+}
+
+setLoading(false);
 return;
 }
 
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
-setAllowed(false);
-setLoading(false);
+
 router.replace("/");
+setLoading(false);
 return;
+
 }
 
 const data:any = snap.data();
 
 if(data.role !== "seller"){
-setAllowed(false);
-setLoading(false);
+
 router.replace("/");
+setLoading(false);
 return;
+
 }
 
 setAllowed(true);
@@ -73,10 +81,9 @@ setLoading(false);
 
 }catch(err){
 
-console.log("Seller check error:",err);
-setAllowed(false);
-setLoading(false);
+console.log("Seller auth error:",err);
 router.replace("/");
+setLoading(false);
 
 }
 
@@ -84,37 +91,37 @@ router.replace("/");
 
 return ()=>unsub();
 
-},[]);
+},[pathname]);
 
+/* login/signup page par sidebar hide */
 
-/* LOGIN PAGE PAR SIDEBAR HIDE */
-
-if(pathname === "/seller/login" || pathname === "/seller/signup"){
+if(publicPages.includes(pathname)){
 return <>{children}</>;
 }
 
-
-/* LOADING */
+/* loading screen */
 
 if(loading){
 return(
+
 <div className="flex items-center justify-center h-screen">
+
 <p className="text-gray-500 text-lg">
 Loading...
 </p>
+
 </div>
+
 )
 }
 
-
-/* ALLOWED NAHI */
+/* access denied */
 
 if(!allowed){
 return null;
 }
 
-
-/* LOGOUT */
+/* logout */
 
 const logout = async ()=>{
 
@@ -123,40 +130,48 @@ setLogouting(true);
 setTimeout(async ()=>{
 
 await signOut(auth);
-
 router.push("/seller/login");
 
-},500);
+},400);
 
 };
-
 
 return(
 
 <div className={`flex min-h-screen bg-gray-100 transition-all duration-500 ${logouting ? "opacity-0 translate-x-full" : ""}`}>
-  
+
+{/* MENU BUTTON */}
+
 {!menuOpen && (
+
 <button
 onClick={()=>setMenuOpen(true)}
-className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded"
+className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded-lg"
 >
+
 ☰
+
 </button>
+
 )}
+
 {/* SIDEBAR */}
 
-<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 z-40 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
 <h2 className="text-2xl font-bold mb-6">
 Seller Panel
 </h2>
-  
+
 <button
 onClick={()=>setMenuOpen(false)}
 className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 >
+
 ✕ Close
+
 </button>
+
 <Link href="/seller/dashboard" className="flex gap-2">
 <LayoutDashboard size={18}/> Dashboard
 </Link>
@@ -185,11 +200,10 @@ className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 <Wallet size={18}/> Withdraw
 </Link>
 
-<Link href="/seller/kyc" className="flex items-center gap-2">
-  <IdCard size={18} />
-  KYC Verification
+<Link href="/seller/kyc" className="flex gap-2">
+<IdCard size={18}/> KYC Verification
 </Link>
-  
+
 <Link href="/seller/reviews" className="flex gap-2">
 <Star size={18}/> Reviews
 </Link>
@@ -226,9 +240,6 @@ className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 <Trophy size={18}/> Ranking
 </Link>
 
-
-{/* LOGOUT BUTTON */}
-
 <button
 onClick={logout}
 className="flex items-center gap-2 text-red-500 mt-6"
@@ -241,8 +252,8 @@ Logout
 
 </div>
 
-
 {/* MAIN */}
+
 <div className="flex-1 p-6">
 
 {children}
