@@ -5,187 +5,176 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import {
-LayoutDashboard,
-Package,
-ShoppingCart,
-Users,
-Store,
-Tag,
-Settings,
-Image,
-Gift,
-LogOut
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  Store,
+  Tag,
+  Settings,
+  Image,
+  Gift,
+  LogOut
 } from "lucide-react";
 
 import { removeAdminCookie } from "@/lib/cookieAuth";
 
 export default function AdminLayout({
-children,
-}:{
-children:React.ReactNode;
+  children,
+}: {
+  children: React.ReactNode;
 }) {
 
-const pathname = usePathname();
+  const pathname = usePathname();
 
-/* 🔐 LOGIN CHECK */
+  /* 🔐 LOGIN CHECK */
 
-useEffect(()=>{
+  useEffect(() => {
 
-const cookies = document.cookie;
+    const cookies = document.cookie;
 
-if(!cookies.includes("admin=true")){
-window.location.href="/admin/login";
-}
+    if (!cookies.includes("admin=true")) {
+      window.location.href = "/admin/login";
+    }
 
-},[]);
+  }, []);
 
+  /* 🔓 LOGOUT */
 
-/* 🔓 LOGOUT */
+  const logout = () => {
 
-const logout = ()=>{
+    removeAdminCookie();
 
-removeAdminCookie();
+    window.location.href = "/admin/login";
 
-window.location.href="/admin/login";
+  };
 
-};
+  const menu = [
 
+    { name: "Dashboard", icon: LayoutDashboard, path: "/admin" },
 
-const menu=[
+    { name: "Products", icon: Package, path: "/admin/products" },
 
-{ name:"Dashboard",icon:LayoutDashboard,path:"/admin" },
+    { name: "Categories", icon: Tag, path: "/admin/categories" },
 
-{ name:"Products",icon:Package,path:"/admin/products" },
+    { name: "Orders", icon: ShoppingCart, path: "/admin/orders" },
 
-{ name:"Categories",icon:Tag,path:"/admin/categories" },
+    { name: "Banners", icon: Image, path: "/admin/banners" },
 
-{ name:"Orders",icon:ShoppingCart,path:"/admin/orders" },
+    { name: "Festival Banner", icon: Gift, path: "/admin/festival" },
 
-{ name:"Banners",icon:Image,path:"/admin/banners" },
+    { name: "Sellers", icon: Store, path: "/admin/sellers" },
 
-{ name:"Festival Banner",icon:Gift,path:"/admin/festival" },
+    { name: "Users", icon: Users, path: "/admin/users" },
 
-{ name:"Sellers",icon:Store,path:"/admin/sellers" },
+    { name: "Settings", icon: Settings, path: "/admin/settings" }
 
-{ name:"Users",icon:Users,path:"/admin/users" },
+  ];
 
-{ name:"Settings",icon:Settings,path:"/admin/settings" }
+  return (
 
-];
+    <div className="flex min-h-screen bg-gray-100">
 
+      {/* SIDEBAR */}
 
-return(
+      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
 
-<div className="flex min-h-screen bg-gray-100">
+        <div className="p-6 border-b">
 
-{/* SIDEBAR */}
+          <h1 className="text-2xl font-bold text-purple-600">
+            JembeeKart
+          </h1>
 
-<aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
+          <p className="text-xs text-gray-500">
+            Admin Panel
+          </p>
 
-<div className="p-6 border-b">
+        </div>
 
-<h1 className="text-2xl font-bold text-purple-600">
-JembeeKart
-</h1>
+        <nav className="flex-1 p-4 space-y-2">
 
-<p className="text-xs text-gray-500">
-Admin Panel
-</p>
+          {menu.map((item, index) => {
 
-</div>
+            const Icon = item.icon;
+            const active = pathname === item.path;
 
+            return (
 
-<nav className="flex-1 p-4 space-y-2">
+              <Link
+                key={index}
+                href={item.path}
+                className={`flex items-center gap-3 p-3 rounded-lg transition
+                ${active
+                    ? "bg-purple-100 text-purple-700"
+                    : "hover:bg-gray-100 text-gray-700"
+                  }`}
+              >
 
-{menu.map((item,index)=>{
+                <Icon size={18} />
 
-const Icon=item.icon;
-const active=pathname===item.path;
+                <span className="text-sm font-medium">
+                  {item.name}
+                </span>
 
-return(
+              </Link>
 
-<Link
-key={index}
-href={item.path}
-className={`flex items-center gap-3 p-3 rounded-lg transition
-${
-active
-? "bg-purple-100 text-purple-700"
-: "hover:bg-gray-100 text-gray-700"
-}`}
->
+            );
 
-<Icon size={18}/>
+          })}
 
-<span className="text-sm font-medium">
-{item.name}
-</span>
+        </nav>
 
-</Link>
+      </aside>
 
-);
+      {/* MAIN */}
 
-})}
+      <div className="flex-1 flex flex-col">
 
-</nav>
+        {/* HEADER */}
 
-</aside>
+        <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
 
+          <h2 className="text-lg font-semibold text-gray-700">
+            Admin Dashboard
+          </h2>
 
+          <div className="flex items-center gap-4">
 
-{/* MAIN */}
+            <div className="text-sm text-gray-500">
+              Welcome Admin
+            </div>
 
-<div className="flex-1 flex flex-col">
+            <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+              A
+            </div>
 
-{/* HEADER */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-1 text-red-500 text-sm"
+            >
 
-<header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+              <LogOut size={16} />
 
-<h2 className="text-lg font-semibold text-gray-700">
-Admin Dashboard
-</h2>
+              Logout
 
+            </button>
 
-<div className="flex items-center gap-4">
+          </div>
 
-<div className="text-sm text-gray-500">
-Welcome Admin
-</div>
+        </header>
 
+        {/* CONTENT */}
 
-<div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
-A
-</div>
+        <main className="p-6">
 
+          {children}
 
-<button
-onClick={logout}
-className="flex items-center gap-1 text-red-500 text-sm"
->
+        </main>
 
-<LogOut size={16}/>
+      </div>
 
-Logout
+    </div>
 
-</button>
-
-</div>
-
-</header>
-
-
-{/* CONTENT */}
-
-<main className="p-6">
-
-{children}
-
-</main>
-
-</div>
-
-</div>
-
-);
+  );
 
 }
