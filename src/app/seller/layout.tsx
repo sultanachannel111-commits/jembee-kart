@@ -35,6 +35,7 @@ const pathname = usePathname();
 const [loading,setLoading] = useState(true);
 const [allowed,setAllowed] = useState(false);
 const [logouting,setLogouting] = useState(false);
+const [menuOpen,setMenuOpen] = useState(false);
 
 useEffect(()=>{
 
@@ -136,7 +137,7 @@ return(
 
 {/* SIDEBAR */}
 
-<div className="w-64 bg-white shadow-lg p-5 space-y-3">
+<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
 <h2 className="text-2xl font-bold mb-6">
 Seller Panel
