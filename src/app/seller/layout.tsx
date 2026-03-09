@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 
 import Link from "next/link";
@@ -22,7 +22,8 @@ Tag,
 Bell,
 User,
 Settings,
-Trophy
+Trophy,
+LogOut
 } from "lucide-react";
 
 export default function SellerLayout({ children }: any){
@@ -32,6 +33,7 @@ const pathname = usePathname();
 
 const [loading,setLoading] = useState(true);
 const [allowed,setAllowed] = useState(false);
+const [logouting,setLogouting] = useState(false);
 
 useEffect(()=>{
 
@@ -39,7 +41,6 @@ const unsub = onAuthStateChanged(auth, async (user)=>{
 
 try{
 
-// ❌ login nahi
 if(!user){
 setAllowed(false);
 setLoading(false);
@@ -47,7 +48,6 @@ router.replace("/seller/login");
 return;
 }
 
-// firestore check
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
@@ -59,7 +59,6 @@ return;
 
 const data:any = snap.data();
 
-// ❌ seller nahi
 if(data.role !== "seller"){
 setAllowed(false);
 setLoading(false);
@@ -67,7 +66,6 @@ router.replace("/");
 return;
 }
 
-// ✅ seller verified
 setAllowed(true);
 setLoading(false);
 
@@ -87,13 +85,15 @@ return ()=>unsub();
 },[]);
 
 
-// 🔹 login page par sidebar hide
+/* LOGIN PAGE PAR SIDEBAR HIDE */
+
 if(pathname === "/seller/login"){
 return <>{children}</>;
 }
 
 
-// 🔹 loading screen
+/* LOADING */
+
 if(loading){
 return(
 <div className="flex items-center justify-center h-screen">
@@ -105,15 +105,33 @@ Loading...
 }
 
 
-// 🔹 allowed nahi
+/* ALLOWED NAHI */
+
 if(!allowed){
 return null;
 }
 
 
+/* LOGOUT */
+
+const logout = async ()=>{
+
+setLogouting(true);
+
+setTimeout(async ()=>{
+
+await signOut(auth);
+
+router.push("/seller/login");
+
+},500);
+
+};
+
+
 return(
 
-<div className="flex min-h-screen bg-gray-100">
+<div className={`flex min-h-screen bg-gray-100 transition-all duration-500 ${logouting ? "opacity-0 translate-x-full" : ""}`}>
 
 {/* SIDEBAR */}
 
@@ -186,6 +204,19 @@ Seller Panel
 <Link href="/seller/ranking" className="flex gap-2">
 <Trophy size={18}/> Ranking
 </Link>
+
+
+{/* LOGOUT BUTTON */}
+
+<button
+onClick={logout}
+className="flex items-center gap-2 text-red-500 mt-6"
+>
+
+<LogOut size={18}/>
+Logout
+
+</button>
 
 </div>
 
