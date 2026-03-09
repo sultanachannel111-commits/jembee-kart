@@ -7,133 +7,119 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
-export default function SellerLayout({ children }: any){
+export default function SellerLayout({ children }: { children: React.ReactNode }) {
 
-const router = useRouter();
-const pathname = usePathname();
+  const router = useRouter();
+  const pathname = usePathname();
 
-const [loading,setLoading] = useState(true);
-const [allowed,setAllowed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [allowed, setAllowed] = useState(false);
 
-// ✅ login & signup page check
-const isPublicPage =
-pathname.startsWith("/seller/login") ||
-pathname.startsWith("/seller/signup");
+  // public pages
+  const isPublicPage =
+    pathname === "/seller/login" ||
+    pathname === "/seller/signup";
 
-useEffect(()=>{
+  useEffect(() => {
 
-// public page par auth check hi mat karo
-if(isPublicPage){
-setLoading(false);
-return;
-}
+    // public page par auth check nahi
+    if (isPublicPage) {
+      setLoading(false);
+      return;
+    }
 
-const unsub = onAuthStateChanged(auth, async (user)=>{
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
 
-try{
+      if (!user) {
+        router.replace("/seller/login");
+        setLoading(false);
+        return;
+      }
 
-if(!user){
-router.replace("/seller/login");
-setLoading(false);
-return;
-}
+      try {
 
-const snap = await getDoc(doc(db,"users",user.uid));
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
 
-if(!snap.exists()){
-router.replace("/");
-setLoading(false);
-return;
-}
+        if (!snap.exists()) {
+          router.replace("/");
+          setLoading(false);
+          return;
+        }
 
-const data:any = snap.data();
+        const data: any = snap.data();
 
-if(data?.role !== "seller"){
-router.replace("/");
-setLoading(false);
-return;
-}
+        if (data?.role !== "seller") {
+          router.replace("/");
+          setLoading(false);
+          return;
+        }
 
-setAllowed(true);
-setLoading(false);
+        setAllowed(true);
+        setLoading(false);
 
-}catch(err){
+      } catch (error) {
+        console.log("Seller auth error:", error);
+        setLoading(false);
+      }
 
-console.log(err);
-setLoading(false);
+    });
 
-}
+    return () => unsubscribe();
 
-});
+  }, [pathname]);
 
-return ()=>unsub();
+  // login / signup page
+  if (isPublicPage) {
+    return <>{children}</>;
+  }
 
-},[pathname]);
+  // loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Loading...
+      </div>
+    );
+  }
 
-// login/signup page
-if(isPublicPage){
-return <>{children}</>;
-}
+  if (!allowed) {
+    return null;
+  }
 
-// loading
-if(loading){
-return(
-<div className="flex items-center justify-center h-screen">
-Loading...
-</div>
-)
-}
+  const logout = async () => {
+    await signOut(auth);
+    router.push("/seller/login");
+  };
 
-if(!allowed){
-return null;
-}
+  return (
+    <div className="flex min-h-screen">
 
-const logout = async()=>{
-await signOut(auth);
-router.push("/seller/login");
-};
+      {/* Sidebar */}
+      <div className="w-64 bg-white shadow p-5 space-y-3">
 
-return(
+        <h2 className="text-xl font-bold mb-6">
+          Seller Panel
+        </h2>
 
-<div className="flex min-h-screen">
+        <Link href="/seller/dashboard">Dashboard</Link><br/>
+        <Link href="/seller/products">Products</Link><br/>
+        <Link href="/seller/orders">Orders</Link><br/>
 
-{/* SIDEBAR */}
+        <button
+          onClick={logout}
+          className="text-red-500 mt-6"
+        >
+          Logout
+        </button>
 
-<div className="w-64 bg-white shadow p-5">
+      </div>
 
-<h2 className="text-xl font-bold mb-6">
-Seller Panel
-</h2>
+      {/* Main */}
+      <div className="flex-1 p-6">
+        {children}
+      </div>
 
-<Link href="/seller/dashboard">Dashboard</Link>
-
-<br/>
-
-<Link href="/seller/products">Products</Link>
-
-<br/>
-
-<Link href="/seller/orders">Orders</Link>
-
-<br/>
-
-<button
-onClick={logout}
-className="text-red-500 mt-6"
->
-Logout
-</button>
-
-</div>
-
-{/* MAIN */}
-
-<div className="flex-1 p-6">
-{children}
-</div>
-
-</div>
-
-)
-
+    </div>
+  );
 }
