@@ -35,15 +35,8 @@ const pathname = usePathname();
 const [loading,setLoading] = useState(true);
 const [allowed,setAllowed] = useState(false);
 const [menuOpen,setMenuOpen] = useState(false);
-const [logouting,setLogouting] = useState(false);
-
-/* 🔥 PUBLIC PAGES */
 
 const publicPages = ["/seller/login","/seller/signup"];
-
-if(publicPages.includes(pathname)){
-return children;
-}
 
 useEffect(()=>{
 
@@ -51,26 +44,39 @@ const unsub = onAuthStateChanged(auth, async (user)=>{
 
 try{
 
+// login nahi
 if(!user){
-router.replace("/seller/login");
+
 setLoading(false);
+
+if(!publicPages.includes(pathname)){
+router.replace("/seller/login");
+}
+
 return;
 }
 
-const snap = await getDoc(doc(db,"users",user.uid));
+// firestore check
+const ref = doc(db,"users",user.uid);
+const snap = await getDoc(ref);
 
 if(!snap.exists()){
+
 router.replace("/");
 setLoading(false);
 return;
+
 }
 
 const data:any = snap.data();
 
-if(data.role !== "seller"){
+// role check
+if(data?.role !== "seller"){
+
 router.replace("/");
 setLoading(false);
 return;
+
 }
 
 setAllowed(true);
@@ -79,7 +85,6 @@ setLoading(false);
 }catch(err){
 
 console.log("Seller auth error:",err);
-router.replace("/");
 setLoading(false);
 
 }
@@ -88,66 +93,47 @@ setLoading(false);
 
 return ()=>unsub();
 
-},[]);
+},[pathname]);
 
-/* loading screen */
+// login/signup pages
+if(publicPages.includes(pathname)){
+return children;
+}
 
+// loading screen
 if(loading){
 return(
+
 <div className="flex items-center justify-center h-screen">
 <p className="text-gray-500 text-lg">Loading...</p>
 </div>
+
 )
 }
 
-/* access denied */
-
+// not allowed
 if(!allowed){
 return null;
 }
 
-/* logout */
-
-const logout = async ()=>{
-
-setLogouting(true);
-
-setTimeout(async ()=>{
+const logout = async()=>{
 
 await signOut(auth);
 router.push("/seller/login");
-
-},400);
 
 };
 
 return(
 
-<div className={`flex min-h-screen bg-gray-100 transition-all duration-500 ${logouting ? "opacity-0 translate-x-full" : ""}`}>
-
-{/* MENU BUTTON */}
-
-{!menuOpen && (
-<button
-onClick={()=>setMenuOpen(true)}
-className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded-lg"
->
-☰
-</button>
-)}
+<div className="flex min-h-screen bg-gray-100">
 
 {/* SIDEBAR */}
 
-<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 z-40 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+<div className="w-64 bg-white shadow-lg p-5 space-y-3">
 
-<h2 className="text-2xl font-bold mb-6">Seller Panel</h2>
-
-<button
-onClick={()=>setMenuOpen(false)}
-className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
->
-✕ Close
-</button>
+<h2 className="text-2xl font-bold mb-6">
+Seller Panel
+</h2>
 
 <Link href="/seller/dashboard" className="flex gap-2">
 <LayoutDashboard size={18}/> Dashboard
@@ -178,7 +164,7 @@ className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 </Link>
 
 <Link href="/seller/kyc" className="flex gap-2">
-<IdCard size={18}/> KYC Verification
+<IdCard size={18}/> KYC
 </Link>
 
 <Link href="/seller/reviews" className="flex gap-2">
@@ -230,7 +216,9 @@ Logout
 {/* MAIN */}
 
 <div className="flex-1 p-6">
+
 {children}
+
 </div>
 
 </div>
