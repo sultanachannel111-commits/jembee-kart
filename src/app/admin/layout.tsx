@@ -86,7 +86,13 @@ const menu = [
 /* ⏳ WAIT UNTIL CHECK COMPLETE */
 
 if(checking){
-return null;
+return(
+<div className="flex items-center justify-center h-screen">
+<p className="text-gray-500 text-lg">
+Checking admin access...
+</p>
+</div>
+)
 }
 
 /* ❌ NOT ALLOWED */
