@@ -243,12 +243,6 @@ Logout
 
 
 {/* MAIN */}
-<button
-onClick={()=>setMenuOpen(!menuOpen)}
-className="mb-4 bg-black text-white px-3 py-2 rounded"
->
-☰ Menu
-</button>
 <div className="flex-1 p-6">
 
 {children}
