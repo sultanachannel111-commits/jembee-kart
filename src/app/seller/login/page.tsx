@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { setSellerCookie } from "@/lib/cookieAuth";
 
 export default function SellerLogin(){
 
@@ -43,7 +44,8 @@ alert("This is not a seller account");
 setLoading(false);
 return;
 }
-
+  
+setSellerCookie();
 router.push("/seller/dashboard");
 
 }catch(err){
