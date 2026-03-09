@@ -2,191 +2,211 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Users,
-  Store,
-  Tag,
-  Settings,
-  Image,
-  Gift,
-  LogOut
+LayoutDashboard,
+Package,
+ShoppingCart,
+Users,
+Store,
+Tag,
+Settings,
+Image,
+Gift,
+LogOut
 } from "lucide-react";
 
 export default function AdminLayout({
-  children,
+children,
 }: {
-  children: React.ReactNode;
+children: React.ReactNode;
 }) {
 
-  const pathname = usePathname();
-  const router = useRouter();
+const pathname = usePathname();
+const router = useRouter();
 
-  /* 🔐 LOGIN CHECK */
+const [checking,setChecking] = useState(true);
+const [allowed,setAllowed] = useState(false);
 
-  useEffect(()=>{
 
-    const logged = localStorage.getItem("adminLoggedIn");
+/* 🔐 LOGIN CHECK */
 
-    if(logged !== "true"){
-      router.replace("/admin/login");
-    }
+useEffect(()=>{
 
-  },[]);
+const logged = localStorage.getItem("adminLoggedIn");
 
+if(logged === "true"){
+setAllowed(true);
+}
 
+else{
+router.replace("/admin/login");
+}
 
-  /* 🔓 LOGOUT */
+setChecking(false);
 
-  const logout = ()=>{
+},[]);
 
-    localStorage.removeItem("adminLoggedIn");
 
-    router.push("/admin/login");
+/* 🔓 LOGOUT */
 
-  };
+const logout = ()=>{
 
+localStorage.removeItem("adminLoggedIn");
 
-  const menu = [
+router.push("/admin/login");
 
-    { name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
+};
 
-    { name:"Products", icon:Package, path:"/admin/products" },
 
-    { name:"Categories", icon:Tag, path:"/admin/categories" },
+const menu = [
 
-    { name:"Orders", icon:ShoppingCart, path:"/admin/orders" },
+{ name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
 
-    { name:"Banners", icon:Image, path:"/admin/banners" },
+{ name:"Products", icon:Package, path:"/admin/products" },
 
-    { name:"Festival Banner", icon:Gift, path:"/admin/festival" },
+{ name:"Categories", icon:Tag, path:"/admin/categories" },
 
-    { name:"Sellers", icon:Store, path:"/admin/sellers" },
+{ name:"Orders", icon:ShoppingCart, path:"/admin/orders" },
 
-    { name:"Users", icon:Users, path:"/admin/users" },
+{ name:"Banners", icon:Image, path:"/admin/banners" },
 
-    { name:"Settings", icon:Settings, path:"/admin/settings" },
+{ name:"Festival Banner", icon:Gift, path:"/admin/festival" },
 
-  ];
+{ name:"Sellers", icon:Store, path:"/admin/sellers" },
 
+{ name:"Users", icon:Users, path:"/admin/users" },
 
-  return (
+{ name:"Settings", icon:Settings, path:"/admin/settings" },
 
-    <div className="flex min-h-screen bg-gray-100">
+];
 
-      {/* SIDEBAR */}
 
-      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
+/* ⏳ WAIT UNTIL CHECK COMPLETE */
 
-        <div className="p-6 border-b">
+if(checking){
+return null;
+}
 
-          <h1 className="text-2xl font-bold text-purple-600">
-            JembeeKart
-          </h1>
+/* ❌ NOT ALLOWED */
 
-          <p className="text-xs text-gray-500">
-            Admin Panel
-          </p>
+if(!allowed){
+return null;
+}
 
-        </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+return (
 
-          {menu.map((item,index)=>{
+<div className="flex min-h-screen bg-gray-100">
 
-            const Icon = item.icon;
-            const active = pathname === item.path;
+{/* SIDEBAR */}
 
-            return(
+<aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
 
-              <Link
-                key={index}
-                href={item.path}
-                className={`flex items-center gap-3 p-3 rounded-lg transition
-                ${
-                  active
-                  ? "bg-purple-100 text-purple-700"
-                  : "hover:bg-gray-100 text-gray-700"
-                }`}
-              >
+<div className="p-6 border-b">
 
-                <Icon size={18}/>
+<h1 className="text-2xl font-bold text-purple-600">
+JembeeKart
+</h1>
 
-                <span className="text-sm font-medium">
-                  {item.name}
-                </span>
+<p className="text-xs text-gray-500">
+Admin Panel
+</p>
 
-              </Link>
+</div>
 
-            );
+<nav className="flex-1 p-4 space-y-2">
 
-          })}
+{menu.map((item,index)=>{
 
-        </nav>
+const Icon = item.icon;
+const active = pathname === item.path;
 
-      </aside>
+return(
 
+<Link
+key={index}
+href={item.path}
+className={`flex items-center gap-3 p-3 rounded-lg transition
+${
+active
+? "bg-purple-100 text-purple-700"
+: "hover:bg-gray-100 text-gray-700"
+}`}
+>
 
+<Icon size={18}/>
 
-      {/* MAIN */}
+<span className="text-sm font-medium">
+{item.name}
+</span>
 
-      <div className="flex-1 flex flex-col">
+</Link>
 
-        {/* HEADER */}
+);
 
-        <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+})}
 
-          <h2 className="text-lg font-semibold text-gray-700">
-            Admin Dashboard
-          </h2>
+</nav>
 
+</aside>
 
-          <div className="flex items-center gap-4">
 
-            <div className="text-sm text-gray-500">
-              Welcome Admin
-            </div>
 
+{/* MAIN */}
 
-            <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
-              A
-            </div>
+<div className="flex-1 flex flex-col">
 
+{/* HEADER */}
 
-            {/* LOGOUT BUTTON */}
+<header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
 
-            <button
-              onClick={logout}
-              className="flex items-center gap-1 text-red-500 text-sm"
-            >
+<h2 className="text-lg font-semibold text-gray-700">
+Admin Dashboard
+</h2>
 
-              <LogOut size={16}/>
 
-              Logout
+<div className="flex items-center gap-4">
 
-            </button>
+<div className="text-sm text-gray-500">
+Welcome Admin
+</div>
 
-          </div>
 
-        </header>
+<div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+A
+</div>
 
 
-        {/* CONTENT */}
+<button
+onClick={logout}
+className="flex items-center gap-1 text-red-500 text-sm"
+>
 
-        <main className="p-6">
+<LogOut size={16}/>
 
-          {children}
+Logout
 
-        </main>
+</button>
 
-      </div>
+</div>
 
-    </div>
+</header>
 
-  );
+
+{/* CONTENT */}
+
+<main className="p-6">
+
+{children}
+
+</main>
+
+</div>
+
+</div>
+
+);
 
 }
