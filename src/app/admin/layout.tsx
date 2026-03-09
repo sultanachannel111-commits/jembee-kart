@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import {
@@ -17,28 +17,28 @@ Gift,
 LogOut
 } from "lucide-react";
 
-import { getCookie, removeAdminCookie } from "@/lib/cookieAuth";
+import { removeAdminCookie } from "@/lib/cookieAuth";
 
 export default function AdminLayout({
 children,
-}: {
-children: React.ReactNode;
+}:{
+children:React.ReactNode;
 }) {
 
 const pathname = usePathname();
-const router = useRouter();
 
 /* 🔐 LOGIN CHECK */
 
 useEffect(()=>{
 
-const admin = getCookie("admin");
+const cookies = document.cookie;
 
-if(admin !== "true"){
-router.replace("/admin/login");
+if(!cookies.includes("admin=true")){
+window.location.href="/admin/login";
 }
 
 },[]);
+
 
 /* 🔓 LOGOUT */
 
@@ -46,33 +46,35 @@ const logout = ()=>{
 
 removeAdminCookie();
 
-window.location.href = "/admin/login";
+window.location.href="/admin/login";
 
 };
 
-const menu = [
 
-{ name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
+const menu=[
 
-{ name:"Products", icon:Package, path:"/admin/products" },
+{ name:"Dashboard",icon:LayoutDashboard,path:"/admin" },
 
-{ name:"Categories", icon:Tag, path:"/admin/categories" },
+{ name:"Products",icon:Package,path:"/admin/products" },
 
-{ name:"Orders", icon:ShoppingCart, path:"/admin/orders" },
+{ name:"Categories",icon:Tag,path:"/admin/categories" },
 
-{ name:"Banners", icon:Image, path:"/admin/banners" },
+{ name:"Orders",icon:ShoppingCart,path:"/admin/orders" },
 
-{ name:"Festival Banner", icon:Gift, path:"/admin/festival" },
+{ name:"Banners",icon:Image,path:"/admin/banners" },
 
-{ name:"Sellers", icon:Store, path:"/admin/sellers" },
+{ name:"Festival Banner",icon:Gift,path:"/admin/festival" },
 
-{ name:"Users", icon:Users, path:"/admin/users" },
+{ name:"Sellers",icon:Store,path:"/admin/sellers" },
 
-{ name:"Settings", icon:Settings, path:"/admin/settings" },
+{ name:"Users",icon:Users,path:"/admin/users" },
+
+{ name:"Settings",icon:Settings,path:"/admin/settings" }
 
 ];
 
-return (
+
+return(
 
 <div className="flex min-h-screen bg-gray-100">
 
@@ -92,12 +94,13 @@ Admin Panel
 
 </div>
 
+
 <nav className="flex-1 p-4 space-y-2">
 
 {menu.map((item,index)=>{
 
-const Icon = item.icon;
-const active = pathname === item.path;
+const Icon=item.icon;
+const active=pathname===item.path;
 
 return(
 
@@ -129,6 +132,7 @@ active
 </aside>
 
 
+
 {/* MAIN */}
 
 <div className="flex-1 flex flex-col">
@@ -141,17 +145,18 @@ active
 Admin Dashboard
 </h2>
 
+
 <div className="flex items-center gap-4">
 
 <div className="text-sm text-gray-500">
 Welcome Admin
 </div>
 
+
 <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
 A
 </div>
 
-{/* LOGOUT BUTTON */}
 
 <button
 onClick={logout}
