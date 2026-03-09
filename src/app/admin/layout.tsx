@@ -41,7 +41,11 @@ setAllowed(true);
 }
 
 else{
-router.replace("/admin/login");
+
+  if(pathname !== "/admin/login"){
+    router.replace("/admin/login");
+  }
+
 }
 
 setChecking(false);
