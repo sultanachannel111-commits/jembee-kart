@@ -2,6 +2,54 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  // Temporary: allow all routes
-  return NextResponse.next();
+
+const path = request.nextUrl.pathname;
+
+/* ======================
+   ADMIN PROTECTION
+====================== */
+
+if(path.startsWith("/admin")){
+
+const admin = request.cookies.get("admin");
+
+if(!admin){
+
+return NextResponse.redirect(
+new URL("/admin/login",request.url)
+);
+
 }
+
+}
+
+/* ======================
+   SELLER PROTECTION
+====================== */
+
+if(path.startsWith("/seller")){
+
+const seller = request.cookies.get("seller");
+
+if(!seller){
+
+return NextResponse.redirect(
+new URL("/seller/login",request.url)
+);
+
+}
+
+}
+
+return NextResponse.next();
+
+}
+
+export const config = {
+
+matcher:[
+"/admin/:path*",
+"/seller/:path*"
+]
+
+};
