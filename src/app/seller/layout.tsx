@@ -145,7 +145,7 @@ className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded"
 )}
 {/* SIDEBAR */}
 
-<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 z-40 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
 <h2 className="text-2xl font-bold mb-6">
 Seller Panel
