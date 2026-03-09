@@ -1,146 +1,193 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { setAdminCookie } from "@/lib/cookieAuth";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function AdminLogin() {
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  Store,
+  Tag,
+  Settings,
+  Image,
+  Gift,
+  LogOut
+} from "lucide-react";
 
-const router = useRouter();
+import { removeAdminCookie } from "@/lib/cookieAuth";
 
-const [userId, setUserId] = useState("");
-const [password, setPassword] = useState("");
-const [error, setError] = useState("");
-const [loading, setLoading] = useState(false);
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
 
-/* 🔒 Hardcoded Credentials (Demo Mode) */
+  const pathname = usePathname();
+  const router = useRouter();
 
-const ADMIN_USER = "sadiyabashar7910";
-const ADMIN_PASS = "Pintu@7910";
+  /* 🔐 LOGIN CHECK */
 
-/* 🔁 Auto Redirect if already logged in */
+  useEffect(()=>{
 
-useEffect(()=>{
+    const cookies = document.cookie;
 
-const cookies = document.cookie;
+    if(!cookies.includes("admin=true")){
+      router.replace("/admin/login");
+    }
 
-if(cookies.includes("admin=true")){
-router.replace("/admin");
-}
+  },[]);
 
-},[]);
 
-const handleLogin = async (e:React.FormEvent)=>{
+  /* 🔓 LOGOUT */
 
-e.preventDefault();
+  const logout = ()=>{
 
-setError("");
-setLoading(true);
+    removeAdminCookie();
 
-/* fake delay */
+    router.push("/admin/login");
 
-setTimeout(()=>{
+  };
 
-if(userId === ADMIN_USER && password === ADMIN_PASS){
 
-/* set cookie for middleware */
+  const menu = [
 
-setAdminCookie();
+    { name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
 
-router.push("/admin");
+    { name:"Products", icon:Package, path:"/admin/products" },
 
-}
+    { name:"Categories", icon:Tag, path:"/admin/categories" },
 
-else{
+    { name:"Orders", icon:ShoppingCart, path:"/admin/orders" },
 
-setError("Invalid User ID or Password");
+    { name:"Banners", icon:Image, path:"/admin/banners" },
 
-}
+    { name:"Festival Banner", icon:Gift, path:"/admin/festival" },
 
-setLoading(false);
+    { name:"Sellers", icon:Store, path:"/admin/sellers" },
 
-},700);
+    { name:"Users", icon:Users, path:"/admin/users" },
 
-};
+    { name:"Settings", icon:Settings, path:"/admin/settings" },
 
-return(
+  ];
 
-<div className="min-h-screen flex items-center justify-center bg-black p-4">
 
-<div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md">
+  return (
 
-<h2 className="text-3xl font-bold text-center mb-2 text-black">
-Admin Login
-</h2>
+    <div className="flex min-h-screen bg-gray-100">
 
-<p className="text-center text-gray-500 mb-6">
-Welcome to JEMBEE KART Dashboard
-</p>
+      {/* SIDEBAR */}
 
-<form onSubmit={handleLogin} className="space-y-5">
+      <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col">
 
-<div>
+        <div className="p-6 border-b">
 
-<label className="block text-sm font-medium mb-1">
-User ID
-</label>
+          <h1 className="text-2xl font-bold text-purple-600">
+            JembeeKart
+          </h1>
 
-<input
-type="text"
-value={userId}
-onChange={(e)=>setUserId(e.target.value)}
-placeholder="Enter User ID"
-className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-pink-500 outline-none transition"
-required
-/>
+          <p className="text-xs text-gray-500">
+            Admin Panel
+          </p>
 
-</div>
+        </div>
 
-<div>
+        <nav className="flex-1 p-4 space-y-2">
 
-<label className="block text-sm font-medium mb-1">
-Password
-</label>
+          {menu.map((item,index)=>{
 
-<input
-type="password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-placeholder="Enter Password"
-className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-pink-500 outline-none transition"
-required
-/>
+            const Icon = item.icon;
+            const active = pathname === item.path;
 
-</div>
+            return(
 
-{error && (
+              <Link
+                key={index}
+                href={item.path}
+                className={`flex items-center gap-3 p-3 rounded-lg transition
+                ${
+                  active
+                  ? "bg-purple-100 text-purple-700"
+                  : "hover:bg-gray-100 text-gray-700"
+                }`}
+              >
 
-<p className="text-red-500 text-sm text-center">
-{error}
-</p>
+                <Icon size={18}/>
 
-)}
+                <span className="text-sm font-medium">
+                  {item.name}
+                </span>
 
-<button
-type="submit"
-disabled={loading}
-className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-semibold shadow-lg transition duration-300"
->
+              </Link>
 
-{loading ? "Please wait..." : "Login"}
+            );
 
-</button>
+          })}
 
-</form>
+        </nav>
 
-<p className="text-center text-xs text-gray-400 mt-6">
-© 2026 JEMBEE KART | Secure Admin Panel
-</p>
+      </aside>
 
-</div>
 
-</div>
 
-);
+      {/* MAIN */}
+
+      <div className="flex-1 flex flex-col">
+
+        {/* HEADER */}
+
+        <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+
+          <h2 className="text-lg font-semibold text-gray-700">
+            Admin Dashboard
+          </h2>
+
+
+          <div className="flex items-center gap-4">
+
+            <div className="text-sm text-gray-500">
+              Welcome Admin
+            </div>
+
+
+            <div className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+              A
+            </div>
+
+
+            {/* LOGOUT BUTTON */}
+
+            <button
+              onClick={logout}
+              className="flex items-center gap-1 text-red-500 text-sm"
+            >
+
+              <LogOut size={16}/>
+
+              Logout
+
+            </button>
+
+          </div>
+
+        </header>
+
+
+        {/* CONTENT */}
+
+        <main className="p-6">
+
+          {children}
+
+        </main>
+
+      </div>
+
+    </div>
+
+  );
 
 }
