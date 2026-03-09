@@ -5,121 +5,252 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
+
 import Link from "next/link";
+import {
+LayoutDashboard,
+Package,
+ShoppingCart,
+Box,
+DollarSign,
+Wallet,
+Star,
+BarChart,
+MessageSquare,
+Megaphone,
+Tag,
+Bell,
+User,
+Settings,
+Trophy,
+LogOut,
+IdCard
+} from "lucide-react";
 
-export default function SellerLayout({ children }: { children: React.ReactNode }) {
+export default function SellerLayout({ children }: any){
 
-  const router = useRouter();
-  const pathname = usePathname();
+const router = useRouter();
+const pathname = usePathname();
 
-  const [loading, setLoading] = useState(true);
-  const [allowed, setAllowed] = useState(false);
+const [loading,setLoading] = useState(true);
+const [allowed,setAllowed] = useState(false);
+const [logouting,setLogouting] = useState(false);
+const [menuOpen,setMenuOpen] = useState(false);
 
-  // public pages
-  const isPublicPage =
-    pathname === "/seller/login" ||
-    pathname === "/seller/signup";
+useEffect(()=>{
 
-  useEffect(() => {
+const unsub = onAuthStateChanged(auth, async (user)=>{
 
-    // public page par auth check nahi
-    if (isPublicPage) {
-      setLoading(false);
-      return;
-    }
+try{
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+if(!user){
+setAllowed(false);
+setLoading(false);
+router.replace("/seller/login");
+return;
+}
 
-      if (!user) {
-        router.replace("/seller/login");
-        setLoading(false);
-        return;
-      }
+const snap = await getDoc(doc(db,"users",user.uid));
 
-      try {
+if(!snap.exists()){
+setAllowed(false);
+setLoading(false);
+router.replace("/");
+return;
+}
 
-        const ref = doc(db, "users", user.uid);
-        const snap = await getDoc(ref);
+const data:any = snap.data();
 
-        if (!snap.exists()) {
-          router.replace("/");
-          setLoading(false);
-          return;
-        }
+if(data.role !== "seller"){
+setAllowed(false);
+setLoading(false);
+router.replace("/");
+return;
+}
 
-        const data: any = snap.data();
+setAllowed(true);
+setLoading(false);
 
-        if (data?.role !== "seller") {
-          router.replace("/");
-          setLoading(false);
-          return;
-        }
+}catch(err){
 
-        setAllowed(true);
-        setLoading(false);
+console.log("Seller check error:",err);
+setAllowed(false);
+setLoading(false);
+router.replace("/");
 
-      } catch (error) {
-        console.log("Seller auth error:", error);
-        setLoading(false);
-      }
+}
 
-    });
+});
 
-    return () => unsubscribe();
+return ()=>unsub();
 
-  }, [pathname]);
+},[]);
 
-  // login / signup page
-  if (isPublicPage) {
-    return <>{children}</>;
-  }
 
-  // loading
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
-  }
+/* LOGIN PAGE PAR SIDEBAR HIDE */
 
-  if (!allowed) {
-    return null;
-  }
+if(pathname === "/seller/login" || pathname === "/seller/signup"){
+return <>{children}</>;
+}
 
-  const logout = async () => {
-    await signOut(auth);
-    router.push("/seller/login");
-  };
 
-  return (
-    <div className="flex min-h-screen">
+/* LOADING */
 
-      {/* Sidebar */}
-      <div className="w-64 bg-white shadow p-5 space-y-3">
+if(loading){
+return(
+<div className="flex items-center justify-center h-screen">
+<p className="text-gray-500 text-lg">
+Loading...
+</p>
+</div>
+)
+}
 
-        <h2 className="text-xl font-bold mb-6">
-          Seller Panel
-        </h2>
 
-        <Link href="/seller/dashboard">Dashboard</Link><br/>
-        <Link href="/seller/products">Products</Link><br/>
-        <Link href="/seller/orders">Orders</Link><br/>
+/* ALLOWED NAHI */
 
-        <button
-          onClick={logout}
-          className="text-red-500 mt-6"
-        >
-          Logout
-        </button>
+if(!allowed){
+return null;
+}
 
-      </div>
 
-      {/* Main */}
-      <div className="flex-1 p-6">
-        {children}
-      </div>
+/* LOGOUT */
 
-    </div>
-  );
+const logout = async ()=>{
+
+setLogouting(true);
+
+setTimeout(async ()=>{
+
+await signOut(auth);
+
+router.push("/seller/login");
+
+},500);
+
+};
+
+
+return(
+
+<div className={`flex min-h-screen bg-gray-100 transition-all duration-500 ${logouting ? "opacity-0 translate-x-full" : ""}`}>
+  
+{!menuOpen && (
+<button
+onClick={()=>setMenuOpen(true)}
+className="fixed top-4 left-4 z-50 bg-black text-white px-3 py-2 rounded"
+>
+☰
+</button>
+)}
+{/* SIDEBAR */}
+
+<div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg p-5 space-y-3 transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+
+<h2 className="text-2xl font-bold mb-6">
+Seller Panel
+</h2>
+  
+<button
+onClick={()=>setMenuOpen(false)}
+className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
+>
+✕ Close
+</button>
+<Link href="/seller/dashboard" className="flex gap-2">
+<LayoutDashboard size={18}/> Dashboard
+</Link>
+
+<Link href="/seller/add-product" className="flex gap-2">
+<Package size={18}/> Add Product
+</Link>
+
+<Link href="/seller/products" className="flex gap-2">
+<Box size={18}/> My Products
+</Link>
+
+<Link href="/seller/orders" className="flex gap-2">
+<ShoppingCart size={18}/> Orders
+</Link>
+
+<Link href="/seller/inventory" className="flex gap-2">
+<Box size={18}/> Inventory
+</Link>
+
+<Link href="/seller/earnings" className="flex gap-2">
+<DollarSign size={18}/> Earnings
+</Link>
+
+<Link href="/seller/withdraw" className="flex gap-2">
+<Wallet size={18}/> Withdraw
+</Link>
+
+<Link href="/seller/kyc" className="flex items-center gap-2">
+  <IdCard size={18} />
+  KYC Verification
+</Link>
+  
+<Link href="/seller/reviews" className="flex gap-2">
+<Star size={18}/> Reviews
+</Link>
+
+<Link href="/seller/analytics" className="flex gap-2">
+<BarChart size={18}/> Analytics
+</Link>
+
+<Link href="/seller/messages" className="flex gap-2">
+<MessageSquare size={18}/> Messages
+</Link>
+
+<Link href="/seller/promotions" className="flex gap-2">
+<Megaphone size={18}/> Promotions
+</Link>
+
+<Link href="/seller/coupons" className="flex gap-2">
+<Tag size={18}/> Coupons
+</Link>
+
+<Link href="/seller/notifications" className="flex gap-2">
+<Bell size={18}/> Notifications
+</Link>
+
+<Link href="/seller/profile" className="flex gap-2">
+<User size={18}/> Profile
+</Link>
+
+<Link href="/seller/settings" className="flex gap-2">
+<Settings size={18}/> Settings
+</Link>
+
+<Link href="/seller/ranking" className="flex gap-2">
+<Trophy size={18}/> Ranking
+</Link>
+
+
+{/* LOGOUT BUTTON */}
+
+<button
+onClick={logout}
+className="flex items-center gap-2 text-red-500 mt-6"
+>
+
+<LogOut size={18}/>
+Logout
+
+</button>
+
+</div>
+
+
+{/* MAIN */}
+<div className="flex-1 p-6">
+
+{children}
+
+</div>
+
+</div>
+
+)
+
 }
