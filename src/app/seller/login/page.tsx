@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -99,9 +100,9 @@ className="bg-black text-white w-full p-2 rounded"
 
 <p className="text-center text-sm mt-4">
 No seller account?
-<a href="/seller/signup" className="text-blue-600 ml-1">
+<Link href="/seller/signup" className="text-blue-600 ml-1">
 Signup
-</a>
+</Link>
 </p>
 
 </div>
