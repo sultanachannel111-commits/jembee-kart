@@ -2,113 +2,120 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { setSellerCookie } from "@/lib/cookieAuth";
 
-export default function SellerLogin(){
+export default function SellerLogin() {
 
-const router = useRouter();
+  const router = useRouter();
 
-const [email,setEmail] = useState("");
-const [password,setPassword] = useState("");
-const [loading,setLoading] = useState(false);
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState("");
 
-const login = async(e:any)=>{
+  const login = async(e:any)=>{
 
-e.preventDefault();
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-setLoading(true);
+    try{
 
-try{
+      const res = await signInWithEmailAndPassword(auth,email,password);
+      const uid = res.user.uid;
 
-// Firebase login
-const res = await signInWithEmailAndPassword(auth,email,password);
+      const snap = await getDoc(doc(db,"users",uid));
 
-const uid = res.user.uid;
+      if(!snap.exists()){
+        setError("User not found");
+        setLoading(false);
+        return;
+      }
 
-// Firestore role check
-const snap = await getDoc(doc(db,"users",uid));
+      const data = snap.data();
 
-if(!snap.exists()){
-alert("User not found");
-setLoading(false);
-return;
-}
+      if(data.role !== "seller"){
+        setError("This account is not a seller");
+        setLoading(false);
+        return;
+      }
 
-const data = snap.data();
+      setSellerCookie();
+      router.push("/seller/dashboard");
 
-if(data.role !== "seller"){
-alert("This is not a seller account");
-setLoading(false);
-return;
-}
-  
-setSellerCookie();
-router.push("/seller/dashboard");
+    }catch(err){
+      setError("Login failed. Check email & password");
+    }
 
-}catch(err){
+    setLoading(false);
+  };
 
-alert("Login failed");
+  return(
 
-}
+  <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-setLoading(false);
+    <div className="bg-white p-8 rounded-xl shadow w-96">
 
-};
+      <h1 className="text-3xl font-bold text-center mb-2">
+        JembeeKart
+      </h1>
 
-return(
+      <p className="text-center text-gray-500 mb-6">
+        Seller Login
+      </p>
 
-<div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <form onSubmit={login} className="space-y-4">
 
-<div className="bg-white p-8 rounded-xl shadow w-96">
+        <input
+        type="email"
+        placeholder="Email address"
+        value={email}
+        onChange={(e)=>setEmail(e.target.value)}
+        className="border w-full p-3 rounded-lg"
+        />
 
-<h1 className="text-2xl font-bold mb-6 text-center">
-Seller Login
-</h1>
+        <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e)=>setPassword(e.target.value)}
+        className="border w-full p-3 rounded-lg"
+        />
 
-<form onSubmit={login} className="space-y-4">
+        {error && (
+          <p className="text-red-500 text-sm text-center">
+            {error}
+          </p>
+        )}
 
-<input
-type="email"
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-className="border w-full p-2 rounded"
-/>
+        <button
+        type="submit"
+        className="bg-black text-white w-full py-3 rounded-lg"
+        >
+        {loading ? "Logging..." : "Login"}
+        </button>
 
-<input
-type="password"
-placeholder="Password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-className="border w-full p-2 rounded"
-/>
+      </form>
 
-<button
-type="submit"
-className="bg-black text-white w-full p-2 rounded"
->
+      <p className="text-center text-sm mt-5">
+        No seller account?
 
-{loading ? "Logging..." : "Login"}
+        <button
+        onClick={()=>router.push("/seller/signup")}
+        className="text-blue-600 ml-1"
+        >
+        Create account
+        </button>
 
-</button>
+      </p>
 
-</form>
+    </div>
 
-<button
-onClick={()=>router.push("/seller/signup")}
-className="text-blue-600 ml-1"
->
-Signup
-</button>
+  </div>
 
-</div>
-
-</div>
-
-);
+  );
 
 }
