@@ -63,7 +63,9 @@ router.push("/admin/login");
 
 };
 
-
+if(pathname === "/admin/login"){
+return <>{children}</>;
+}
 const menu = [
 
 { name:"Dashboard", icon:LayoutDashboard, path:"/admin" },
