@@ -87,7 +87,7 @@ return ()=>unsub();
 
 /* LOGIN PAGE PAR SIDEBAR HIDE */
 
-if(pathname === "/seller/login"){
+if(pathname === "/seller/login" || pathname === "/seller/signup"){
 return <>{children}</>;
 }
 
