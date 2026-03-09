@@ -278,7 +278,6 @@ search={search}
 setSearch={setSearch}
 startVoice={startVoice}
 />
-</div>)
   
 <CategoryList
 categories={categories}
