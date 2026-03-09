@@ -31,6 +31,7 @@ const router = useRouter();
 const pathname = usePathname();
 
 const [loading,setLoading] = useState(true);
+const [allowed,setAllowed] = useState(false);
 
 useEffect(()=>{
 
@@ -40,6 +41,7 @@ try{
 
 // ❌ login nahi
 if(!user){
+setAllowed(false);
 setLoading(false);
 router.replace("/seller/login");
 return;
@@ -49,26 +51,30 @@ return;
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(!snap.exists()){
+setAllowed(false);
 setLoading(false);
 router.replace("/");
 return;
 }
 
-const data = snap.data();
+const data:any = snap.data();
 
 // ❌ seller nahi
 if(data.role !== "seller"){
+setAllowed(false);
 setLoading(false);
 router.replace("/");
 return;
 }
 
 // ✅ seller verified
+setAllowed(true);
 setLoading(false);
 
 }catch(err){
 
 console.log("Seller check error:",err);
+setAllowed(false);
 setLoading(false);
 router.replace("/");
 
@@ -83,13 +89,12 @@ return ()=>unsub();
 
 // 🔹 login page par sidebar hide
 if(pathname === "/seller/login"){
-return children;
+return <>{children}</>;
 }
 
 
-// 🔹 loading
+// 🔹 loading screen
 if(loading){
-
 return(
 <div className="flex items-center justify-center h-screen">
 <p className="text-gray-500 text-lg">
@@ -97,8 +102,14 @@ Loading...
 </p>
 </div>
 )
-
 }
+
+
+// 🔹 allowed nahi
+if(!allowed){
+return null;
+}
+
 
 return(
 
