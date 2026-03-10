@@ -32,7 +32,7 @@ export function CartProvider({ children }: any) {
 
     await setDoc(ref, {
       name: product.name,
-      price: product.sellingPrice,
+      price: product.sellPrice || product.price,
       image: product.image || "",
       quantity: 1,
       createdAt: new Date()
