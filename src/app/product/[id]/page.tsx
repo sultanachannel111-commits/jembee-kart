@@ -7,183 +7,229 @@ import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 
 export default function ProductPage() {
-  const params = useParams();
-  const router = useRouter();
-  const id = params?.id as string;
-  const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
-  const [adding, setAdding] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
+const params = useParams();
+const router = useRouter();
+const id = params?.id as string;
+const { addToCart } = useCart();
 
-  useEffect(() => {
-    if (!id) return;
+const [product,setProduct] = useState<any>(null);
+const [loading,setLoading] = useState(true);
+const [quantity,setQuantity] = useState(1);
+const [adding,setAdding] = useState(false);
+const [showPopup,setShowPopup] = useState(false);
 
-    const fetchProduct = async () => {
-      try {
-        const snap = await getDoc(doc(db, "products", id));
+useEffect(()=>{
 
-        if (snap.exists()) {
-          setProduct({ id: snap.id, ...snap.data() });
-        } else {
-          setProduct(null);
-        }
-      } catch (error) {
-        console.error(error);
-      }
+if(!id) return;
 
-      setLoading(false);
-    };
+const fetchProduct = async()=>{
 
-    fetchProduct();
-  }, [id]);
+try{
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+const snap = await getDoc(doc(db,"products",id));
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Product not found ❌
-      </div>
-    );
-  }
+if(snap.exists()){
+setProduct({id:snap.id,...snap.data()});
+}else{
+setProduct(null);
+}
 
-  const outOfStock = product.stock <= 0;
+}catch(error){
+console.log(error);
+}
 
-  // 🛒 Add To Cart Function
-  const handleAddToCart = async () => {
-    if (outOfStock) return;
+setLoading(false);
 
-    setAdding(true);
+};
 
-    await addToCart({ ...product, quantity });
+fetchProduct();
 
-    setShowPopup(true);
+},[id]);
 
-    router.push("/")
-  };
+if(loading){
+return(
+<div className="min-h-screen flex items-center justify-center">
+Loading...
+</div>
+);
+}
 
-  // 🔥 DIRECT UPI PAYMENT
-  const buyNow = async () => {
-    if (outOfStock) return;
+if(!product){
+return(
+<div className="min-h-screen flex items-center justify-center">
+Product not found ❌
+</div>
+);
+}
 
-    const totalAmount = (product.sellPrice || product.price) * quantity;
+const outOfStock = product.stock <= 0;
 
-    await addToCart({ ...product, quantity });
+/* ========================
+ADD TO CART
+======================== */
 
-    const upiLink = `upi://pay?pa=${
-      product.upiId || "sultana9212@axl"
-    }&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+const handleAddToCart = async()=>{
 
-    window.location.href = upiLink;
-  };
+if(outOfStock) return;
 
-  return (
-    <div className="min-h-screen p-6 pt-[100px] bg-gradient-to-b from-pink-100 to-white">
+setAdding(true);
 
-      {/* IMAGE */}
-      {(product.image || product.imageUrl) && (
-  <img
-    src={product.image || product.imageUrl}
-    className="w-full h-80 object-cover rounded-xl"
-  />
+await addToCart({
+...product,
+quantity
+});
+
+setShowPopup(true);
+
+setTimeout(()=>{
+router.push("/");
+},500);
+
+};
+
+/* ========================
+UPI BUY NOW
+======================== */
+
+const buyNow = async()=>{
+
+if(outOfStock) return;
+
+const totalAmount = (product.sellPrice || product.price) * quantity;
+
+await addToCart({
+...product,
+quantity
+});
+
+const upiLink = `upi://pay?pa=${
+product.upiId || "sultana9212@axl"
+}&pn=JembeeKart&am=${totalAmount}&cu=INR`;
+
+window.open(upiLink);
+
+};
+
+return(
+
+<div className="min-h-screen p-6 pt-[100px] bg-gradient-to-b from-pink-100 to-white">
+
+{/* IMAGE */}
+
+{(product.image || product.imageUrl) && (
+
+<img
+src={product.image || product.imageUrl}
+className="w-full h-80 object-cover rounded-xl"
+/>
+
 )}
 
-      {/* NAME */}
-      <h1 className="text-2xl font-bold mt-6">
-        {product.name}
-      </h1>
+{/* NAME */}
 
-      {/* PRICE */}
-      <p className="text-2xl font-bold mt-3">
-        ₹{product.sellPrice || product.price}
-      </p>
+<h1 className="text-2xl font-bold mt-6">
+{product.name}
+</h1>
 
-      {/* STOCK */}
-      <p className={`mt-2 font-semibold ${outOfStock ? "text-red-600" : "text-green-600"}`}>
-        {outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
-      </p>
+{/* PRICE */}
 
-      {/* QUANTITY */}
-      {!outOfStock && (
-        <div className="flex items-center gap-4 mt-6">
-          <button
-            onClick={() => setQuantity(q => Math.max(1, q - 1))}
-            className="bg-gray-200 px-4 py-2 rounded-lg"
-          >
-            -
-          </button>
+<p className="text-2xl font-bold mt-3">
+₹{product.sellPrice || product.price}
+</p>
 
-          <span className="text-lg font-bold">{quantity}</span>
+{/* STOCK */}
 
-          <button
-            onClick={() =>
-              setQuantity(q =>
-                q < product.stock ? q + 1 : q
-              )
-            }
-            className="bg-gray-200 px-4 py-2 rounded-lg"
-          >
-            +
-          </button>
-        </div>
-      )}
+<p className={`mt-2 font-semibold ${outOfStock ? "text-red-600" : "text-green-600"}`}>
+{outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
+</p>
 
-      {/* DESCRIPTION */}
-      {product.description && (
-        <div className="mt-6 text-gray-700 whitespace-pre-line">
-          {product.description}
-        </div>
-      )}
+{/* QUANTITY */}
 
-      {/* BUTTONS */}
-      <div className="flex gap-4 mt-8">
+{!outOfStock && (
 
-        {/* ADD TO CART */}
-        <button
-          disabled={outOfStock || adding}
-          onClick={handleAddToCart}
-          className={`px-6 py-3 rounded-xl w-full transition-all ${
-            outOfStock
-              ? "bg-gray-400 cursor-not-allowed"
-              : adding
-              ? "bg-gray-500"
-              : "bg-pink-600 text-white hover:bg-pink-700"
-          }`}
-        >
-          {adding ? "Adding..." : "Add to Cart"}
-        </button>
+<div className="flex items-center gap-4 mt-6">
 
-        {/* PAY NOW */}
-        <button
-          disabled={outOfStock}
-          onClick={buyNow}
-          className={`px-6 py-3 rounded-xl w-full ${
-            outOfStock
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-black text-white"
-          }`}
-        >
-          Pay Now (UPI)
-        </button>
+<button
+onClick={()=>setQuantity(q=>Math.max(1,q-1))}
+className="bg-gray-200 px-4 py-2 rounded-lg"
+>
+-
+</button>
 
-      </div>
+<span className="text-lg font-bold">
+{quantity}
+</span>
 
-      {/* POPUP */}
-      {showPopup && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-5 py-3 rounded-lg shadow-lg">
-          Added to Cart ✅
-        </div>
-      )}
+<button
+onClick={()=>setQuantity(q=>q < product.stock ? q+1 : q)}
+className="bg-gray-200 px-4 py-2 rounded-lg"
+>
++
+</button>
 
-    </div>
-  );
+</div>
+
+)}
+
+{/* DESCRIPTION */}
+
+{product.description && (
+
+<div className="mt-6 text-gray-700 whitespace-pre-line">
+{product.description}
+</div>
+
+)}
+
+{/* BUTTONS */}
+
+<div className="flex gap-4 mt-8">
+
+<button
+disabled={outOfStock || adding}
+onClick={handleAddToCart}
+className={`px-6 py-3 rounded-xl w-full transition-all ${
+outOfStock
+? "bg-gray-400 cursor-not-allowed"
+: adding
+? "bg-gray-500"
+: "bg-pink-600 text-white hover:bg-pink-700"
+}`}
+>
+
+{adding ? "Adding..." : "Add to Cart"}
+
+</button>
+
+<button
+disabled={outOfStock}
+onClick={buyNow}
+className={`px-6 py-3 rounded-xl w-full ${
+outOfStock
+? "bg-gray-400 cursor-not-allowed"
+: "bg-black text-white"
+}`}
+>
+
+Pay Now (UPI)
+
+</button>
+
+</div>
+
+{/* POPUP */}
+
+{showPopup && (
+
+<div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-5 py-3 rounded-lg shadow-lg">
+Added to Cart ✅
+</div>
+
+)}
+
+</div>
+
+);
+
 }
