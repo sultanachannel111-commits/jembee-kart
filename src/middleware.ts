@@ -25,7 +25,11 @@ new URL("/admin/login", request.url)
    SELLER PROTECTION
 ========================= */
 
-if (path.startsWith("/seller") && !path.startsWith("/seller/login")) {
+if (
+  path.startsWith("/seller") &&
+  !path.startsWith("/seller/login") &&
+  !path.startsWith("/seller/signup")
+) {
 
 const seller = request.cookies.get("seller");
 
