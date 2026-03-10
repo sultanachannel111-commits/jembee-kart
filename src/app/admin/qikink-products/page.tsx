@@ -30,6 +30,7 @@ export default function AdminQikinkProducts() {
 
   const [type,setType] = useState("");
   const [options,setOptions] = useState("");
+  const [stock,setStock] = useState("");
 
   /* =========================
      LOAD CATEGORIES
@@ -74,6 +75,7 @@ export default function AdminQikinkProducts() {
         image,
         basePrice:Number(basePrice),
         minPrice:Number(minPrice),
+        stock:Number(stock),
 
         variations:{
           type:type,
@@ -89,6 +91,7 @@ export default function AdminQikinkProducts() {
     setImage("");
     setBasePrice("");
     setMinPrice("");
+    setStock("");
     setType("");
     setOptions("");
 
@@ -248,7 +251,24 @@ className="border w-full p-3 rounded-lg"
 />
 
 </div>
+  
+{/* STOCK */}
 
+<div>
+
+<label className="flex items-center gap-2 font-semibold mb-1">
+Stock Quantity
+</label>
+
+<input
+type="number"
+value={stock}
+onChange={(e)=>setStock(e.target.value)}
+placeholder="Enter stock quantity"
+className="border w-full p-3 rounded-lg"
+/>
+
+</div>
 
 {/* VARIATION */}
 
