@@ -25,8 +25,9 @@ export default function AdminQikinkProducts() {
   const [image,setImage] = useState("");
 
   const [basePrice,setBasePrice] = useState("");
-  const [minPrice,setMinPrice] = useState("");
-  const [maxPrice,setMaxPrice] = useState("");
+  const [sellPrice,setSellPrice] = useState("");
+
+  const [description,setDescription] = useState("");
 
   const [stock,setStock] = useState("");
 
@@ -88,8 +89,9 @@ export default function AdminQikinkProducts() {
           image,
 
           basePrice:Number(basePrice),
-          minPrice:Number(minPrice),
-          maxPrice:Number(maxPrice),
+          sellPrice:Number(sellPrice),
+
+          description,
 
           stock:Number(stock),
 
@@ -110,8 +112,9 @@ export default function AdminQikinkProducts() {
       setImage("");
 
       setBasePrice("");
-      setMinPrice("");
-      setMaxPrice("");
+      setSellPrice("");
+
+      setDescription("");
 
       setStock("");
 
@@ -259,38 +262,37 @@ export default function AdminQikinkProducts() {
   </div>
 
 
-  {/* MIN PRICE */}
+  {/* SELL PRICE */}
 
   <div>
 
   <label className="font-semibold mb-1 block">
-  Minimum Sell Price
+  Sell Price
   </label>
 
   <input
   type="number"
-  value={minPrice}
-  onChange={(e)=>setMinPrice(e.target.value)}
-  placeholder="150"
+  value={sellPrice}
+  onChange={(e)=>setSellPrice(e.target.value)}
+  placeholder="299"
   className="border w-full p-3 rounded-lg"
   />
 
   </div>
 
 
-  {/* MAX PRICE */}
+  {/* DESCRIPTION */}
 
   <div>
 
   <label className="font-semibold mb-1 block">
-  Seller Max Price
+  Product Description
   </label>
 
-  <input
-  type="number"
-  value={maxPrice}
-  onChange={(e)=>setMaxPrice(e.target.value)}
-  placeholder="250"
+  <textarea
+  value={description}
+  onChange={(e)=>setDescription(e.target.value)}
+  placeholder="Write product description"
   className="border w-full p-3 rounded-lg"
   />
 
