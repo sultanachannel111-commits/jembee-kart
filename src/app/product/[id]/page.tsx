@@ -77,7 +77,7 @@ export default function ProductPage() {
   const buyNow = async () => {
     if (outOfStock) return;
 
-    const totalAmount = product.sellingPrice * quantity;
+    const totalAmount = (product.sellPrice || product.price) * quantity;
 
     await addToCart({ ...product, quantity });
 
