@@ -22,11 +22,13 @@ const [loading,setLoading] = useState(false);
 const signup = async(e:any)=>{
 
 e.preventDefault();
+
 setLoading(true);
 
 try{
 
 const userCred = await createUserWithEmailAndPassword(auth,email,password);
+
 const uid = userCred.user.uid;
 
 await setDoc(doc(db,"users",uid),{
@@ -62,7 +64,7 @@ JembeeKart
 </h1>
 
 <p className="text-center text-gray-500 mb-6">
-Seller Account Create
+Seller Signup
 </p>
 
 <form onSubmit={signup} className="space-y-4">
@@ -136,7 +138,7 @@ type="submit"
 className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold"
 >
 
-{loading ? "Creating..." : "Create Seller Account"}
+{loading ? "Creating account..." : "Create account"}
 
 </button>
 
@@ -160,5 +162,4 @@ Login
 </div>
 
 );
-
 }
