@@ -68,9 +68,7 @@ export default function ProductPage() {
 
     setShowPopup(true);
 
-    setTimeout(() => {
-      router.push("/");
-    }, 900);
+    router.push("/")
   };
 
   // 🔥 DIRECT UPI PAYMENT
