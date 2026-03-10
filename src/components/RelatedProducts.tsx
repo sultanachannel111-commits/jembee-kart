@@ -39,7 +39,7 @@ export default function RelatedProducts({ category }: any) {
               />
               <p className="text-sm mt-2">{p.name}</p>
               <p className="font-bold text-pink-600">
-                ₹{p.sellingPrice || p.price}
+                ₹{p.sellPrice || p.price}
               </p>
             </div>
           </Link>
