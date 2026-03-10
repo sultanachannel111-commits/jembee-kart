@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 
-export default function SellerLoginPage(){
+export default function SellerLoginPage() {
 
 const router = useRouter();
 
@@ -16,22 +16,23 @@ const [password,setPassword] = useState("");
 const [show,setShow] = useState(false);
 const [loading,setLoading] = useState(false);
 
-const login = async(e:any)=>{
+const login = async (e:any)=>{
 
 e.preventDefault();
+
 setLoading(true);
 
 try{
 
 await signInWithEmailAndPassword(auth,email,password);
 
-toast.success("Seller Login Success");
+toast.success("Login successful");
 
 router.push("/seller/dashboard");
 
-}catch{
+}catch(err){
 
-toast.error("Invalid credentials");
+toast.error("Invalid email or password");
 
 }
 
