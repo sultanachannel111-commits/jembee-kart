@@ -23,304 +23,350 @@ export default function AdminQikinkProducts() {
   const [name,setName] = useState("");
   const [qikinkId,setQikinkId] = useState("");
   const [image,setImage] = useState("");
+
   const [basePrice,setBasePrice] = useState("");
   const [minPrice,setMinPrice] = useState("");
+  const [maxPrice,setMaxPrice] = useState("");
+
+  const [stock,setStock] = useState("");
+
   const [category,setCategory] = useState("");
   const [categories,setCategories] = useState<any[]>([]);
 
   const [type,setType] = useState("");
   const [options,setOptions] = useState("");
-  const [stock,setStock] = useState("");
 
-  /* =========================
+  /* =======================
      LOAD CATEGORIES
-  ========================= */
+  ======================= */
 
   useEffect(()=>{
     loadCategories();
   },[]);
 
-  const loadCategories = async ()=>{
+  const loadCategories = async()=>{
 
-    const snap = await getDocs(
-      collection(db,"qikinkCategories")
-    );
+    try{
 
-    setCategories(
-      snap.docs.map(d=>({
-        id:d.id,
-        ...d.data()
-      }))
-    );
+      const snap = await getDocs(
+        collection(db,"qikinkCategories")
+      );
+
+      const list = snap.docs.map(doc=>({
+        id:doc.id,
+        ...doc.data()
+      }));
+
+      setCategories(list);
+
+    }catch(err){
+      console.log("Category load error",err);
+    }
 
   };
 
-  /* =========================
+  /* =======================
      SAVE PRODUCT
-  ========================= */
+  ======================= */
 
-  const saveProduct = async ()=>{
+  const saveProduct = async()=>{
 
     if(!name || !qikinkId || !category){
       alert("Please fill required fields");
       return;
     }
 
-    await addDoc(
-      collection(db,"adminProducts"),
-      {
-        name,
-        qikinkId,
-        category,
-        image,
-        basePrice:Number(basePrice),
-        minPrice:Number(minPrice),
-        stock:Number(stock),
+    try{
 
-        variations:{
-          type:type,
-          options:options.split(",")
-        },
+      await addDoc(
+        collection(db,"adminProducts"),
+        {
 
-        createdAt:serverTimestamp()
-      }
-    );
+          name,
+          qikinkId,
+          category,
+          image,
 
-    setName("");
-    setQikinkId("");
-    setImage("");
-    setBasePrice("");
-    setMinPrice("");
-    setStock("");
-    setType("");
-    setOptions("");
+          basePrice:Number(basePrice),
+          minPrice:Number(minPrice),
+          maxPrice:Number(maxPrice),
 
-    alert("Product Added Successfully 🎉");
+          stock:Number(stock),
+
+          variations:{
+            type:type,
+            options: options ? options.split(",") : []
+          },
+
+          createdAt:serverTimestamp()
+
+        }
+      );
+
+      alert("Product Added Successfully 🎉");
+
+      setName("");
+      setQikinkId("");
+      setImage("");
+
+      setBasePrice("");
+      setMinPrice("");
+      setMaxPrice("");
+
+      setStock("");
+
+      setType("");
+      setOptions("");
+
+    }catch(err){
+
+      console.log(err);
+      alert("Error adding product");
+
+    }
 
   };
 
-  return (
+  return(
 
-<div className="p-8 bg-gray-100 min-h-screen">
+  <div className="p-8 bg-gray-100 min-h-screen">
 
-<div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
+  <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
 
-<h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
-<Package className="text-purple-600"/>
-Add Qikink Product
-</h1>
+  <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
+  <Package className="text-purple-600"/>
+  Add Qikink Product
+  </h1>
 
-<div className="space-y-5">
+  <div className="space-y-5">
 
-{/* PRODUCT NAME */}
+  {/* PRODUCT NAME */}
 
-<div>
+  <div>
+  <label className="font-semibold mb-1 block">
+  Product Name
+  </label>
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<Package size={18}/>
-Product Name
-</label>
+  <input
+  value={name}
+  onChange={(e)=>setName(e.target.value)}
+  placeholder="Oversized T Shirt"
+  className="border w-full p-3 rounded-lg"
+  />
+  </div>
 
-<input
-value={name}
-onChange={(e)=>setName(e.target.value)}
-placeholder="Oversized T Shirt"
-className="border w-full p-3 rounded-lg"
-/>
 
-</div>
+  {/* QIKINK PRODUCT ID */}
 
+  <div>
 
-{/* QIKINK PRODUCT ID */}
+  <label className="font-semibold mb-1 block">
+  Qikink Product ID
+  </label>
 
-<div>
+  <input
+  value={qikinkId}
+  onChange={(e)=>setQikinkId(e.target.value)}
+  placeholder="QK1022"
+  className="border w-full p-3 rounded-lg"
+  />
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<Tag size={18}/>
-Qikink Product ID
-</label>
+  </div>
 
-<input
-value={qikinkId}
-onChange={(e)=>setQikinkId(e.target.value)}
-placeholder="QK1022"
-className="border w-full p-3 rounded-lg"
-/>
 
-</div>
+  {/* CATEGORY */}
 
+  <div>
 
-{/* CATEGORY */}
+  <label className="font-semibold mb-1 block flex items-center gap-2">
+  <Layers size={18}/>
+  Qikink Category
+  </label>
 
-<div>
+  <select
+  value={category}
+  onChange={(e)=>setCategory(e.target.value)}
+  className="border w-full p-3 rounded-lg"
+  >
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<Layers size={18}/>
-Qikink Category
-</label>
+  <option value="">Select Category</option>
 
-<select
-value={category}
-onChange={(e)=>setCategory(e.target.value)}
-className="border w-full p-3 rounded-lg"
->
+  {categories.map((c:any)=>(
 
-<option value="">
-Select Category
-</option>
+  <option key={c.id} value={c.name}>
+  {c.name}
+  </option>
 
-{categories.map((c:any)=>(
-<option key={c.id} value={c.name}>
-{c.name}
-</option>
-))}
+  ))}
 
-</select>
+  </select>
 
-</div>
+  </div>
 
 
-{/* IMAGE LINK */}
+  {/* IMAGE */}
 
-<div>
+  <div>
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<Image size={18}/>
-Product Image Link
-</label>
+  <label className="font-semibold mb-1 block flex items-center gap-2">
+  <Image size={18}/>
+  Product Image
+  </label>
 
-<input
-value={image}
-onChange={(e)=>setImage(e.target.value)}
-placeholder="https://image-link.jpg"
-className="border w-full p-3 rounded-lg"
-/>
+  <input
+  value={image}
+  onChange={(e)=>setImage(e.target.value)}
+  placeholder="https://image-link.jpg"
+  className="border w-full p-3 rounded-lg"
+  />
 
-</div>
+  </div>
 
 
-{/* IMAGE PREVIEW */}
+  {/* IMAGE PREVIEW */}
 
-{image && (
+  {image && (
 
-<div className="flex justify-center">
+  <div className="flex justify-center">
 
-<img
-src={image}
-className="w-28 h-28 rounded-xl shadow object-cover"
-/>
+  <img
+  src={image}
+  className="w-32 h-32 rounded-xl shadow object-cover"
+  />
 
-</div>
+  </div>
 
-)}
+  )}
 
 
-{/* BASE PRICE */}
+  {/* BASE PRICE */}
 
-<div>
+  <div>
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<IndianRupee size={18}/>
-Qikink Base Price
-</label>
+  <label className="font-semibold mb-1 block flex items-center gap-2">
+  <IndianRupee size={18}/>
+  Qikink Base Price
+  </label>
 
-<input
-value={basePrice}
-onChange={(e)=>setBasePrice(e.target.value)}
-placeholder="180"
-className="border w-full p-3 rounded-lg"
-/>
+  <input
+  type="number"
+  value={basePrice}
+  onChange={(e)=>setBasePrice(e.target.value)}
+  placeholder="100"
+  className="border w-full p-3 rounded-lg"
+  />
 
-</div>
+  </div>
 
 
-{/* MIN SELL PRICE */}
+  {/* MIN PRICE */}
 
-<div>
+  <div>
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-<IndianRupee size={18}/>
-Minimum Sell Price
-</label>
+  <label className="font-semibold mb-1 block">
+  Minimum Sell Price
+  </label>
 
-<input
-value={minPrice}
-onChange={(e)=>setMinPrice(e.target.value)}
-placeholder="299"
-className="border w-full p-3 rounded-lg"
-/>
+  <input
+  type="number"
+  value={minPrice}
+  onChange={(e)=>setMinPrice(e.target.value)}
+  placeholder="150"
+  className="border w-full p-3 rounded-lg"
+  />
 
-</div>
-  
-{/* STOCK */}
+  </div>
 
-<div>
 
-<label className="flex items-center gap-2 font-semibold mb-1">
-Stock Quantity
-</label>
+  {/* MAX PRICE */}
 
-<input
-type="number"
-value={stock}
-onChange={(e)=>setStock(e.target.value)}
-placeholder="Enter stock quantity"
-className="border w-full p-3 rounded-lg"
-/>
+  <div>
 
-</div>
+  <label className="font-semibold mb-1 block">
+  Seller Max Price
+  </label>
 
-{/* VARIATION */}
+  <input
+  type="number"
+  value={maxPrice}
+  onChange={(e)=>setMaxPrice(e.target.value)}
+  placeholder="250"
+  className="border w-full p-3 rounded-lg"
+  />
 
-<div className="mt-4">
+  </div>
 
-<label className="font-semibold mb-1 block">
-Variation Type
-</label>
 
-<select
-value={type}
-onChange={(e)=>setType(e.target.value)}
-className="border p-2 w-full mb-3 rounded"
->
+  {/* STOCK */}
 
-<option value="">Select Variation</option>
-<option value="Size">Size</option>
-<option value="Color">Color</option>
-<option value="Number">Number</option>
-<option value="Age">Age</option>
-<option value="Custom">Custom</option>
+  <div>
 
-</select>
+  <label className="font-semibold mb-1 block">
+  Stock Quantity
+  </label>
 
-<input
-value={options}
-onChange={(e)=>setOptions(e.target.value)}
-placeholder="Options (S,M,L / Red,Blue)"
-className="border p-2 w-full rounded"
-/>
+  <input
+  type="number"
+  value={stock}
+  onChange={(e)=>setStock(e.target.value)}
+  placeholder="Enter stock"
+  className="border w-full p-3 rounded-lg"
+  />
 
-</div>
+  </div>
 
 
-{/* BUTTON */}
+  {/* VARIATION */}
 
-<button
-onClick={saveProduct}
-className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl mt-4"
->
+  <div>
 
-<PlusCircle size={20}/>
-Add Product
+  <label className="font-semibold mb-1 block">
+  Variation Type
+  </label>
 
-</button>
+  <select
+  value={type}
+  onChange={(e)=>setType(e.target.value)}
+  className="border p-2 w-full mb-3 rounded"
+  >
 
-</div>
+  <option value="">Select Variation</option>
+  <option value="Size">Size</option>
+  <option value="Color">Color</option>
+  <option value="Number">Number</option>
+  <option value="Age">Age</option>
+  <option value="Custom">Custom</option>
 
-</div>
+  </select>
 
-</div>
+  <input
+  value={options}
+  onChange={(e)=>setOptions(e.target.value)}
+  placeholder="Options (S,M,L / Red,Blue)"
+  className="border p-2 w-full rounded"
+  />
 
-);
+  </div>
+
+
+  {/* BUTTON */}
+
+  <button
+  onClick={saveProduct}
+  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl mt-4"
+  >
+
+  <PlusCircle size={20}/>
+  Add Product
+
+  </button>
+
+  </div>
+
+  </div>
+
+  </div>
+
+  );
 
 }
