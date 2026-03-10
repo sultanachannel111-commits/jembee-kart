@@ -16,24 +16,31 @@ const [password,setPassword] = useState("");
 const [show,setShow] = useState(false);
 const [loading,setLoading] = useState(false);
 
-const login = async(e:any)=>{
+const login = async (e:any)=>{
+
 e.preventDefault();
 setLoading(true);
 
 try{
+
 await signInWithEmailAndPassword(auth,email,password);
 
 toast.success("Seller login successful");
 
+/* seller cookie set for middleware */
+document.cookie = "seller=true; path=/";
+
+/* redirect to dashboard */
 router.push("/seller/dashboard");
 
-}catch(err:any){
+}catch{
 
 toast.error("Invalid email or password");
 
 }
 
 setLoading(false);
+
 };
 
 return(
@@ -83,9 +90,7 @@ type="button"
 onClick={()=>setShow(!show)}
 className="absolute right-3 top-3 text-gray-400"
 >
-
 {show ? <EyeOff size={18}/> : <Eye size={18}/>}
-
 </button>
 
 </div>
@@ -119,4 +124,5 @@ Create account
 </div>
 
 );
+
 }
