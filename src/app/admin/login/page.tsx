@@ -2,83 +2,82 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { setAdminCookie } from "@/lib/cookieAuth";
 
-export default function AdminLogin() {
+export default function AdminLogin(){
 
-  const router = useRouter();
+const router = useRouter();
 
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [error, setError] = useState("");
+const [user,setUser] = useState("");
+const [pass,setPass] = useState("");
+const [error,setError] = useState("");
 
-  const ADMIN_USER = "admin";
-  const ADMIN_PASS = "admin123";
+const login = async (e:any)=>{
 
-  const login = (e: any) => {
+e.preventDefault();
 
-    e.preventDefault();
+const res = await fetch("/api/admin-login",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({user,pass})
+});
 
-    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+if(res.ok){
 
-      setAdminCookie();
+router.push("/admin");
 
-      router.push("/admin");
+}else{
 
-    }
+setError("Wrong ID or Password");
 
-    else {
+}
 
-      setError("Wrong ID or Password");
+};
 
-    }
+return(
 
-  };
+<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
 
-  return (
+<div className="bg-white p-8 rounded-2xl shadow-xl w-96">
 
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+<h1 className="text-2xl font-bold mb-6 text-center">
+Admin Login
+</h1>
 
-      <div className="bg-white p-8 rounded-xl shadow w-96">
+<form onSubmit={login} className="space-y-4">
 
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          Admin Login
-        </h1>
+<input
+type="text"
+placeholder="Admin ID"
+value={user}
+onChange={(e)=>setUser(e.target.value)}
+className="w-full border p-3 rounded"
+/>
 
-        <form onSubmit={login} className="space-y-4">
+<input
+type="password"
+placeholder="Password"
+value={pass}
+onChange={(e)=>setPass(e.target.value)}
+className="w-full border p-3 rounded"
+/>
 
-          <input
-            type="text"
-            placeholder="Admin ID"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+{error && (
+<p className="text-red-500 text-sm">
+{error}
+</p>
+)}
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+<button className="w-full bg-black text-white py-3 rounded-lg">
+Login
+</button>
 
-          {error && (
-            <p className="text-red-500 text-sm">
-              {error}
-            </p>
-          )}
+</form>
 
-          <button className="w-full bg-black text-white py-2 rounded">
-            Login
-          </button>
+</div>
 
-        </form>
+</div>
 
-      </div>
-
-    </div>
-
-  );
-
+);
 }
