@@ -110,7 +110,7 @@ const productsWithOffers = productSnap.docs.map(d => {
   const baseProduct = {
     id: d.id,
     ...data,
-    price: Number(data.sellingPrice || data.price || 0)
+    price: Number(data.sellPrice || data.price || 0)
   };
 
   let matchedOffer = activeOffers.find((o: any) => {
