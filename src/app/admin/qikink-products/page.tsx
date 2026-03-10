@@ -80,7 +80,7 @@ export default function AdminQikinkProducts() {
     try{
 
       await addDoc(
-        collection(db,"adminProducts"),
+        collection(db,"products"),   // 👈 बस यही change किया है
         {
 
           name,
