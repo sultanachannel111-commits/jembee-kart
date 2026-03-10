@@ -8,13 +8,15 @@ export default function SellerAddProduct(){
 
 const [adminProducts,setAdminProducts] = useState<any[]>([])
 const [selectedProduct,setSelectedProduct] = useState<any>(null)
+
 const [description,setDescription] = useState("")
 const [price,setPrice] = useState("")
+
 const [loading,setLoading] = useState(false)
 
-useEffect(() => {
+useEffect(()=>{
 loadProducts()
-}, [])
+},[])
 
 async function loadProducts(){
 
@@ -22,8 +24,8 @@ try{
 
 const snap = await getDocs(collection(db,"adminProducts"))
 
-const data = snap.docs.map(doc => ({
-id: doc.id,
+const data = snap.docs.map(doc=>({
+id:doc.id,
 ...doc.data()
 }))
 
@@ -49,22 +51,53 @@ alert("Login required")
 return
 }
 
+const sellPrice = Number(price)
+
+if(!sellPrice){
+alert("Enter price")
+return
+}
+
+/* PRICE VALIDATION */
+
+if(sellPrice < selectedProduct.minPrice){
+alert("Price must be greater than Minimum Sell Price ₹"+selectedProduct.minPrice)
+return
+}
+
+if(sellPrice > selectedProduct.maxPrice){
+alert("Price cannot exceed Max Price ₹"+selectedProduct.maxPrice)
+return
+}
+
 setLoading(true)
 
 try{
 
 await addDoc(collection(db,"products"),{
+
 adminProductId:selectedProduct.id,
+
 name:selectedProduct.name,
 image:selectedProduct.image,
 category:selectedProduct.category,
+
+basePrice:selectedProduct.basePrice,
+minPrice:selectedProduct.minPrice,
+maxPrice:selectedProduct.maxPrice,
+
+stock:selectedProduct.stock,
+
 sellerId:user.uid,
+
 description,
-price:Number(price),
+price:sellPrice,
+
 createdAt:serverTimestamp()
+
 })
 
-alert("Product Published")
+alert("Product Published Successfully 🎉")
 
 setPrice("")
 setDescription("")
@@ -119,7 +152,15 @@ className="w-32 rounded"
 />
 
 <p className="text-gray-500 mt-2">
-Minimum Price ₹{selectedProduct.minPrice}
+Product Price ₹{selectedProduct.minPrice}
+</p>
+
+<p className="text-gray-500">
+Max Price ₹{selectedProduct.maxPrice}
+</p>
+
+<p className="text-green-600">
+Stock Available: {selectedProduct.stock}
 </p>
 
 </div>
@@ -134,6 +175,7 @@ className="border p-3 w-full mb-3 rounded"
 />
 
 <input
+type="number"
 placeholder="Your Sell Price"
 value={price}
 onChange={(e)=>setPrice(e.target.value)}
