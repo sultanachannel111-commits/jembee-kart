@@ -106,7 +106,7 @@ export default function ProductPage() {
 
       {/* PRICE */}
       <p className="text-2xl font-bold mt-3">
-        ₹{product.sellingPrice}
+        ₹{product.sellPrice || product.price}
       </p>
 
       {/* STOCK */}
