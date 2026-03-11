@@ -199,7 +199,7 @@ outOfStock
 }`}
 >
 
-Pay Now (UPI)
+Pay Now
 
 </button>
 
