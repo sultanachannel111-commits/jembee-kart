@@ -89,28 +89,12 @@ router.push("/");
 };
 
 /* ========================
-UPI BUY NOW
+BUY NOW → CHECKOUT
 ======================== */
 
-const buyNow = async()=>{
-router.push(`/checkout?price=${product.sellPrice}`);
+const buyNow = ()=>{
 
-};
-
-if(outOfStock) return;
-
-const totalAmount = (product.sellPrice || product.price) * quantity;
-
-await addToCart({
-...product,
-quantity
-});
-
-const upiLink = `upi://pay?pa=${
-product.upiId || "sultana9212@axl"
-}&pn=JembeeKart&am=${totalAmount}&cu=INR`;
-
-window.open(upiLink);
+router.push(`/checkout?price=${product.sellPrice || product.price}`);
 
 };
 
@@ -207,7 +191,7 @@ outOfStock
 
 <button
 disabled={outOfStock}
-onClick={() => router.push("/checkout")}
+onClick={buyNow}
 className={`px-6 py-3 rounded-xl w-full ${
 outOfStock
 ? "bg-gray-400 cursor-not-allowed"
