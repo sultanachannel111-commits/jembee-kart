@@ -119,7 +119,7 @@ const placeOrder = async()=>{
 
 setLoading(true);
 
-const res = await fetch("/api/qikink/create-order",{
+const res = await fetch("/api/orders/create",{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
