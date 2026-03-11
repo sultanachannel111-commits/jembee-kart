@@ -204,7 +204,7 @@ outOfStock
 
 <button
 disabled={outOfStock}
-onClick={buyNow}
+onClick={() => router.push("/checkout")}
 className={`px-6 py-3 rounded-xl w-full ${
 outOfStock
 ? "bg-gray-400 cursor-not-allowed"
