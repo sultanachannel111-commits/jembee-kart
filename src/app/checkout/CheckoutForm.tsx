@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { load } from "@cashfreepayments/cashfree-js";
 
-export default function CheckoutPage() {
+export default function CheckoutForm(){
 
 const searchParams = useSearchParams();
 const price = Number(searchParams.get("price")) || 0;
@@ -47,10 +48,7 @@ if(pincode.length === 6){
 
 try{
 
-const res = await fetch(
-`https://api.postalpincode.in/pincode/${pincode}`
-);
-
+const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
 const data = await res.json();
 
 if(data[0].Status === "Success"){
@@ -74,26 +72,13 @@ console.log(err);
 };
 
 /* =========================
-PRODUCT
-========================= */
-
-const product = {
-name:"Custom T-shirt",
-sku:"TSHIRT001",
-printTypeId:"1",
-sellingPrice:price,
-designLink:"https://example.com/design.png",
-mockupLink:"https://example.com/mockup.png"
-};
-
-/* =========================
-PLACE ORDER (CASHFREE ONLY)
+PAYMENT
 ========================= */
 
 const placeOrder = async()=>{
 
 if(!customer.phone){
-alert("Please enter phone number");
+alert("Enter phone number");
 return;
 }
 
@@ -107,7 +92,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-amount:product.sellingPrice,
+amount:price,
 customer
 })
 });
@@ -116,15 +101,19 @@ const data = await res.json();
 
 setLoading(false);
 
-if(data.payment_link){
-
-window.location.href = data.payment_link;
-
-}else{
-
+if(!data.payment_session_id){
 alert("Payment initialization failed");
-
+return;
 }
+
+const cashfree = await load({
+mode:"production"
+});
+
+cashfree.checkout({
+paymentSessionId:data.payment_session_id,
+redirectTarget:"_self"
+});
 
 }catch(err){
 
@@ -134,6 +123,10 @@ alert("Server error");
 }
 
 };
+
+/* =========================
+UI
+========================= */
 
 return(
 
@@ -148,25 +141,19 @@ Checkout
 <input
 placeholder="First Name"
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,firstName:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
 />
 
 <input
 placeholder="Last Name"
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,lastName:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
 />
 
 <textarea
 placeholder="Full Address"
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,address:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
 <input
@@ -179,9 +166,7 @@ onChange={(e)=>handlePincode(e.target.value)}
 placeholder="City"
 value={customer.city}
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,city:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,city:e.target.value})}
 />
 
 <input
@@ -189,9 +174,7 @@ list="states"
 placeholder="State"
 value={customer.state}
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,state:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,state:e.target.value})}
 />
 
 <datalist id="states">
@@ -203,17 +186,13 @@ setCustomer({...customer,state:e.target.value})
 <input
 placeholder="Phone Number"
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,phone:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
 <input
 placeholder="Email Address"
 className="border p-3 w-full rounded"
-onChange={(e)=>
-setCustomer({...customer,email:e.target.value})
-}
+onChange={(e)=>setCustomer({...customer,email:e.target.value})}
 />
 
 <button
@@ -221,7 +200,7 @@ onClick={placeOrder}
 className="bg-pink-500 text-white px-6 py-3 rounded w-full"
 >
 
-{loading ? "Processing Payment..." : `Pay ₹${product.sellingPrice}`}
+{loading ? "Processing Payment..." : `Pay ₹${price}`}
 
 </button>
 
