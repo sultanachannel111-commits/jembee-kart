@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
 
 export default function OrderSuccess() {
 
@@ -12,31 +13,39 @@ export default function OrderSuccess() {
 
   useEffect(() => {
 
-    const saveAndFetch = async () => {
+    const saveOrder = async () => {
+
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) return;
+
+      // checkout से product data
+      const productName = localStorage.getItem("productName");
+      const price = localStorage.getItem("price");
 
       const ref = doc(db, "orders", id as string);
       const snap = await getDoc(ref);
 
-      // अगर order नहीं है तो create करो
       if (!snap.exists()) {
 
         await setDoc(ref, {
-          orderId: id,
-          status: "Paid",
-          totalAmount: 2,
-          createdAt: Date.now()
+          userId: user.uid,
+          productName: productName || "Product",
+          price: price || 0,
+          status: "Pending",
+          trackingId: null,
+          createdAt: new Date()
         });
 
-        const newSnap = await getDoc(ref);
-        setOrder(newSnap.data());
-
-      } else {
-        setOrder(snap.data());
       }
+
+      const newSnap = await getDoc(ref);
+      setOrder(newSnap.data());
 
     };
 
-    saveAndFetch();
+    saveOrder();
 
   }, [id]);
 
@@ -51,7 +60,9 @@ export default function OrderSuccess() {
 
       <p>Order ID: {id}</p>
 
-      <p>Total: ₹{order.totalAmount}</p>
+      <p>Product: {order.productName}</p>
+
+      <p>Total: ₹{order.price}</p>
 
       <p>Status: {order.status}</p>
 
