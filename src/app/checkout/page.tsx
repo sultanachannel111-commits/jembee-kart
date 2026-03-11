@@ -137,11 +137,16 @@ setLoading(false);
 
 if(data.success){
 
-alert("Order placed successfully");
+  const amount = product.sellingPrice;
+
+  const upiLink =
+  `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${amount}&cu=INR`;
+
+  window.location.href = upiLink;
 
 }else{
 
-alert("Order failed");
+  alert("Order failed");
 
 }
 
