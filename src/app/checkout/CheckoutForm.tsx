@@ -94,15 +94,16 @@ const placeOrder = async()=>{
 
 setLoading(true);
 
-const res = await fetch("/api/orders/create",{
+const res = await fetch("/api/cashfree/create-order",{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
+amount:product.sellingPrice,
+phone:customer.phone,
 product,
-customer,
-paymentMethod:"ONLINE"
+customer
 })
 });
 
@@ -110,18 +111,13 @@ const data = await res.json();
 
 setLoading(false);
 
-if(data.success){
+if(data.payment_link){
 
-  const amount = product.sellingPrice;
-
-  const upiLink =
-  `upi://pay?pa=sultana9212@axl&pn=JembeeKart&am=${amount}&cu=INR`;
-
-  window.location.href = upiLink;
+window.location.href = data.payment_link;
 
 }else{
 
-  alert("Order failed");
+alert("Payment error");
 
 }
 
@@ -213,7 +209,7 @@ onClick={placeOrder}
 className="bg-pink-500 text-white px-6 py-3 rounded w-full"
 >
 
-{loading ? "Processing..." : "Place Order"}
+{loading ? "Processing..." : `Pay ₹${product.sellingPrice}`}
 
 </button>
 
