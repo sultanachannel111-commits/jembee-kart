@@ -24,9 +24,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
 
         order_id: orderId,
-
         order_amount: amount,
-
         order_currency: "INR",
 
         customer_details: {
@@ -34,6 +32,10 @@ export async function POST(req: Request) {
           customer_name: customer.firstName + " " + customer.lastName,
           customer_email: customer.email || "test@email.com",
           customer_phone: customer.phone
+        },
+
+        order_meta:{
+          return_url:`${process.env.NEXT_PUBLIC_SITE_URL}/payment-success?order_id=${orderId}`
         }
 
       })
@@ -42,18 +44,8 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    if (!data.payment_link) {
-
-      return NextResponse.json({
-        success: false,
-        error: data
-      });
-
-    }
-
     return NextResponse.json({
-      success: true,
-      payment_link: data.payment_link
+      payment_session_id:data.payment_session_id
     });
 
   } catch (error) {
@@ -61,8 +53,7 @@ export async function POST(req: Request) {
     console.log(error);
 
     return NextResponse.json({
-      success: false,
-      message: "Server error"
+      error:"payment failed"
     });
 
   }
