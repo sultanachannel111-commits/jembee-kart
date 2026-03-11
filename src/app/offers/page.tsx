@@ -42,7 +42,7 @@ export default function OffersPage() {
 
         if (!matchedOffer) return null;
 
-        const basePrice = Number(product.sellingPrice || 0);
+        const basePrice = Number(product.sellPrice || 0);
 const discountPercent = Number(matchedOffer.discount || 0);
 
 const discountAmount = (basePrice * discountPercent) / 100;
