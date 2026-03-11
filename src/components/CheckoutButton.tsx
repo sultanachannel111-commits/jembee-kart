@@ -36,7 +36,7 @@ export default function CheckoutButton({ product }: any) {
 
       // 2️⃣ Generate UPI Link
       const orderId = data.orderId; // API se orderId return hona chahiye
-      const totalAmount = product.sellingPrice;
+      const totalAmount = product.sellPrice || product.price;
 
       const upiLink = generateUpiLink(totalAmount, orderId);
 
