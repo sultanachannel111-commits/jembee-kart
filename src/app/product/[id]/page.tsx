@@ -93,6 +93,9 @@ UPI BUY NOW
 ======================== */
 
 const buyNow = async()=>{
+router.push(`/checkout?price=${product.sellPrice}`);
+
+};
 
 if(outOfStock) return;
 
