@@ -93,7 +93,7 @@ return {
                   ₹{p.finalPrice}
                 </span>
                 <span className="text-gray-400 line-through text-xs">
-                  ₹₹{p.sellingPrice}
+                  ₹{p.sellPrice}
                 </span>
               </div>
             </Link>
