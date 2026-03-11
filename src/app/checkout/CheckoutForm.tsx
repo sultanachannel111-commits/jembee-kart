@@ -87,12 +87,19 @@ mockupLink:"https://example.com/mockup.png"
 };
 
 /* =========================
-PLACE ORDER
+PLACE ORDER (CASHFREE ONLY)
 ========================= */
 
 const placeOrder = async()=>{
 
+if(!customer.phone){
+alert("Please enter phone number");
+return;
+}
+
 setLoading(true);
+
+try{
 
 const res = await fetch("/api/cashfree/create-order",{
 method:"POST",
@@ -101,8 +108,6 @@ headers:{
 },
 body:JSON.stringify({
 amount:product.sellingPrice,
-phone:customer.phone,
-product,
 customer
 })
 });
@@ -117,7 +122,14 @@ window.location.href = data.payment_link;
 
 }else{
 
-alert("Payment error");
+alert("Payment initialization failed");
+
+}
+
+}catch(err){
+
+setLoading(false);
+alert("Server error");
 
 }
 
@@ -209,7 +221,7 @@ onClick={placeOrder}
 className="bg-pink-500 text-white px-6 py-3 rounded w-full"
 >
 
-{loading ? "Processing..." : `Pay ₹${product.sellingPrice}`}
+{loading ? "Processing Payment..." : `Pay ₹${product.sellingPrice}`}
 
 </button>
 
