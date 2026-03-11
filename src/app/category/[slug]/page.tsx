@@ -85,7 +85,7 @@ export default function CategoryPage() {
                 </h2>
 
                 <p className="text-pink-600 font-bold mt-2">
-                  ₹{product.sellingPrice || product.price}
+                  ₹{product.sellPrice || product.price}
                 </p>
               </div>
             </Link>
