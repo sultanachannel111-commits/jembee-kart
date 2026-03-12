@@ -19,6 +19,7 @@ export async function POST(req: Request) {
       },
 
       body: JSON.stringify({
+
         order_id: orderId,
         order_amount: body.amount,
         order_currency: "INR",
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
         order_meta: {
           return_url:
             process.env.NEXT_PUBLIC_SITE_URL +
-            "/payment-success?order_id={order_id}"
+            "/order-success/" + orderId
         }
 
       })
