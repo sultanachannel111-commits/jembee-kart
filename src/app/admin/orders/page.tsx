@@ -1,198 +1,335 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+collection,
+getDocs,
+updateDoc,
+doc,
+query,
+orderBy
+} from "firebase/firestore";
+
 import { db } from "@/lib/firebase";
 
-export default function AdminOrdersPage() {
+export default function AdminOrdersPage(){
 
-  const [orders,setOrders] = useState<any[]>([]);
+const [orders,setOrders] = useState<any[]>([]);
+const [loading,setLoading] = useState(true);
 
-  /* ========================
-     FETCH ORDERS
-  ======================== */
+/* ========================
+FETCH ORDERS
+======================== */
 
-  const fetchOrders = async ()=>{
+useEffect(()=>{
 
-    const snap = await getDocs(
-      collection(db,"orders")
-    );
+const fetchOrders = async()=>{
 
-    const list = snap.docs.map((d)=>({
+try{
 
-      id:d.id,
-      ...d.data()
+const q = query(
+collection(db,"orders"),
+orderBy("createdAt","desc")
+);
 
-    }));
+const snapshot = await getDocs(q);
 
-    setOrders(list);
+const data = snapshot.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
 
-  };
+setOrders(data);
 
-  useEffect(()=>{
+}catch(error){
 
-    fetchOrders();
+console.log(error);
 
-  },[]);
+}
 
+setLoading(false);
 
-  /* ========================
-     UPDATE STATUS
-  ======================== */
+};
 
-  const updateStatus = async (
-    id:string,
-    status:string
-  )=>{
+fetchOrders();
 
-    await updateDoc(
-      doc(db,"orders",id),
-      { status }
-    );
+},[]);
 
-    fetchOrders();
 
-  };
+/* ========================
+SEND TO QIKINK
+======================== */
 
+const sendToQikink = async(orderId:string)=>{
 
-  /* ========================
-     UI
-  ======================== */
+try{
 
-  return (
+const res = await fetch("/api/qikink/send-order",{
 
-    <div className="p-6">
+method:"POST",
 
-      {/* HEADER */}
+headers:{
+"Content-Type":"application/json"
+},
 
-      <div className="mb-8">
+body:JSON.stringify({orderId})
 
-        <h1 className="text-3xl font-bold text-purple-600">
-          Orders Management
-        </h1>
+});
 
-        <p className="text-gray-500 text-sm">
-          Track and manage customer orders
-        </p>
+const data = await res.json();
 
-      </div>
+if(data.success){
 
+alert("Order sent to Qikink 🚀");
 
-      {/* ORDERS GRID */}
+}else{
 
-      <div className="grid md:grid-cols-2 gap-6">
+alert("Failed to send order");
 
-        {orders.map((order:any)=>(
+}
 
-          <div
-            key={order.id}
-            className="bg-white shadow rounded-xl p-5 space-y-3"
-          >
+}catch(err){
 
-            {/* ORDER ID */}
+alert("Server error");
 
-            <p className="text-sm text-gray-500">
-              Order ID
-            </p>
+}
 
-            <h2 className="font-semibold">
-              {order.id}
-            </h2>
+};
 
 
-            {/* CUSTOMER */}
+/* ========================
+MARK SHIPPED
+======================== */
 
-            {order.customer?.firstName && (
+const markShipped = async(orderId:string)=>{
 
-              <div>
+await updateDoc(doc(db,"orders",orderId),{
+status:"Shipped"
+});
 
-                <p className="text-sm text-gray-500">
-                  Customer
-                </p>
+setOrders(prev=>
+prev.map(o=>
+o.id === orderId
+? {...o,status:"Shipped"}
+: o
+)
+);
 
-                <p>
-                  {order.customer.firstName}
-                </p>
+};
 
-              </div>
 
-            )}
+/* ========================
+MARK DELIVERED
+======================== */
 
+const markDelivered = async(orderId:string)=>{
 
-            {/* PRODUCT */}
+await updateDoc(doc(db,"orders",orderId),{
+status:"Delivered"
+});
 
-            {order.product?.name && (
+setOrders(prev=>
+prev.map(o=>
+o.id === orderId
+? {...o,status:"Delivered"}
+: o
+)
+);
 
-              <div>
+};
 
-                <p className="text-sm text-gray-500">
-                  Product
-                </p>
 
-                <p>
-                  {order.product.name}
-                </p>
+/* ========================
+LOADING
+======================== */
 
-              </div>
+if(loading){
 
-            )}
+return(
 
+<div className="min-h-screen flex items-center justify-center">
 
-            {/* STATUS */}
+Loading Orders...
 
-            <div>
+</div>
 
-              <p className="text-sm text-gray-500">
-                Status
-              </p>
+);
 
-              <span
-                className={`text-xs px-3 py-1 rounded ${
-                  order.status === "Delivered"
-                    ? "bg-green-100 text-green-700"
-                    : order.status === "Shipped"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {order.status || "Pending"}
-              </span>
+}
 
-            </div>
 
+/* ========================
+UI
+======================== */
 
-            {/* ACTION BUTTONS */}
+return(
 
-            <div className="flex gap-3 pt-3">
+<div className="min-h-screen bg-gray-50 p-6">
 
-              <button
-                onClick={()=>
-                  updateStatus(order.id,"Shipped")
-                }
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Mark Shipped
-              </button>
+<h1 className="text-3xl font-bold text-purple-600 mb-8">
 
-              <button
-                onClick={()=>
-                  updateStatus(order.id,"Delivered")
-                }
-                className="bg-green-600 text-white px-4 py-2 rounded"
-              >
-                Mark Delivered
-              </button>
+Orders Management
 
-            </div>
+</h1>
 
-          </div>
 
-        ))}
+<div className="space-y-6">
 
-      </div>
+{orders.map(order=>{
 
-    </div>
+const date =
+order.createdAt?.toDate
+? order.createdAt.toDate().toLocaleString()
+: "No date";
 
-  );
+return(
+
+<div
+key={order.id}
+className="bg-white p-6 rounded-2xl shadow-md"
+>
+
+<p className="text-gray-500">
+
+Order ID
+
+</p>
+
+<h2 className="text-lg font-bold">
+
+{order.id}
+
+</h2>
+
+
+<p className="text-gray-400 text-sm mt-1">
+
+{date}
+
+</p>
+
+
+{/* PRODUCT */}
+
+<p className="mt-2 font-semibold">
+
+Product: {order.productName}
+
+</p>
+
+
+{/* PRICE */}
+
+<p className="text-pink-600 font-bold">
+
+₹{order.price}
+
+</p>
+
+
+{/* CUSTOMER */}
+
+<div className="mt-3 text-sm">
+
+<p>
+
+Customer: {order.customer?.firstName} {order.customer?.lastName}
+
+</p>
+
+<p>
+
+Phone: {order.customer?.phone}
+
+</p>
+
+<p>
+
+Address: {order.customer?.address}
+
+</p>
+
+<p>
+
+{order.customer?.city} - {order.customer?.zip}
+
+</p>
+
+<p>
+
+{order.customer?.state}
+
+</p>
+
+</div>
+
+
+{/* STATUS */}
+
+<div className="mt-3">
+
+<span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+order.status === "Delivered"
+? "bg-green-100 text-green-700"
+: order.status === "Shipped"
+? "bg-blue-100 text-blue-700"
+: order.status === "Processing"
+? "bg-purple-100 text-purple-700"
+: "bg-yellow-100 text-yellow-700"
+}`}>
+
+{order.status || "Pending"}
+
+</span>
+
+</div>
+
+
+{/* BUTTONS */}
+
+<div className="mt-4 flex gap-3 flex-wrap">
+
+<button
+onClick={()=>sendToQikink(order.id)}
+className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+>
+
+Send To Qikink
+
+</button>
+
+
+<button
+onClick={()=>markShipped(order.id)}
+className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+>
+
+Mark Shipped
+
+</button>
+
+
+<button
+onClick={()=>markDelivered(order.id)}
+className="bg-green-500 text-white px-4 py-2 rounded-lg"
+>
+
+Mark Delivered
+
+</button>
+
+</div>
+
+</div>
+
+);
+
+})}
+
+</div>
+
+</div>
+
+);
 
 }
