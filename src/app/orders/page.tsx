@@ -6,8 +6,8 @@ collection,
 getDocs,
 updateDoc,
 doc,
-orderBy,
-query
+query,
+orderBy
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -17,9 +17,9 @@ export default function AdminOrdersPage(){
 const [orders,setOrders] = useState<any[]>([]);
 const [loading,setLoading] = useState(true);
 
-/* =========================
+/* ========================
 FETCH ORDERS
-========================= */
+======================== */
 
 useEffect(()=>{
 
@@ -54,9 +54,9 @@ fetchOrders();
 },[]);
 
 
-/* =========================
-SEND ORDER TO QIKINK
-========================= */
+/* ========================
+SEND TO QIKINK
+======================== */
 
 const sendToQikink = async(orderId:string)=>{
 
@@ -92,9 +92,9 @@ alert("Server error");
 };
 
 
-/* =========================
+/* ========================
 MARK SHIPPED
-========================= */
+======================== */
 
 const markShipped = async(orderId:string)=>{
 
@@ -113,9 +113,9 @@ o.id === orderId
 };
 
 
-/* =========================
+/* ========================
 MARK DELIVERED
-========================= */
+======================== */
 
 const markDelivered = async(orderId:string)=>{
 
@@ -134,15 +134,15 @@ o.id === orderId
 };
 
 
-/* =========================
+/* ========================
 LOADING
-========================= */
+======================== */
 
 if(loading){
 
 return(
 
-<div className="min-h-screen flex items-center justify-center text-lg font-semibold">
+<div className="min-h-screen flex items-center justify-center">
 
 Loading Orders...
 
@@ -153,9 +153,9 @@ Loading Orders...
 }
 
 
-/* =========================
+/* ========================
 UI
-========================= */
+======================== */
 
 return(
 
@@ -170,7 +170,14 @@ Orders Management
 
 <div className="space-y-6">
 
-{orders.map(order=>(
+{orders.map(order=>{
+
+const date =
+order.createdAt?.toDate
+? order.createdAt.toDate().toLocaleString()
+: "No date";
+
+return(
 
 <div
 key={order.id}
@@ -188,6 +195,13 @@ Order ID
 {order.id}
 
 </h2>
+
+
+<p className="text-gray-400 text-sm mt-1">
+
+{date}
+
+</p>
 
 
 <div className="mt-3">
@@ -210,7 +224,6 @@ order.status === "Delivered"
 {/* BUTTONS */}
 
 <div className="mt-4 flex gap-3 flex-wrap">
-
 
 <button
 onClick={()=>sendToQikink(order.id)}
@@ -241,13 +254,13 @@ Mark Delivered
 
 </button>
 
+</div>
 
 </div>
 
+);
 
-</div>
-
-))}
+})}
 
 </div>
 
