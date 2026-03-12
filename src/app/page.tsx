@@ -37,6 +37,7 @@ export default function HomePage() {
   useEffect(() => {
   async function loadQikinkProducts() {
     const data = await getQikinkProducts();
+    console.log("Qikink Products:", data);
     setProducts(data);
   }
 
