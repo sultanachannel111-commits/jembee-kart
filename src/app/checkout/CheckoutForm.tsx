@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
+import { doc,getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function CheckoutForm(){
 
 const searchParams = useSearchParams();
-const price = Number(searchParams.get("price")) || 0;
+const productId = searchParams.get("productId");
 
+const [product,setProduct] = useState<any>(null);
 const [loading,setLoading] = useState(false);
 
 const [customer,setCustomer] = useState({
@@ -23,18 +26,26 @@ email:""
 });
 
 /* =========================
-INDIA STATES
+FETCH PRODUCT
 ========================= */
 
-const states = [
-"Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa",
-"Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala",
-"Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland",
-"Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura",
-"Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands",
-"Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi",
-"Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"
-];
+useEffect(()=>{
+
+const fetchProduct = async()=>{
+
+if(!productId) return;
+
+const snap = await getDoc(doc(db,"products",productId));
+
+if(snap.exists()){
+setProduct({id:snap.id,...snap.data()});
+}
+
+};
+
+fetchProduct();
+
+},[productId]);
 
 /* =========================
 PINCODE → CITY AUTO
@@ -82,6 +93,11 @@ alert("Enter phone number");
 return;
 }
 
+if(!product){
+alert("Product not loaded");
+return;
+}
+
 setLoading(true);
 
 try{
@@ -92,7 +108,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-amount:price,
+amount:product.sellPrice || product.price,
 customer
 })
 });
@@ -128,6 +144,14 @@ alert("Server error");
 UI
 ========================= */
 
+if(!product){
+return(
+<div className="p-10 text-center">
+Loading product...
+</div>
+);
+}
+
 return(
 
 <div className="p-6 max-w-xl mx-auto">
@@ -135,6 +159,20 @@ return(
 <h1 className="text-2xl font-bold mb-6">
 Checkout
 </h1>
+
+{/* PRODUCT INFO */}
+
+<div className="bg-white p-4 rounded-xl shadow mb-6">
+
+<h2 className="font-semibold">
+{product.name}
+</h2>
+
+<p className="text-pink-600 font-bold text-xl">
+₹{product.sellPrice || product.price}
+</p>
+
+</div>
 
 <div className="space-y-4">
 
@@ -170,18 +208,11 @@ onChange={(e)=>setCustomer({...customer,city:e.target.value})}
 />
 
 <input
-list="states"
 placeholder="State"
 value={customer.state}
 className="border p-3 w-full rounded"
 onChange={(e)=>setCustomer({...customer,state:e.target.value})}
 />
-
-<datalist id="states">
-{states.map((s)=>(
-<option key={s} value={s}/>
-))}
-</datalist>
 
 <input
 placeholder="Phone Number"
@@ -200,7 +231,7 @@ onClick={placeOrder}
 className="bg-pink-500 text-white px-6 py-3 rounded w-full"
 >
 
-{loading ? "Processing Payment..." : `Pay ₹${price}`}
+{loading ? "Processing Payment..." : `Pay ₹${product.sellPrice || product.price}`}
 
 </button>
 
