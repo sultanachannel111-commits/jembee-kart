@@ -4,268 +4,176 @@ import { useEffect, useState } from "react";
 import {
   collection,
   query,
-  where,
+  orderBy,
   getDocs,
   updateDoc,
-  doc,
-  orderBy
+  doc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import Link from "next/link";
 
-export default function OrdersPage() {
+export default function AdminOrders(){
 
-  const [orders,setOrders] = useState<any[]>([]);
-  const [loading,setLoading] = useState(true);
-  const [notLoggedIn,setNotLoggedIn] = useState(false);
+const [orders,setOrders] = useState<any[]>([]);
+const [loading,setLoading] = useState(true);
 
-  const [stats,setStats] = useState({
-    total:0,
-    pending:0,
-    delivered:0,
-    cancelled:0,
-    totalAmount:0
-  });
+useEffect(()=>{
 
-  useEffect(()=>{
+const fetchOrders = async()=>{
 
-    const auth = getAuth();
+const q = query(
+collection(db,"orders"),
+orderBy("createdAt","desc") // newest first
+);
 
-    const unsubscribe = onAuthStateChanged(auth,async(user)=>{
+const snap = await getDocs(q);
 
-      if(!user){
-        setNotLoggedIn(true);
-        setLoading(false);
-        return;
-      }
+const data = snap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
 
-      try{
+setOrders(data);
+setLoading(false);
 
-        const q = query(
-          collection(db,"orders"),
-          where("userId","==",user.uid),
-          orderBy("createdAt","desc") // newest order first
-        );
+};
 
-        const snapshot = await getDocs(q);
+fetchOrders();
 
-        const data = snapshot.docs.map(doc=>({
-          id:doc.id,
-          ...doc.data()
-        }));
+},[]);
 
-        setOrders(data);
+/* MARK SHIPPED */
 
-        let total = data.length;
-        let pending = 0;
-        let delivered = 0;
-        let cancelled = 0;
-        let totalAmount = 0;
+const markShipped = async(id:string)=>{
 
-        data.forEach((order:any)=>{
+await updateDoc(doc(db,"orders",id),{
+status:"Shipped"
+});
 
-          totalAmount += Number(order.price || 0);
+setOrders(prev =>
+prev.map(o => o.id === id ? {...o,status:"Shipped"} : o)
+);
 
-          if(order.status === "Cancelled") cancelled++;
-          else if(order.status === "Delivered") delivered++;
-          else pending++;
+};
 
-        });
+/* MARK DELIVERED */
 
-        setStats({
-          total,
-          pending,
-          delivered,
-          cancelled,
-          totalAmount
-        });
+const markDelivered = async(id:string)=>{
 
-      }catch(error){
+await updateDoc(doc(db,"orders",id),{
+status:"Delivered"
+});
 
-        console.log("Order fetch error:",error);
+setOrders(prev =>
+prev.map(o => o.id === id ? {...o,status:"Delivered"} : o)
+);
 
-      }
+};
 
-      setLoading(false);
+/* SEND TO QIKINK */
 
-    });
+const sendToQikink = async(order:any)=>{
 
-    return ()=>unsubscribe();
+try{
 
-  },[]);
+const res = await fetch("/api/qikink/send-order",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify(order)
+});
 
-  const cancelOrder = async(orderId:string)=>{
+const data = await res.json();
 
-    await updateDoc(doc(db,"orders",orderId),{
-      status:"Cancelled"
-    });
+if(data.success){
+alert("Order Sent To Qikink ✅");
+}else{
+alert("Failed to send order");
+}
 
-    setOrders(prev =>
-      prev.map(order =>
-        order.id === orderId
-          ? {...order,status:"Cancelled"}
-          : order
-      )
-    );
+}catch(err){
 
-  };
+alert("Server error");
 
-  if(loading){
+}
 
-    return(
-      <div className="min-h-screen flex items-center justify-center text-lg font-semibold">
-        Loading your orders...
-      </div>
-    );
+};
 
-  }
-
-  if(notLoggedIn){
-
-    return(
-      <div className="min-h-screen flex flex-col items-center justify-center">
-
-        <p className="text-xl mb-4">
-          Please login to see your orders 💖
-        </p>
-
-        <Link href="/auth?role=customer">
-          <button className="bg-pink-500 text-white px-6 py-2 rounded-full hover:bg-pink-600 transition">
-            Login Now
-          </button>
-        </Link>
-
-      </div>
-    );
-
-  }
-
-  return(
-
-<div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6">
-
-<div className="max-w-6xl mx-auto">
-
-<h1 className="text-3xl font-bold text-pink-600 mb-8">
-My Orders 💖
-</h1>
-
-{/* STATS */}
-
-<div className="grid md:grid-cols-5 gap-6 mb-10">
-
-<Stat title="Total Orders" value={stats.total} bg="white"/>
-<Stat title="Pending" value={stats.pending} bg="yellow"/>
-<Stat title="Delivered" value={stats.delivered} bg="green"/>
-<Stat title="Cancelled" value={stats.cancelled} bg="red"/>
-<Stat title="Total Spent" value={`₹${stats.totalAmount}`} bg="purple"/>
-
+if(loading){
+return(
+<div className="min-h-screen flex items-center justify-center">
+Loading Orders...
 </div>
+);
+}
 
-{/* ORDER LIST */}
+return(
+
+<div className="min-h-screen p-6 bg-gradient-to-br from-purple-50 to-white">
+
+<div className="max-w-4xl mx-auto">
+
+<h1 className="text-3xl font-bold text-purple-600 mb-8">
+Orders Management
+</h1>
 
 {orders.length === 0 ? (
 
-<div className="bg-white p-10 rounded-2xl shadow text-center">
-
-<p className="text-gray-500 text-lg">
-No orders placed yet 🛒
-</p>
-
+<div className="bg-white p-10 rounded-xl shadow text-center">
+No Orders Yet
 </div>
 
 ) : (
 
 <div className="space-y-6">
 
-{orders.map((order:any)=>(
+{orders.map(order=>(
 
 <div
 key={order.id}
-className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition border border-gray-100"
+className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition"
 >
 
-<div className="flex justify-between items-center mb-3">
-
-<div>
-
-<h2 className="text-lg font-semibold">
-{order.productName}
-</h2>
-
-<p className="text-xs text-gray-400">
-Order ID: {order.id}
+<p className="text-sm text-gray-400">
+Order ID
 </p>
 
-</div>
+<h2 className="font-semibold mb-2">
+{order.id}
+</h2>
 
-<StatusBadge status={order.status}/>
-
-</div>
-
-<p className="text-pink-600 font-bold text-lg">
+<p className="text-lg font-bold text-purple-600">
 ₹{order.price}
 </p>
 
-<div className="mt-2 text-sm text-gray-600">
+<p className="mt-1 text-sm text-gray-600">
+Status: {order.status}
+</p>
 
-Tracking ID:
-
-{order.trackingId ? (
-
-<span className="font-semibold ml-1">
-{order.trackingId}
-</span>
-
-) : (
-
-<span className="text-gray-400 ml-1">
-Not assigned yet
-</span>
-
-)}
-
-</div>
-
-{/* ACTION BUTTONS */}
-
-<div className="mt-4 flex gap-4 flex-wrap">
-
-{order.status === "Pending" && (
+<div className="flex flex-wrap gap-3 mt-4">
 
 <button
-onClick={()=>cancelOrder(order.id)}
-className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 transition"
+onClick={()=>markShipped(order.id)}
+className="bg-blue-500 text-white px-4 py-2 rounded-lg"
 >
-
-Cancel Order
-
+Mark Shipped
 </button>
 
-)}
-
-{order.trackingId && (
-
-<button className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition">
-
-Track Order
-
+<button
+onClick={()=>markDelivered(order.id)}
+className="bg-green-600 text-white px-4 py-2 rounded-lg"
+>
+Mark Delivered
 </button>
 
-)}
+<button
+onClick={()=>sendToQikink(order)}
+className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+>
+Send To Qikink
+</button>
 
 </div>
-
-<p className="text-xs text-gray-400 mt-3">
-
-Ordered on:
-
-{order.createdAt?.toDate
-? order.createdAt.toDate().toLocaleString()
-: "N/A"}
-
-</p>
 
 </div>
 
@@ -278,59 +186,6 @@ Ordered on:
 </div>
 
 </div>
-
-);
-
-}
-
-/* STAT COMPONENT */
-
-function Stat({title,value,bg}:any){
-
-const colors:any = {
-
-white:"bg-white",
-yellow:"bg-yellow-100 text-yellow-700",
-green:"bg-green-100 text-green-700",
-red:"bg-red-100 text-red-700",
-purple:"bg-purple-100 text-purple-700"
-
-};
-
-return(
-
-<div className={`p-6 rounded-2xl shadow-md ${colors[bg]}`}>
-
-<p>{title}</p>
-
-<h2 className="text-2xl font-bold">
-{value}
-</h2>
-
-</div>
-
-);
-
-}
-
-/* STATUS BADGE */
-
-function StatusBadge({status}:any){
-
-const style =
-status === "Pending"
-? "bg-yellow-100 text-yellow-700"
-: status === "Delivered"
-? "bg-green-100 text-green-700"
-: "bg-red-100 text-red-700";
-
-return(
-
-<span className={`px-3 py-1 rounded-full text-sm font-semibold ${style}`}>
-
-{status}
-
-</span>
 
 );
 
