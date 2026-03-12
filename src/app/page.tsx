@@ -10,6 +10,7 @@ import FlashSale from "@/components/home/FlashSale";
 import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
+import { getQikinkProducts } from "@/lib/qikink";
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
@@ -33,6 +34,14 @@ export default function HomePage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  useEffect(() => {
+  async function loadQikinkProducts() {
+    const data = await getQikinkProducts();
+    setProducts(data);
+  }
+
+  loadQikinkProducts();
+}, []);
   const [festival, setFestival] = useState<any>(null);
   const [slide, setSlide] = useState(0);
   const [search, setSearch] = useState("");
