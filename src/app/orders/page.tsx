@@ -2,37 +2,49 @@
 
 import { useEffect, useState } from "react";
 import {
-  collection,
-  query,
-  orderBy,
-  getDocs,
-  updateDoc,
-  doc
+collection,
+getDocs,
+updateDoc,
+doc,
+orderBy,
+query
 } from "firebase/firestore";
+
 import { db } from "@/lib/firebase";
 
-export default function AdminOrders(){
+export default function AdminOrdersPage(){
 
 const [orders,setOrders] = useState<any[]>([]);
 const [loading,setLoading] = useState(true);
+
+/* =========================
+FETCH ORDERS
+========================= */
 
 useEffect(()=>{
 
 const fetchOrders = async()=>{
 
+try{
+
 const q = query(
 collection(db,"orders"),
-orderBy("createdAt","desc") // newest first
+orderBy("createdAt","desc")
 );
 
-const snap = await getDocs(q);
+const snapshot = await getDocs(q);
 
-const data = snap.docs.map(doc=>({
+const data = snapshot.docs.map(doc=>({
 id:doc.id,
 ...doc.data()
 }));
 
 setOrders(data);
+
+}catch(error){
+console.log(error);
+}
+
 setLoading(false);
 
 };
@@ -41,37 +53,12 @@ fetchOrders();
 
 },[]);
 
-/* MARK SHIPPED */
 
-const markShipped = async(id:string)=>{
+/* =========================
+SEND ORDER TO QIKINK
+========================= */
 
-await updateDoc(doc(db,"orders",id),{
-status:"Shipped"
-});
-
-setOrders(prev =>
-prev.map(o => o.id === id ? {...o,status:"Shipped"} : o)
-);
-
-};
-
-/* MARK DELIVERED */
-
-const markDelivered = async(id:string)=>{
-
-await updateDoc(doc(db,"orders",id),{
-status:"Delivered"
-});
-
-setOrders(prev =>
-prev.map(o => o.id === id ? {...o,status:"Delivered"} : o)
-);
-
-};
-
-/* SEND TO QIKINK */
-
-const sendToQikink = async(order:any)=>{
+const sendToQikink = async(orderId:string)=>{
 
 try{
 
@@ -80,50 +67,106 @@ method:"POST",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify(order)
+body:JSON.stringify({orderId})
 });
 
 const data = await res.json();
 
 if(data.success){
-alert("Order Sent To Qikink ✅");
+
+alert("Order sent to Qikink 🚀");
+
 }else{
+
 alert("Failed to send order");
+
 }
 
 }catch(err){
 
+console.log(err);
 alert("Server error");
 
 }
 
 };
 
-if(loading){
-return(
-<div className="min-h-screen flex items-center justify-center">
-Loading Orders...
-</div>
+
+/* =========================
+MARK SHIPPED
+========================= */
+
+const markShipped = async(orderId:string)=>{
+
+await updateDoc(doc(db,"orders",orderId),{
+status:"Shipped"
+});
+
+setOrders(prev=>
+prev.map(o=>
+o.id === orderId
+? {...o,status:"Shipped"}
+: o
+)
 );
+
+};
+
+
+/* =========================
+MARK DELIVERED
+========================= */
+
+const markDelivered = async(orderId:string)=>{
+
+await updateDoc(doc(db,"orders",orderId),{
+status:"Delivered"
+});
+
+setOrders(prev=>
+prev.map(o=>
+o.id === orderId
+? {...o,status:"Delivered"}
+: o
+)
+);
+
+};
+
+
+/* =========================
+LOADING
+========================= */
+
+if(loading){
+
+return(
+
+<div className="min-h-screen flex items-center justify-center text-lg font-semibold">
+
+Loading Orders...
+
+</div>
+
+);
+
 }
 
+
+/* =========================
+UI
+========================= */
+
 return(
 
-<div className="min-h-screen p-6 bg-gradient-to-br from-purple-50 to-white">
-
-<div className="max-w-4xl mx-auto">
+<div className="min-h-screen bg-gray-50 p-6">
 
 <h1 className="text-3xl font-bold text-purple-600 mb-8">
+
 Orders Management
+
 </h1>
 
-{orders.length === 0 ? (
-
-<div className="bg-white p-10 rounded-xl shadow text-center">
-No Orders Yet
-</div>
-
-) : (
 
 <div className="space-y-6">
 
@@ -131,57 +174,80 @@ No Orders Yet
 
 <div
 key={order.id}
-className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition"
+className="bg-white p-6 rounded-2xl shadow-md"
 >
 
-<p className="text-sm text-gray-400">
+<p className="text-gray-500">
+
 Order ID
+
 </p>
 
-<h2 className="font-semibold mb-2">
+<h2 className="text-lg font-bold">
+
 {order.id}
+
 </h2>
 
-<p className="text-lg font-bold text-purple-600">
-₹{order.price}
-</p>
 
-<p className="mt-1 text-sm text-gray-600">
-Status: {order.status}
-</p>
+<div className="mt-3">
 
-<div className="flex flex-wrap gap-3 mt-4">
+<span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+order.status === "Delivered"
+? "bg-green-100 text-green-700"
+: order.status === "Shipped"
+? "bg-blue-100 text-blue-700"
+: "bg-yellow-100 text-yellow-700"
+}`}>
+
+{order.status || "Pending"}
+
+</span>
+
+</div>
+
+
+{/* BUTTONS */}
+
+<div className="mt-4 flex gap-3 flex-wrap">
+
+
+<button
+onClick={()=>sendToQikink(order.id)}
+className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+>
+
+Send To Qikink
+
+</button>
+
 
 <button
 onClick={()=>markShipped(order.id)}
 className="bg-blue-500 text-white px-4 py-2 rounded-lg"
 >
+
 Mark Shipped
+
 </button>
+
 
 <button
 onClick={()=>markDelivered(order.id)}
-className="bg-green-600 text-white px-4 py-2 rounded-lg"
+className="bg-green-500 text-white px-4 py-2 rounded-lg"
 >
+
 Mark Delivered
+
 </button>
 
-<button
-onClick={()=>sendToQikink(order)}
-className="bg-purple-600 text-white px-4 py-2 rounded-lg"
->
-Send To Qikink
-</button>
 
 </div>
+
 
 </div>
 
 ))}
-
-</div>
-
-)}
 
 </div>
 
