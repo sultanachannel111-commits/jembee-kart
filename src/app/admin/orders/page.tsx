@@ -16,6 +16,7 @@ export default function AdminOrdersPage(){
 
 const [orders,setOrders] = useState<any[]>([]);
 const [loading,setLoading] = useState(true);
+const [search,setSearch] = useState("");
 
 /* ========================
 FETCH ORDERS
@@ -166,16 +167,31 @@ return(
 
 <div className="min-h-screen bg-gray-50 p-6">
 
-<h1 className="text-3xl font-bold text-purple-600 mb-8">
+<h1 className="text-3xl font-bold text-purple-600 mb-6">
 
 Orders Management
 
 </h1>
 
 
+{/* SEARCH */}
+
+<input
+type="text"
+placeholder="Search Order ID..."
+className="border p-3 rounded-lg w-full mb-6"
+value={search}
+onChange={(e)=>setSearch(e.target.value)}
+/>
+
+
 <div className="space-y-6">
 
-{orders.map(order=>{
+{orders
+.filter(order =>
+order.id.toLowerCase().includes(search.toLowerCase())
+)
+.map(order=>{
 
 const date =
 order.createdAt?.toDate
