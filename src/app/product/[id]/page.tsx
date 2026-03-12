@@ -1,4 +1,4 @@
-"use client";
+l"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -63,7 +63,7 @@ Product not found ❌
 );
 }
 
-const outOfStock = product.stock <= 0;
+const outOfStock = !product.stock || product.stock <= 0;
 
 /* ========================
 ADD TO CART
@@ -94,7 +94,8 @@ BUY NOW → CHECKOUT
 
 const buyNow = ()=>{
 
-router.push(`/checkout?price=${product.sellPrice || product.price}`);
+// productId checkout को भेजेंगे
+router.push(`/checkout?productId=${product.id}`);
 
 };
 
