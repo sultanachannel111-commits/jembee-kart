@@ -28,32 +28,44 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+
+        {/* Mobile Theme Color */}
         <meta name="theme-color" content="#f472b6" />
+
+        {/* iPhone Status Bar */}
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="default"
         />
+
+        {/* Viewport */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1"
+        />
+
       </head>
 
-      {/* IMPORTANT: theme-body id for theme builder */}
       <body
         id="theme-body"
-        className={`${inter.className} pb-16 transition-colors duration-300`}
+        className={`${inter.className} pb-16 min-h-screen transition-colors duration-300`}
       >
 
         <AuthProvider>
+
           <CartProvider>
 
             {/* WEBSITE CONTENT */}
             {children}
 
-            {/* TOAST NOTIFICATIONS */}
+            {/* TOAST NOTIFICATION */}
             <Toaster position="top-center" />
 
             {/* BOTTOM NAVBAR */}
             <Navbar />
 
           </CartProvider>
+
         </AuthProvider>
 
       </body>
