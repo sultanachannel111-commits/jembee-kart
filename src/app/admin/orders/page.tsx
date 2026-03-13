@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-collection,
-getDocs,
-updateDoc,
-doc,
-query,
-orderBy
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+  query,
+  orderBy
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -83,8 +83,16 @@ if(data.success){
 
 alert("Order sent to Qikink 🚀");
 
+await updateDoc(doc(db,"orders",orderId),{
+status:"Processing"
+});
+
+window.location.reload();
+
 }else{
- alert("Failed to send order: " + (data.error || JSON.stringify(data)));
+
+alert("Failed to send order: " + (data.error || JSON.stringify(data)));
+
 }
 
 }catch(err){
@@ -172,8 +180,6 @@ Orders Management
 </h1>
 
 
-{/* SEARCH */}
-
 <input
 type="text"
 placeholder="Search Order ID..."
@@ -204,79 +210,60 @@ className="bg-white p-6 rounded-2xl shadow-md"
 >
 
 <p className="text-gray-500">
-
 Order ID
-
 </p>
 
 <h2 className="text-lg font-bold">
-
 {order.id}
-
 </h2>
 
 
 <p className="text-gray-400 text-sm mt-1">
-
 {date}
-
 </p>
 
-
-{/* PRODUCT */}
 
 <p className="mt-2 font-semibold">
-
-Product: {order.productName}
-
+Product: {order.product?.name || "No product"}
 </p>
 
-
-{/* PRICE */}
 
 <p className="text-pink-600 font-bold">
-₹{order.productDetails?.price || order.products?.[0]?.price || order.amount || order.price}
+₹{
+order.product?.sellingPrice ||
+order.productDetails?.price ||
+order.products?.[0]?.price ||
+order.amount ||
+order.price ||
+0
+}
 </p>
 
-
-{/* CUSTOMER */}
 
 <div className="mt-3 text-sm">
 
 <p>
-
 Customer: {order.customer?.firstName} {order.customer?.lastName}
-
 </p>
 
 <p>
-
 Phone: {order.customer?.phone}
-
 </p>
 
 <p>
-
 Address: {order.customer?.address}
-
 </p>
 
 <p>
-
 {order.customer?.city} - {order.customer?.zip}
-
 </p>
 
 <p>
-
 {order.customer?.state}
-
 </p>
 
 </div>
 
-
-{/* STATUS */}
 
 <div className="mt-3">
 
@@ -290,14 +277,18 @@ order.status === "Delivered"
 : "bg-yellow-100 text-yellow-700"
 }`}>
 
-{order.status || "Pending"}
+{order.status === "Delivered"
+? "Delivered"
+: order.status === "Shipped"
+? "Shipped"
+: order.status === "Processing"
+? "Processing"
+: "Pending"}
 
 </span>
 
 </div>
 
-
-{/* BUTTONS */}
 
 <div className="mt-4 flex gap-3 flex-wrap">
 
@@ -305,9 +296,7 @@ order.status === "Delivered"
 onClick={()=>sendToQikink(order.id)}
 className="bg-purple-600 text-white px-4 py-2 rounded-lg"
 >
-
 Send To Qikink
-
 </button>
 
 
@@ -315,9 +304,7 @@ Send To Qikink
 onClick={()=>markShipped(order.id)}
 className="bg-blue-500 text-white px-4 py-2 rounded-lg"
 >
-
 Mark Shipped
-
 </button>
 
 
@@ -325,9 +312,7 @@ Mark Shipped
 onClick={()=>markDelivered(order.id)}
 className="bg-green-500 text-white px-4 py-2 rounded-lg"
 >
-
 Mark Delivered
-
 </button>
 
 </div>
