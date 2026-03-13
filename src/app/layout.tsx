@@ -17,9 +17,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
 
-  useEffect(()=>{
-loadTheme();
-},[]);
+  /* =========================
+     LOAD WEBSITE THEME
+  ========================= */
+
+  useEffect(() => {
+    loadTheme();
+  }, []);
+
   return (
     <html lang="en">
       <head>
@@ -30,15 +35,27 @@ loadTheme();
         />
       </head>
 
-      <body className={`${inter.className} pb-16`}>
+      {/* IMPORTANT: theme-body id for theme builder */}
+      <body
+        id="theme-body"
+        className={`${inter.className} pb-16 transition-colors duration-300`}
+      >
+
         <AuthProvider>
           <CartProvider>
+
+            {/* WEBSITE CONTENT */}
             {children}
+
+            {/* TOAST NOTIFICATIONS */}
             <Toaster position="top-center" />
-            {/* Bottom Navbar */}
-            {/* <Navbar /> */}
+
+            {/* BOTTOM NAVBAR */}
+            <Navbar />
+
           </CartProvider>
         </AuthProvider>
+
       </body>
     </html>
   );
