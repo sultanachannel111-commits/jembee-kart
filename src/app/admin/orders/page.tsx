@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  query,
-  orderBy
+collection,
+getDocs,
+updateDoc,
+doc,
+query,
+orderBy
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -17,6 +17,7 @@ export default function AdminOrdersPage(){
 const [orders,setOrders] = useState<any[]>([]);
 const [loading,setLoading] = useState(true);
 const [search,setSearch] = useState("");
+const [tab,setTab] = useState("All");
 
 /* ========================
 FETCH ORDERS
@@ -91,7 +92,7 @@ window.location.reload();
 
 }else{
 
-alert("Failed to send order: " + (data.error || JSON.stringify(data)));
+alert("Failed: " + (data.error || JSON.stringify(data)));
 
 }
 
@@ -105,7 +106,7 @@ alert("Server error");
 
 
 /* ========================
-MARK SHIPPED
+STATUS FUNCTIONS
 ======================== */
 
 const markShipped = async(orderId:string)=>{
@@ -114,20 +115,9 @@ await updateDoc(doc(db,"orders",orderId),{
 status:"Shipped"
 });
 
-setOrders(prev=>
-prev.map(o=>
-o.id === orderId
-? {...o,status:"Shipped"}
-: o
-)
-);
+window.location.reload();
 
 };
-
-
-/* ========================
-MARK DELIVERED
-======================== */
 
 const markDelivered = async(orderId:string)=>{
 
@@ -135,15 +125,24 @@ await updateDoc(doc(db,"orders",orderId),{
 status:"Delivered"
 });
 
-setOrders(prev=>
-prev.map(o=>
-o.id === orderId
-? {...o,status:"Delivered"}
-: o
-)
-);
+window.location.reload();
 
 };
+
+
+/* ========================
+FILTER ORDERS
+======================== */
+
+let filteredOrders = orders;
+
+if(tab !== "All"){
+filteredOrders = filteredOrders.filter(o=>o.status === tab);
+}
+
+filteredOrders = filteredOrders.filter(o=>
+o.id.toLowerCase().includes(search.toLowerCase())
+);
 
 
 /* ========================
@@ -189,13 +188,28 @@ onChange={(e)=>setSearch(e.target.value)}
 />
 
 
+<div className="flex gap-3 mb-6 flex-wrap">
+
+{["All","Pending","Processing","Shipped","Delivered"].map(t=>(
+<button
+key={t}
+onClick={()=>setTab(t)}
+className={`px-4 py-2 rounded-lg ${
+tab===t
+? "bg-purple-600 text-white"
+: "bg-white border"
+}`}
+>
+{t}
+</button>
+))}
+
+</div>
+
+
 <div className="space-y-6">
 
-{orders
-.filter(order =>
-order.id.toLowerCase().includes(search.toLowerCase())
-)
-.map(order=>{
+{filteredOrders.map(order=>{
 
 const date =
 order.createdAt?.toDate
@@ -216,7 +230,6 @@ Order ID
 <h2 className="text-lg font-bold">
 {order.id}
 </h2>
-
 
 <p className="text-gray-400 text-sm mt-1">
 {date}
@@ -277,13 +290,7 @@ order.status === "Delivered"
 : "bg-yellow-100 text-yellow-700"
 }`}>
 
-{order.status === "Delivered"
-? "Delivered"
-: order.status === "Shipped"
-? "Shipped"
-: order.status === "Processing"
-? "Processing"
-: "Pending"}
+{order.status || "Pending"}
 
 </span>
 
