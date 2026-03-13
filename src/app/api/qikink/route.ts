@@ -6,7 +6,7 @@ export async function GET() {
 
   try {
 
-    // STEP 1 TOKEN GENERATE
+    // STEP 1 TOKEN
     const tokenRes = await fetch(
       "https://api.qikink.com/api/v1/oauth/token",
       {
@@ -15,46 +15,42 @@ export async function GET() {
           "Content-Type":"application/json"
         },
         body:JSON.stringify({
-          client_id: process.env.QIKINK_CLIENT_ID,
-          client_secret: process.env.QIKINK_CLIENT_SECRET,
+          client_id:process.env.QIKINK_CLIENT_ID,
+          client_secret:process.env.QIKINK_CLIENT_SECRET,
           grant_type:"client_credentials"
         })
       }
     );
 
     const tokenData = await tokenRes.json();
-
     const accessToken = tokenData.access_token;
 
-
-    // STEP 2 PRODUCTS GET
+    // STEP 2 GET DESIGNS
     const res = await fetch(
-      "https://api.qikink.com/api/v1/products",
+      "https://api.qikink.com/api/v1/catalog/designs",
       {
-        method:"GET",
         headers:{
-          "Authorization":`Bearer ${accessToken}`,
-          "Content-Type":"application/json"
+          Authorization:`Bearer ${accessToken}`
         }
       }
     );
 
     const data = await res.json();
 
-    const products = data.data || [];
+    const designs = data.data || [];
 
     let count = 0;
 
-    for(const p of products){
+    for(const d of designs){
 
-      await setDoc(doc(db,"products",String(p.id)),{
+      await setDoc(doc(db,"products",String(d.id)),{
 
-        name:p.title || "Qikink Product",
+        name:d.title || "Qikink Product",
 
-        price:p.selling_price || 499,
+        price:499,
 
         image:
-        p.images?.[0]?.src ||
+        d.design_images?.[0]?.image_url ||
         "https://via.placeholder.com/300",
 
         supplier:"qikink"
