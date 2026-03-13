@@ -46,6 +46,7 @@ export default function Navbar() {
 
   return (
     <div className="fixed top-4 right-4 z-50">
+      {/* Cart icon removed */}
       <Link href="/cart" className="relative">
         <ShoppingCart size={28} />
 
