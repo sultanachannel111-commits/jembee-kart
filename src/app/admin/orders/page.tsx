@@ -84,9 +84,7 @@ if(data.success){
 alert("Order sent to Qikink 🚀");
 
 }else{
-
-alert("Failed to send order");
-
+ alert("Failed to send order: " + (data.error || JSON.stringify(data)));
 }
 
 }catch(err){
