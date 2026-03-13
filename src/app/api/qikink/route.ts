@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
 
 const CLIENT_ID = "827265200202480";
-const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
+const CLIENT_SECRET = "4216a1ee1ef57511ef9bf2d6c4cd83689a84e4a9881d50b301c347f42354dcc7";
 
 try {
 
