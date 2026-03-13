@@ -41,15 +41,16 @@ export async function POST(req: NextRequest) {
     const clientSecret = process.env.QIKINK_CLIENT_SECRET;
 
     const tokenRes = await fetch(
-      "https://api.qikink.com/api/token",
+      "https://api.qikink.com/api/v1/oauth/token",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
+          "Content-Type": "application/json"
         },
-        body: new URLSearchParams({
-          client_id: clientId!,
-          client_secret: clientSecret!
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: "client_credentials"
         })
       }
     );
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     if (!tokenData.access_token) {
       return NextResponse.json(
-        { success: false, error: "Token generation failed" },
+        { success: false, error: "Token generation failed", tokenData },
         { status: 400 }
       );
     }
