@@ -7,7 +7,7 @@ const CLIENT_SECRET="4216a1ee1ef57511ef9bf2d6c4cd83689a84e4a9881d50b301c347f4235
 
 try{
 
-// STEP 1 — GET TOKEN
+// TOKEN
 const tokenRes = await fetch(
 "https://api.qikink.com/api/v1/oauth/token",
 {
@@ -28,17 +28,12 @@ const tokenData = await tokenRes.json();
 const accessToken = tokenData.access_token;
 
 if(!accessToken){
-
-return NextResponse.json({
-products:[]
-});
-
+return NextResponse.json({products:[]});
 }
 
-// STEP 2 — GET PRODUCTS
-
+// PRODUCTS
 const productRes = await fetch(
-"https://api.qikink.com/api/v1/catalog/products",
+"https://api.qikink.com/api/v1/catalog/products?page=1&limit=20",
 {
 headers:{
 Authorization:`Bearer ${accessToken}`
