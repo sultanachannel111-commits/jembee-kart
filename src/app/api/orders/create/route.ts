@@ -10,14 +10,22 @@ export async function POST(req: NextRequest) {
 
     const { product, customer, paymentMethod } = body;
 
+    /* ==========================
+       VALIDATE DATA
+    ========================== */
+
     if (!product || !customer) {
 
       return NextResponse.json(
-        { success:false, error:"Missing data" },
+        { success:false, error:"Missing product or customer data" },
         { status:400 }
       );
 
     }
+
+    /* ==========================
+       GENERATE ORDER ID
+    ========================== */
 
     const orderNumber = "JB" + Date.now().toString().slice(-8);
 
@@ -34,13 +42,16 @@ export async function POST(req: NextRequest) {
         customer,
         paymentMethod,
         status:"Pending",
+        trackingId:null,
+        courier:null,
+        estimatedDelivery:null,
         createdAt:new Date()
       }
     );
 
 
     /* ==========================
-       SEND SMS TRACKING LINK
+       SEND CUSTOMER SMS
     ========================== */
 
     try{
@@ -65,24 +76,29 @@ export async function POST(req: NextRequest) {
 
     }catch(smsError){
 
-      console.log("SMS error",smsError);
+      console.log("SMS error:",smsError);
 
     }
 
 
     /* ==========================
-       RESPONSE
+       SUCCESS RESPONSE
     ========================== */
 
     return NextResponse.json({
 
       success:true,
 
+      message:"Order created successfully",
+
       orderNumber
 
     });
 
+
   } catch(error:any){
+
+    console.log("Order Create Error:",error);
 
     return NextResponse.json({
 
