@@ -25,17 +25,17 @@ export default function HomePage() {
 const [categories,setCategories] = useState<any[]>([]);
 const [banners,setBanners] = useState<any[]>([]);
 const [products,setProducts] = useState<any[]>([]);
+
 const [trending,setTrending] = useState<any[]>([]);
 const [clearance,setClearance] = useState<any[]>([]);
 const [recommended,setRecommended] = useState<any[]>([]);
 const [lightning,setLightning] = useState<any[]>([]);
+
 const [festival,setFestival] = useState<any>(null);
 
 const [slide,setSlide] = useState(0);
 const [search,setSearch] = useState("");
 const [selectedCategory,setSelectedCategory] = useState("All");
-
-const [ratings,setRatings] = useState<any>({});
 
 const [timeLeft,setTimeLeft] = useState<any>(null);
 
@@ -54,19 +54,31 @@ console.log("Qikink Products",data);
 
 if(Array.isArray(data)){
 
-setProducts(prev=>[...prev,...data]);
+const formatted = data.map((p:any)=>({
+
+id:p.id,
+name:p.title || p.name,
+price:p.price,
+image:p.image,
+category:p.category || "Qikink"
+
+}));
+
+setProducts(prev=>[...prev,...formatted]);
 
 }
 
 }catch(error){
 
-console.log("Qikink Error",error)
+console.log("Qikink Error",error);
 
 }
 
 };
 
 const loadData = async ()=>{
+
+try{
 
 const catSnap = await getDocs(collection(db,"qikinkCategories"));
 
@@ -113,27 +125,11 @@ if(festSnap.exists()){
 setFestival(festSnap.data());
 }
 
-const reviewSnap = await getDocs(collection(db,"reviews"));
+}catch(err){
 
-const ratingMap:any = {};
-
-reviewSnap.forEach(doc=>{
-
-const r:any = doc.data();
-
-if(!ratingMap[r.productId]){
-
-ratingMap[r.productId]={total:0,count:0};
+console.log("Load Error",err);
 
 }
-
-ratingMap[r.productId].total+=r.rating;
-
-ratingMap[r.productId].count+=1;
-
-});
-
-setRatings(ratingMap);
 
 };
 
@@ -162,7 +158,6 @@ const diff = new Date(festival.endDate).getTime() - new Date().getTime();
 if(diff<=0){
 
 setTimeLeft(null);
-
 clearInterval(interval);
 
 }else{
@@ -187,9 +182,10 @@ const normalize = (text:string)=> text?.toLowerCase().replace(/\s|-/g,"");
 
 const filteredProducts = products.filter((p:any)=>{
 
-const matchSearch = normalize(p.name).includes(normalize(search));
+const matchSearch = normalize(p.name || "").includes(normalize(search));
 
-const matchCategory = selectedCategory==="All" || p.category===selectedCategory;
+const matchCategory =
+selectedCategory==="All" || p.category===selectedCategory;
 
 return matchSearch && matchCategory;
 
@@ -231,6 +227,7 @@ timeLeft={timeLeft}
 )}
 
 <ProductGrid
+title="All Products"
 products={filteredProducts}
 />
 
