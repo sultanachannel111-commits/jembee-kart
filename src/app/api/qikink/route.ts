@@ -24,7 +24,6 @@ grant_type:"client_credentials"
 );
 
 const tokenData = await tokenRes.json();
-
 const accessToken = tokenData.access_token;
 
 if(!accessToken){
@@ -33,7 +32,7 @@ return NextResponse.json({products:[]});
 
 // PRODUCTS
 const productRes = await fetch(
-"https://api.qikink.com/api/v1/catalog/products?page=1&limit=20",
+"https://api.qikink.com/api/v1/products?page=1&limit=20",
 {
 headers:{
 Authorization:`Bearer ${accessToken}`
@@ -50,8 +49,7 @@ products:productData.data || []
 }catch(err){
 
 return NextResponse.json({
-products:[]
-});
+products:[]});
 
 }
 
