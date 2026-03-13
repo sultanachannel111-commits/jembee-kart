@@ -7,7 +7,6 @@ const CLIENT_SECRET = "4216a1ee1ef57511ef9bf2d6c4cd83689a84e4a9881d50b301c347f42
 
 try {
 
-// TOKEN
 const tokenRes = await fetch(
 "https://api.qikink.com/api/v1/oauth/token",
 {
@@ -27,9 +26,9 @@ const tokenData = await tokenRes.json();
 const accessToken = tokenData.access_token;
 
 
-// DESIGNS
-const productRes = await fetch(
-"https://api.qikink.com/api/v1/designs",
+// TEST ENDPOINT
+const res = await fetch(
+"https://api.qikink.com/api/v1/products",
 {
 headers:{
 Authorization:`Bearer ${accessToken}`
@@ -37,15 +36,18 @@ Authorization:`Bearer ${accessToken}`
 }
 );
 
-const productData = await productRes.json();
-
-return NextResponse.json(productData);
-
-}
-catch(err){
+const data = await res.json();
 
 return NextResponse.json({
-error:"Qikink API failed"
+token:tokenData,
+api:data
+});
+
+}
+catch(error){
+
+return NextResponse.json({
+error:"API FAILED"
 });
 
 }
