@@ -76,7 +76,6 @@ Order ID
 {id}
 </p>
 
-
 <p className="font-semibold">
 Product
 </p>
@@ -84,7 +83,6 @@ Product
 <p className="mb-4">
 {order.productName || order.product?.name}
 </p>
-
 
 <p className="font-semibold">
 Status
@@ -107,11 +105,57 @@ style={{width:progress+"%"}}
 </div>
 
 
+{/* ORDER TIMELINE */}
+
+<div className="mt-6 space-y-3">
+
+<div className={`flex items-center gap-3 ${order.status ? "text-green-600" : ""}`}>
+✔ Ordered
+</div>
+
+<div className={`flex items-center gap-3 ${
+order.status==="Processing" ||
+order.status==="Shipped" ||
+order.status==="Delivered"
+? "text-green-600"
+: "text-gray-400"
+}`}>
+✔ Packed
+</div>
+
+<div className={`flex items-center gap-3 ${
+order.status==="Shipped" ||
+order.status==="Delivered"
+? "text-green-600"
+: "text-gray-400"
+}`}>
+✔ Shipped
+</div>
+
+<div className={`flex items-center gap-3 ${
+order.status==="Delivered"
+? "text-green-600"
+: "text-gray-400"
+}`}>
+✔ Out for delivery
+</div>
+
+<div className={`flex items-center gap-3 ${
+order.status==="Delivered"
+? "text-green-600"
+: "text-gray-400"
+}`}>
+✔ Delivered
+</div>
+
+</div>
+
+
 {/* TRACKING INFO */}
 
 {order.trackingId && (
 
-<div className="mb-4">
+<div className="mt-6">
 
 <p className="font-semibold">
 Tracking ID
@@ -128,7 +172,7 @@ Tracking ID
 
 {order.courier && (
 
-<div className="mb-4">
+<div className="mt-3">
 
 <p className="font-semibold">
 Courier
@@ -145,7 +189,7 @@ Courier
 
 {order.estimatedDelivery && (
 
-<div className="mb-4">
+<div className="mt-3">
 
 <p className="font-semibold">
 Estimated Delivery
@@ -160,14 +204,14 @@ Estimated Delivery
 )}
 
 
-{/* COURIER TRACKING LINK */}
+{/* COURIER TRACK LINK */}
 
 {order.trackingId && (
 
 <a
 href={`https://www.google.com/search?q=${order.courier}+tracking+${order.trackingId}`}
 target="_blank"
-className="text-blue-600 underline"
+className="text-blue-600 underline mt-4 block"
 >
 
 Track Shipment
