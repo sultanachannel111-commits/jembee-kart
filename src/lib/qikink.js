@@ -24,7 +24,7 @@ grant_type:"client_credentials"
 
 const tokenData = await tokenRes.json();
 
-console.log("TOKEN DATA:",tokenData);
+alert("TOKEN DATA: " + JSON.stringify(tokenData));
 
 const accessToken = tokenData.access_token;
 
@@ -46,7 +46,7 @@ Authorization:`Bearer ${accessToken}`
 
 const data = await res.json();
 
-console.log("PRODUCT DATA:",data);
+alert("PRODUCT DATA: " + JSON.stringify(data));
 
 if(!data || !data.products){
 return [];
