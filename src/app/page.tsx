@@ -14,13 +14,11 @@ import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
 
-import { getQikinkProducts } from "@/lib/qikink";
-
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function HomePage() {
+export default function HomePage(){
 
 const [categories,setCategories] = useState<any[]>([]);
 const [banners,setBanners] = useState<any[]>([]);
@@ -44,6 +42,8 @@ loadData();
 loadQikinkProducts();
 },[]);
 
+
+// QIKINK PRODUCTS
 const loadQikinkProducts = async ()=>{
 
 try{
@@ -51,15 +51,15 @@ try{
 const res = await fetch("/api/qikink");
 const data = await res.json();
 
-if(Array.isArray(data)){
+if(Array.isArray(data.products)){
 
-const formatted = data.map((p:any)=>({
+const formatted = data.products.map((p:any)=>({
 
 id:p.id,
-name:p.name,
+name:p.name || p.title,
 price:p.retail_price || p.price,
-image:p.images?.[0]?.src || p.image,
-category:p.category || "Qikink"
+image:p.images?.[0]?.src || p.image || "",
+category:"Qikink"
 
 }));
 
@@ -85,6 +85,9 @@ console.log("Qikink Error",error);
 
 };
 
+
+
+// FIRESTORE DATA
 const loadData = async ()=>{
 
 try{
@@ -152,11 +155,13 @@ console.log("Load Error",err);
 
 };
 
+
+// BANNER SLIDER
 useEffect(()=>{
 
 if(!banners.length) return;
 
-const interval = setInterval(()=>{
+const interval=setInterval(()=>{
 
 setSlide(prev=>(prev+1)%banners.length);
 
@@ -166,11 +171,13 @@ return ()=>clearInterval(interval);
 
 },[banners]);
 
+
+// FESTIVAL TIMER
 useEffect(()=>{
 
 if(!festival?.endDate) return;
 
-const interval = setInterval(()=>{
+const interval=setInterval(()=>{
 
 const diff = new Date(festival.endDate).getTime() - new Date().getTime();
 
@@ -197,6 +204,8 @@ return ()=>clearInterval(interval);
 
 },[festival]);
 
+
+// SEARCH
 const normalize=(text:string)=>text?.toLowerCase().replace(/\s|-/g,"");
 
 const filteredProducts = products.filter((p:any)=>{
@@ -210,6 +219,8 @@ selectedCategory==="All" ||
 return matchSearch && matchCategory;
 
 });
+
+
 
 return(
 
