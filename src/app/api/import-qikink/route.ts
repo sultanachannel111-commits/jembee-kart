@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
-export async function GET() {
+export async function GET(){
 
-  try {
+  try{
 
-    const res = await fetch(
-      "https://api.qikink.com/api/v1/oauth/token",
+    // TOKEN
+    const tokenRes = await fetch(
+      "https://api.qikink.com/api/v1/token",
       {
         method:"POST",
         headers:{
@@ -13,17 +16,53 @@ export async function GET() {
         },
         body:JSON.stringify({
           client_id:process.env.QIKINK_CLIENT_ID,
-          client_secret:process.env.QIKINK_CLIENT_SECRET,
-          grant_type:"client_credentials"
+          client_secret:process.env.QIKINK_CLIENT_SECRET
         })
+      }
+    );
+
+    const tokenData = await tokenRes.json();
+
+    const token = tokenData.access_token;
+
+
+    // PRODUCTS
+    const res = await fetch(
+      "https://api.qikink.com/api/v1/products",
+      {
+        headers:{
+          Authorization:`Bearer ${token}`
+        }
       }
     );
 
     const data = await res.json();
 
-    return NextResponse.json(data);
+    const products = data.data || [];
 
-  } catch(e){
+    let count = 0;
+
+    for(const p of products){
+
+      await setDoc(doc(db,"products",String(p.id)),{
+
+        name:p.title || "Qikink Product",
+        price:p.selling_price || 499,
+        image:p.images?.[0]?.src || "",
+        supplier:"qikink"
+
+      });
+
+      count++;
+
+    }
+
+    return NextResponse.json({
+      message:"Products Imported",
+      count
+    });
+
+  }catch(e){
 
     return NextResponse.json({
       error:String(e)
