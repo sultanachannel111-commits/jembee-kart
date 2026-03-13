@@ -3,372 +3,463 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import {
-  addDoc,
-  collection,
-  serverTimestamp,
-  getDocs
+addDoc,
+collection,
+serverTimestamp,
+getDocs
 } from "firebase/firestore";
 
 import {
-  Package,
-  Image,
-  Tag,
-  Layers,
-  IndianRupee,
-  PlusCircle
+Package,
+Image,
+Layers,
+IndianRupee,
+PlusCircle
 } from "lucide-react";
 
-export default function AdminQikinkProducts() {
+export default function AdminQikinkProducts(){
 
-  const [name,setName] = useState("");
-  const [qikinkId,setQikinkId] = useState("");
-  const [image,setImage] = useState("");
+const [name,setName] = useState("");
+const [qikinkId,setQikinkId] = useState("");
 
-  const [basePrice,setBasePrice] = useState("");
-  const [sellPrice,setSellPrice] = useState("");
+const [sku,setSku] = useState("");
+const [printTypeId,setPrintTypeId] = useState("");
 
-  const [description,setDescription] = useState("");
+const [image,setImage] = useState("");
 
-  const [stock,setStock] = useState("");
+const [frontImage,setFrontImage] = useState("");
+const [backImage,setBackImage] = useState("");
+const [sideImage,setSideImage] = useState("");
+const [modelImage,setModelImage] = useState("");
 
-  const [category,setCategory] = useState("");
-  const [categories,setCategories] = useState<any[]>([]);
+const [designLink,setDesignLink] = useState("");
+const [mockupLink,setMockupLink] = useState("");
 
-  const [type,setType] = useState("");
-  const [options,setOptions] = useState("");
+const [basePrice,setBasePrice] = useState("");
+const [sellPrice,setSellPrice] = useState("");
 
-  /* =======================
-     LOAD CATEGORIES
-  ======================= */
+const [description,setDescription] = useState("");
 
-  useEffect(()=>{
-    loadCategories();
-  },[]);
+const [stock,setStock] = useState("");
 
-  const loadCategories = async()=>{
+const [category,setCategory] = useState("");
+const [categories,setCategories] = useState<any[]>([]);
 
-    try{
+const [type,setType] = useState("");
+const [options,setOptions] = useState("");
 
-      const snap = await getDocs(
-        collection(db,"qikinkCategories")
-      );
+const profit =
+Number(sellPrice || 0) - Number(basePrice || 0);
 
-      const list = snap.docs.map(doc=>({
-        id:doc.id,
-        ...doc.data()
-      }));
+useEffect(()=>{
+loadCategories();
+},[]);
 
-      setCategories(list);
+const loadCategories = async()=>{
 
-    }catch(err){
-      console.log("Category load error",err);
-    }
+try{
 
-  };
+const snap = await getDocs(
+collection(db,"qikinkCategories")
+);
 
-  /* =======================
-     SAVE PRODUCT
-  ======================= */
+const list = snap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
 
-  const saveProduct = async()=>{
+setCategories(list);
 
-    if(!name || !qikinkId || !category){
-      alert("Please fill required fields");
-      return;
-    }
+}catch(err){
+console.log(err);
+}
 
-    try{
+};
 
-      await addDoc(
-        collection(db,"products"),   // 👈 बस यही change किया है
-        {
+const saveProduct = async()=>{
 
-          name,
-          qikinkId,
-          category,
-          image,
+if(!name || !qikinkId || !category){
+alert("Please fill required fields");
+return;
+}
 
-          basePrice:Number(basePrice),
-          sellPrice:Number(sellPrice),
+try{
 
-          description,
+await addDoc(collection(db,"products"),{
 
-          stock:Number(stock),
+name,
+qikinkId,
+sku,
+printTypeId,
 
-          variations:{
-            type:type,
-            options: options ? options.split(",") : []
-          },
+category,
 
-          createdAt:serverTimestamp()
+image,
+frontImage,
+backImage,
+sideImage,
+modelImage,
 
-        }
-      );
+designLink,
+mockupLink,
 
-      alert("Product Added Successfully 🎉");
+basePrice:Number(basePrice),
+sellPrice:Number(sellPrice),
+profit,
 
-      setName("");
-      setQikinkId("");
-      setImage("");
+description,
 
-      setBasePrice("");
-      setSellPrice("");
+stock:Number(stock),
 
-      setDescription("");
+variations:{
+type:type,
+options: options ? options.split(",") : []
+},
 
-      setStock("");
+supplier:"qikink",
 
-      setType("");
-      setOptions("");
+createdAt:serverTimestamp()
 
-    }catch(err){
+});
 
-      console.log(err);
-      alert("Error adding product");
+alert("Product Added Successfully 🎉");
 
-    }
+setName("");
+setQikinkId("");
+setSku("");
+setPrintTypeId("");
 
-  };
+setImage("");
+setFrontImage("");
+setBackImage("");
+setSideImage("");
+setModelImage("");
 
-  return(
+setDesignLink("");
+setMockupLink("");
 
-  <div className="p-8 bg-gray-100 min-h-screen">
+setBasePrice("");
+setSellPrice("");
 
-  <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
+setDescription("");
+setStock("");
 
-  <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
-  <Package className="text-purple-600"/>
-  Add Qikink Product
-  </h1>
+setType("");
+setOptions("");
 
-  <div className="space-y-5">
+}catch(err){
 
-  {/* PRODUCT NAME */}
+console.log(err);
+alert("Error adding product");
 
-  <div>
-  <label className="font-semibold mb-1 block">
-  Product Name
-  </label>
+}
 
-  <input
-  value={name}
-  onChange={(e)=>setName(e.target.value)}
-  placeholder="Oversized T Shirt"
-  className="border w-full p-3 rounded-lg"
-  />
-  </div>
+};
 
+return(
 
-  {/* QIKINK PRODUCT ID */}
+<div className="p-8 bg-gray-100 min-h-screen">
 
-  <div>
+<div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
 
-  <label className="font-semibold mb-1 block">
-  Qikink Product ID
-  </label>
+<h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
+<Package className="text-purple-600"/>
+Add Qikink Product
+</h1>
 
-  <input
-  value={qikinkId}
-  onChange={(e)=>setQikinkId(e.target.value)}
-  placeholder="QK1022"
-  className="border w-full p-3 rounded-lg"
-  />
+<div className="space-y-5">
 
-  </div>
+{/* PRODUCT NAME */}
 
+<div>
 
-  {/* CATEGORY */}
+<label className="font-semibold mb-1 block">
+Product Name
+</label>
 
-  <div>
+<input
+value={name}
+onChange={(e)=>setName(e.target.value)}
+placeholder="Oversized T Shirt"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <label className="font-semibold mb-1 block flex items-center gap-2">
-  <Layers size={18}/>
-  Qikink Category
-  </label>
+</div>
 
-  <select
-  value={category}
-  onChange={(e)=>setCategory(e.target.value)}
-  className="border w-full p-3 rounded-lg"
-  >
 
-  <option value="">Select Category</option>
+{/* QIKINK PRODUCT ID */}
 
-  {categories.map((c:any)=>(
+<div>
 
-  <option key={c.id} value={c.name}>
-  {c.name}
-  </option>
+<label className="font-semibold mb-1 block">
+Qikink Product ID
+</label>
 
-  ))}
+<input
+value={qikinkId}
+onChange={(e)=>setQikinkId(e.target.value)}
+placeholder="QK1022"
+className="border w-full p-3 rounded-lg"
+/>
 
-  </select>
+</div>
 
-  </div>
 
+{/* SKU */}
 
-  {/* IMAGE */}
+<div>
 
-  <div>
+<label className="font-semibold mb-1 block">
+SKU
+</label>
 
-  <label className="font-semibold mb-1 block flex items-center gap-2">
-  <Image size={18}/>
-  Product Image
-  </label>
+<input
+value={sku}
+onChange={(e)=>setSku(e.target.value)}
+placeholder="QK1022-BLK-M"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <input
-  value={image}
-  onChange={(e)=>setImage(e.target.value)}
-  placeholder="https://image-link.jpg"
-  className="border w-full p-3 rounded-lg"
-  />
+</div>
 
-  </div>
 
+{/* PRINT TYPE */}
 
-  {/* IMAGE PREVIEW */}
+<div>
 
-  {image && (
+<label className="font-semibold mb-1 block">
+Print Type ID
+</label>
 
-  <div className="flex justify-center">
+<input
+value={printTypeId}
+onChange={(e)=>setPrintTypeId(e.target.value)}
+placeholder="1"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <img
-  src={image}
-  className="w-32 h-32 rounded-xl shadow object-cover"
-  />
+</div>
 
-  </div>
 
-  )}
+{/* CATEGORY */}
 
+<div>
 
-  {/* BASE PRICE */}
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<Layers size={18}/>
+Qikink Category
+</label>
 
-  <div>
+<select
+value={category}
+onChange={(e)=>setCategory(e.target.value)}
+className="border w-full p-3 rounded-lg"
+>
 
-  <label className="font-semibold mb-1 block flex items-center gap-2">
-  <IndianRupee size={18}/>
-  Qikink Base Price
-  </label>
+<option value="">Select Category</option>
 
-  <input
-  type="number"
-  value={basePrice}
-  onChange={(e)=>setBasePrice(e.target.value)}
-  placeholder="100"
-  className="border w-full p-3 rounded-lg"
-  />
+{categories.map((c:any)=>(
+<option key={c.id} value={c.name}>
+{c.name}
+</option>
+))}
 
-  </div>
+</select>
 
+</div>
 
-  {/* SELL PRICE */}
 
-  <div>
+{/* MAIN IMAGE */}
 
-  <label className="font-semibold mb-1 block">
-  Sell Price
-  </label>
+<div>
 
-  <input
-  type="number"
-  value={sellPrice}
-  onChange={(e)=>setSellPrice(e.target.value)}
-  placeholder="299"
-  className="border w-full p-3 rounded-lg"
-  />
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<Image size={18}/>
+Product Image
+</label>
 
-  </div>
+<input
+value={image}
+onChange={(e)=>setImage(e.target.value)}
+placeholder="https://image-link.jpg"
+className="border w-full p-3 rounded-lg"
+/>
 
+</div>
 
-  {/* DESCRIPTION */}
 
-  <div>
+{/* FRONT IMAGE */}
 
-  <label className="font-semibold mb-1 block">
-  Product Description
-  </label>
+<input
+value={frontImage}
+onChange={(e)=>setFrontImage(e.target.value)}
+placeholder="Front Image Link"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <textarea
-  value={description}
-  onChange={(e)=>setDescription(e.target.value)}
-  placeholder="Write product description"
-  className="border w-full p-3 rounded-lg"
-  />
+{/* BACK IMAGE */}
 
-  </div>
+<input
+value={backImage}
+onChange={(e)=>setBackImage(e.target.value)}
+placeholder="Back Image Link"
+className="border w-full p-3 rounded-lg"
+/>
 
+{/* SIDE IMAGE */}
 
-  {/* STOCK */}
+<input
+value={sideImage}
+onChange={(e)=>setSideImage(e.target.value)}
+placeholder="Side Image Link"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <div>
+{/* MODEL IMAGE */}
 
-  <label className="font-semibold mb-1 block">
-  Stock Quantity
-  </label>
+<input
+value={modelImage}
+onChange={(e)=>setModelImage(e.target.value)}
+placeholder="Model Image Link"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <input
-  type="number"
-  value={stock}
-  onChange={(e)=>setStock(e.target.value)}
-  placeholder="Enter stock"
-  className="border w-full p-3 rounded-lg"
-  />
 
-  </div>
+{/* DESIGN LINK */}
 
+<input
+value={designLink}
+onChange={(e)=>setDesignLink(e.target.value)}
+placeholder="Design Link"
+className="border w-full p-3 rounded-lg"
+/>
 
-  {/* VARIATION */}
+{/* MOCKUP LINK */}
 
-  <div>
+<input
+value={mockupLink}
+onChange={(e)=>setMockupLink(e.target.value)}
+placeholder="Mockup Link"
+className="border w-full p-3 rounded-lg"
+/>
 
-  <label className="font-semibold mb-1 block">
-  Variation Type
-  </label>
 
-  <select
-  value={type}
-  onChange={(e)=>setType(e.target.value)}
-  className="border p-2 w-full mb-3 rounded"
-  >
+{/* BASE PRICE */}
 
-  <option value="">Select Variation</option>
-  <option value="Size">Size</option>
-  <option value="Color">Color</option>
-  <option value="Number">Number</option>
-  <option value="Age">Age</option>
-  <option value="Custom">Custom</option>
+<div>
 
-  </select>
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<IndianRupee size={18}/>
+Qikink Base Price
+</label>
 
-  <input
-  value={options}
-  onChange={(e)=>setOptions(e.target.value)}
-  placeholder="Options (S,M,L / Red,Blue)"
-  className="border p-2 w-full rounded"
-  />
+<input
+type="number"
+value={basePrice}
+onChange={(e)=>setBasePrice(e.target.value)}
+placeholder="100"
+className="border w-full p-3 rounded-lg"
+/>
 
-  </div>
+</div>
 
 
-  {/* BUTTON */}
+{/* SELL PRICE */}
 
-  <button
-  onClick={saveProduct}
-  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl mt-4"
-  >
+<div>
 
-  <PlusCircle size={20}/>
-  Add Product
+<label className="font-semibold mb-1 block">
+Sell Price
+</label>
 
-  </button>
+<input
+type="number"
+value={sellPrice}
+onChange={(e)=>setSellPrice(e.target.value)}
+placeholder="299"
+className="border w-full p-3 rounded-lg"
+/>
 
-  </div>
+</div>
 
-  </div>
 
-  </div>
+{/* PROFIT */}
 
-  );
+<div>
+
+<label className="font-semibold mb-1 block">
+Profit
+</label>
+
+<input
+value={profit}
+readOnly
+className="border w-full p-3 rounded-lg bg-gray-100"
+/>
+
+</div>
+
+
+{/* DESCRIPTION */}
+
+<textarea
+value={description}
+onChange={(e)=>setDescription(e.target.value)}
+placeholder="Product Description"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* STOCK */}
+
+<input
+type="number"
+value={stock}
+onChange={(e)=>setStock(e.target.value)}
+placeholder="Stock Quantity"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* VARIATION */}
+
+<select
+value={type}
+onChange={(e)=>setType(e.target.value)}
+className="border p-3 w-full rounded-lg"
+>
+
+<option value="">Select Variation</option>
+<option value="Size">Size</option>
+<option value="Color">Color</option>
+
+</select>
+
+
+<input
+value={options}
+onChange={(e)=>setOptions(e.target.value)}
+placeholder="Options (S,M,L / Red,Blue)"
+className="border p-3 w-full rounded-lg"
+/>
+
+
+<button
+onClick={saveProduct}
+className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl mt-4"
+>
+
+<PlusCircle size={20}/>
+Add Product
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+);
 
 }
