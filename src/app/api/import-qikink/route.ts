@@ -6,13 +6,16 @@ export async function GET() {
 
   try {
 
-    const res = await fetch("https://api.qikink.com/api/v1/products",{
-      method:"GET",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key": process.env.QIKINK_API_KEY || ""
+    const res = await fetch(
+      "https://api.qikink.com/api/v1/products?limit=500000",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.QIKINK_API_KEY || ""
+        }
       }
-    });
+    );
 
     const data = await res.json();
 
@@ -20,20 +23,15 @@ export async function GET() {
 
     let count = 0;
 
-    for(const p of products){
+    for (const p of products) {
 
-      await setDoc(doc(db,"products",String(p.id)),{
-
+      await setDoc(doc(db, "products", String(p.id)), {
         name: p.title || "Qikink Product",
-
         price: p.selling_price || 499,
-
         image:
-        p.images?.[0]?.src ||
-        "https://via.placeholder.com/300",
-
-        supplier:"qikink"
-
+          p.images?.[0]?.src ||
+          "https://via.placeholder.com/300",
+        supplier: "qikink"
       });
 
       count++;
@@ -41,15 +39,15 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      message:"Products Imported",
+      message: "Products Imported",
       count
     });
 
-  } catch(e){
+  } catch (e) {
 
     return NextResponse.json({
-      error:"Import Failed",
-      details:String(e)
+      error: "Import Failed",
+      details: String(e)
     });
 
   }
