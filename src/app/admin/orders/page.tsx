@@ -173,9 +173,7 @@ return(
 <div className="min-h-screen bg-gray-50 p-6">
 
 <h1 className="text-3xl font-bold text-purple-600 mb-6">
-
 Orders Management
-
 </h1>
 
 
@@ -297,6 +295,27 @@ order.status === "Delivered"
 </div>
 
 
+{/* TRACKING DETAILS */}
+
+{order.trackingId && (
+<div className="mt-2 text-sm text-gray-700">
+Tracking: {order.trackingId}
+</div>
+)}
+
+{order.courier && (
+<div className="text-sm text-gray-700">
+Courier: {order.courier}
+</div>
+)}
+
+{order.estimatedDelivery && (
+<div className="text-sm text-gray-700">
+Delivery: {order.estimatedDelivery}
+</div>
+)}
+
+
 <div className="mt-4 flex gap-3 flex-wrap">
 
 <button
@@ -306,14 +325,12 @@ className="bg-purple-600 text-white px-4 py-2 rounded-lg"
 Send To Qikink
 </button>
 
-
 <button
 onClick={()=>markShipped(order.id)}
 className="bg-blue-500 text-white px-4 py-2 rounded-lg"
 >
 Mark Shipped
 </button>
-
 
 <button
 onClick={()=>markDelivered(order.id)}
