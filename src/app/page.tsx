@@ -48,7 +48,8 @@ const loadQikinkProducts = async ()=>{
 
 try{
 
-const data = await getQikinkProducts();
+const res = await fetch("/api/qikink");
+const data = await res.json();
 
 if(Array.isArray(data)){
 
