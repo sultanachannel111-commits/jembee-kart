@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-export async function GET(){
+export async function GET() {
 
-const CLIENT_ID="827265200202480";
-const CLIENT_SECRET="4216a1ee1ef57511ef9bf2d6c4cd83689a84e4a9881d50b301c347f42354dcc7";
+const CLIENT_ID = "827265200202480";
+const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
 
-try{
+try {
 
 // TOKEN
 const tokenRes = await fetch(
@@ -26,13 +26,10 @@ grant_type:"client_credentials"
 const tokenData = await tokenRes.json();
 const accessToken = tokenData.access_token;
 
-if(!accessToken){
-return NextResponse.json({products:[]});
-}
 
-// PRODUCTS
+// DESIGNS
 const productRes = await fetch(
-"https://api.qikink.com/api/v1/products?page=1&limit=20",
+"https://api.qikink.com/api/v1/designs",
 {
 headers:{
 Authorization:`Bearer ${accessToken}`
@@ -42,14 +39,14 @@ Authorization:`Bearer ${accessToken}`
 
 const productData = await productRes.json();
 
+return NextResponse.json(productData);
+
+}
+catch(err){
+
 return NextResponse.json({
-products:productData.data || []
+error:"Qikink API failed"
 });
-
-}catch(err){
-
-return NextResponse.json({
-products:[]});
 
 }
 
