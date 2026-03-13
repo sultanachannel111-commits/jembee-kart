@@ -17,7 +17,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 330 81% 60%; /* Pink */
+    --primary: 330 81% 60%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 260 60% 96%;
@@ -80,7 +80,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: var(--admin-bg);
+    color: hsl(var(--foreground));
     font-family: ui-sans-serif, system-ui, sans-serif;
   }
 }
@@ -148,25 +149,24 @@ html {
   background: rgba(236, 72, 153, 0.5);
   border-radius: 10px;
 }
+
 /* ============================= */
-/*      ADMIN THEME CONTROL      */
+/*      ADMIN THEME CONTROL     */
 /* ============================= */
 
 :root{
---admin-bg:#ffffff;
---admin-header:#000000;
---admin-button:#e91e63;
-}
-
-body{
-background:var(--admin-bg);
+  --admin-bg:#ffffff;
+  --admin-header:#000000;
+  --admin-button:#e91e63;
 }
 
 .admin-header{
-background:var(--admin-header);
+  background:var(--admin-header);
 }
 
 .admin-btn{
-background:var(--admin-button);
-color:white;
+  background:var(--admin-button);
+  color:white;
+  border-radius:8px;
+  padding:8px 14px;
 }
