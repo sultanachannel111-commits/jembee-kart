@@ -50,21 +50,29 @@ try{
 
 const data = await getQikinkProducts();
 
-console.log("Qikink Products",data);
-
 if(Array.isArray(data)){
 
 const formatted = data.map((p:any)=>({
 
 id:p.id,
-name:p.title || p.name,
-price:p.price,
-image:p.image,
+name:p.name,
+price:p.retail_price || p.price,
+image:p.images?.[0]?.src || p.image,
 category:p.category || "Qikink"
 
 }));
 
-setProducts(prev=>[...prev,...formatted]);
+setProducts(prev=>{
+
+const merged=[...prev,...formatted];
+
+const unique=merged.filter(
+(v,i,a)=>a.findIndex(t=>t.id===v.id)===i
+);
+
+return unique;
+
+});
 
 }
 
@@ -105,7 +113,17 @@ id:d.id,
 ...d.data()
 }));
 
-setProducts(prev=>[...prev,...firestoreProducts]);
+setProducts(prev=>{
+
+const merged=[...prev,...firestoreProducts];
+
+const unique=merged.filter(
+(v,i,a)=>a.findIndex(t=>t.id===v.id)===i
+);
+
+return unique;
+
+});
 
 const trendingProducts = await getTrendingProducts();
 setTrending(trendingProducts);
@@ -178,14 +196,15 @@ return ()=>clearInterval(interval);
 
 },[festival]);
 
-const normalize = (text:string)=> text?.toLowerCase().replace(/\s|-/g,"");
+const normalize=(text:string)=>text?.toLowerCase().replace(/\s|-/g,"");
 
 const filteredProducts = products.filter((p:any)=>{
 
 const matchSearch = normalize(p.name || "").includes(normalize(search));
 
 const matchCategory =
-selectedCategory==="All" || p.category===selectedCategory;
+selectedCategory==="All" ||
+(p.category || "")===selectedCategory;
 
 return matchSearch && matchCategory;
 
