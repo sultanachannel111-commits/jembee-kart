@@ -1,36 +1,39 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 
 export async function GET() {
 
   try {
 
-    const res = await fetch("https://api.qikink.com/api/v1/products");
+    const res = await fetch("https://api.qikink.com/api/v1/products",{
+      method:"GET",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key": process.env.QIKINK_API_KEY || ""
+      }
+    });
 
     const data = await res.json();
 
-    const products = data.products || [];
+    const products = data.data || [];
 
     let count = 0;
 
-    for (const p of products) {
+    for(const p of products){
 
-      await addDoc(collection(db, "products"), {
+      await setDoc(doc(db,"products",String(p.id)),{
 
-        id: p.id,
-        name: p.name,
+        name: p.title || "Qikink Product",
 
-        price: p.retail_price || p.price || 0,
+        price: p.selling_price || 499,
 
         image:
-          p.images?.[0]?.src ||
-          p.image ||
-          "https://via.placeholder.com/300",
+        p.images?.[0]?.src ||
+        "https://via.placeholder.com/300",
 
-        category: p.category || "tshirt",
+        supplier:"qikink"
 
-        supplier: "qikink"
       });
 
       count++;
@@ -38,15 +41,15 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      message: "Products Imported",
+      message:"Products Imported",
       count
     });
 
-  } catch (err) {
+  } catch(e){
 
     return NextResponse.json({
-      error: "Import Failed",
-      details: err
+      error:"Import Failed",
+      details:String(e)
     });
 
   }
