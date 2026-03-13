@@ -33,6 +33,13 @@ export async function POST(req: NextRequest) {
     const order: any = snap.data();
     const { product, customer, paymentMethod } = order;
 
+    if (!product || !customer) {
+      return NextResponse.json(
+        { success: false, error: "Product or customer data missing" },
+        { status: 400 }
+      );
+    }
+
     /* ==========================
        GET QIKINK TOKEN
     ========================== */
