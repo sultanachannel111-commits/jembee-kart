@@ -59,7 +59,13 @@ export default function CartPage() {
     await deleteDoc(doc(db, "cart", user.uid, "items", id));
   };
 
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const total = items.reduce(
+(sum, i) =>
+sum +
+(i.sellPrice || i.price || 0) *
+(i.quantity || 1),
+0
+);
 
   return (
     <div className="p-6 pt-[100px]">
@@ -79,12 +85,23 @@ export default function CartPage() {
 
       <h2>Total: ₹{total}</h2>
 
-      <button
-        onClick={() => router.push("/checkout")}
-        className="bg-black text-white px-6 py-3 rounded mt-4"
-      >
-        Checkout
-      </button>
+     <button
+onClick={() => {
+
+if(items.length === 0){
+alert("Cart is empty");
+return;
+}
+
+const item = items[0];
+
+router.push(`/checkout?productId=${item.productId || item.id}`);
+
+}}
+className="bg-black text-white px-6 py-3 rounded mt-4"
+>
+Checkout
+</button> 
     </div>
   );
 }
