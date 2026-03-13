@@ -35,10 +35,21 @@ const fetchProduct = async()=>{
 
 if(!productId) return;
 
+try{
+
 const snap = await getDoc(doc(db,"products",productId));
 
 if(snap.exists()){
-setProduct({id:snap.id,...snap.data()});
+
+setProduct({
+id:snap.id,
+...snap.data()
+});
+
+}
+
+}catch(err){
+console.log("Product load error",err);
 }
 
 };
@@ -59,7 +70,10 @@ if(pincode.length === 6){
 
 try{
 
-const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+const res = await fetch(
+`https://api.postalpincode.in/pincode/${pincode}`
+);
+
 const data = await res.json();
 
 if(data[0].Status === "Success"){
@@ -75,10 +89,55 @@ state:office.State
 }
 
 }catch(err){
-console.log(err);
+console.log("Pincode error",err);
 }
 
 }
+
+};
+
+/* =========================
+VALIDATION
+========================= */
+
+const validateCustomer = ()=>{
+
+if(!customer.firstName){
+alert("Enter First Name");
+return false;
+}
+
+if(!customer.address){
+alert("Enter Address");
+return false;
+}
+
+if(!customer.city){
+alert("Enter City");
+return false;
+}
+
+if(!customer.state){
+alert("Enter State");
+return false;
+}
+
+if(!customer.zip){
+alert("Enter Pincode");
+return false;
+}
+
+if(!customer.phone || customer.phone.length !== 10){
+alert("Enter valid phone number");
+return false;
+}
+
+if(!customer.email){
+alert("Enter Email");
+return false;
+}
+
+return true;
 
 };
 
@@ -88,10 +147,7 @@ PAYMENT
 
 const placeOrder = async()=>{
 
-if(!customer.phone){
-alert("Enter phone number");
-return;
-}
+if(!validateCustomer()) return;
 
 if(!product){
 alert("Product not loaded");
@@ -103,14 +159,39 @@ setLoading(true);
 try{
 
 const res = await fetch("/api/cashfree/create-order",{
+
 method:"POST",
+
 headers:{
 "Content-Type":"application/json"
 },
+
 body:JSON.stringify({
+
 amount:product.sellPrice || product.price,
+
+product:{
+
+id:product.id,
+
+name:product.name,
+
+sku:product.sku,
+
+printTypeId:product.printTypeId,
+
+designLink:product.designLink,
+
+mockupLink:product.mockupLink,
+
+sellingPrice:product.sellPrice || product.price
+
+},
+
 customer
+
 })
+
 });
 
 const data = await res.json();
@@ -127,8 +208,11 @@ mode:"production"
 });
 
 cashfree.checkout({
+
 paymentSessionId:data.payment_session_id,
+
 redirectTarget:"_self"
+
 });
 
 }catch(err){
@@ -145,11 +229,15 @@ UI
 ========================= */
 
 if(!product){
+
 return(
+
 <div className="p-10 text-center">
 Loading product...
 </div>
+
 );
+
 }
 
 return(
@@ -160,11 +248,17 @@ return(
 Checkout
 </h1>
 
-{/* PRODUCT INFO */}
+
+{/* PRODUCT CARD */}
 
 <div className="bg-white p-4 rounded-xl shadow mb-6">
 
-<h2 className="font-semibold">
+<img
+src={product.image}
+className="w-full h-48 object-cover rounded-lg mb-3"
+/>
+
+<h2 className="font-semibold text-lg">
 {product.name}
 </h2>
 
@@ -174,64 +268,93 @@ Checkout
 
 </div>
 
+
+{/* CUSTOMER FORM */}
+
 <div className="space-y-4">
 
 <input
 placeholder="First Name"
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+value={customer.firstName}
+onChange={(e)=>
+setCustomer({...customer,firstName:e.target.value})
+}
 />
 
 <input
 placeholder="Last Name"
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+value={customer.lastName}
+onChange={(e)=>
+setCustomer({...customer,lastName:e.target.value})
+}
 />
 
 <textarea
 placeholder="Full Address"
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+value={customer.address}
+onChange={(e)=>
+setCustomer({...customer,address:e.target.value})
+}
 />
 
 <input
 placeholder="Pin Code"
 className="border p-3 w-full rounded"
+value={customer.zip}
 onChange={(e)=>handlePincode(e.target.value)}
 />
 
 <input
 placeholder="City"
-value={customer.city}
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+value={customer.city}
+onChange={(e)=>
+setCustomer({...customer,city:e.target.value})
+}
 />
 
 <input
 placeholder="State"
-value={customer.state}
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+value={customer.state}
+onChange={(e)=>
+setCustomer({...customer,state:e.target.value})
+}
 />
 
 <input
 placeholder="Phone Number"
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+value={customer.phone}
+onChange={(e)=>
+setCustomer({...customer,phone:e.target.value})
+}
 />
 
 <input
 placeholder="Email Address"
 className="border p-3 w-full rounded"
-onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+value={customer.email}
+onChange={(e)=>
+setCustomer({...customer,email:e.target.value})
+}
 />
+
+
+{/* PAYMENT BUTTON */}
 
 <button
 onClick={placeOrder}
-className="bg-pink-500 text-white px-6 py-3 rounded w-full"
+className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded w-full"
 >
 
-{loading ? "Processing Payment..." : `Pay ₹${product.sellPrice || product.price}`}
+{loading
+? "Processing Payment..."
+: `Pay ₹${product.sellPrice || product.price}`
+}
 
 </button>
 
