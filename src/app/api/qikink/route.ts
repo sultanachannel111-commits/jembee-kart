@@ -7,14 +7,14 @@ export async function GET() {
     const tokenRes = await fetch(
       "https://api.qikink.com/api/v1/oauth/token",
       {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/x-www-form-urlencoded"
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
         },
-        body:new URLSearchParams({
-          client_id:process.env.QIKINK_CLIENT_ID || "",
-          client_secret:process.env.QIKINK_CLIENT_SECRET || "",
-          grant_type:"client_credentials"
+        body: new URLSearchParams({
+          client_id: process.env.QIKINK_CLIENT_ID || "",
+          client_secret: process.env.QIKINK_CLIENT_SECRET || "",
+          grant_type: "client_credentials"
         })
       }
     );
@@ -26,8 +26,8 @@ export async function GET() {
     const res = await fetch(
       "https://api.qikink.com/api/v1/catalog/designs",
       {
-        headers:{
-          Authorization:`Bearer ${token}`
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       }
     );
