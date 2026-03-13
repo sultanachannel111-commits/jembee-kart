@@ -237,9 +237,7 @@ Product: {order.productName}
 {/* PRICE */}
 
 <p className="text-pink-600 font-bold">
-
-₹{order.price || order.amount || order.productDetails?.price || order.products?.[0]?.price}
-
+₹{order.price ?? order.amount ?? order.productDetails?.price ?? order.products?.[0]?.price ?? 0}
 </p>
 
 
