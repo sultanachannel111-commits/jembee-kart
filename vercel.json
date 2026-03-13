@@ -1,8 +1,0 @@
-{
-  "cron": [
-    {
-      "path": "/api/qikink-sync",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
