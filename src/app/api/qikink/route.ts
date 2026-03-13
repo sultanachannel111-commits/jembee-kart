@@ -34,7 +34,7 @@ return NextResponse.json({ products: [] });
 
 // STEP 2 - PRODUCTS
 const productRes = await fetch(
-"https://api.qikink.com/api/v1/catalog/products",
+"https://api.qikink.com/api/v1/catalog",
 {
 headers: {
 Authorization: `Bearer ${accessToken}`
