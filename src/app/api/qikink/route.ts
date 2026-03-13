@@ -1,55 +1,53 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 export async function GET() {
+  try {
 
-const CLIENT_ID = "827265200202480";
-const CLIENT_SECRET = "4216a1ee1ef57511ef9bf2d6c4cd83689a84e4a9881d50b301c347f42354dcc7";
+    const res = await fetch("https://api.qikink.com/api/v1/catalog/designs", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
 
-try {
+    const data = await res.json();
 
-const tokenRes = await fetch(
-"https://api.qikink.com/api/v1/oauth/token",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-client_id:CLIENT_ID,
-client_secret:CLIENT_SECRET,
-grant_type:"client_credentials"
-})
-}
-);
+    const designs = data.data || [];
 
-const tokenData = await tokenRes.json();
-const accessToken = tokenData.access_token;
+    let count = 0;
 
+    for (const d of designs) {
 
-// TEST ENDPOINT
-const res = await fetch(
-"https://api.qikink.com/api/v1/products",
-{
-headers:{
-Authorization:`Bearer ${accessToken}`
-}
-}
-);
+      await addDoc(collection(db, "products"), {
+        qikink_id: d.id,
 
-const data = await res.json();
+        name: d.title || "Qikink Product",
 
-return NextResponse.json({
-token:tokenData,
-api:data
-});
+        price: 499,
 
-}
-catch(error){
+        image:
+          d.design_images?.[0]?.image_url ||
+          "https://via.placeholder.com/300",
 
-return NextResponse.json({
-error:"API FAILED"
-});
+        supplier: "qikink"
+      });
 
-}
+      count++;
+    }
 
+    return NextResponse.json({
+      message: "Products Imported",
+      count
+    });
+
+  } catch (error) {
+
+    return NextResponse.json({
+      error: "Import failed",
+      details: error
+    });
+
+  }
 }
