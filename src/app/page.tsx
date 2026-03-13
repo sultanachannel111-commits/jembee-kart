@@ -1,59 +1,86 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-export default function HomePage(){
+export default function HomePage() {
 
-const [products,setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-useEffect(()=>{
+  const loadProducts = async () => {
+    try {
 
-loadProducts();
+      const snap = await getDocs(collection(db, "products"));
 
-},[]);
+      const list = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-const loadProducts = async ()=>{
+      setProducts(list);
+      setLoading(false);
 
-try{
+    } catch (error) {
+      console.log("Error loading products:", error);
+    }
+  };
 
-const res = await fetch("/api/qikink");
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
-const data = await res.json();
+  return (
+    <div style={{ padding: "20px" }}>
 
-alert("API RESPONSE: " + JSON.stringify(data));
+      <h1 style={{ fontSize: "28px", fontWeight: "bold" }}>
+        JembeeKart Products
+      </h1>
 
-setProducts(data.products || []);
+      {loading && <p>Loading products...</p>}
 
-}catch(err){
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2,1fr)",
+          gap: "20px",
+          marginTop: "20px"
+        }}
+      >
 
-alert("API ERROR");
+        {products.map((p: any) => (
+          <div
+            key={p.id}
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: "10px",
+              padding: "10px",
+              background: "#fff"
+            }}
+          >
 
-}
+            <img
+              src={p.image}
+              style={{
+                width: "100%",
+                borderRadius: "8px"
+              }}
+            />
 
-};
+            <h3 style={{ fontSize: "16px", marginTop: "10px" }}>
+              {p.name}
+            </h3>
 
-return(
+            <p style={{ fontWeight: "bold" }}>
+              ₹{p.price}
+            </p>
 
-<div style={{padding:"20px"}}>
+          </div>
+        ))}
 
-<h1>Qikink Product Test</h1>
+      </div>
 
-{products.length===0 && <p>No products found</p>}
-
-{products.map((p:any)=>(
-<div key={p.id} style={{border:"1px solid #ccc",margin:"10px",padding:"10px"}}>
-
-<img src={p.image} width="120"/>
-
-<h3>{p.name}</h3>
-
-<p>₹ {p.price}</p>
-
-</div>
-))}
-
-</div>
-
-);
-
+    </div>
+  );
 }
