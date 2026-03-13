@@ -10,27 +10,27 @@ export async function GET() {
     const tokenRes = await fetch(
       "https://api.qikink.com/api/v1/oauth/token",
       {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
         },
-        body:JSON.stringify({
-          client_id:process.env.QIKINK_CLIENT_ID,
-          client_secret:process.env.QIKINK_CLIENT_SECRET,
-          grant_type:"client_credentials"
+        body: new URLSearchParams({
+          client_id: process.env.QIKINK_CLIENT_ID || "",
+          client_secret: process.env.QIKINK_CLIENT_SECRET || "",
+          grant_type: "client_credentials"
         })
       }
     );
 
     const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
+    const token = tokenData.access_token;
 
     // STEP 2 GET DESIGNS
     const res = await fetch(
       "https://api.qikink.com/api/v1/catalog/designs",
       {
-        headers:{
-          Authorization:`Bearer ${accessToken}`
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       }
     );
@@ -41,20 +41,15 @@ export async function GET() {
 
     let count = 0;
 
-    for(const d of designs){
+    for (const d of designs) {
 
       await setDoc(doc(db,"products",String(d.id)),{
-
         name:d.title || "Qikink Product",
-
         price:499,
-
         image:
         d.design_images?.[0]?.image_url ||
         "https://via.placeholder.com/300",
-
         supplier:"qikink"
-
       });
 
       count++;
@@ -66,7 +61,7 @@ export async function GET() {
       count
     });
 
-  } catch(e){
+  } catch (e) {
 
     return NextResponse.json({
       error:"Import Failed",
