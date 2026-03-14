@@ -38,6 +38,12 @@ const [apiErrors,setApiErrors]=useState<any[]>([])
 const [searchIssue,setSearchIssue]=useState("")
 const [paymentIssue,setPaymentIssue]=useState("")
 
+/* PAGE + THEME */
+
+const [themeStatus,setThemeStatus]=useState("Checking")
+const [themeIssue,setThemeIssue]=useState("")
+const [pageIssues,setPageIssues]=useState<any[]>([])
+
 /* SYSTEM */
 
 const [searchAccuracy,setSearchAccuracy]=useState("Checking")
@@ -90,6 +96,7 @@ let securityErr=0
 
 let brokenList:any[]=[]
 let apiErrorList:any[]=[]
+let pageErrorList:any[]=[]
 
 try{
 
@@ -135,7 +142,6 @@ broken++
 
 brokenList.push({
 product:data.name,
-image:data.image,
 folder:"/src/components/products"
 })
 
@@ -190,7 +196,7 @@ const res=await fetch("/api/payment-test")
 if(!res.ok){
 
 setPaymentStatus("Error")
-setPaymentIssue("Check API → /src/app/api/payment-test/route.ts")
+setPaymentIssue("/src/app/api/payment-test/route.ts")
 
 apiErrorList.push("Payment API failed")
 
@@ -203,7 +209,7 @@ setPaymentStatus("OK")
 }catch{
 
 setPaymentStatus("Error")
-setPaymentIssue("API Missing → /src/app/api/payment-test")
+setPaymentIssue("Payment API missing")
 
 }
 
@@ -216,7 +222,7 @@ const res=await fetch("/api/qikink-test")
 if(!res.ok){
 
 setQikinkStatus("API Error")
-apiErrorList.push("Qikink API error → /src/lib/qikink.ts")
+apiErrorList.push("Qikink error → /src/lib/qikink.ts")
 
 }else{
 
@@ -232,6 +238,75 @@ apiErrorList.push("Qikink API missing")
 }
 
 setApiErrors(apiErrorList)
+
+/* THEME CHECK */
+
+try{
+
+const themeRes=await fetch("/api/theme")
+
+if(!themeRes.ok){
+
+setThemeStatus("Error")
+setThemeIssue("/src/app/api/theme/route.ts")
+
+}else{
+
+const themeData=await themeRes.json()
+
+if(!themeData.primaryColor){
+
+setThemeStatus("Invalid")
+setThemeIssue("Firestore settings/theme missing")
+
+}else{
+
+setThemeStatus("Working")
+
+}
+
+}
+
+}catch{
+
+setThemeStatus("Theme API Missing")
+setThemeIssue("/src/app/api/theme")
+
+}
+
+/* PAGE SCAN */
+
+const pages=[
+"/",
+"/products",
+"/cart",
+"/checkout",
+"/admin",
+"/admin/products",
+"/admin/orders"
+]
+
+for(const p of pages){
+
+try{
+
+const res=await fetch(p)
+
+if(!res.ok){
+
+pageErrorList.push("Page error → "+p)
+
+}
+
+}catch{
+
+pageErrorList.push("Page not reachable → "+p)
+
+}
+
+}
+
+setPageIssues(pageErrorList)
 
 /* SEO */
 
@@ -255,7 +330,7 @@ securityErr++
 
 setSecurityIssues(securityErr)
 
-/* SPEED TEST */
+/* SPEED */
 
 const nav=performance.getEntriesByType("navigation")[0] as any
 
@@ -275,17 +350,13 @@ setSpeedStatus("Fast ("+loadTime+"ms)")
 
 let issues=[]
 
-if(missing>0) issues.push("Missing images → /src/components/products")
-if(fake>0) issues.push("Fake orders → /src/app/admin/orders")
-if(broken>0) issues.push("Broken product images → /public/products")
-if(dbTime>2000) issues.push("Slow database → Firestore")
-if(apiErrorList.length>0) issues.push("API errors detected")
+if(missing>0) issues.push("Missing images")
+if(fake>0) issues.push("Fake orders")
+if(broken>0) issues.push("Broken images")
+if(dbTime>2000) issues.push("Slow database")
+if(apiErrorList.length>0) issues.push("API errors")
 
-if(issues.length===0){
-setAiBug("No Issues Detected")
-}else{
 setAiBug(issues.join(", "))
-}
 
 /* HEALTH SCORE */
 
@@ -342,50 +413,11 @@ image:"https://via.placeholder.com/400"
 
 }
 
-if(!data.searchIndex){
-
-await updateDoc(doc(db,"products",p.id),{
-searchIndex:(data.name||"").toLowerCase()
-})
-
-}
-
 }
 
 alert("AI Auto Fix Completed")
 
 runDiagnostics()
-
-}
-
-/* SPEED OPTIMIZER */
-
-function speedOptimize(){
-
-document.querySelectorAll("img").forEach((img:any)=>{
-img.loading="lazy"
-})
-
-alert("Website Speed Optimized")
-
-}
-
-/* TELEGRAM ALERT */
-
-async function sendTelegramAlert(){
-
-await fetch("/api/telegram-alert",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-message:
-"🚨 JembeeKart Bug Alert\n\n"+
-"Health Score: "+healthScore+"\n"+
-"Problems: "+aiBug
-})
-})
-
-alert("Telegram alert sent")
 
 }
 
@@ -411,132 +443,21 @@ JembeeKart AI Diagnostics Dashboard
 AI Health Score : {healthScore} / 100
 </div>
 
-<div className="grid grid-cols-2 gap-4">
-
 <div className="bg-white p-4 rounded shadow">
-Products : {products}
+Theme System : {themeStatus}
 </div>
 
-<div className="bg-white p-4 rounded shadow">
-Orders : {orders}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Sellers : {sellers}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Categories : {categories}
-</div>
-
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Database Performance : {dbPerformance}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Website Speed : {speedStatus}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Missing Images : {missingImages}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Broken Images : {brokenImages}
-</div>
-
-{brokenImageList.map((b,i)=>(
-<div key={i} className="bg-red-100 p-3 rounded">
-Broken Product : {b.product} <br/>
-Folder : {b.folder}
-</div>
-))}
-
-<div className="bg-white p-4 rounded shadow">
-Fake Orders : {fakeOrders}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Search Accuracy : {searchAccuracy}
-</div>
-
-{searchIssue && (
+{themeIssue && (
 <div className="bg-red-100 p-3 rounded">
-Search Issue : {searchIssue}
+Theme Issue : {themeIssue}
 </div>
 )}
 
-<div className="bg-white p-4 rounded shadow">
-Payment Gateway : {paymentStatus}
-</div>
-
-{paymentIssue && (
-<div className="bg-red-100 p-3 rounded">
-Payment Issue : {paymentIssue}
-</div>
-)}
-
-<div className="bg-white p-4 rounded shadow">
-Qikink API : {qikinkStatus}
-</div>
-
-{apiErrors.map((a,i)=>(
+{pageIssues.map((p,i)=>(
 <div key={i} className="bg-red-100 p-3 rounded">
-API Error : {a}
+Page Issue : {p}
 </div>
 ))}
-
-<div className="bg-yellow-100 p-4 rounded shadow">
-AI Bug Detection : {aiBug}
-</div>
-
-<div className="bg-white p-6 rounded shadow h-64">
-
-<ResponsiveContainer width="100%" height="100%">
-<LineChart data={chartData}>
-<CartesianGrid strokeDasharray="3 3"/>
-<XAxis dataKey="name"/>
-<YAxis/>
-<Tooltip/>
-<Line type="monotone" dataKey="value" stroke="#ec4899"/>
-</LineChart>
-</ResponsiveContainer>
-
-</div>
-
-<div className="flex flex-wrap gap-3">
-
-<button
-onClick={runDiagnostics}
-className="bg-pink-600 text-white px-4 py-2 rounded"
->
-Run Diagnostics
-</button>
-
-<button
-onClick={autoAIFix}
-className="bg-green-600 text-white px-4 py-2 rounded"
->
-Auto AI Fix
-</button>
-
-<button
-onClick={speedOptimize}
-className="bg-blue-600 text-white px-4 py-2 rounded"
->
-Speed Optimize
-</button>
-
-<button
-onClick={sendTelegramAlert}
-className="bg-red-600 text-white px-4 py-2 rounded"
->
-Send Bug Alert
-</button>
-
-</div>
 
 </div>
 
