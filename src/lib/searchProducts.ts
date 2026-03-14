@@ -4,20 +4,31 @@ import { correctSearch } from "./typoCorrect";
 
 export async function searchProducts(query: string) {
 
-const fixedQuery = correctSearch(query);
+  if (!query) return [];
 
-const snapshot = await getDocs(collection(db,"products"));
+  const fixedQuery = correctSearch(query).toLowerCase();
 
-const products = snapshot.docs.map(doc => ({
-id: doc.id,
-...doc.data()
-}));
+  const snapshot = await getDocs(collection(db, "products"));
 
-const filtered = products.filter((p:any)=>
-p.name?.toLowerCase().includes(fixedQuery) ||
-p.category?.toLowerCase().includes(fixedQuery)
-);
+  const products = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data()
+  })) as any[];
 
-return filtered;
+  const filtered = products.filter((p: any) => {
 
+    const name =
+      (p.name || p.title || p.productName || "").toLowerCase();
+
+    const category =
+      (p.category || "").toLowerCase();
+
+    return (
+      name.includes(fixedQuery) ||
+      category.includes(fixedQuery)
+    );
+
+  });
+
+  return filtered;
 }
