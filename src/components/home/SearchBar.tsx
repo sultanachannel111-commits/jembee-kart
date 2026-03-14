@@ -7,84 +7,115 @@ import { trendingSearch } from "@/lib/trendingSearch";
 import { startVoiceSearch } from "@/lib/voiceSearch";
 
 type Props = {
-setProducts: (data:any)=>void;
+  setProducts: (data: any) => void;
 };
 
-export default function SearchBar({setProducts}:Props){
+export default function SearchBar({ setProducts }: Props) {
 
-const [search,setSearch] = useState("");
-const [suggestions,setSuggestions] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
-const handleChange = async(value:string)=>{
+  /* =========================
+     SEARCH FUNCTION
+  ========================= */
 
-setSearch(value);
+  const runSearch = async (value: string) => {
 
-if(!value){
-setSuggestions(trendingSearch);
-return;
-}
+    if (!value) {
+      setSuggestions(trendingSearch);
+      return;
+    }
 
-const filtered = trendingSearch.filter(item =>
-item.toLowerCase().includes(value.toLowerCase())
-);
+    const filtered = trendingSearch.filter((item) =>
+      item.toLowerCase().includes(value.toLowerCase())
+    );
 
-setSuggestions(filtered);
+    setSuggestions(filtered);
 
-const results = await searchProducts(value);
+    const results = await searchProducts(value);
 
-setProducts(results);
+    setProducts(results);
+  };
 
-};
+  /* =========================
+     INPUT CHANGE
+  ========================= */
 
-return(
+  const handleChange = async (value: string) => {
 
-<div className="relative">
+    setSearch(value);
 
-<div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
+    // typing करते ही search
+    runSearch(value);
 
-<Search size={18}/>
+  };
 
-<input
-value={search}
-onChange={(e)=>handleChange(e.target.value)}
-placeholder="Search products..."
-className="flex-1 outline-none text-sm"
-/>
+  /* =========================
+     VOICE SEARCH
+  ========================= */
 
-<Mic
-size={20}
-onClick={()=>startVoiceSearch(setSearch)}
-className="cursor-pointer text-gray-600"
-/>
+  const handleVoice = () => {
 
-</div>
+    startVoiceSearch((voiceText: string) => {
 
-{/* Suggestions */}
+      setSearch(voiceText);
 
-{suggestions.length>0 && (
+      // voice आते ही search
+      runSearch(voiceText);
 
-<div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
+    });
 
-{suggestions.map((item,i)=>(
+  };
 
-<div
-key={i}
-className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-onClick={()=>handleChange(item)}
->
+  return (
 
-{item}
+    <div className="relative">
 
-</div>
+      <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
 
-))}
+        <Search size={18} />
 
-</div>
+        <input
+          value={search}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder="Search products..."
+          className="flex-1 outline-none text-sm"
+        />
 
-)}
+        <Mic
+          size={20}
+          onClick={handleVoice}
+          className="cursor-pointer text-gray-600"
+        />
 
-</div>
+      </div>
 
-);
+      {/* Suggestions */}
+
+      {suggestions.length > 0 && (
+
+        <div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
+
+          {suggestions.map((item, i) => (
+
+            <div
+              key={i}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+              onClick={() => handleChange(item)}
+            >
+
+              {item}
+
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
+
+    </div>
+
+  );
 
 }
