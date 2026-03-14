@@ -30,8 +30,6 @@ export default function SearchBar({ setProducts }: Props) {
 
     const results = await searchProducts(value);
 
-    console.log("Search Results:", results);
-
     setProducts(results);
 
   };
