@@ -15,18 +15,10 @@ export default function SearchBar({ setProducts }: Props) {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  /* =========================
-     SEARCH FUNCTION
-  ========================= */
-
   const runSearch = async (value: string) => {
 
-    if (!value) {
+    if (!value.trim()) {
       setSuggestions(trendingSearch);
-
-      const results = await searchProducts("");
-      setProducts(results);
-
       return;
     }
 
@@ -38,25 +30,19 @@ export default function SearchBar({ setProducts }: Props) {
 
     const results = await searchProducts(value);
 
+    console.log("Search Results:", results);
+
     setProducts(results);
 
   };
-
-  /* =========================
-     INPUT CHANGE
-  ========================= */
 
   const handleChange = async (value: string) => {
 
     setSearch(value);
 
-    await runSearch(value);
+    runSearch(value);
 
   };
-
-  /* =========================
-     VOICE SEARCH
-  ========================= */
 
   const handleVoice = () => {
 
@@ -64,7 +50,7 @@ export default function SearchBar({ setProducts }: Props) {
 
       setSearch(voiceText);
 
-      await runSearch(voiceText);
+      runSearch(voiceText);
 
     });
 
