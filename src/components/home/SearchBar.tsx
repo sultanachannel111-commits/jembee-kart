@@ -2,100 +2,89 @@
 
 import { useState } from "react";
 import { Search, Mic } from "lucide-react";
+import { searchProducts } from "@/lib/searchProducts";
+import { trendingSearch } from "@/lib/trendingSearch";
+import { startVoiceSearch } from "@/lib/voiceSearch";
 
 type Props = {
-  search: string;
-  setSearch: (value: string) => void;
-  startVoice: () => void;
+setProducts: (data:any)=>void;
 };
 
-export default function SearchBar({
-  search,
-  setSearch,
-  startVoice
-}: Props) {
+export default function SearchBar({setProducts}:Props){
 
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+const [search,setSearch] = useState("");
+const [suggestions,setSuggestions] = useState<string[]>([]);
 
-  const baseSuggestions = [
-    "t shirt",
-    "black t shirt",
-    "white t shirt",
-    "t shirt m size",
-    "t shirt l size",
-    "t shirt xl size",
-    "oversize t shirt",
-    "kids t shirt",
-    "black hoodie",
-    "hoodie"
-  ];
+const handleChange = async(value:string)=>{
 
-  const handleChange = (value: string) => {
+setSearch(value);
 
-    setSearch(value);
+if(!value){
+setSuggestions(trendingSearch);
+return;
+}
 
-    if (!value) {
-      setSuggestions([]);
-      return;
-    }
+const filtered = trendingSearch.filter(item =>
+item.toLowerCase().includes(value.toLowerCase())
+);
 
-    const filtered = baseSuggestions.filter((item) =>
-      item.toLowerCase().includes(value.toLowerCase())
-    );
+setSuggestions(filtered);
 
-    setSuggestions(filtered);
-  };
+const results = await searchProducts(value);
 
-  return (
+setProducts(results);
 
-    <div className="relative">
+};
 
-      {/* Search Bar */}
-      <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
+return(
 
-        <Search size={18} />
+<div className="relative">
 
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={search}
-          onChange={(e) => handleChange(e.target.value)}
-          className="flex-1 outline-none text-sm"
-        />
+<div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
 
-        <Mic
-          size={20}
-          onClick={startVoice}
-          className="cursor-pointer text-gray-600 hover:text-black"
-        />
+<Search size={18}/>
 
-      </div>
+<input
+value={search}
+onChange={(e)=>handleChange(e.target.value)}
+placeholder="Search products..."
+className="flex-1 outline-none text-sm"
+/>
 
-      {/* Suggestions */}
-      {suggestions.length > 0 && (
+<Mic
+size={20}
+onClick={()=>startVoiceSearch(setSearch)}
+className="cursor-pointer text-gray-600"
+/>
 
-        <div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
+</div>
 
-          {suggestions.map((item, i) => (
+{/* Suggestions */}
 
-            <div
-              key={i}
-              onClick={() => {
-                setSearch(item);
-                setSuggestions([]);
-              }}
-              className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-            >
-              {item}
-            </div>
+{suggestions.length>0 && (
 
-          ))}
+<div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
 
-        </div>
+{suggestions.map((item,i)=>(
 
-      )}
+<div
+key={i}
+className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+onClick={()=>handleChange(item)}
+>
 
-    </div>
+{item}
 
-  );
+</div>
+
+))}
+
+</div>
+
+)}
+
+</div>
+
+);
+
 }
