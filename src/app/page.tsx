@@ -7,6 +7,7 @@ import ProductGrid from "@/components/home/ProductGrid";
 import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
 import FlashSale from "@/components/home/FlashSale";
+import { correctSearch } from "@/lib/typoCorrect";
 import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
@@ -221,20 +222,36 @@ setLightning(lightningDeals);
   const normalize = (text: string) =>
     text?.toLowerCase().replace(/\s|-/g, "");
 
-  const filteredProducts = products.filter((p) => {
-    const matchSearch = normalize(p.name).includes(normalize(search));
-    const matchCategory =
-      selectedCategory === "All" || p.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
+  const fixedSearch = correctSearch(search);
+
+const filteredProducts = products.filter((p) => {
+
+  const matchSearch =
+    normalize(p.name).includes(normalize(fixedSearch));
+
+  const matchCategory =
+    selectedCategory === "All" || p.category === selectedCategory;
+
+  return matchSearch && matchCategory;
+
+});
 
   useEffect(() => {
-    if (!search) return setSuggestions([]);
-    const matches = products.filter((p) =>
-      normalize(p.name).includes(normalize(search))
-    );
-    setSuggestions(matches.slice(0, 5));
-  }, [search]);
+
+  if (!search) {
+    setSuggestions([]);
+    return;
+  }
+
+  const fixedSearch = correctSearch(search);
+
+  const matches = products.filter((p) =>
+    normalize(p.name).includes(normalize(fixedSearch))
+  );
+
+  setSuggestions(matches.slice(0, 5));
+
+}, [search, products]);
 
   const startVoice = () => {
 
