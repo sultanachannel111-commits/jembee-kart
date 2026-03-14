@@ -24,7 +24,7 @@ import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 
-export default function HomePage(){
+export default function HomePage() {
 
 const { cartCount } = useCart();
 const { user } = useAuth();
@@ -32,21 +32,20 @@ const { user } = useAuth();
 const [categories,setCategories] = useState<any[]>([]);
 const [banners,setBanners] = useState<any[]>([]);
 const [products,setProducts] = useState<any[]>([]);
-const [filteredProducts,setFilteredProducts] = useState<any[]>([]);
 
 const [festival,setFestival] = useState<any>(null);
 
+const [slide,setSlide] = useState(0);
+
 const [search,setSearch] = useState("");
 const [selectedCategory,setSelectedCategory] = useState("All");
+
+const [timeLeft,setTimeLeft] = useState<any>(null);
 
 const [trending,setTrending] = useState<any[]>([]);
 const [clearance,setClearance] = useState<any[]>([]);
 const [recommended,setRecommended] = useState<any[]>([]);
 const [lightning,setLightning] = useState<any[]>([]);
-
-const [question,setQuestion] = useState("");
-const [answer,setAnswer] = useState("");
-const [loadingAI,setLoadingAI] = useState(false);
 
 const trendingSearch = [
 "black tshirt",
@@ -58,7 +57,7 @@ const trendingSearch = [
 
 useEffect(()=>{
 loadData();
-},[])
+},[]);
 
 async function loadData(){
 
@@ -67,24 +66,24 @@ async function loadData(){
 const catSnap = await getDocs(collection(db,"qikinkCategories"));
 
 setCategories([
-{ id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
+{ id:"all", name:"All", image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
 ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
 ]);
 
-/* Banners */
+/* banners */
 
 const bannerSnap = await getDocs(collection(db,"banners"));
 setBanners(bannerSnap.docs.map(d=>({id:d.id,...d.data()})));
 
-/* Offers */
+/* offers */
 
 const offerSnap = await getDocs(collection(db,"offers"));
 
 const activeOffers = offerSnap.docs
 .map(d=>({id:d.id,...d.data()}))
-.filter((o:any)=>o.active && new Date(o.endDate).getTime() > new Date().getTime())
+.filter((o:any)=> o.active && new Date(o.endDate).getTime() > new Date().getTime());
 
-/* Firestore Products */
+/* firestore products */
 
 const productSnap = await getDocs(collection(db,"products"));
 
@@ -96,101 +95,168 @@ let price = Number(data.sellPrice || data.price || 0);
 
 let matchedOffer = activeOffers.find((o:any)=>{
 
-if(o.type==="product" && o.productId===d.id) return true;
+if(o.type === "product" && o.productId === d.id) return true;
 
-if(o.type==="category" && o.category?.toLowerCase()===data.category?.toLowerCase()) return true;
+if(
+o.type === "category" &&
+o.category?.toLowerCase() === data.category?.toLowerCase()
+) return true;
 
 return false;
 
-})
+});
 
 if(matchedOffer){
 
 const discount = Number(matchedOffer.discount);
-price = Math.round(price - (price*discount)/100)
+
+price = Math.round(price - (price * discount) / 100);
 
 }
 
-return{
+return {
 id:d.id,
 ...data,
 price
-}
+};
 
-})
+});
 
-/* Qikink */
+/* qikink */
 
 const qikinkProducts = await getQikinkProducts();
 
-/* Merge */
+/* merge */
 
-const allProducts = [...firestoreProducts,...qikinkProducts];
+setProducts([...firestoreProducts,...qikinkProducts]);
 
-setProducts(allProducts);
-setFilteredProducts(allProducts);
-
-/* Services */
+/* services */
 
 setTrending(await getTrendingProducts());
 setClearance(await getClearanceProducts());
 setRecommended(await getRecommendedProducts());
 setLightning(await getLightningDeals());
 
-/* Festival */
+/* festival */
 
 const festSnap = await getDoc(doc(db,"settings","festival"));
-if(festSnap.exists()) setFestival(festSnap.data());
+
+if(festSnap.exists()){
+setFestival(festSnap.data());
+}
+
+/* theme */
+
+const themeSnap = await getDoc(doc(db,"settings","theme"));
+
+if(themeSnap.exists()){
+
+const theme = themeSnap.data();
+
+document.documentElement.style.setProperty("--primary-color",theme.primaryColor);
+
+document.documentElement.style.setProperty("--secondary-color",theme.secondaryColor);
 
 }
 
-/* SMART SEARCH */
+}
+
+/* banner slider */
 
 useEffect(()=>{
 
-const fixedSearch = correctSearch(search);
+if(!banners.length) return;
 
-const normalize = (text:string)=>text?.toLowerCase().replace(/\s|-/g,"");
+const interval = setInterval(()=>{
 
-const result = products.filter(p=>{
+setSlide(prev => (prev+1)%banners.length)
 
-const name = normalize(p.name);
-const keyword = normalize(fixedSearch);
+},3000)
 
-const matchSearch = name.includes(keyword);
+return ()=>clearInterval(interval)
 
-const matchCategory =
-selectedCategory==="All" || p.category===selectedCategory;
+},[banners])
 
-return matchSearch && matchCategory;
+/* festival timer */
+
+useEffect(()=>{
+
+if(!festival?.endDate) return;
+
+const interval = setInterval(()=>{
+
+const diff = new Date(festival.endDate).getTime() - new Date().getTime();
+
+if(diff<=0){
+
+setTimeLeft(null)
+
+clearInterval(interval)
+
+}else{
+
+setTimeLeft({
+
+hours:Math.floor(diff/(1000*60*60)),
+
+minutes:Math.floor((diff/(1000*60))%60),
+
+seconds:Math.floor((diff/1000)%60)
 
 })
 
-setFilteredProducts(result)
+}
 
-},[search,selectedCategory,products])
+},1000)
 
-/* VOICE SEARCH */
+return ()=>clearInterval(interval)
+
+},[festival])
+
+/* search */
+
+const normalize = (text:string)=>
+text?.toLowerCase().replace(/\s|-/g,"")
+
+const fixedSearch = correctSearch(search)
+
+const filteredProducts = products.filter(p=>{
+
+const matchSearch = normalize(p.name).includes(normalize(fixedSearch))
+
+const matchCategory =
+selectedCategory === "All" ||
+p.category === selectedCategory
+
+return matchSearch && matchCategory
+
+})
+
+/* voice search */
 
 const startVoice = ()=>{
 
 const SpeechRecognition =
 (window as any).SpeechRecognition ||
-(window as any).webkitSpeechRecognition;
+(window as any).webkitSpeechRecognition
 
 if(!SpeechRecognition){
+
 alert("Voice search not supported")
+
 return
+
 }
 
-const recognition = new SpeechRecognition();
+const recognition = new SpeechRecognition()
 
-recognition.lang="en-IN";
-recognition.start();
+recognition.lang="en-IN"
+
+recognition.start()
 
 recognition.onresult=(e:any)=>{
 
-const transcript = e.results[0][0].transcript;
+const transcript = e.results[0][0].transcript
 
 setSearch(transcript)
 
@@ -198,128 +264,62 @@ setSearch(transcript)
 
 }
 
-/* AI ANSWER */
-
-const askAI = async()=>{
-
-if(!question) return;
-
-setLoadingAI(true)
-
-const res = await fetch("/api/ai-answer",{
-method:"POST",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({question})
-})
-
-const data = await res.json();
-
-setAnswer(data.answer);
-
-setLoadingAI(false)
-
-}
-
 return(
 
-<div className="bg-white min-h-screen">
+<div className="pb-20">
 
-<Header cartCount={cartCount}/>
+<Header cartCount={cartCount} />
 
-{/* SEARCH */}
-
-<div className="px-3 mt-2">
-
-<div className="flex items-center border rounded-md px-2 py-2">
-
-<input
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-placeholder="Search products..."
-className="flex-1 outline-none text-sm"
+<SearchBar
+search={search}
+setSearch={setSearch}
+startVoice={startVoice}
 />
 
-<button onClick={startVoice}>
-🎤
-</button>
-
-</div>
-
-</div>
-
-{/* TRENDING SEARCH */}
+{/* trending search */}
 
 {!search && (
 
-<div className="flex gap-2 px-3 mt-3 flex-wrap">
+<div className="px-4 mt-2 flex flex-wrap gap-2">
 
 {trendingSearch.map(item=>(
-
 <button
 key={item}
 onClick={()=>setSearch(item)}
-className="px-3 py-1 bg-gray-100 rounded text-xs"
+className="px-3 py-1 bg-gray-100 text-xs rounded-md"
 >
 
 {item}
 
 </button>
-
 ))}
 
 </div>
 
 )}
 
-{/* BANNER */}
-
-<BannerSlider banners={banners}/>
-
-{/* CATEGORY */}
+<BannerSlider banners={banners} slide={slide} />
 
 <CategoryList
 categories={categories}
 selected={selectedCategory}
-onSelect={setSelectedCategory}
+setSelected={setSelectedCategory}
 />
 
-{/* FLASH SALE */}
+{festival?.active && (
 
-<FlashSale products={lightning}/>
-
-{/* PRODUCTS */}
-
-<ProductGrid products={filteredProducts}/>
-
-{/* AI QUESTION */}
-
-<div className="p-3">
-
-<input
-placeholder="Ask about product..."
-value={question}
-onChange={(e)=>setQuestion(e.target.value)}
-className="border p-2 w-full rounded"
+<FestivalBanner
+festival={festival}
+timeLeft={timeLeft}
 />
 
-<button
-onClick={askAI}
-className="bg-black text-white px-4 py-2 mt-2 rounded"
->
-
-{loadingAI ? "Thinking..." : "Ask AI"}
-
-</button>
-
-{answer && (
-<div className="mt-3 text-sm bg-gray-100 p-2 rounded">
-{answer}
-</div>
 )}
 
-</div>
+<FlashSale products={lightning} />
 
-<BottomNav/>
+<ProductGrid products={filteredProducts} />
+
+<BottomNav />
 
 </div>
 
