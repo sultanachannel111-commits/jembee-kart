@@ -1,7 +1,9 @@
+*New diogonestic page* 
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { useEffect,useState } from "react";
+import { collection,getDocs,doc,updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import {
@@ -38,42 +40,30 @@ const [apiErrors,setApiErrors]=useState<any[]>([])
 const [searchIssue,setSearchIssue]=useState("")
 const [paymentIssue,setPaymentIssue]=useState("")
 
-/* THEME + PAGE */
-
-const [themeStatus,setThemeStatus]=useState("Checking")
-const [themeIssue,setThemeIssue]=useState("")
-const [pageIssues,setPageIssues]=useState<any[]>([])
-
-/* PROJECT */
-
-const [projectIssues,setProjectIssues]=useState<any[]>([])
-const [slowComponents,setSlowComponents]=useState<any[]>([])
-
 /* SYSTEM */
 
 const [searchAccuracy,setSearchAccuracy]=useState("Checking")
 const [paymentStatus,setPaymentStatus]=useState("Checking")
+const [qikinkStatus,setQikinkStatus]=useState("Checking")
 const [dbPerformance,setDbPerformance]=useState("Checking")
+
+const [seoIssues,setSeoIssues]=useState(0)
+const [securityIssues,setSecurityIssues]=useState(0)
+
+/* AI */
+
+const [aiBug,setAiBug]=useState("Analyzing")
+const [healthScore,setHealthScore]=useState(100)
 
 /* SPEED */
 
 const [speedStatus,setSpeedStatus]=useState("Checking")
 
-/* AI */
-
-const [aiBug,setAiBug]=useState("")
-const [healthScore,setHealthScore]=useState(100)
-
-/* GRAPH */
-
 const [chartData,setChartData]=useState<any[]>([])
 
 useEffect(()=>{
 runDiagnostics()
-autoSpeedOptimize()
 },[])
-
-/* IMAGE CHECK */
 
 function checkImage(url:string){
 
@@ -89,20 +79,6 @@ img.onerror=()=>resolve(false)
 
 }
 
-/* AUTO SPEED OPTIMIZER */
-
-function autoSpeedOptimize(){
-
-document.querySelectorAll("img").forEach((img:any)=>{
-img.loading="lazy"
-})
-
-console.log("⚡ Auto speed optimization enabled")
-
-}
-
-/* MAIN DIAGNOSTICS */
-
 async function runDiagnostics(){
 
 setLoading(true)
@@ -111,11 +87,10 @@ let missing=0
 let broken=0
 let fake=0
 let sellerCount=0
+let seoErr=0
+let securityErr=0
 
 let brokenList:any[]=[]
-let pageErrorList:any[]=[]
-let projectErrorList:any[]=[]
-let slowList:any[]=[]
 let apiErrorList:any[]=[]
 
 try{
@@ -151,9 +126,7 @@ for(const p of productsSnap.docs){
 const data=p.data()
 
 if(!data.image){
-
 missing++
-
 }else{
 
 const ok:any=await checkImage(data.image)
@@ -196,7 +169,7 @@ productsSnap.docs.forEach((p)=>{
 
 const name=(p.data().name||"").toLowerCase()
 
-if(name.includes("shirt")||name.includes("hoodie")){
+if(name.includes("tshirt")||name.includes("hoodie")){
 match++
 }
 
@@ -210,7 +183,7 @@ if(!searchInput){
 setSearchIssue("SearchBar missing → /src/components/home/SearchBar.tsx")
 }
 
-/* PAYMENT API */
+/* PAYMENT */
 
 try{
 
@@ -219,7 +192,8 @@ const res=await fetch("/api/payment-test")
 if(!res.ok){
 
 setPaymentStatus("Error")
-setPaymentIssue("/src/app/api/payment-test/route.ts")
+setPaymentIssue("Check API → /src/app/api/payment-test/route.ts")
+
 apiErrorList.push("Payment API failed")
 
 }else{
@@ -231,87 +205,59 @@ setPaymentStatus("OK")
 }catch{
 
 setPaymentStatus("Error")
-setPaymentIssue("Payment API missing")
+setPaymentIssue("API Missing → /src/app/api/payment-test")
 
 }
 
-/* PAGE SCAN */
-
-const pages=[
-"/",
-"/products",
-"/cart",
-"/checkout",
-"/admin",
-"/admin/products",
-"/admin/orders"
-]
-
-for(const p of pages){
+/* QIKINK */
 
 try{
 
-const res=await fetch(p)
+const res=await fetch("/api/qikink-test")
 
 if(!res.ok){
 
-pageErrorList.push("Page error → "+p)
-
-}
-
-}catch{
-
-pageErrorList.push("Page unreachable → "+p)
-
-}
-
-}
-
-setPageIssues(pageErrorList)
-
-/* THEME CHECK */
-
-try{
-
-const res=await fetch("/api/theme")
-
-if(!res.ok){
-
-setThemeStatus("Error")
-setThemeIssue("/src/app/api/theme/route.ts")
+setQikinkStatus("API Error")
+apiErrorList.push("Qikink API error → /src/lib/qikink.ts")
 
 }else{
 
-setThemeStatus("Working")
+setQikinkStatus("Connected")
 
 }
 
 }catch{
 
-setThemeStatus("Theme API Missing")
-setThemeIssue("/src/app/api/theme")
+setQikinkStatus("Connection Failed")
+apiErrorList.push("Qikink API missing")
 
 }
 
-/* PROJECT SCAN */
+setApiErrors(apiErrorList)
 
-const folders=[
-"/src/components",
-"/src/components/home",
-"/src/components/products",
-"/src/lib",
-"/src/app/api"
-]
+/* SEO */
 
-folders.forEach((f)=>{
-if(!f){
-projectErrorList.push("Missing folder → "+f)
+if(!document.title){
+seoErr++
+}
+
+document.querySelectorAll("img").forEach((img:any)=>{
+if(!img.alt){
+seoErr++
 }
 })
 
-setProjectIssues(projectErrorList)
+setSeoIssues(seoErr)
 
-/* SPEED */
+/* SECURITY */
+
+if(location.protocol!=="https:"){
+securityErr++
+}
+
+setSecurityIssues(securityErr)
+
+/* SPEED TEST */
 
 const nav=performance.getEntriesByType("navigation")[0] as any
 
@@ -319,31 +265,29 @@ if(nav){
 
 const loadTime=nav.loadEventEnd-nav.startTime
 
-if(loadTime>3000){
-
+if(loadTime>4000){
 setSpeedStatus("Slow ("+loadTime+"ms)")
-slowList.push("Homepage slow → optimize banner")
-
 }else{
-
 setSpeedStatus("Fast ("+loadTime+"ms)")
-
 }
 
 }
 
-setSlowComponents(slowList)
-
-/* AI BUG */
+/* AI BUG DETECTION */
 
 let issues=[]
 
-if(missing>0) issues.push("Missing images")
-if(broken>0) issues.push("Broken images")
-if(fake>0) issues.push("Fake orders")
-if(apiErrorList.length>0) issues.push("API errors")
+if(missing>0) issues.push("Missing images → /src/components/products")
+if(fake>0) issues.push("Fake orders → /src/app/admin/orders")
+if(broken>0) issues.push("Broken product images → /public/products")
+if(dbTime>2000) issues.push("Slow database → Firestore")
+if(apiErrorList.length>0) issues.push("API errors detected")
 
+if(issues.length===0){
+setAiBug("No Issues Detected")
+}else{
 setAiBug(issues.join(", "))
+}
 
 /* HEALTH SCORE */
 
@@ -351,7 +295,9 @@ let score=100
 
 if(broken>0) score-=10
 if(fake>0) score-=20
+if(dbTime>2000) score-=15
 if(apiErrorList.length>0) score-=20
+if(seoErr>0) score-=5
 
 if(score<0) score=0
 
@@ -398,6 +344,14 @@ image:"https://via.placeholder.com/400"
 
 }
 
+if(!data.searchIndex){
+
+await updateDoc(doc(db,"products",p.id),{
+searchIndex:(data.name||"").toLowerCase()
+})
+
+}
+
 }
 
 alert("AI Auto Fix Completed")
@@ -406,11 +360,42 @@ runDiagnostics()
 
 }
 
+/* SPEED OPTIMIZER */
+
+function speedOptimize(){
+
+document.querySelectorAll("img").forEach((img:any)=>{
+img.loading="lazy"
+})
+
+alert("Website Speed Optimized")
+
+}
+
+/* TELEGRAM ALERT */
+
+async function sendTelegramAlert(){
+
+await fetch("/api/telegram-alert",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+message:
+"🚨 JembeeKart Bug Alert\n\n"+
+"Health Score: "+healthScore+"\n"+
+"Problems: "+aiBug
+})
+})
+
+alert("Telegram alert sent")
+
+}
+
 if(loading){
 
 return(
 <div className="p-6">
-Running Diagnostics...
+Running AI Diagnostics...
 </div>
 )
 
@@ -421,16 +406,14 @@ return(
 <div className="p-6 space-y-6">
 
 <h1 className="text-3xl font-bold">
-JembeeKart AI Diagnostics
+JembeeKart AI Diagnostics Dashboard
 </h1>
 
 <div className="bg-green-100 p-4 rounded shadow">
 AI Health Score : {healthScore} / 100
 </div>
 
-<div className="bg-white p-4 rounded shadow">
-Website Speed : {speedStatus}
-</div>
+<div className="grid grid-cols-2 gap-4">
 
 <div className="bg-white p-4 rounded shadow">
 Products : {products}
@@ -445,15 +428,50 @@ Sellers : {sellers}
 </div>
 
 <div className="bg-white p-4 rounded shadow">
-Database : {dbPerformance}
+Categories : {categories}
+</div>
+
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Database Performance : {dbPerformance}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Website Speed : {speedStatus}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Missing Images : {missingImages}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Broken Images : {brokenImages}
+</div>
+
+{brokenImageList.map((b,i)=>(
+<div key={i} className="bg-red-100 p-3 rounded">
+Broken Product : {b.product} <br/>
+Folder : {b.folder}
+</div>
+))}
+
+<div className="bg-white p-4 rounded shadow">
+Fake Orders : {fakeOrders}
 </div>
 
 <div className="bg-white p-4 rounded shadow">
 Search Accuracy : {searchAccuracy}
 </div>
 
+{searchIssue && (
+<div className="bg-red-100 p-3 rounded">
+Search Issue : {searchIssue}
+</div>
+)}
+
 <div className="bg-white p-4 rounded shadow">
-Payment Status : {paymentStatus}
+Payment Gateway : {paymentStatus}
 </div>
 
 {paymentIssue && (
@@ -462,21 +480,13 @@ Payment Issue : {paymentIssue}
 </div>
 )}
 
-{searchIssue && (
-<div className="bg-red-100 p-3 rounded">
-Search Issue : {searchIssue}
+<div className="bg-white p-4 rounded shadow">
+Qikink API : {qikinkStatus}
 </div>
-)}
 
-{pageIssues.map((p,i)=>(
+{apiErrors.map((a,i)=>(
 <div key={i} className="bg-red-100 p-3 rounded">
-Page Issue : {p}
-</div>
-))}
-
-{brokenImageList.map((b,i)=>(
-<div key={i} className="bg-red-100 p-3 rounded">
-Broken Product : {b.product}
+API Error : {a}
 </div>
 ))}
 
@@ -498,12 +508,37 @@ AI Bug Detection : {aiBug}
 
 </div>
 
+<div className="flex flex-wrap gap-3">
+
+<button
+onClick={runDiagnostics}
+className="bg-pink-600 text-white px-4 py-2 rounded"
+>
+Run Diagnostics
+</button>
+
 <button
 onClick={autoAIFix}
 className="bg-green-600 text-white px-4 py-2 rounded"
 >
 Auto AI Fix
 </button>
+
+<button
+onClick={speedOptimize}
+className="bg-blue-600 text-white px-4 py-2 rounded"
+>
+Speed Optimize
+</button>
+
+<button
+onClick={sendTelegramAlert}
+className="bg-red-600 text-white px-4 py-2 rounded"
+>
+Send Bug Alert
+</button>
+
+</div>
 
 </div>
 
