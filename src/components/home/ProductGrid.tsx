@@ -25,8 +25,22 @@ export default function ProductGrid({ products, title }: Props) {
 
         {products.map((product: any) => {
 
+          /* ⭐ Rating */
           const rating = product.rating || 4.5;
-          const reviews = product.reviews || Math.floor(Math.random() * 200) + 20;
+
+          /* ⭐ Reviews */
+          const reviews =
+            product.reviews || Math.floor(Math.random() * 200) + 50;
+
+          /* 🔥 REAL SOLD (Firestore) */
+          const realSold = product.sold || 0;
+
+          /* 🔥 DEMO SOLD (Marketing) */
+          const demoSold =
+            product.demoSold || Math.floor(Math.random() * 300) + 50;
+
+          /* 🔥 TOTAL SOLD */
+          const totalSold = realSold + demoSold;
 
           return (
             <div
@@ -34,7 +48,7 @@ export default function ProductGrid({ products, title }: Props) {
               className="bg-white rounded-xl shadow p-3 relative"
             >
 
-              {/* Wishlist Icon */}
+              {/* Wishlist */}
               <Heart
                 size={18}
                 className="absolute top-2 right-2 text-gray-400"
@@ -62,27 +76,39 @@ export default function ProductGrid({ products, title }: Props) {
               </div>
 
               {/* ⭐ Rating */}
-              <div className="flex items-center gap-1 mt-1 text-yellow-500">
+              <div className="flex items-center gap-1 mt-1">
 
-                {[1,2,3,4,5].map((star)=>(
-                  <Star
-                    key={star}
-                    size={12}
-                    fill={star <= Math.round(rating) ? "#facc15" : "none"}
-                    stroke="#facc15"
-                  />
-                ))}
+                {[1,2,3,4,5].map((star)=>{
 
-                {/* Rating Number */}
+                  const filled = rating >= star;
+
+                  return (
+                    <Star
+                      key={star}
+                      size={14}
+                      className={
+                        filled
+                          ? "text-yellow-500 fill-yellow-500"
+                          : "text-gray-300"
+                      }
+                    />
+                  );
+
+                })}
+
                 <span className="text-xs text-gray-600 ml-1">
                   {rating}
                 </span>
 
-                {/* Review Count */}
                 <span className="text-xs text-gray-400">
                   ({reviews})
                 </span>
 
+              </div>
+
+              {/* 🔥 Sold */}
+              <div className="text-xs text-green-600 mt-1">
+                🔥 {totalSold} sold
               </div>
 
               {/* Price */}
