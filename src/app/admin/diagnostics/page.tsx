@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { useEffect,useState } from "react";
+import { collection,getDocs,doc,updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+import {
+LineChart,
+Line,
+CartesianGrid,
+XAxis,
+YAxis,
+Tooltip,
+ResponsiveContainer
+} from "recharts";
 
 export default function DiagnosticsPage(){
 
@@ -11,42 +21,33 @@ const [loading,setLoading]=useState(true)
 /* COUNTS */
 
 const [products,setProducts]=useState(0)
-const [categories,setCategories]=useState(0)
-const [banners,setBanners]=useState(0)
 const [orders,setOrders]=useState(0)
 const [sellers,setSellers]=useState(0)
+const [categories,setCategories]=useState(0)
 
-/* IMAGE ERRORS */
+/* ERRORS */
 
-const [missingProductImages,setMissingProductImages]=useState(0)
+const [missingImages,setMissingImages]=useState(0)
 const [brokenImages,setBrokenImages]=useState(0)
-const [brokenBanners,setBrokenBanners]=useState(0)
-
-/* ORDER ERRORS */
-
 const [fakeOrders,setFakeOrders]=useState(0)
 
-/* SYSTEM TESTS */
+/* SYSTEM */
 
-const [searchAccuracy,setSearchAccuracy]=useState("Checking...")
-const [paymentStatus,setPaymentStatus]=useState("Checking...")
-const [dbPerformance,setDbPerformance]=useState("Checking...")
+const [searchAccuracy,setSearchAccuracy]=useState("Checking")
+const [paymentStatus,setPaymentStatus]=useState("Checking")
+const [qikinkStatus,setQikinkStatus]=useState("Checking")
+
+const [dbPerformance,setDbPerformance]=useState("Checking")
 const [seoIssues,setSeoIssues]=useState(0)
 const [securityIssues,setSecurityIssues]=useState(0)
 
-/* EXTRA CHECKS */
+const [aiBug,setAiBug]=useState("Analyzing")
 
-const [qikinkStatus,setQikinkStatus]=useState("Checking...")
-const [searchClickIssue,setSearchClickIssue]=useState(false)
-
-/* AI */
-
-const [aiBug,setAiBug]=useState("Analyzing...")
+const [chartData,setChartData]=useState<any[]>([])
 
 useEffect(()=>{
 runDiagnostics()
 },[])
-
 
 function checkImage(url:string){
 
@@ -62,14 +63,12 @@ img.onerror=()=>resolve(false)
 
 }
 
-
 async function runDiagnostics(){
 
 setLoading(true)
 
-let missingProduct=0
+let missing=0
 let broken=0
-let brokenBanner=0
 let fake=0
 let sellerCount=0
 let seoErr=0
@@ -82,48 +81,35 @@ try{
 const dbStart=Date.now()
 
 const productsSnap=await getDocs(collection(db,"products"))
-const bannersSnap=await getDocs(collection(db,"banners"))
-const categoriesSnap=await getDocs(collection(db,"categories"))
 const usersSnap=await getDocs(collection(db,"users"))
 const ordersSnap=await getDocs(collection(db,"orders"))
+const categoriesSnap=await getDocs(collection(db,"categories"))
 
 const dbEnd=Date.now()
-
 const dbTime=dbEnd-dbStart
 
-if(dbTime>2000){
-setDbPerformance("Slow ("+dbTime+"ms)")
-}else{
-setDbPerformance("Good ("+dbTime+"ms)")
-}
+setDbPerformance(dbTime>2000 ? "Slow ("+dbTime+"ms)" : "Good ("+dbTime+"ms)")
 
 setProducts(productsSnap.size)
-setCategories(categoriesSnap.size)
-setBanners(bannersSnap.size)
 setOrders(ordersSnap.size)
-
-/* SELLERS */
+setCategories(categoriesSnap.size)
 
 usersSnap.forEach((u)=>{
-const data=u.data()
-if(data.role==="seller"){
+if(u.data().role==="seller"){
 sellerCount++
 }
 })
 
 setSellers(sellerCount)
 
-
-/* PRODUCT IMAGE CHECK */
+/* IMAGE CHECK */
 
 for(const p of productsSnap.docs){
 
 const data=p.data()
 
 if(!data.image){
-
-missingProduct++
-
+missing++
 }else{
 
 const ok:any=await checkImage(data.image)
@@ -135,30 +121,6 @@ broken++
 }
 
 }
-
-
-/* BANNER CHECK */
-
-for(const b of bannersSnap.docs){
-
-const data=b.data()
-
-if(!data.image){
-
-brokenBanner++
-
-}else{
-
-const ok:any=await checkImage(data.image)
-
-if(!ok){
-brokenBanner++
-}
-
-}
-
-}
-
 
 /* FAKE ORDERS */
 
@@ -172,8 +134,7 @@ fake++
 
 })
 
-
-/* SEARCH ACCURACY */
+/* SEARCH TEST */
 
 let match=0
 
@@ -189,44 +150,23 @@ match++
 
 setSearchAccuracy(match>0?"Good":"Poor")
 
-
 /* PAYMENT TEST */
 
 try{
-
 const res=await fetch("/api/payment-test")
-
-if(res.ok){
-setPaymentStatus("OK")
-}else{
-setPaymentStatus("Error")
-}
-
+setPaymentStatus(res.ok?"OK":"Error")
 }catch{
-
 setPaymentStatus("Error")
-
 }
-
 
 /* QIKINK TEST */
 
 try{
-
 const res=await fetch("/api/qikink-test")
-
-if(res.ok){
-setQikinkStatus("Connected")
-}else{
-setQikinkStatus("API Error")
-}
-
+setQikinkStatus(res.ok?"Connected":"API Error")
 }catch{
-
 setQikinkStatus("Connection Failed")
-
 }
-
 
 /* SEO SCAN */
 
@@ -235,15 +175,12 @@ seoErr++
 }
 
 document.querySelectorAll("img").forEach((img)=>{
-
 if(!img.alt){
 seoErr++
 }
-
 })
 
 setSeoIssues(seoErr)
-
 
 /* SECURITY SCAN */
 
@@ -253,47 +190,33 @@ securityErr++
 
 setSecurityIssues(securityErr)
 
+/* AI BUG DETECTION */
 
-/* SEARCH CLICK TEST */
+let issues=[]
 
-const searchInput=document.querySelector("input[type='text']")
+if(missing>0) issues.push("Missing images")
+if(fake>0) issues.push("Fake orders")
+if(broken>0) issues.push("Broken images")
+if(dbTime>2000) issues.push("Slow database")
 
-if(!searchInput){
-setSearchClickIssue(true)
-}else{
-
-const style=window.getComputedStyle(searchInput)
-
-if(style.pointerEvents==="none"){
-setSearchClickIssue(true)
-}else{
-setSearchClickIssue(false)
-}
-
-}
-
-
-/* AI BUG REPORT */
-
-let aiIssues=[]
-
-if(missingProduct>0) aiIssues.push("Missing product images")
-if(fake>0) aiIssues.push("Fake orders")
-if(brokenBanner>0) aiIssues.push("Broken banners")
-if(seoErr>0) aiIssues.push("SEO problems")
-if(securityErr>0) aiIssues.push("Security issues")
-
-if(aiIssues.length===0){
+if(issues.length===0){
 setAiBug("No Issues Detected")
 }else{
-setAiBug(aiIssues.join(", "))
+setAiBug(issues.join(", "))
 }
 
-
-setMissingProductImages(missingProduct)
+setMissingImages(missing)
 setBrokenImages(broken)
-setBrokenBanners(brokenBanner)
 setFakeOrders(fake)
+
+/* GRAPH DATA */
+
+setChartData([
+{ name:"Products", value:productsSnap.size },
+{ name:"Orders", value:ordersSnap.size },
+{ name:"Sellers", value:sellerCount },
+{ name:"MissingImg", value:missing }
+])
 
 }catch(e){
 
@@ -305,10 +228,9 @@ setLoading(false)
 
 }
 
+/* AUTO AI FIX */
 
-/* AUTO FIX IMAGES */
-
-async function autoFixImages(){
+async function autoAIFix(){
 
 const productsSnap=await getDocs(collection(db,"products"))
 
@@ -326,63 +248,99 @@ image:"https://via.placeholder.com/400"
 
 }
 
-runDiagnostics()
-
-}
-
-
-/* AUTO FIX SYSTEM */
-
-function autoFixSystem(){
-
-localStorage.removeItem("cart")
-
-alert("Cart Reset Done")
+alert("AI Fix Applied")
 
 runDiagnostics()
 
 }
 
+/* SEARCH ENGINE REPAIR */
+
+async function rebuildSearchIndex(){
+
+const productsSnap=await getDocs(collection(db,"products"))
+
+for(const p of productsSnap.docs){
+
+const data=p.data()
+
+await updateDoc(doc(db,"products",p.id),{
+searchIndex:(data.name||"").toLowerCase()
+})
+
+}
+
+alert("Search index rebuilt")
+
+}
+
+/* TELEGRAM ALERT */
+
+async function sendTelegramAlert(){
+
+await fetch("/api/telegram-alert",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+message:"🚨 JembeeKart Bug Detected: "+aiBug
+})
+})
+
+alert("Telegram alert sent")
+
+}
 
 if(loading){
 
 return(
-
 <div className="p-6">
 Running AI Diagnostics...
 </div>
-
 )
 
 }
 
-
 return(
 
-<div className="p-6 space-y-4">
+<div className="p-6 space-y-6">
 
 <h1 className="text-3xl font-bold">
-JembeeKart AI System Diagnostics
+JembeeKart AI Diagnostics Dashboard
 </h1>
 
-<div className="bg-white p-4 rounded shadow">Products : {products}</div>
-<div className="bg-white p-4 rounded shadow">Categories : {categories}</div>
-<div className="bg-white p-4 rounded shadow">Orders : {orders}</div>
-<div className="bg-white p-4 rounded shadow">Sellers : {sellers}</div>
+<div className="grid grid-cols-2 gap-4">
 
-<div className="bg-white p-4 rounded shadow text-red-500">
-Missing Product Images : {missingProductImages}
+<div className="bg-white p-4 rounded shadow">
+Products : {products}
 </div>
 
-<div className="bg-white p-4 rounded shadow text-red-500">
-Broken Product Images : {brokenImages}
+<div className="bg-white p-4 rounded shadow">
+Orders : {orders}
 </div>
 
-<div className="bg-white p-4 rounded shadow text-red-500">
-Broken Banners : {brokenBanners}
+<div className="bg-white p-4 rounded shadow">
+Sellers : {sellers}
 </div>
 
-<div className="bg-white p-4 rounded shadow text-red-500">
+<div className="bg-white p-4 rounded shadow">
+Categories : {categories}
+</div>
+
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Database Performance : {dbPerformance}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Missing Images : {missingImages}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Broken Images : {brokenImages}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
 Fake Orders : {fakeOrders}
 </div>
 
@@ -395,7 +353,7 @@ Payment Gateway : {paymentStatus}
 </div>
 
 <div className="bg-white p-4 rounded shadow">
-Database Performance : {dbPerformance}
+Qikink API : {qikinkStatus}
 </div>
 
 <div className="bg-white p-4 rounded shadow">
@@ -406,19 +364,25 @@ SEO Issues : {seoIssues}
 Security Issues : {securityIssues}
 </div>
 
-<div className="bg-white p-4 rounded shadow">
-Qikink API : {qikinkStatus}
-</div>
-
-<div className="bg-white p-4 rounded shadow text-red-500">
-Search Box Click Issue : {searchClickIssue ? "Detected" : "OK"}
-</div>
-
 <div className="bg-yellow-100 p-4 rounded shadow">
 AI Bug Detection : {aiBug}
 </div>
 
-<div className="flex gap-3">
+<div className="bg-white p-6 rounded shadow h-64">
+
+<ResponsiveContainer width="100%" height="100%">
+<LineChart data={chartData}>
+<CartesianGrid strokeDasharray="3 3"/>
+<XAxis dataKey="name"/>
+<YAxis/>
+<Tooltip/>
+<Line type="monotone" dataKey="value" stroke="#ec4899"/>
+</LineChart>
+</ResponsiveContainer>
+
+</div>
+
+<div className="flex flex-wrap gap-3">
 
 <button
 onClick={runDiagnostics}
@@ -428,17 +392,24 @@ Run Diagnostics
 </button>
 
 <button
-onClick={autoFixImages}
+onClick={autoAIFix}
 className="bg-green-600 text-white px-4 py-2 rounded"
 >
-Auto Fix Images
+Auto AI Fix
 </button>
 
 <button
-onClick={autoFixSystem}
+onClick={rebuildSearchIndex}
 className="bg-blue-600 text-white px-4 py-2 rounded"
 >
-Auto Fix System
+Repair Search Engine
+</button>
+
+<button
+onClick={sendTelegramAlert}
+className="bg-red-600 text-white px-4 py-2 rounded"
+>
+Send Bug Alert
 </button>
 
 </div>
