@@ -31,6 +31,13 @@ const [missingImages,setMissingImages]=useState(0)
 const [brokenImages,setBrokenImages]=useState(0)
 const [fakeOrders,setFakeOrders]=useState(0)
 
+/* EXTRA ERROR DETAILS */
+
+const [brokenImageList,setBrokenImageList]=useState<any[]>([])
+const [apiErrors,setApiErrors]=useState<any[]>([])
+const [searchIssue,setSearchIssue]=useState("")
+const [paymentIssue,setPaymentIssue]=useState("")
+
 /* SYSTEM */
 
 const [searchAccuracy,setSearchAccuracy]=useState("Checking")
@@ -74,6 +81,9 @@ let sellerCount=0
 let seoErr=0
 let securityErr=0
 
+let brokenList:any[]=[]
+let apiErrorList:any[]=[]
+
 try{
 
 /* DATABASE PERFORMANCE */
@@ -94,6 +104,8 @@ setProducts(productsSnap.size)
 setOrders(ordersSnap.size)
 setCategories(categoriesSnap.size)
 
+/* SELLERS */
+
 usersSnap.forEach((u)=>{
 if(u.data().role==="seller"){
 sellerCount++
@@ -109,18 +121,30 @@ for(const p of productsSnap.docs){
 const data=p.data()
 
 if(!data.image){
+
 missing++
+
 }else{
 
 const ok:any=await checkImage(data.image)
 
 if(!ok){
+
 broken++
-}
+
+brokenList.push({
+product:data.name,
+image:data.image,
+folder:"/src/components/products"
+})
 
 }
 
 }
+
+}
+
+setBrokenImageList(brokenList)
 
 /* FAKE ORDERS */
 
@@ -150,23 +174,69 @@ match++
 
 setSearchAccuracy(match>0?"Good":"Poor")
 
+/* SEARCH INPUT CHECK */
+
+const searchInput=document.querySelector("input[type='text']")
+
+if(!searchInput){
+setSearchIssue("SearchBar missing → /src/components/home/SearchBar.tsx")
+}
+
 /* PAYMENT TEST */
 
 try{
+
 const res=await fetch("/api/payment-test")
-setPaymentStatus(res.ok?"OK":"Error")
-}catch{
+
+if(!res.ok){
+
 setPaymentStatus("Error")
+
+setPaymentIssue("Check API → /src/app/api/payment-test/route.ts")
+
+apiErrorList.push("Payment API failed")
+
+}else{
+
+setPaymentStatus("OK")
+
+}
+
+}catch{
+
+setPaymentStatus("Error")
+
+setPaymentIssue("API Missing → /src/app/api/payment-test")
+
 }
 
 /* QIKINK TEST */
 
 try{
+
 const res=await fetch("/api/qikink-test")
-setQikinkStatus(res.ok?"Connected":"API Error")
-}catch{
-setQikinkStatus("Connection Failed")
+
+if(!res.ok){
+
+setQikinkStatus("API Error")
+
+apiErrorList.push("Qikink API error → /src/lib/qikink.ts")
+
+}else{
+
+setQikinkStatus("Connected")
+
 }
+
+}catch{
+
+setQikinkStatus("Connection Failed")
+
+apiErrorList.push("Qikink API missing")
+
+}
+
+setApiErrors(apiErrorList)
 
 /* SEO SCAN */
 
@@ -174,7 +244,7 @@ if(!document.title){
 seoErr++
 }
 
-document.querySelectorAll("img").forEach((img)=>{
+document.querySelectorAll("img").forEach((img:any)=>{
 if(!img.alt){
 seoErr++
 }
@@ -194,10 +264,11 @@ setSecurityIssues(securityErr)
 
 let issues=[]
 
-if(missing>0) issues.push("Missing images")
-if(fake>0) issues.push("Fake orders")
-if(broken>0) issues.push("Broken images")
-if(dbTime>2000) issues.push("Slow database")
+if(missing>0) issues.push("Missing images → /src/components/products")
+if(fake>0) issues.push("Fake orders → /src/app/admin/orders")
+if(broken>0) issues.push("Broken product images → /public/products")
+if(dbTime>2000) issues.push("Slow database → Firestore")
+if(apiErrorList.length>0) issues.push("API errors detected")
 
 if(issues.length===0){
 setAiBug("No Issues Detected")
@@ -209,7 +280,7 @@ setMissingImages(missing)
 setBrokenImages(broken)
 setFakeOrders(fake)
 
-/* GRAPH DATA */
+/* GRAPH */
 
 setChartData([
 { name:"Products", value:productsSnap.size },
@@ -340,6 +411,13 @@ Missing Images : {missingImages}
 Broken Images : {brokenImages}
 </div>
 
+{brokenImageList.map((b,i)=>(
+<div key={i} className="bg-red-100 p-3 rounded">
+Broken Product : {b.product} <br/>
+Folder : {b.folder}
+</div>
+))}
+
 <div className="bg-white p-4 rounded shadow">
 Fake Orders : {fakeOrders}
 </div>
@@ -348,13 +426,31 @@ Fake Orders : {fakeOrders}
 Search Accuracy : {searchAccuracy}
 </div>
 
+{searchIssue && (
+<div className="bg-red-100 p-3 rounded">
+Search Issue : {searchIssue}
+</div>
+)}
+
 <div className="bg-white p-4 rounded shadow">
 Payment Gateway : {paymentStatus}
 </div>
 
+{paymentIssue && (
+<div className="bg-red-100 p-3 rounded">
+Payment Issue : {paymentIssue}
+</div>
+)}
+
 <div className="bg-white p-4 rounded shadow">
 Qikink API : {qikinkStatus}
 </div>
+
+{apiErrors.map((a,i)=>(
+<div key={i} className="bg-red-100 p-3 rounded">
+API Error : {a}
+</div>
+))}
 
 <div className="bg-white p-4 rounded shadow">
 SEO Issues : {seoIssues}
