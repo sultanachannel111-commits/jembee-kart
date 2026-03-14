@@ -25,7 +25,8 @@ export default function ProductGrid({ products, title }: Props) {
 
         {products.map((product: any) => {
 
-          const rating = product.rating || 5;
+          const rating = product.rating || 4.5;
+          const reviews = product.reviews || Math.floor(Math.random() * 200) + 20;
 
           return (
             <div
@@ -39,14 +40,6 @@ export default function ProductGrid({ products, title }: Props) {
                 className="absolute top-2 right-2 text-gray-400"
               />
 
-              {/* Product Image */}
-              <Link href={`/product/${product.id}`}>
-                <img
-                  src={product.image}
-                  className="w-full h-40 object-cover rounded-lg"
-                />
-              </Link>
-
               {/* Discount Badge */}
               {product.discount && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
@@ -54,26 +47,48 @@ export default function ProductGrid({ products, title }: Props) {
                 </span>
               )}
 
+              {/* Product Image */}
+              <Link href={`/product/${product.id}`}>
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-40 object-cover rounded-lg"
+                />
+              </Link>
+
               {/* Product Name */}
-              <div className="mt-2 text-sm truncate">
+              <div className="mt-2 text-sm font-medium truncate">
                 {product.name}
               </div>
 
-              {/* ⭐ Rating (5 Stars) */}
+              {/* ⭐ Rating */}
               <div className="flex items-center gap-1 mt-1 text-yellow-500">
+
                 {[1,2,3,4,5].map((star)=>(
                   <Star
                     key={star}
                     size={12}
-                    fill={star <= rating ? "#facc15" : "none"}
+                    fill={star <= Math.round(rating) ? "#facc15" : "none"}
+                    stroke="#facc15"
                   />
                 ))}
+
+                {/* Rating Number */}
+                <span className="text-xs text-gray-600 ml-1">
+                  {rating}
+                </span>
+
+                {/* Review Count */}
+                <span className="text-xs text-gray-400">
+                  ({reviews})
+                </span>
+
               </div>
 
               {/* Price */}
               <div className="flex items-center gap-2 mt-1">
 
-                <span className="font-bold">
+                <span className="font-bold text-black">
                   ₹{product.sellPrice || product.price || 0}
                 </span>
 
