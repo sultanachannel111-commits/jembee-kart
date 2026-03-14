@@ -333,7 +333,13 @@ const matches = products.filter((p) => {
 {trendingSearch.map((item)=>(
 <button
 key={item}
-onClick={()=>setSearch(item)}
+onClick={async ()=>{
+
+const results = await searchProducts(item);
+
+setProducts(results);
+
+}}
 className="px-3 py-1 bg-gray-100 rounded-full text-xs hover:bg-gray-200"
 >
 
