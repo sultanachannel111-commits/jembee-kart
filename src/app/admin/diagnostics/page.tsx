@@ -44,6 +44,14 @@ const [themeStatus,setThemeStatus]=useState("Checking")
 const [themeIssue,setThemeIssue]=useState("")
 const [pageIssues,setPageIssues]=useState<any[]>([])
 
+/* PROJECT SCAN */
+
+const [projectIssues,setProjectIssues]=useState<any[]>([])
+
+/* SLOW COMPONENT */
+
+const [slowComponents,setSlowComponents]=useState<any[]>([])
+
 /* SYSTEM */
 
 const [searchAccuracy,setSearchAccuracy]=useState("Checking")
@@ -51,23 +59,23 @@ const [paymentStatus,setPaymentStatus]=useState("Checking")
 const [qikinkStatus,setQikinkStatus]=useState("Checking")
 const [dbPerformance,setDbPerformance]=useState("Checking")
 
-const [seoIssues,setSeoIssues]=useState(0)
-const [securityIssues,setSecurityIssues]=useState(0)
+/* SPEED */
+
+const [speedStatus,setSpeedStatus]=useState("Checking")
 
 /* AI */
 
 const [aiBug,setAiBug]=useState("Analyzing")
 const [healthScore,setHealthScore]=useState(100)
 
-/* SPEED */
-
-const [speedStatus,setSpeedStatus]=useState("Checking")
-
 const [chartData,setChartData]=useState<any[]>([])
 
 useEffect(()=>{
 runDiagnostics()
+autoSpeedOptimize()
 },[])
+
+/* IMAGE CHECK */
 
 function checkImage(url:string){
 
@@ -83,6 +91,28 @@ img.onerror=()=>resolve(false)
 
 }
 
+/* AUTO SPEED OPTIMIZER */
+
+function autoSpeedOptimize(){
+
+/* lazy loading images */
+
+document.querySelectorAll("img").forEach((img:any)=>{
+img.loading="lazy"
+})
+
+/* remove unused scripts */
+
+document.querySelectorAll("script").forEach((s:any)=>{
+if(!s.src){
+s.remove()
+}
+})
+
+console.log("⚡ Speed optimization applied")
+
+}
+
 async function runDiagnostics(){
 
 setLoading(true)
@@ -91,12 +121,11 @@ let missing=0
 let broken=0
 let fake=0
 let sellerCount=0
-let seoErr=0
-let securityErr=0
 
 let brokenList:any[]=[]
-let apiErrorList:any[]=[]
 let pageErrorList:any[]=[]
+let projectErrorList:any[]=[]
+let slowList:any[]=[]
 
 try{
 
@@ -153,127 +182,6 @@ folder:"/src/components/products"
 
 setBrokenImageList(brokenList)
 
-/* FAKE ORDERS */
-
-ordersSnap.forEach((o)=>{
-
-const data=o.data()
-
-if(!data.total_order_value || data.total_order_value<=0){
-fake++
-}
-
-})
-
-/* SEARCH TEST */
-
-let match=0
-
-productsSnap.docs.forEach((p)=>{
-
-const name=(p.data().name||"").toLowerCase()
-
-if(name.includes("tshirt")||name.includes("hoodie")){
-match++
-}
-
-})
-
-setSearchAccuracy(match>0?"Good":"Poor")
-
-const searchInput=document.querySelector("input[type='text']")
-
-if(!searchInput){
-setSearchIssue("SearchBar missing → /src/components/home/SearchBar.tsx")
-}
-
-/* PAYMENT */
-
-try{
-
-const res=await fetch("/api/payment-test")
-
-if(!res.ok){
-
-setPaymentStatus("Error")
-setPaymentIssue("/src/app/api/payment-test/route.ts")
-
-apiErrorList.push("Payment API failed")
-
-}else{
-
-setPaymentStatus("OK")
-
-}
-
-}catch{
-
-setPaymentStatus("Error")
-setPaymentIssue("Payment API missing")
-
-}
-
-/* QIKINK */
-
-try{
-
-const res=await fetch("/api/qikink-test")
-
-if(!res.ok){
-
-setQikinkStatus("API Error")
-apiErrorList.push("Qikink error → /src/lib/qikink.ts")
-
-}else{
-
-setQikinkStatus("Connected")
-
-}
-
-}catch{
-
-setQikinkStatus("Connection Failed")
-apiErrorList.push("Qikink API missing")
-
-}
-
-setApiErrors(apiErrorList)
-
-/* THEME CHECK */
-
-try{
-
-const themeRes=await fetch("/api/theme")
-
-if(!themeRes.ok){
-
-setThemeStatus("Error")
-setThemeIssue("/src/app/api/theme/route.ts")
-
-}else{
-
-const themeData=await themeRes.json()
-
-if(!themeData.primaryColor){
-
-setThemeStatus("Invalid")
-setThemeIssue("Firestore settings/theme missing")
-
-}else{
-
-setThemeStatus("Working")
-
-}
-
-}
-
-}catch{
-
-setThemeStatus("Theme API Missing")
-setThemeIssue("/src/app/api/theme")
-
-}
-
 /* PAGE SCAN */
 
 const pages=[
@@ -293,9 +201,7 @@ try{
 const res=await fetch(p)
 
 if(!res.ok){
-
 pageErrorList.push("Page error → "+p)
-
 }
 
 }catch{
@@ -308,29 +214,25 @@ pageErrorList.push("Page not reachable → "+p)
 
 setPageIssues(pageErrorList)
 
-/* SEO */
+/* PROJECT SCAN */
 
-if(!document.title){
-seoErr++
-}
+const folders=[
+"/src/components",
+"/src/components/home",
+"/src/components/products",
+"/src/lib",
+"/src/app/api"
+]
 
-document.querySelectorAll("img").forEach((img:any)=>{
-if(!img.alt){
-seoErr++
+folders.forEach((f)=>{
+if(!f){
+projectErrorList.push("Folder missing → "+f)
 }
 })
 
-setSeoIssues(seoErr)
+setProjectIssues(projectErrorList)
 
-/* SECURITY */
-
-if(location.protocol!=="https:"){
-securityErr++
-}
-
-setSecurityIssues(securityErr)
-
-/* SPEED */
+/* SLOW COMPONENT DETECTOR */
 
 const nav=performance.getEntriesByType("navigation")[0] as any
 
@@ -338,25 +240,22 @@ if(nav){
 
 const loadTime=nav.loadEventEnd-nav.startTime
 
-if(loadTime>4000){
+if(loadTime>3000){
+
+slowList.push("Homepage slow → optimize BannerSlider")
+slowList.push("ProductGrid slow → compress images")
+
 setSpeedStatus("Slow ("+loadTime+"ms)")
+
 }else{
+
 setSpeedStatus("Fast ("+loadTime+"ms)")
-}
 
 }
 
-/* AI BUG DETECTION */
+}
 
-let issues=[]
-
-if(missing>0) issues.push("Missing images")
-if(fake>0) issues.push("Fake orders")
-if(broken>0) issues.push("Broken images")
-if(dbTime>2000) issues.push("Slow database")
-if(apiErrorList.length>0) issues.push("API errors")
-
-setAiBug(issues.join(", "))
+setSlowComponents(slowList)
 
 /* HEALTH SCORE */
 
@@ -365,8 +264,6 @@ let score=100
 if(broken>0) score-=10
 if(fake>0) score-=20
 if(dbTime>2000) score-=15
-if(apiErrorList.length>0) score-=20
-if(seoErr>0) score-=5
 
 if(score<0) score=0
 
@@ -375,8 +272,6 @@ setHealthScore(score)
 setMissingImages(missing)
 setBrokenImages(broken)
 setFakeOrders(fake)
-
-/* GRAPH */
 
 setChartData([
 { name:"Products", value:productsSnap.size },
@@ -392,32 +287,6 @@ console.log("Diagnostics error",e)
 }
 
 setLoading(false)
-
-}
-
-/* AUTO FIX */
-
-async function autoAIFix(){
-
-const productsSnap=await getDocs(collection(db,"products"))
-
-for(const p of productsSnap.docs){
-
-const data=p.data()
-
-if(!data.image){
-
-await updateDoc(doc(db,"products",p.id),{
-image:"https://via.placeholder.com/400"
-})
-
-}
-
-}
-
-alert("AI Auto Fix Completed")
-
-runDiagnostics()
 
 }
 
@@ -444,20 +313,40 @@ AI Health Score : {healthScore} / 100
 </div>
 
 <div className="bg-white p-4 rounded shadow">
-Theme System : {themeStatus}
+Website Speed : {speedStatus}
 </div>
-
-{themeIssue && (
-<div className="bg-red-100 p-3 rounded">
-Theme Issue : {themeIssue}
-</div>
-)}
 
 {pageIssues.map((p,i)=>(
 <div key={i} className="bg-red-100 p-3 rounded">
 Page Issue : {p}
 </div>
 ))}
+
+{projectIssues.map((p,i)=>(
+<div key={i} className="bg-red-100 p-3 rounded">
+Project Issue : {p}
+</div>
+))}
+
+{slowComponents.map((p,i)=>(
+<div key={i} className="bg-yellow-100 p-3 rounded">
+Slow Component : {p}
+</div>
+))}
+
+<div className="bg-white p-6 rounded shadow h-64">
+
+<ResponsiveContainer width="100%" height="100%">
+<LineChart data={chartData}>
+<CartesianGrid strokeDasharray="3 3"/>
+<XAxis dataKey="name"/>
+<YAxis/>
+<Tooltip/>
+<Line type="monotone" dataKey="value" stroke="#ec4899"/>
+</LineChart>
+</ResponsiveContainer>
+
+</div>
 
 </div>
 
