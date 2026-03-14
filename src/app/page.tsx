@@ -317,11 +317,7 @@ const matches = products.filter((p) => {
 
 <div className="pt-[80px] px-4 space-y-4">
 
-<SearchBar
-search={search}
-setSearch={setSearch}
-startVoice={startVoice}
-/>
+<SearchBar setProducts={setProducts} />
 
 {/* 🔥 Trending Searches */}
 
