@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Search, Mic } from "lucide-react";
 
 type Props = {
@@ -14,31 +15,87 @@ export default function SearchBar({
   startVoice
 }: Props) {
 
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  const baseSuggestions = [
+    "t shirt",
+    "black t shirt",
+    "white t shirt",
+    "t shirt m size",
+    "t shirt l size",
+    "t shirt xl size",
+    "oversize t shirt",
+    "kids t shirt",
+    "black hoodie",
+    "hoodie"
+  ];
+
+  const handleChange = (value: string) => {
+
+    setSearch(value);
+
+    if (!value) {
+      setSuggestions([]);
+      return;
+    }
+
+    const filtered = baseSuggestions.filter((item) =>
+      item.toLowerCase().includes(value.toLowerCase())
+    );
+
+    setSuggestions(filtered);
+  };
+
   return (
 
-    <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
+    <div className="relative">
 
-      {/* Search Icon */}
-      <Search size={18} />
+      {/* Search Bar */}
+      <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
 
-      {/* Input */}
-      <input
-        type="text"
-        placeholder="Search products..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="flex-1 outline-none text-sm"
-      />
+        <Search size={18} />
 
-      {/* Mic Button */}
-      <Mic
-        size={20}
-        onClick={startVoice}
-        className="cursor-pointer text-gray-600 hover:text-black"
-      />
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={search}
+          onChange={(e) => handleChange(e.target.value)}
+          className="flex-1 outline-none text-sm"
+        />
+
+        <Mic
+          size={20}
+          onClick={startVoice}
+          className="cursor-pointer text-gray-600 hover:text-black"
+        />
+
+      </div>
+
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+
+        <div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
+
+          {suggestions.map((item, i) => (
+
+            <div
+              key={i}
+              onClick={() => {
+                setSearch(item);
+                setSuggestions([]);
+              }}
+              className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+            >
+              {item}
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
 
     </div>
 
   );
-
 }
