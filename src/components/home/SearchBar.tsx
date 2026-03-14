@@ -18,7 +18,7 @@ export default function SearchBar({
     setSearch(value);
   };
 
-  const handleKeyDown = (e: any) => {
+  const handleEnter = (e: any) => {
     if (e.key === "Enter") {
       setSearch(search);
     }
@@ -33,7 +33,7 @@ export default function SearchBar({
       <input
         value={search}
         onChange={(e) => handleChange(e.target.value)}
-        onKeyDown={handleKeyDown}
+        onKeyDown={handleEnter}
         placeholder="Search products..."
         className="flex-1 outline-none text-sm"
       />
