@@ -235,8 +235,10 @@ setLightning(lightningDeals);
 
 const filteredProducts = products.filter((p) => {
 
-  const matchSearch =
-    normalize(p.name).includes(normalize(fixedSearch));
+  const productName = p.name || p.title || p.productName || "";
+
+const matchSearch =
+normalize(productName).includes(normalize(fixedSearch));
 
   const matchCategory =
     selectedCategory === "All" || p.category === selectedCategory;
