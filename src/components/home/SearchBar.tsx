@@ -3,38 +3,49 @@
 import { Search, Mic } from "lucide-react";
 
 type Props = {
-search:string;
-setSearch:(value:string)=>void;
-startVoice:()=>void;
+  search: string;
+  setSearch: (value: string) => void;
+  startVoice: () => void;
 };
 
 export default function SearchBar({
-search,
-setSearch,
-startVoice
-}:Props){
+  search,
+  setSearch,
+  startVoice
+}: Props) {
 
-return(
+  const handleChange = (value: string) => {
+    setSearch(value);
+  };
 
-<div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
+  const handleKeyDown = (e: any) => {
+    if (e.key === "Enter") {
+      setSearch(search);
+    }
+  };
 
-<Search size={18}/>
+  return (
 
-<input
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-placeholder="Search products..."
-className="flex-1 outline-none text-sm"
-/>
+    <div className="bg-white shadow-sm rounded-full px-4 py-2 flex items-center gap-2">
 
-<Mic
-size={20}
-onClick={startVoice}
-className="cursor-pointer text-gray-600"
-/>
+      <Search size={18} />
 
-</div>
+      <input
+        value={search}
+        onChange={(e) => handleChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Search products..."
+        className="flex-1 outline-none text-sm"
+      />
 
-);
+      <Mic
+        size={20}
+        onClick={startVoice}
+        className="cursor-pointer text-gray-600"
+      />
+
+    </div>
+
+  );
 
 }
