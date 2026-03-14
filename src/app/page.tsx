@@ -368,7 +368,7 @@ timeLeft={timeLeft}
 )}
 
 <ProductGrid
-products={filteredProducts}
+products={products}
 />
 
 <ProductGrid
