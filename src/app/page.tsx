@@ -256,9 +256,15 @@ normalize(productName).includes(normalize(fixedSearch));
 
   const fixedSearch = correctSearch(search);
 
-  normalize(p.name || p.title || p.productName || "")
-.includes(normalize(fixedSearch))
+const matches = products.filter((p) => {
+
+  const productName = p.name || p.title || p.productName || "";
+
+  return normalize(productName).includes(
+    normalize(fixedSearch)
   );
+
+});
 
   setSuggestions(matches.slice(0, 5));
 
