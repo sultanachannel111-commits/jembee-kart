@@ -47,6 +47,15 @@ export default function HomePage() {
   const [festival, setFestival] = useState<any>(null);
   const [slide, setSlide] = useState(0);
   const [search, setSearch] = useState("");
+  /* 🔥 Trending Searches */
+const trendingSearch = [
+  "black tshirt",
+  "oversize tshirt",
+  "hoodie",
+  "anime tshirt",
+  "couple tshirt"
+];
+  
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [ratings, setRatings] = useState<any>({});
