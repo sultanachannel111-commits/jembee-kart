@@ -88,7 +88,7 @@ export default function ProductGrid({ products, title }: Props) {
               className="bg-white rounded-xl shadow p-3 relative"
             >
 
-              {/* ❤️ Wishlist */}
+              {/* Wishlist */}
 
               <Heart
                 size={18}
@@ -100,7 +100,7 @@ export default function ProductGrid({ products, title }: Props) {
                 }`}
               />
 
-              {/* Discount */}
+              {/* Discount Badge */}
 
               {product.discount && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
@@ -108,7 +108,7 @@ export default function ProductGrid({ products, title }: Props) {
                 </span>
               )}
 
-              {/* Image */}
+              {/* Product Image */}
 
               <Link href={`/product/${product.id}`}>
                 <img
@@ -118,7 +118,7 @@ export default function ProductGrid({ products, title }: Props) {
                 />
               </Link>
 
-              {/* Name */}
+              {/* Product Name */}
 
               <div className="mt-2 text-sm font-medium truncate">
                 {product.name}
@@ -130,18 +130,15 @@ export default function ProductGrid({ products, title }: Props) {
 
                 {[1,2,3,4,5].map((star)=>{
 
-                  const full = rating >= star;
-                  const half = rating >= star - 0.5 && rating < star;
+                  const filled = rating >= star;
 
                   return (
                     <Star
                       key={star}
                       size={14}
                       className={
-                        full
+                        filled
                           ? "text-yellow-500 fill-yellow-500"
-                          : half
-                          ? "text-yellow-500 fill-yellow-300"
                           : "text-gray-300"
                       }
                     />
