@@ -256,8 +256,8 @@ normalize(productName).includes(normalize(fixedSearch));
 
   const fixedSearch = correctSearch(search);
 
-  const matches = products.filter((p) =>
-    normalize(p.name).includes(normalize(fixedSearch))
+  normalize(p.name || p.title || p.productName || "")
+.includes(normalize(fixedSearch))
   );
 
   setSuggestions(matches.slice(0, 5));
