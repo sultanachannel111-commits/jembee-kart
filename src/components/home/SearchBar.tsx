@@ -23,6 +23,10 @@ export default function SearchBar({ setProducts }: Props) {
 
     if (!value) {
       setSuggestions(trendingSearch);
+
+      const results = await searchProducts("");
+      setProducts(results);
+
       return;
     }
 
@@ -35,6 +39,7 @@ export default function SearchBar({ setProducts }: Props) {
     const results = await searchProducts(value);
 
     setProducts(results);
+
   };
 
   /* =========================
@@ -45,8 +50,7 @@ export default function SearchBar({ setProducts }: Props) {
 
     setSearch(value);
 
-    // typing करते ही search
-    runSearch(value);
+    await runSearch(value);
 
   };
 
@@ -56,12 +60,11 @@ export default function SearchBar({ setProducts }: Props) {
 
   const handleVoice = () => {
 
-    startVoiceSearch((voiceText: string) => {
+    startVoiceSearch(async (voiceText: string) => {
 
       setSearch(voiceText);
 
-      // voice आते ही search
-      runSearch(voiceText);
+      await runSearch(voiceText);
 
     });
 
@@ -90,8 +93,6 @@ export default function SearchBar({ setProducts }: Props) {
 
       </div>
 
-      {/* Suggestions */}
-
       {suggestions.length > 0 && (
 
         <div className="absolute w-full bg-white shadow-lg rounded-lg mt-1 z-50">
@@ -103,9 +104,7 @@ export default function SearchBar({ setProducts }: Props) {
               className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
               onClick={() => handleChange(item)}
             >
-
               {item}
-
             </div>
 
           ))}
