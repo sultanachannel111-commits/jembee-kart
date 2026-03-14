@@ -314,6 +314,34 @@ search={search}
 setSearch={setSearch}
 startVoice={startVoice}
 />
+
+{/* 🔥 Trending Searches */}
+
+{!search && (
+<div className="bg-white rounded-xl shadow p-3">
+
+<p className="text-sm font-semibold mb-2">
+🔥 Trending Searches
+</p>
+
+<div className="flex flex-wrap gap-2">
+
+{trendingSearch.map((item)=>(
+<button
+key={item}
+onClick={()=>setSearch(item)}
+className="px-3 py-1 bg-gray-100 rounded-full text-xs hover:bg-gray-200"
+>
+
+{item}
+
+</button>
+))}
+
+</div>
+
+</div>
+)}
   
 <CategoryList
 categories={categories}
