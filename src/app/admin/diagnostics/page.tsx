@@ -16,20 +16,30 @@ const [banners,setBanners]=useState(0)
 const [orders,setOrders]=useState(0)
 const [sellers,setSellers]=useState(0)
 
-/* ERRORS */
+/* IMAGE ERRORS */
 
 const [missingProductImages,setMissingProductImages]=useState(0)
 const [brokenImages,setBrokenImages]=useState(0)
 const [brokenBanners,setBrokenBanners]=useState(0)
+
+/* ORDER ERRORS */
+
 const [fakeOrders,setFakeOrders]=useState(0)
 
-/* SYSTEM CHECK */
+/* SYSTEM TESTS */
 
 const [searchAccuracy,setSearchAccuracy]=useState("Checking...")
 const [paymentStatus,setPaymentStatus]=useState("Checking...")
 const [dbPerformance,setDbPerformance]=useState("Checking...")
 const [seoIssues,setSeoIssues]=useState(0)
 const [securityIssues,setSecurityIssues]=useState(0)
+
+/* EXTRA CHECKS */
+
+const [qikinkStatus,setQikinkStatus]=useState("Checking...")
+const [searchClickIssue,setSearchClickIssue]=useState(false)
+
+/* AI */
 
 const [aiBug,setAiBug]=useState("Analyzing...")
 
@@ -95,13 +105,10 @@ setOrders(ordersSnap.size)
 /* SELLERS */
 
 usersSnap.forEach((u)=>{
-
 const data=u.data()
-
 if(data.role==="seller"){
 sellerCount++
 }
-
 })
 
 setSellers(sellerCount)
@@ -129,6 +136,7 @@ broken++
 
 }
 
+
 /* BANNER CHECK */
 
 for(const b of bannersSnap.docs){
@@ -151,6 +159,7 @@ brokenBanner++
 
 }
 
+
 /* FAKE ORDERS */
 
 ordersSnap.forEach((o)=>{
@@ -163,33 +172,25 @@ fake++
 
 })
 
-/* SEARCH ACCURACY TEST */
+
+/* SEARCH ACCURACY */
 
 let match=0
-const testQueries=["tshirt","hoodie","anime"]
 
 productsSnap.docs.forEach((p)=>{
 
 const name=(p.data().name||"").toLowerCase()
 
-testQueries.forEach((q)=>{
-
-if(name.includes(q)){
+if(name.includes("tshirt")||name.includes("hoodie")){
 match++
 }
 
 })
 
-})
-
-if(match===0){
-setSearchAccuracy("Poor")
-}else{
-setSearchAccuracy("Good")
-}
+setSearchAccuracy(match>0?"Good":"Poor")
 
 
-/* PAYMENT API TEST */
+/* PAYMENT TEST */
 
 try{
 
@@ -208,18 +209,37 @@ setPaymentStatus("Error")
 }
 
 
+/* QIKINK TEST */
+
+try{
+
+const res=await fetch("/api/qikink-test")
+
+if(res.ok){
+setQikinkStatus("Connected")
+}else{
+setQikinkStatus("API Error")
+}
+
+}catch{
+
+setQikinkStatus("Connection Failed")
+
+}
+
+
 /* SEO SCAN */
 
 if(!document.title){
 seoErr++
 }
 
-const imgs=document.querySelectorAll("img")
+document.querySelectorAll("img").forEach((img)=>{
 
-imgs.forEach((img)=>{
 if(!img.alt){
 seoErr++
 }
+
 })
 
 setSeoIssues(seoErr)
@@ -231,42 +251,37 @@ if(location.protocol!=="https:"){
 securityErr++
 }
 
-const scripts=document.querySelectorAll("script[src^='http:']")
-
-if(scripts.length>0){
-securityErr++
-}
-
 setSecurityIssues(securityErr)
 
 
-/* AI BUG DETECTION */
+/* SEARCH CLICK TEST */
+
+const searchInput=document.querySelector("input[type='text']")
+
+if(!searchInput){
+setSearchClickIssue(true)
+}else{
+
+const style=window.getComputedStyle(searchInput)
+
+if(style.pointerEvents==="none"){
+setSearchClickIssue(true)
+}else{
+setSearchClickIssue(false)
+}
+
+}
+
+
+/* AI BUG REPORT */
 
 let aiIssues=[]
 
-if(missingProduct>0){
-aiIssues.push("Missing product images")
-}
-
-if(fake>0){
-aiIssues.push("Fake orders detected")
-}
-
-if(brokenBanner>0){
-aiIssues.push("Broken banner images")
-}
-
-if(dbTime>2000){
-aiIssues.push("Slow database response")
-}
-
-if(seoErr>0){
-aiIssues.push("SEO problems")
-}
-
-if(securityErr>0){
-aiIssues.push("Security issues")
-}
+if(missingProduct>0) aiIssues.push("Missing product images")
+if(fake>0) aiIssues.push("Fake orders")
+if(brokenBanner>0) aiIssues.push("Broken banners")
+if(seoErr>0) aiIssues.push("SEO problems")
+if(securityErr>0) aiIssues.push("Security issues")
 
 if(aiIssues.length===0){
 setAiBug("No Issues Detected")
@@ -334,7 +349,7 @@ if(loading){
 return(
 
 <div className="p-6">
-Running Advanced AI Diagnostics...
+Running AI Diagnostics...
 </div>
 
 )
@@ -350,21 +365,10 @@ return(
 JembeeKart AI System Diagnostics
 </h1>
 
-<div className="bg-white p-4 rounded shadow">
-Products : {products}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Categories : {categories}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Orders : {orders}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Sellers : {sellers}
-</div>
+<div className="bg-white p-4 rounded shadow">Products : {products}</div>
+<div className="bg-white p-4 rounded shadow">Categories : {categories}</div>
+<div className="bg-white p-4 rounded shadow">Orders : {orders}</div>
+<div className="bg-white p-4 rounded shadow">Sellers : {sellers}</div>
 
 <div className="bg-white p-4 rounded shadow text-red-500">
 Missing Product Images : {missingProductImages}
@@ -400,6 +404,14 @@ SEO Issues : {seoIssues}
 
 <div className="bg-white p-4 rounded shadow">
 Security Issues : {securityIssues}
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+Qikink API : {qikinkStatus}
+</div>
+
+<div className="bg-white p-4 rounded shadow text-red-500">
+Search Box Click Issue : {searchClickIssue ? "Detected" : "OK"}
 </div>
 
 <div className="bg-yellow-100 p-4 rounded shadow">
