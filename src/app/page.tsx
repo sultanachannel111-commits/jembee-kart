@@ -22,9 +22,13 @@ import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 
 import { getLightningDeals } from "@/services/lightningService";
+import { loadTheme } from "@/lib/themeLoader";
 
 export default function HomePage() {
   const { cartCount } = useCart();
+  useEffect(() => {
+  loadTheme();
+}, []);
   const pathname = usePathname();
   const { user } = useAuth();
 
