@@ -280,6 +280,27 @@ JembeeKart Admin Panel
 </div>
 </Link>
 
+  <Link
+href="/admin/auto-fix"
+className="bg-red-600 text-white px-4 py-2 rounded"
+>
+AI Auto Bug Fixer
+</Link>
+
+<Link
+href="/admin/project-scanner"
+className="bg-blue-600 text-white px-4 py-2 rounded"
+>
+Project Scanner
+</Link>
+
+<Link
+href="/admin/speed-optimizer"
+className="bg-green-600 text-white px-4 py-2 rounded"
+>
+Speed Optimizer
+</Link>
+
 
 {/* SETTINGS */}
 
