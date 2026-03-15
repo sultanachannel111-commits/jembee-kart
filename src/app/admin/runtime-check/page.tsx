@@ -6,92 +6,126 @@ import { db } from "@/lib/firebase";
 
 export default function RuntimeCheck(){
 
-const [products,setProducts] = useState(0);
-const [orders,setOrders] = useState(0);
-const [searchStatus,setSearchStatus] = useState("Checking...");
-const [paymentStatus,setPaymentStatus] = useState("Checking...");
-const [qikinkStatus,setQikinkStatus] = useState("Checking...");
-const [brokenImages,setBrokenImages] = useState(0);
-const [speed,setSpeed] = useState(0);
+const [logs,setLogs] = useState<string[]>([]);
+const [loading,setLoading] = useState(false);
 
 useEffect(()=>{
-runChecks();
+runCheck();
 },[]);
 
-async function runChecks(){
+function addLog(msg:string){
+setLogs(prev => [...prev,msg]);
+}
 
-/* --------------------------
-Firestore products check
--------------------------- */
+async function runCheck(){
+
+setLoading(true);
+setLogs([]);
+
+try{
+
+addLog("🔍 Checking Firestore connection...");
 
 const p = await getDocs(collection(db,"products"));
-setProducts(p.size);
 
-/* --------------------------
-Orders check
--------------------------- */
+addLog("✅ Firestore Connected");
+addLog(`📦 Products Found : ${p.size}`);
 
-const o = await getDocs(collection(db,"orders"));
-setOrders(o.size);
+}catch(e:any){
 
-/* --------------------------
-Search check
--------------------------- */
+addLog("❌ Firestore Error");
+addLog(e.message);
+
+}
+
+/* ---------------------- */
+/* Search system check */
+/* ---------------------- */
 
 try{
 
-const test = "shirt";
-const res = await fetch(`/api/search-test?q=${test}`);
+addLog("🔍 Checking Search System...");
+
+const res = await fetch("/api/search-test?q=shirt");
 
 if(res.ok){
-setSearchStatus("Working");
+
+addLog("✅ Search API Working");
+
 }else{
-setSearchStatus("Error");
+
+addLog("❌ Search API Error");
+
 }
 
-}catch{
-setSearchStatus("Error");
+}catch(e:any){
+
+addLog("❌ Search Runtime Error");
+addLog(e.message);
+
 }
 
-/* --------------------------
-Payment API check
--------------------------- */
+/* ---------------------- */
+/* Payment check */
+/* ---------------------- */
 
 try{
+
+addLog("🔍 Checking Payment API...");
 
 const pay = await fetch("/api/payment-test");
 
 if(pay.ok){
-setPaymentStatus("Working");
+
+addLog("✅ Payment API Working");
+
 }else{
-setPaymentStatus("Error");
+
+addLog("❌ Payment API Failed");
+
 }
 
-}catch{
-setPaymentStatus("Error");
+}catch(e:any){
+
+addLog("❌ Payment Runtime Error");
+addLog(e.message);
+
 }
 
-/* --------------------------
-Qikink API check
--------------------------- */
+/* ---------------------- */
+/* Qikink API check */
+/* ---------------------- */
 
 try{
+
+addLog("🔍 Checking Qikink API...");
 
 const q = await fetch("/api/qikink-test");
 
 if(q.ok){
-setQikinkStatus("Working");
+
+addLog("✅ Qikink API Working");
+
 }else{
-setQikinkStatus("Error");
+
+addLog("❌ Qikink API Failed");
+
 }
 
-}catch{
-setQikinkStatus("Error");
+}catch(e:any){
+
+addLog("❌ Qikink Runtime Error");
+addLog(e.message);
+
 }
 
-/* --------------------------
-Speed test
--------------------------- */
+/* ---------------------- */
+/* Website speed */
+/* ---------------------- */
+
+try{
+
+addLog("⚡ Checking Website Speed...");
 
 const start = performance.now();
 
@@ -99,24 +133,15 @@ await fetch("/");
 
 const end = performance.now();
 
-setSpeed(Math.round(end-start));
+addLog(`⚡ Speed : ${Math.round(end-start)} ms`);
 
-/* --------------------------
-Broken image check
--------------------------- */
+}catch(e:any){
 
-let broken = 0;
+addLog("❌ Speed Test Error");
 
-p.docs.forEach(d=>{
-const data = d.data();
-
-if(!data.image){
-broken++;
 }
 
-});
-
-setBrokenImages(broken);
+setLoading(false);
 
 }
 
@@ -125,43 +150,25 @@ return(
 <div className="p-6 space-y-4">
 
 <h1 className="text-3xl font-bold">
-Runtime System Check
+Runtime Error Scanner
 </h1>
 
-<div className="bg-white p-4 rounded shadow">
-Products : {products}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Orders : {orders}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Search System : {searchStatus}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Payment Gateway : {paymentStatus}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Qikink API : {qikinkStatus}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Broken Images : {brokenImages}
-</div>
-
-<div className="bg-white p-4 rounded shadow">
-Website Speed : {speed} ms
-</div>
-
 <button
-onClick={runChecks}
+onClick={runCheck}
 className="bg-blue-600 text-white px-4 py-2 rounded"
 >
-Run Again
+Run Scan
 </button>
+
+<div className="bg-black text-green-400 p-4 rounded text-sm font-mono h-[400px] overflow-y-auto">
+
+{loading && <p>Scanning project...</p>}
+
+{logs.map((l,i)=>(
+<p key={i}>{l}</p>
+))}
+
+</div>
 
 </div>
 
