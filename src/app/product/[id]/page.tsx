@@ -6,6 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function ProductPage() {
 
@@ -31,7 +32,29 @@ try{
 const snap = await getDoc(doc(db,"products",id));
 
 if(snap.exists()){
-setProduct({id:snap.id,...snap.data()});
+const data:any = {id:snap.id,...snap.data()};
+
+const offerSnap = await getDocs(collection(db,"offers"));
+
+let discount = 0;
+
+offerSnap.forEach((doc)=>{
+  const offer = doc.data();
+
+  if(!offer.active) return;
+
+  if(offer.type === "product" && offer.productId === id){
+    discount = offer.discountAmount
+  }
+
+  if(offer.type === "category" && offer.category === data.category){
+    discount = offer.discountAmount
+  }
+});
+
+data.discount = discount;
+
+setProduct(data);
 }else{
 setProduct(null);
 }
