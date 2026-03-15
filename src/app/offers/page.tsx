@@ -5,161 +5,122 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 
-export default function OffersPage() {
+export default function OffersPage(){
 
-  const [products, setProducts] = useState<any[]>([]);
+const [products,setProducts] = useState<any[]>([]);
 
-  useEffect(() => {
+useEffect(()=>{
 
-    const fetchData = async () => {
+const fetchData = async()=>{
 
-      const productSnap = await getDocs(collection(db, "products"));
-      const offerSnap = await getDocs(collection(db, "offers"));
+const productSnap = await getDocs(collection(db,"products"));
+const offerSnap = await getDocs(collection(db,"offers"));
 
-      const allProducts = productSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+const allProducts = productSnap.docs.map(d=>({
+id:d.id,
+...d.data()
+}));
 
-      const activeOffers = offerSnap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter(
-          (o: any) =>
-            o.active &&
-            new Date(o.endDate).getTime() > new Date().getTime()
-        );
+const activeOffers = offerSnap.docs
+.map(d=>({id:d.id,...d.data()}))
+.filter(
+(o:any)=>
+o.active &&
+new Date(o.endDate).getTime()>Date.now()
+);
 
-      const discountedProducts = allProducts
-        .map((product: any) => {
+const result = allProducts.map((product:any)=>{
 
-          const basePrice = Number(product.sellPrice || product.price || 0);
-          if (!basePrice) return null;
+const basePrice = Number(product.sellPrice || product.price || 0);
 
-          let productOffer: any = null;
-          let categoryOffer: any = null;
+let matchedOffer = activeOffers.find((o:any)=>{
 
-          activeOffers.forEach((o: any) => {
+if(o.type==="product" && o.productId===product.id)
+return true;
 
-            // product offer
-            if (o.type === "product" && o.productId === product.id) {
-              productOffer = o;
-            }
+if(o.type==="category" && o.category===product.category)
+return true;
 
-            // category offer
-            if (
-              o.type === "category" &&
-              o.category?.trim().toLowerCase() ===
-              product.category?.trim().toLowerCase()
-            ) {
-              categoryOffer = o;
-            }
+return false;
 
-          });
+});
 
-          // product offer priority
-          const matchedOffer = productOffer || categoryOffer;
+if(!matchedOffer) return null;
 
-          if (!matchedOffer) return null;
+const discount = Number(matchedOffer.discount);
 
-          let finalPrice = basePrice;
-          let discountPercent = 0;
+const finalPrice = Math.round(
+basePrice - (basePrice * discount)/100
+);
 
-          // ₹ discount
-          if (matchedOffer.discountAmount) {
+return{
+...product,
+discount,
+finalPrice,
+basePrice
+};
 
-            const amount = Number(matchedOffer.discountAmount);
+}).filter(Boolean);
 
-            finalPrice = basePrice - amount;
+setProducts(result);
 
-            discountPercent = Math.round((amount / basePrice) * 100);
+};
 
-          }
+fetchData();
 
-          // % discount
-          else if (matchedOffer.discount) {
+},[]);
 
-            discountPercent = Number(matchedOffer.discount);
+return(
 
-            finalPrice = Math.round(
-              basePrice - (basePrice * discountPercent) / 100
-            );
+<div className="p-4 pt-[96px]">
 
-          }
+<h1 className="text-2xl font-bold mb-4">
+🔥 Hot Offers
+</h1>
 
-          return {
-            ...product,
-            discount: discountPercent,
-            finalPrice,
-            basePrice,
-          };
+<div className="grid grid-cols-2 gap-4">
 
-        })
-        .filter(Boolean);
+{products.map((p:any)=>(
 
-      setProducts(discountedProducts);
+<Link
+key={p.id}
+href={`/product/${p.id}`}
+className="bg-white rounded-xl shadow p-2 relative"
+>
 
-    };
+<span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+{p.discount}% OFF
+</span>
 
-    fetchData();
+<img
+src={p.image}
+className="w-full h-40 object-cover rounded"
+/>
 
-  }, []);
+<div className="mt-2 text-sm font-medium truncate">
+{p.name}
+</div>
 
-  return (
+<div className="flex gap-2 items-center mt-1">
 
-    <div className="min-h-screen pt-[96px] p-4 bg-gradient-to-b from-pink-100 to-white">
+<span className="font-bold text-red-600">
+₹{p.finalPrice}
+</span>
 
-      <h1 className="text-2xl font-bold mb-6">
-        🔥 Hot Offers
-      </h1>
+<span className="text-gray-400 line-through text-xs">
+₹{p.basePrice}
+</span>
 
-      {products.length === 0 ? (
-        <p>No active offers right now 😢</p>
-      ) : (
+</div>
 
-        <div className="grid grid-cols-2 gap-4">
+</Link>
 
-          {products.map((p: any) => (
+))}
 
-            <Link
-              key={p.id}
-              href={`/product/${p.id}`}
-              className="bg-white p-2 rounded-xl shadow relative"
-            >
+</div>
 
-              <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                {p.discount}% OFF
-              </span>
+</div>
 
-              <img
-                src={p.image || p.imageUrl || "/placeholder.png"}
-                className="rounded-lg w-full h-40 object-cover"
-              />
+);
 
-              <div className="mt-2 text-sm font-medium truncate">
-                {p.name}
-              </div>
-
-              <div className="flex gap-2 items-center mt-1">
-
-                <span className="font-bold text-red-600">
-                  ₹{p.finalPrice}
-                </span>
-
-                <span className="text-gray-400 line-through text-xs">
-                  ₹{p.basePrice}
-                </span>
-
-              </div>
-
-            </Link>
-
-          ))}
-
-        </div>
-
-      )}
-
-    </div>
-
-  );
 }
