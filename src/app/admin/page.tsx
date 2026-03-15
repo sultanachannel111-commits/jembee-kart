@@ -269,6 +269,13 @@ JembeeKart Admin Panel
 </div>
 </Link>
 
+  <Link
+href="/admin/search-monitor"
+className="bg-purple-600 text-white px-4 py-2 rounded"
+>
+Search Monitor
+</Link>
+
 <Link
 href="/admin/runtime-check"
 className="bg-purple-600 text-white px-4 py-2 rounded"
