@@ -141,24 +141,56 @@ log(`❌ API Unreachable → ${api}`);
 }
 
 /* =========================
-SEARCH SYSTEM
+SEARCH SYSTEM CHECK
 ========================= */
 
 try{
 
 log("🔎 Checking Search System...");
 
-const res = await fetch("/?search=test");
+/* Firestore से products लो */
+const p = await getDocs(collection(db,"products"));
 
-if(res.ok){
-log("✅ Homepage reachable for search");
+if(p.size === 0){
+
+log("❌ No products found → search cannot work");
+
 }else{
-log("❌ Homepage search error");
+
+/* example search word */
+const keyword = "shirt";
+
+let match = 0;
+
+p.docs.forEach((doc:any)=>{
+
+const data = doc.data();
+
+if(
+data.name &&
+data.name.toLowerCase().includes(keyword)
+){
+match++;
 }
 
-}catch{
+});
 
-log("❌ Search system unreachable");
+if(match > 0){
+
+log(`✅ Search Working → ${match} matching products found`);
+
+}else{
+
+log("❌ Search logic issue → no matching products");
+
+}
+
+}
+
+}catch(e:any){
+
+log("❌ Search runtime error");
+log(e.message);
 
 }
 
