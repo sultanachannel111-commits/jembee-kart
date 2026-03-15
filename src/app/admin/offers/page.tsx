@@ -2,247 +2,232 @@
 
 import { useEffect, useState } from "react";
 import {
-  collection,
-  addDoc,
-  onSnapshot,
-  deleteDoc,
-  doc,
-  updateDoc,
+collection,
+addDoc,
+getDocs,
+deleteDoc,
+doc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function AdminOffersPage() {
-  const [type, setType] = useState("category");
-  const [category, setCategory] = useState("");
-  const [productId, setProductId] = useState("");
-  const [discountAmount, setDiscountAmount] = useState("");
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [endDate, setEndDate] = useState("");
-  const [offers, setOffers] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [error, setError] = useState("");
+export default function OffersAdminPage(){
 
-  const [, forceUpdate] = useState(0);
+const [type,setType] = useState("product");
+const [products,setProducts] = useState<any[]>([]);
+const [categories,setCategories] = useState<string[]>([]);
+const [offers,setOffers] = useState<any[]>([]);
 
-  // Live Timer Refresh
-  useEffect(() => {
-    const timer = setInterval(() => {
-      forceUpdate((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+const [productId,setProductId] = useState("");
+const [category,setCategory] = useState("");
+const [discount,setDiscount] = useState("");
 
-  // Firestore Listeners
-  useEffect(() => {
-    const unsub1 = onSnapshot(collection(db, "offers"), (snap) =>
-      setOffers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
+const [hours,setHours] = useState("24");
 
-    const unsub2 = onSnapshot(collection(db, "qikinkCategories"), (snap) =>
-      setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
+useEffect(()=>{
 
-    const unsub3 = onSnapshot(collection(db, "products"), (snap) =>
-      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
+const loadData = async()=>{
 
-    return () => {
-      unsub1();
-      unsub2();
-      unsub3();
-    };
-  }, []);
+const productSnap = await getDocs(collection(db,"products"));
+const offerSnap = await getDocs(collection(db,"offers"));
 
-  // Auto Calculate Percent From Amount
-  useEffect(() => {
-    if (type !== "product") return;
+const productList = productSnap.docs.map(d=>({
+id:d.id,
+...d.data()
+}));
 
-    const selectedProduct = products.find((p) => p.id === productId);
+setProducts(productList);
 
-    if (!selectedProduct || !discountAmount) {
-      setDiscountPercent(0);
-      return;
-    }
-
-    const price = Number(
-  selectedProduct.sellPrice ||
-  selectedProduct.price ||
-  0
+const cats = Array.from(
+new Set(productList.map((p:any)=>p.category))
 );
-    const amount = Number(discountAmount || 0);
 
-    if (!price || amount > price) {
-      setDiscountPercent(0);
-      return;
-    }
+setCategories(cats as string[]);
 
-    const percent = Math.round((amount / price) * 100);
-    setDiscountPercent(percent);
-  }, [discountAmount, productId, products, type]);
+setOffers(
+offerSnap.docs.map(d=>({
+id:d.id,
+...d.data()
+}))
+);
 
-  // Add Offer
-  const addOffer = async () => {
-    setError("");
+};
 
-    if (!discountAmount) return setError("Enter discount amount");
-    if (!endDate) return setError("Select end time");
+loadData();
 
-    if (type === "category" && !category)
-      return setError("Select category");
+},[]);
 
-    if (type === "product" && !productId)
-      return setError("Select product");
+const addOffer = async()=>{
 
-    await addDoc(collection(db, "offers"), {
-      type,
-      category: type === "category" ? category : null,
-      productId: type === "product" ? productId : null,
-      discountAmount: Number(discountAmount),
-      discount: type === "product" ? discountPercent : Number(discountAmount),
-      endDate,
-      active: true,
-      createdAt: new Date(),
-    });
+if(!discount) return alert("Enter discount");
 
-    setCategory("");
-    setProductId("");
-    setDiscountAmount("");
-    setDiscountPercent(0);
-    setEndDate("");
-  };
+const endDate = new Date();
+endDate.setHours(endDate.getHours()+Number(hours));
 
-  const toggleActive = async (id: string, current: boolean) => {
-    await updateDoc(doc(db, "offers", id), {
-      active: !current,
-    });
-  };
+await addDoc(collection(db,"offers"),{
 
-  const deleteOffer = async (id: string) => {
-    await deleteDoc(doc(db, "offers", id));
-  };
+type,
+productId: type==="product"?productId:null,
+category: type==="category"?category:null,
 
-  const getRemaining = (end: string) => {
-    const diff = new Date(end).getTime() - new Date().getTime();
-    if (diff <= 0) return "Expired";
+discount:Number(discount),
 
-    const h = Math.floor(diff / (1000 * 60 * 60));
-    const m = Math.floor((diff / (1000 * 60)) % 60);
-    const s = Math.floor((diff / 1000) % 60);
+active:true,
+endDate:endDate.toISOString()
 
-    return `${h}h ${m}m ${s}s`;
-  };
+});
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Offer Management</h1>
+location.reload();
 
-      <div className="grid md:grid-cols-6 gap-3 mb-4">
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="border px-3 py-2 rounded"
-        >
-          <option value="category">Category Offer</option>
-          <option value="product">Product Offer</option>
-        </select>
+};
 
-        {type === "category" && (
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="border px-3 py-2 rounded"
-          >
-            <option value="">Select Category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        )}
+const removeOffer = async(id:string)=>{
 
-        {type === "product" && (
-          <select
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className="border px-3 py-2 rounded"
-          >
-            <option value="">Select Product</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        )}
+await deleteDoc(doc(db,"offers",id));
+location.reload();
 
-        <input
-          type="number"
-          placeholder="Discount Amount"
-          value={discountAmount}
-          onChange={(e) => setDiscountAmount(e.target.value)}
-          className="border px-3 py-2 rounded"
-        />
+};
 
-        {type === "product" && discountPercent > 0 && (
-          <div className="flex items-center font-semibold text-pink-600">
-            {discountPercent}% OFF
-          </div>
-        )}
+return(
 
-        <input
-          type="datetime-local"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="border px-3 py-2 rounded"
-        />
+<div className="p-4 max-w-xl mx-auto">
 
-        <button
-          onClick={addOffer}
-          className="bg-pink-600 text-white px-4 py-2 rounded"
-        >
-          Add
-        </button>
-      </div>
+<h1 className="text-2xl font-bold mb-4">
+Offer Management
+</h1>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+<select
+value={type}
+onChange={(e)=>setType(e.target.value)}
+className="border p-2 w-full mb-3"
+>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {offers.map((o) => (
-          <div key={o.id} className="bg-white p-4 rounded shadow">
-            <p className="font-semibold">
-              {o.type === "category"
-                ? `Category: ${o.category}`
-                : `Product ID: ${o.productId}`}
-            </p>
+<option value="product">Product Offer</option>
+<option value="category">Category Offer</option>
 
-            <p className="text-pink-600 font-bold">
-              {o.discount}% OFF
-            </p>
+</select>
 
-            <p className="text-sm">
-              Ends: {getRemaining(o.endDate)}
-            </p>
+{type==="product" && (
 
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => toggleActive(o.id, o.active)}
-                className="bg-green-500 text-white px-3 py-1 rounded text-sm"
-              >
-                {o.active ? "Active" : "Inactive"}
-              </button>
+<select
+value={productId}
+onChange={(e)=>setProductId(e.target.value)}
+className="border p-2 w-full mb-3"
+>
 
-              <button
-                onClick={() => deleteOffer(o.id)}
-                className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+<option>Select Product</option>
+
+{products.map((p:any)=>(
+<option key={p.id} value={p.id}>
+{p.name}
+</option>
+))}
+
+</select>
+
+)}
+
+{type==="category" && (
+
+<select
+value={category}
+onChange={(e)=>setCategory(e.target.value)}
+className="border p-2 w-full mb-3"
+>
+
+<option>Select Category</option>
+
+{categories.map((c)=>(
+<option key={c} value={c}>
+{c}
+</option>
+))}
+
+</select>
+
+)}
+
+<input
+type="number"
+placeholder="Discount %"
+value={discount}
+onChange={(e)=>setDiscount(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
+
+<p className="text-pink-600 font-bold mb-3">
+{discount || 0}% OFF
+</p>
+
+<select
+value={hours}
+onChange={(e)=>setHours(e.target.value)}
+className="border p-2 w-full mb-3"
+>
+
+<option value="6">6 Hours</option>
+<option value="12">12 Hours</option>
+<option value="24">24 Hours</option>
+<option value="48">48 Hours</option>
+
+</select>
+
+<button
+onClick={addOffer}
+className="bg-pink-600 text-white w-full py-2 rounded"
+>
+
+Add
+
+</button>
+
+{/* ACTIVE OFFERS */}
+
+<div className="mt-6 space-y-4">
+
+{offers.map((o:any)=>(
+
+<div
+key={o.id}
+className="border p-3 rounded-lg bg-white shadow"
+>
+
+<p className="font-semibold">
+
+{o.type==="product"
+? `Product ID: ${o.productId}`
+: `Category: ${o.category}`}
+
+</p>
+
+<p className="text-pink-600 font-bold">
+{o.discount}% OFF
+</p>
+
+<div className="flex gap-2 mt-2">
+
+<button className="bg-green-500 text-white px-3 py-1 rounded">
+Active
+</button>
+
+<button
+onClick={()=>removeOffer(o.id)}
+className="bg-red-500 text-white px-3 py-1 rounded"
+>
+
+Delete
+
+</button>
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+</div>
+
+);
+
 }
