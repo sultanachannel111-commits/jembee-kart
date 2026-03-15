@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
+import { getFinalPrice } from "@/lib/priceCalculator";
 
 export default function ProductPage() {
 
@@ -64,7 +65,9 @@ Product not found ❌
 }
 
 const outOfStock = !product.stock || product.stock <= 0;
-
+  
+const finalPrice = getFinalPrice(product);
+const basePrice = Number(product.sellPrice || product.price || 0);
 /* ========================
 ADD TO CART
 ======================== */
@@ -123,8 +126,19 @@ className="w-full h-80 object-cover rounded-xl"
 {/* PRICE */}
 
 <p className="text-2xl font-bold mt-3">
-₹{product.sellPrice || product.price}
-</p>
+<div className="flex items-center gap-2">
+
+<span className="text-2xl font-bold">
+₹{finalPrice}
+</span>
+
+{product.discount && (
+<span className="line-through text-gray-400">
+₹{basePrice}
+</span>
+)}
+
+</div>
 
 {/* STOCK */}
 
