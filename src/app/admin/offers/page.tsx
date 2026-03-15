@@ -65,7 +65,11 @@ export default function AdminOffersPage() {
       return;
     }
 
-    const price = Number(selectedProduct.sellingPrice || 0);
+    const price = Number(
+  selectedProduct.sellPrice ||
+  selectedProduct.price ||
+  0
+);
     const amount = Number(discountAmount || 0);
 
     if (!price || amount > price) {
