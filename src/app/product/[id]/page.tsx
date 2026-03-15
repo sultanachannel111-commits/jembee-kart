@@ -125,7 +125,6 @@ className="w-full h-80 object-cover rounded-xl"
 
 {/* PRICE */}
 
-<p className="text-2xl font-bold mt-3">
 <div className="flex items-center gap-2">
 
 <span className="text-2xl font-bold">
