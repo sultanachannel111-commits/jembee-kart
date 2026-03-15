@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Heart, Star, Flame } from "lucide-react";
+import { getFinalPrice } from "@/lib/priceCalculator";
 
 type Props = {
   products: any[];
@@ -24,6 +25,8 @@ export default function ProductGrid({ products, title }: Props) {
       <div className="grid grid-cols-2 gap-4">
 
         {products.map((product: any) => {
+      const finalPrice = getFinalPrice(product);
+const basePrice = Number(product.sellPrice || product.price || 0);
 
           const rating = product.rating || 4.5;
 
@@ -138,7 +141,7 @@ export default function ProductGrid({ products, title }: Props) {
               <div className="flex items-center gap-2 mt-1">
 
                 <span className="font-bold text-black">
-                  ₹{product.sellPrice || product.price || 0}
+                  ₹₹{finalPrice}
                 </span>
 
                 {product.originalPrice && (
