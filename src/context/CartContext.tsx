@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { doc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-
+import { getFinalPrice } from "@/lib/priceCalculator";
 const CartContext = createContext<any>(null);
 
 export function CartProvider({ children }: any) {
@@ -32,7 +32,7 @@ export function CartProvider({ children }: any) {
 
     await setDoc(ref, {
       name: product.name,
-      price: product.sellPrice || product.price,
+      price: getFinalPrice(product),
       image: product.image || "",
       quantity: 1,
       createdAt: new Date()
