@@ -40,33 +40,51 @@ export default function OffersPage() {
 
           activeOffers.forEach((o: any) => {
 
+            // product offer
             if (o.type === "product" && o.productId === product.id) {
               productOffer = o;
             }
 
+            // category offer
             if (
               o.type === "category" &&
               o.category?.trim().toLowerCase() ===
-                product.category?.trim().toLowerCase()
+              product.category?.trim().toLowerCase()
             ) {
               categoryOffer = o;
             }
 
           });
 
+          // product offer priority
           const matchedOffer = productOffer || categoryOffer;
 
           if (!matchedOffer) return null;
 
-          const discountPercent = Number(
-            matchedOffer.discount ||
-            matchedOffer.discountAmount ||
-            0
-          );
+          let finalPrice = basePrice;
+          let discountPercent = 0;
 
-          const finalPrice = Math.round(
-            basePrice - (basePrice * discountPercent) / 100
-          );
+          // ₹ discount
+          if (matchedOffer.discountAmount) {
+
+            const amount = Number(matchedOffer.discountAmount);
+
+            finalPrice = basePrice - amount;
+
+            discountPercent = Math.round((amount / basePrice) * 100);
+
+          }
+
+          // % discount
+          else if (matchedOffer.discount) {
+
+            discountPercent = Number(matchedOffer.discount);
+
+            finalPrice = Math.round(
+              basePrice - (basePrice * discountPercent) / 100
+            );
+
+          }
 
           return {
             ...product,
@@ -87,6 +105,7 @@ export default function OffersPage() {
   }, []);
 
   return (
+
     <div className="min-h-screen pt-[96px] p-4 bg-gradient-to-b from-pink-100 to-white">
 
       <h1 className="text-2xl font-bold mb-6">
@@ -96,9 +115,11 @@ export default function OffersPage() {
       {products.length === 0 ? (
         <p>No active offers right now 😢</p>
       ) : (
+
         <div className="grid grid-cols-2 gap-4">
 
           {products.map((p: any) => (
+
             <Link
               key={p.id}
               href={`/product/${p.id}`}
@@ -131,11 +152,14 @@ export default function OffersPage() {
               </div>
 
             </Link>
+
           ))}
 
         </div>
+
       )}
 
     </div>
+
   );
 }
