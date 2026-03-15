@@ -9,8 +9,8 @@ export default function RuntimeMonitor(){
 const [logs,setLogs] = useState<string[]>([]);
 const [running,setRunning] = useState(false);
 
-function addLog(msg:string){
-setLogs(prev => [...prev,msg]);
+function log(msg:string){
+setLogs(prev=>[...prev,msg]);
 }
 
 useEffect(()=>{
@@ -22,108 +22,97 @@ async function runScan(){
 setLogs([]);
 setRunning(true);
 
-addLog("🚀 Starting Full Project Runtime Scan...");
+log("🚀 Starting Full Runtime Scan...");
 
-/* ---------------------------
+/* =========================
 THEME SYSTEM
---------------------------- */
+========================= */
 
 try{
 
-addLog("🎨 Checking Theme System...");
+log("🎨 Checking Theme System...");
 
 const themeLocal = localStorage.getItem("theme");
 
 if(themeLocal){
-addLog("✅ Theme found in localStorage");
+log("✅ Theme found in localStorage");
 }else{
-addLog("❌ Theme missing in localStorage");
+log("❌ Theme missing in localStorage");
 }
 
-const ref = doc(db,"settings","theme");
-const snap = await getDoc(ref);
-
-if(snap.exists()){
-addLog("✅ Theme document found in Firestore");
-}else{
-addLog("❌ Firestore theme document missing");
-}
-
-const css = getComputedStyle(document.documentElement)
+const cssVar = getComputedStyle(document.documentElement)
 .getPropertyValue("--admin-bg");
 
-if(css){
-addLog("✅ CSS variables applied");
+if(cssVar){
+log("✅ CSS Theme Variables Applied");
 }else{
-addLog("❌ CSS theme variables missing");
+log("❌ CSS Theme Variables Missing");
 }
 
 }catch(e:any){
-addLog("❌ Theme runtime error");
-addLog(e.message);
+
+log("❌ Theme Runtime Error");
+log(e.message);
+
 }
 
-/* ---------------------------
+/* =========================
 FIRESTORE DATABASE
---------------------------- */
+========================= */
 
 try{
 
-addLog("📦 Checking Firestore Products...");
+log("📦 Checking Firestore Collections...");
 
-const p = await getDocs(collection(db,"products"));
+const products = await getDocs(collection(db,"products"));
+log(`Products : ${products.size}`);
 
-addLog(`Products Found : ${p.size}`);
+const orders = await getDocs(collection(db,"orders"));
+log(`Orders : ${orders.size}`);
+
+const users = await getDocs(collection(db,"users"));
+log(`Users : ${users.size}`);
 
 }catch(e:any){
 
-addLog("❌ Firestore products error");
-addLog(e.message);
+log("❌ Firestore Connection Error");
+log(e.message);
 
 }
 
-/* ---------------------------
-ORDERS
---------------------------- */
+/* =========================
+PAGES CHECK
+========================= */
+
+const pages = [
+"/",
+"/products",
+"/cart",
+"/checkout",
+"/admin"
+];
+
+for(const p of pages){
 
 try{
 
-addLog("🛒 Checking Orders...");
+const res = await fetch(p);
 
-const o = await getDocs(collection(db,"orders"));
-
-addLog(`Orders Found : ${o.size}`);
-
-}catch(e:any){
-
-addLog("❌ Orders error");
-addLog(e.message);
-
-}
-
-/* ---------------------------
-SEARCH SYSTEM
---------------------------- */
-
-try{
-
-addLog("🔎 Checking Search System...");
-
-const input = document.querySelector("input[type='text']");
-
-if(input){
-addLog("✅ Search input detected");
+if(res.ok){
+log(`📄 Page OK → ${p}`);
 }else{
-addLog("❌ Search input missing");
+log(`❌ Page Error → ${p}`);
 }
 
 }catch{
-addLog("❌ Search system error");
+log(`❌ Page Unreachable → ${p}`);
 }
 
-/* ---------------------------
+}
+
+/* =========================
 API CHECK
---------------------------- */
+========================= */
 
 const apis = [
 "/api/payment-test",
@@ -135,31 +124,51 @@ for(const api of apis){
 
 try{
 
-addLog(`🌐 Checking API ${api} ...`);
+log(`🌐 Checking API ${api}`);
 
 const res = await fetch(api);
 
 if(res.ok){
-addLog(`✅ ${api} working`);
+log(`✅ API Working → ${api}`);
 }else{
-addLog(`❌ ${api} failed`);
+log(`❌ API Error → ${api}`);
+}
+
+}catch{
+log(`❌ API Unreachable → ${api}`);
+}
+
+}
+
+/* =========================
+SEARCH SYSTEM
+========================= */
+
+try{
+
+log("🔎 Checking Search System...");
+
+const res = await fetch("/?search=test");
+
+if(res.ok){
+log("✅ Homepage reachable for search");
+}else{
+log("❌ Homepage search error");
 }
 
 }catch{
 
-addLog(`❌ ${api} unreachable`);
+log("❌ Search system unreachable");
 
 }
 
-}
-
-/* ---------------------------
-IMAGE CHECK
---------------------------- */
+/* =========================
+IMAGES CHECK
+========================= */
 
 try{
 
-addLog("🖼 Checking images...");
+log("🖼 Checking Images...");
 
 let broken = 0;
 
@@ -171,19 +180,21 @@ broken++;
 
 });
 
-addLog(`Broken Images : ${broken}`);
+log(`Broken Images : ${broken}`);
 
 }catch{
-addLog("❌ Image scan error");
+
+log("❌ Image scan failed");
+
 }
 
-/* ---------------------------
+/* =========================
 WEBSITE SPEED
---------------------------- */
+========================= */
 
 try{
 
-addLog("⚡ Checking page speed...");
+log("⚡ Checking Website Speed...");
 
 const start = performance.now();
 
@@ -191,15 +202,51 @@ await fetch("/");
 
 const end = performance.now();
 
-addLog(`Page Load Speed : ${Math.round(end-start)} ms`);
+log(`Page Load Time : ${Math.round(end-start)} ms`);
 
 }catch{
 
-addLog("❌ Speed test failed");
+log("❌ Speed test failed");
 
 }
 
-addLog("✅ Runtime Scan Completed");
+/* =========================
+BROWSER STORAGE
+========================= */
+
+try{
+
+log("💾 Checking Browser Storage...");
+
+const local = Object.keys(localStorage).length;
+const session = Object.keys(sessionStorage).length;
+
+log(`localStorage keys : ${local}`);
+log(`sessionStorage keys : ${session}`);
+
+}catch{
+
+log("❌ Storage check failed");
+
+}
+
+/* =========================
+MEMORY
+========================= */
+
+try{
+
+const memory = (performance as any).memory;
+
+if(memory){
+
+log(`Memory Used : ${Math.round(memory.usedJSHeapSize/1024/1024)} MB`);
+
+}
+
+}catch{}
+
+log("✅ Runtime Scan Completed");
 
 setRunning(false);
 
@@ -207,9 +254,9 @@ setRunning(false);
 
 return(
 
-<div className="p-6">
+<div className="p-6 space-y-4">
 
-<h1 className="text-3xl font-bold mb-4">
+<h1 className="text-3xl font-bold">
 Full Project Runtime Monitor
 </h1>
 
@@ -217,10 +264,10 @@ Full Project Runtime Monitor
 onClick={runScan}
 className="bg-blue-600 text-white px-4 py-2 rounded"
 >
-Run Runtime Scan
+Run Scan
 </button>
 
-<div className="bg-black text-green-400 p-4 mt-4 rounded h-[500px] overflow-auto font-mono text-sm">
+<div className="bg-black text-green-400 p-4 rounded h-[500px] overflow-y-auto font-mono text-sm">
 
 {running && <p>Scanning project...</p>}
 
