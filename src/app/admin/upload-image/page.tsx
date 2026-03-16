@@ -36,8 +36,9 @@ alert("Image Uploaded");
 // product page पर वापस
 const type = new URLSearchParams(window.location.search).get("type") || "main";
 
-window.location.href =
-"/admin/qikink-products?image=" + encodeURIComponent(base64) + "&type=" + type;
+localStorage.setItem("uploadedImageType", type);
+
+window.location.href = "/admin/qikink-products";
 
 };
 
