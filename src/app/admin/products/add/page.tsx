@@ -111,57 +111,122 @@ className="border p-2 w-full mb-3"
 
 {/* PRODUCT IMAGE */}
 
+<div className="mb-3">
+
 <input
 placeholder="Product Image Link"
 value={image}
 readOnly
-onClick={()=>router.push("/admin/upload-image")}
-className="border p-2 w-full mb-3 cursor-pointer"
+className="border p-2 w-full mb-2"
 />
+
+<button
+type="button"
+onClick={()=>router.push("/admin/upload-image")}
+className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+>
+
+Upload Product Image
+
+</button>
+
+</div>
 
 
 {/* FRONT IMAGE */}
 
+<div className="mb-3">
+
 <input
 placeholder="Front Image Link"
 value={front}
-onChange={(e)=>setFront(e.target.value)}
-onClick={()=>router.push("/admin/upload-image")}
-className="border p-2 w-full mb-3 cursor-pointer"
+readOnly
+className="border p-2 w-full mb-2"
 />
+
+<button
+type="button"
+onClick={()=>router.push("/admin/upload-image")}
+className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+>
+
+Upload Front Image
+
+</button>
+
+</div>
 
 
 {/* BACK IMAGE */}
 
+<div className="mb-3">
+
 <input
 placeholder="Back Image Link"
 value={back}
-onChange={(e)=>setBack(e.target.value)}
-onClick={()=>router.push("/admin/upload-image")}
-className="border p-2 w-full mb-3 cursor-pointer"
+readOnly
+className="border p-2 w-full mb-2"
 />
+
+<button
+type="button"
+onClick={()=>router.push("/admin/upload-image")}
+className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+>
+
+Upload Back Image
+
+</button>
+
+</div>
 
 
 {/* SIDE IMAGE */}
 
+<div className="mb-3">
+
 <input
 placeholder="Side Image Link"
 value={side}
-onChange={(e)=>setSide(e.target.value)}
-onClick={()=>router.push("/admin/upload-image")}
-className="border p-2 w-full mb-3 cursor-pointer"
+readOnly
+className="border p-2 w-full mb-2"
 />
+
+<button
+type="button"
+onClick={()=>router.push("/admin/upload-image")}
+className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+>
+
+Upload Side Image
+
+</button>
+
+</div>
 
 
 {/* MODEL IMAGE */}
 
+<div className="mb-3">
+
 <input
 placeholder="Model Image Link"
 value={model}
-onChange={(e)=>setModel(e.target.value)}
-onClick={()=>router.push("/admin/upload-image")}
-className="border p-2 w-full mb-3 cursor-pointer"
+readOnly
+className="border p-2 w-full mb-2"
 />
+
+<button
+type="button"
+onClick={()=>router.push("/admin/upload-image")}
+className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+>
+
+Upload Model Image
+
+</button>
+
+</div>
 
 
 {/* DESIGN */}
@@ -184,7 +249,7 @@ className="border p-2 w-full mb-3"
 />
 
 
-{/* PRICES */}
+{/* PRICE */}
 
 <input
 placeholder="Qikink Base Price"
