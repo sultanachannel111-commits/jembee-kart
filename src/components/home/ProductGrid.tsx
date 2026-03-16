@@ -25,20 +25,23 @@ export default function ProductGrid({ products, title }: Props) {
       <div className="grid grid-cols-2 gap-4">
 
         {products.map((product: any) => {
-      const finalPrice = getFinalPrice(product);
-const basePrice = Number(product.sellPrice || product.price || 0);
+
+          const finalPrice = getFinalPrice(product);
 
           const rating = product.rating || 4.5;
-
-          const reviews =
-            product.reviews || Math.floor(Math.random() * 200) + 50;
+          const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
           const realSold = product.sold || 0;
-
-          const demoSold =
-            product.demoSold || Math.floor(Math.random() * 300) + 50;
+          const demoSold = product.demoSold || Math.floor(Math.random() * 300) + 50;
 
           const totalSold = realSold + demoSold;
+
+          // Image fallback system
+          const image =
+            product.image ||
+            product.imageUrl ||
+            product.frontImage ||
+            "https://picsum.photos/400";
 
           return (
 
@@ -63,7 +66,8 @@ const basePrice = Number(product.sellPrice || product.price || 0);
               {/* Product Image */}
               <Link href={`/product/${product.id}`}>
                 <img
-                  src={product.image || product.imageUrl}
+                  src={image}
+                  alt={product.name}
                   className="w-full h-40 object-cover rounded-lg"
                 />
               </Link>
@@ -73,7 +77,7 @@ const basePrice = Number(product.sellPrice || product.price || 0);
                 {product.name}
               </div>
 
-              {/* ⭐ Rating */}
+              {/* Rating */}
               <div className="flex items-center gap-1 mt-1">
 
                 {[1,2,3,4,5].map((star)=>{
@@ -88,13 +92,11 @@ const basePrice = Number(product.sellPrice || product.price || 0);
                       className="relative w-[14px] h-[14px]"
                     >
 
-                      {/* empty */}
                       <Star
                         size={14}
                         className="text-gray-300"
                       />
 
-                      {/* full */}
                       {full && (
                         <Star
                           size={14}
@@ -102,7 +104,6 @@ const basePrice = Number(product.sellPrice || product.price || 0);
                         />
                       )}
 
-                      {/* half */}
                       {half && (
                         <div className="absolute top-0 left-0 w-1/2 overflow-hidden">
                           <Star
@@ -128,7 +129,7 @@ const basePrice = Number(product.sellPrice || product.price || 0);
 
               </div>
 
-              {/* 🔥 Sold */}
+              {/* Sold */}
               <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
 
                 <Flame size={14} />
@@ -141,7 +142,7 @@ const basePrice = Number(product.sellPrice || product.price || 0);
               <div className="flex items-center gap-2 mt-1">
 
                 <span className="font-bold text-black">
-                  ₹₹{finalPrice}
+                  ₹{finalPrice}
                 </span>
 
                 {product.originalPrice && (
