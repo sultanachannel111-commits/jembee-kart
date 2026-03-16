@@ -280,10 +280,9 @@ Product Image
 
 <input
 value={image}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload product image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setImage(e.target.value)}
+placeholder="https://image-link.jpg"
+className="border w-full p-3 rounded-lg"
 />
 
 </div>
@@ -293,40 +292,36 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 
 <input
 value={frontImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload front image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setFrontImage(e.target.value)}
+placeholder="Front Image Link"
+className="border w-full p-3 rounded-lg"
 />
 
 {/* BACK IMAGE */}
 
 <input
 value={backImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload back image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setBackImage(e.target.value)}
+placeholder="Back Image Link"
+className="border w-full p-3 rounded-lg"
 />
 
 {/* SIDE IMAGE */}
 
 <input
 value={sideImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload side image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setSideImage(e.target.value)}
+placeholder="Side Image Link"
+className="border w-full p-3 rounded-lg"
 />
 
 {/* MODEL IMAGE */}
 
 <input
 value={modelImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload model image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setModelImage(e.target.value)}
+placeholder="Model Image Link"
+className="border w-full p-3 rounded-lg"
 />
 
 
