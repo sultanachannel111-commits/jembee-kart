@@ -1,15 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect } from "react";
+import { useRouter,useSearchParams } from "next/navigation";
 
 export default function AddProduct() {
+
+const router = useRouter();
+const params = useSearchParams();
 
 const [name,setName] = useState("");
 const [category,setCategory] = useState("");
 const [basePrice,setBasePrice] = useState("");
 const [sellPrice,setSellPrice] = useState("");
 
+const [image,setImage] = useState("");
+
 const [variations,setVariations] = useState<any[]>([]);
+
+
+useEffect(()=>{
+
+const img = params.get("image");
+
+if(img){
+setImage(img);
+}
+
+},[params]);
 
 
 const addVariation = () => {
@@ -81,6 +98,17 @@ className="border p-2 w-full mb-3"
 />
 
 
+{/* PRODUCT IMAGE */}
+
+<input
+placeholder="Product Image Link"
+value={image}
+readOnly
+onClick={()=>router.push("/admin/upload-image?return=product")}
+className="border p-2 w-full mb-3 cursor-pointer"
+/>
+
+
 {/* PRICES */}
 
 <input
@@ -112,8 +140,6 @@ Variations
 <div key={index} className="border p-4 mb-4 rounded">
 
 
-{/* TYPE */}
-
 <select
 value={v.type}
 onChange={(e)=>updateVariationType(index,e.target.value)}
@@ -130,8 +156,6 @@ className="border p-2 w-full mb-3"
 
 </select>
 
-
-{/* OPTIONS */}
 
 {v.options.map((o:any,oIndex:number)=>(
 
