@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+
 import {
   doc,
   setDoc,
@@ -11,6 +12,7 @@ import {
 
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+
 import { getFinalPrice } from "@/lib/priceCalculator";
 
 const CartContext = createContext<any>(null);
@@ -20,9 +22,12 @@ export function CartProvider({ children }: any) {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
 
+  /* AUTH WATCH */
+
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, (u) => {
+
       setUser(u);
 
       if (u) {
@@ -34,6 +39,8 @@ export function CartProvider({ children }: any) {
     return () => unsub();
 
   }, []);
+
+  /* LOAD CART */
 
   const loadCart = async (uid: string) => {
 
@@ -50,6 +57,8 @@ export function CartProvider({ children }: any) {
 
   };
 
+  /* ADD TO CART */
+
   const addToCart = async (product: any) => {
 
     if (!user) {
@@ -57,10 +66,17 @@ export function CartProvider({ children }: any) {
       return;
     }
 
-    const ref = doc(db, "cart", user.uid, "items", product.id);
+    const ref = doc(
+      db,
+      "cart",
+      user.uid,
+      "items",
+      product.id
+    );
 
-    // correct price calculation
-    const price =
+    /* PRICE CALCULATION */
+
+    const finalPrice =
       product.finalPrice ||
       getFinalPrice(product) ||
       product.sellPrice ||
@@ -69,9 +85,11 @@ export function CartProvider({ children }: any) {
 
     await setDoc(ref, {
 
+      productId: product.id,
+
       name: product.name,
 
-      price: price,
+      price: finalPrice,
 
       image:
         product.image ||
@@ -87,6 +105,8 @@ export function CartProvider({ children }: any) {
     loadCart(user.uid);
 
   };
+
+  /* REMOVE FROM CART */
 
   const removeFromCart = async (id: string) => {
 
