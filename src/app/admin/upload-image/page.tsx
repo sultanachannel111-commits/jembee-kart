@@ -29,19 +29,19 @@ reader.onload = async () => {
 
 const base64 = (reader.result as string).split(",")[1];
 
-await fetch("https://api.github.com/repos/sultanachannel111-commits/jembee-kart/contents/public/"+file.name,{
-method:"PUT",
+await fetch("/api/upload-image",{
+method:"POST",
 headers:{
-Authorization:"Bearer YOUR_GITHUB_TOKEN",
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-message:"upload product image",
-content:base64
+fileName:file.name,
+base64
 })
 });
 
-const link = "https://jembee-kart-h39deei2i-md-alim-ansar-s-projects.vercel.app/"+file.name;
+const link =
+"https://jembee-kart-h39deei2i-md-alim-ansar-s-projects.vercel.app/"+file.name;
 
 setImageUrl(link);
 
