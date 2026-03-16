@@ -1,188 +1,328 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import {
+addDoc,
+collection,
+serverTimestamp,
+getDocs
+} from "firebase/firestore";
 
-export default function AddProduct() {
+import {
+Package,
+Image,
+Layers,
+IndianRupee,
+PlusCircle
+} from "lucide-react";
+
+export default function AdminQikinkProducts(){
 
 const [name,setName] = useState("");
-const [category,setCategory] = useState("");
+const [qikinkId,setQikinkId] = useState("");
+
+const [sku,setSku] = useState("");
+const [printTypeId,setPrintTypeId] = useState("");
+
+const [image,setImage] = useState("");
+
+const [frontImage,setFrontImage] = useState("");
+const [backImage,setBackImage] = useState("");
+const [sideImage,setSideImage] = useState("");
+const [modelImage,setModelImage] = useState("");
+
+const [designLink,setDesignLink] = useState("");
+const [mockupLink,setMockupLink] = useState("");
+
 const [basePrice,setBasePrice] = useState("");
 const [sellPrice,setSellPrice] = useState("");
 
-const [variations,setVariations] = useState<any[]>([]);
+const [description,setDescription] = useState("");
 
+const [stock,setStock] = useState("");
 
-const addVariation = () => {
+const [category,setCategory] = useState("");
+const [categories,setCategories] = useState<any[]>([]);
 
-setVariations([
-...variations,
-{
-type:"",
-options:[""]
+const [type,setType] = useState("");
+const [options,setOptions] = useState("");
+
+const profit =
+Number(sellPrice || 0) - Number(basePrice || 0);
+
+useEffect(()=>{
+loadCategories();
+},[]);
+
+const loadCategories = async()=>{
+
+try{
+
+const snap = await getDocs(
+collection(db,"qikinkCategories")
+);
+
+const list = snap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
+
+setCategories(list);
+
+}catch(err){
+console.log(err);
 }
-]);
 
 };
 
+const saveProduct = async()=>{
 
-const updateVariationType = (index:number,value:string) => {
+if(!name || !qikinkId || !category){
+alert("Please fill required fields");
+return;
+}
 
-const updated = [...variations];
-updated[index].type = value;
-setVariations(updated);
+try{
+
+await addDoc(collection(db,"products"),{
+
+name,
+qikinkId,
+sku,
+printTypeId,
+
+category,
+
+image,
+frontImage,
+backImage,
+sideImage,
+modelImage,
+
+designLink,
+mockupLink,
+
+basePrice:Number(basePrice),
+sellPrice:Number(sellPrice),
+profit,
+
+description,
+
+stock:Number(stock),
+
+variations:{
+type:type,
+options: options ? options.split(",") : []
+},
+
+supplier:"qikink",
+
+createdAt:serverTimestamp()
+
+});
+
+alert("Product Added Successfully 🎉");
+
+}catch(err){
+
+console.log(err);
+alert("Error adding product");
+
+}
 
 };
 
+return(
 
-const updateOption = (vIndex:number,oIndex:number,value:string) => {
+<div className="p-8 bg-gray-100 min-h-screen">
 
-const updated = [...variations];
-updated[vIndex].options[oIndex] = value;
-setVariations(updated);
+<div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
 
-};
-
-
-const addOption = (index:number) => {
-
-const updated = [...variations];
-updated[index].options.push("");
-setVariations(updated);
-
-};
-
-
-return (
-
-<div className="p-6 max-w-2xl">
-
-<h1 className="text-2xl font-bold mb-6">
-Add Product
+<h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
+<Package className="text-purple-600"/>
+Add Qikink Product
 </h1>
 
-
-{/* PRODUCT NAME */}
+<div className="space-y-5">
 
 <input
-placeholder="Product Name"
 value={name}
 onChange={(e)=>setName(e.target.value)}
-className="border p-2 w-full mb-3"
-/>
-
-
-{/* CATEGORY */}
-
-<input
-placeholder="Category"
-value={category}
-onChange={(e)=>setCategory(e.target.value)}
-className="border p-2 w-full mb-3"
-/>
-
-
-{/* PRICES */}
-
-<input
-placeholder="Qikink Base Price"
-value={basePrice}
-onChange={(e)=>setBasePrice(e.target.value)}
-className="border p-2 w-full mb-3"
+placeholder="Product Name"
+className="border w-full p-3 rounded-lg"
 />
 
 <input
-placeholder="Admin Sell Price"
-value={sellPrice}
-onChange={(e)=>setSellPrice(e.target.value)}
-className="border p-2 w-full mb-3"
+value={qikinkId}
+onChange={(e)=>setQikinkId(e.target.value)}
+placeholder="Qikink Product ID"
+className="border w-full p-3 rounded-lg"
 />
 
+<input
+value={sku}
+onChange={(e)=>setSku(e.target.value)}
+placeholder="SKU"
+className="border w-full p-3 rounded-lg"
+/>
 
-
-{/* VARIATIONS */}
-
-<div className="mt-6">
-
-<h2 className="font-bold mb-3">
-Variations
-</h2>
-
-{variations.map((v,index)=>(
-
-<div key={index} className="border p-4 mb-4 rounded">
-
-
-{/* TYPE */}
+<input
+value={printTypeId}
+onChange={(e)=>setPrintTypeId(e.target.value)}
+placeholder="Print Type ID"
+className="border w-full p-3 rounded-lg"
+/>
 
 <select
-value={v.type}
-onChange={(e)=>updateVariationType(index,e.target.value)}
-className="border p-2 w-full mb-3"
+value={category}
+onChange={(e)=>setCategory(e.target.value)}
+className="border w-full p-3 rounded-lg"
 >
 
-<option value="">Select Variation</option>
+<option value="">Select Category</option>
 
-<option value="Size">Size</option>
-<option value="Color">Color</option>
-<option value="Number">Number</option>
-<option value="Age">Age</option>
-<option value="Custom">Custom</option>
+{categories.map((c:any)=>(
+<option key={c.id} value={c.name}>
+{c.name}
+</option>
+))}
 
 </select>
 
-
-{/* OPTIONS */}
-
-{v.options.map((o:any,oIndex:number)=>(
+{/* PRODUCT IMAGE */}
 
 <input
-key={oIndex}
-placeholder="Option (S, M, L / Black / 5-7 Years)"
-value={o}
-onChange={(e)=>updateOption(index,oIndex,e.target.value)}
-className="border p-2 w-full mb-2"
+value={image}
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload product image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
-))}
+{/* FRONT IMAGE */}
 
+<input
+value={frontImage}
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload front image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+/>
 
-<button
-onClick={()=>addOption(index)}
-className="bg-gray-200 px-3 py-1 rounded text-sm"
+{/* BACK IMAGE */}
+
+<input
+value={backImage}
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload back image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+/>
+
+{/* SIDE IMAGE */}
+
+<input
+value={sideImage}
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload side image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+/>
+
+{/* MODEL IMAGE */}
+
+<input
+value={modelImage}
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload model image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+/>
+
+<input
+value={designLink}
+onChange={(e)=>setDesignLink(e.target.value)}
+placeholder="Design Link"
+className="border w-full p-3 rounded-lg"
+/>
+
+<input
+value={mockupLink}
+onChange={(e)=>setMockupLink(e.target.value)}
+placeholder="Mockup Link"
+className="border w-full p-3 rounded-lg"
+/>
+
+<input
+type="number"
+value={basePrice}
+onChange={(e)=>setBasePrice(e.target.value)}
+placeholder="Base Price"
+className="border w-full p-3 rounded-lg"
+/>
+
+<input
+type="number"
+value={sellPrice}
+onChange={(e)=>setSellPrice(e.target.value)}
+placeholder="Sell Price"
+className="border w-full p-3 rounded-lg"
+/>
+
+<input
+value={profit}
+readOnly
+className="border w-full p-3 rounded-lg bg-gray-100"
+/>
+
+<textarea
+value={description}
+onChange={(e)=>setDescription(e.target.value)}
+placeholder="Product Description"
+className="border w-full p-3 rounded-lg"
+/>
+
+<input
+type="number"
+value={stock}
+onChange={(e)=>setStock(e.target.value)}
+placeholder="Stock Quantity"
+className="border w-full p-3 rounded-lg"
+/>
+
+<select
+value={type}
+onChange={(e)=>setType(e.target.value)}
+className="border p-3 w-full rounded-lg"
 >
 
-Add Option
+<option value="">Select Variation</option>
+<option value="Size">Size</option>
+<option value="Color">Color</option>
+
+</select>
+
+<input
+value={options}
+onChange={(e)=>setOptions(e.target.value)}
+placeholder="Options (S,M,L / Red,Blue)"
+className="border p-3 w-full rounded-lg"
+/>
+
+<button
+onClick={saveProduct}
+className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl mt-4"
+>
+
+<PlusCircle size={20}/>
+Add Product
 
 </button>
 
 </div>
 
-))}
-
-
-
-<button
-onClick={addVariation}
-className="bg-blue-600 text-white px-4 py-2 rounded"
->
-
-Add Variation
-
-</button>
-
 </div>
-
-
-{/* SAVE BUTTON */}
-
-<button
-className="bg-green-600 text-white px-5 py-2 rounded mt-6"
->
-
-Save Product
-
-</button>
-
 
 </div>
 
