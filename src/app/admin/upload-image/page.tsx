@@ -34,7 +34,10 @@ localStorage.setItem("uploadedImage", base64);
 alert("Image Uploaded");
 
 // product page पर वापस
-window.location.href = "/admin/qikink-products";
+const type = new URLSearchParams(window.location.search).get("type") || "main";
+
+window.location.href =
+"/admin/qikink-products?image=" + encodeURIComponent(base64) + "&type=" + type;
 
 };
 
