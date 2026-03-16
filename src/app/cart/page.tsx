@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+import Header from "@/components/home/Header";
+
 import {
   collection,
   onSnapshot,
@@ -23,7 +25,7 @@ export default function CartPage() {
 
   useEffect(() => {
 
-    let unsubscribe: any;
+    let unsubscribe:any;
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
 
@@ -35,7 +37,7 @@ export default function CartPage() {
 
         unsubscribe = onSnapshot(itemsRef, (snapshot) => {
 
-          const data: any[] = [];
+          const data:any[] = [];
 
           snapshot.forEach((doc) => {
 
@@ -64,9 +66,9 @@ export default function CartPage() {
 
   }, []);
 
-  /* INCREASE QUANTITY */
+  /* INCREASE */
 
-  const increase = async (item: any) => {
+  const increase = async (item:any) => {
 
     await updateDoc(
       doc(db, "cart", user.uid, "items", item.id),
@@ -77,9 +79,9 @@ export default function CartPage() {
 
   };
 
-  /* DECREASE QUANTITY */
+  /* DECREASE */
 
-  const decrease = async (item: any) => {
+  const decrease = async (item:any) => {
 
     if (item.quantity <= 1) return;
 
@@ -92,9 +94,9 @@ export default function CartPage() {
 
   };
 
-  /* REMOVE ITEM */
+  /* REMOVE */
 
-  const remove = async (id: string) => {
+  const remove = async (id:string) => {
 
     await deleteDoc(
       doc(db, "cart", user.uid, "items", id)
@@ -102,7 +104,7 @@ export default function CartPage() {
 
   };
 
-  /* TOTAL CALCULATION */
+  /* TOTAL */
 
   const total = items.reduce(
     (sum, i) =>
@@ -114,7 +116,11 @@ export default function CartPage() {
 
   return (
 
-    <div className="p-6 pt-[100px]">
+    <>
+    
+    <Header />
+
+    <div className="p-6 pt-[110px]">
 
       <h1 className="text-2xl font-bold mb-6">
         Cart
@@ -131,14 +137,10 @@ export default function CartPage() {
           className="mb-4 border p-4 rounded flex gap-4 items-center"
         >
 
-          {/* PRODUCT IMAGE */}
-
           <img
             src={item.image}
             className="w-20 h-20 object-cover rounded"
           />
-
-          {/* PRODUCT INFO */}
 
           <div className="flex-1">
 
@@ -149,8 +151,6 @@ export default function CartPage() {
             <p className="font-bold text-lg">
               ₹{item.price}
             </p>
-
-            {/* QUANTITY */}
 
             <div className="flex gap-3 mt-2 items-center">
 
@@ -185,15 +185,9 @@ export default function CartPage() {
 
       ))}
 
-      {/* TOTAL */}
-
       <div className="mt-6 text-xl font-bold">
-
         Total : ₹{total}
-
       </div>
-
-      {/* CHECKOUT */}
 
       <button
         onClick={() => {
@@ -214,12 +208,12 @@ export default function CartPage() {
         }}
         className="bg-black text-white px-6 py-3 rounded mt-6"
       >
-
         Checkout
-
       </button>
 
     </div>
+
+    </>
 
   );
 
