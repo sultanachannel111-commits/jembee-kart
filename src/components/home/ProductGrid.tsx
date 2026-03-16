@@ -63,7 +63,7 @@ const basePrice = Number(product.sellPrice || product.price || 0);
               {/* Product Image */}
               <Link href={`/product/${product.id}`}>
                 <img
-                  src={product.imageUrl}
+                  src={product.image || product.imageUrl}
                   className="w-full h-40 object-cover rounded-lg"
                 />
               </Link>
