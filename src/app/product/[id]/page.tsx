@@ -30,92 +30,77 @@ export default function ProductPage() {
 
     const fetchProduct = async () => {
 
-      try {
+      const snap = await getDoc(doc(db,"products",id));
 
-        const snap = await getDoc(doc(db, "products", id));
+      if(!snap.exists()){
+        setLoading(false);
+        return;
+      }
 
-        if (!snap.exists()) {
-          setProduct(null);
-          setLoading(false);
-          return;
+      const data:any = {
+        id:snap.id,
+        ...snap.data()
+      };
+
+      /* FETCH OFFERS */
+
+      const offerSnap = await getDocs(collection(db,"offers"));
+
+      let discount = 0;
+
+      offerSnap.forEach((doc)=>{
+
+        const offer:any = doc.data();
+
+        if(!offer.active) return;
+
+        if(offer.endDate){
+          const end = new Date(offer.endDate);
+          if(end < new Date()) return;
         }
 
-        const data: any = {
-          id: snap.id,
-          ...snap.data()
-        };
+        if(
+          offer.type === "product" &&
+          offer.productId === id
+        ){
+          discount = offer.discount;
+        }
 
-        /* FETCH OFFERS */
+        if(
+          offer.type === "category" &&
+          offer.category?.toLowerCase().trim() ===
+          data.category?.toLowerCase().trim()
+        ){
+          discount = offer.discount;
+        }
 
-        const offerSnap = await getDocs(collection(db, "offers"));
+      });
 
-        let discount = 0;
+      data.discount = discount;
 
-        offerSnap.forEach((offerDoc) => {
-
-          const offer: any = offerDoc.data();
-
-          if (!offer.active) return;
-
-          if (offer.endDate) {
-            const end = new Date(offer.endDate);
-            if (end < new Date()) return;
-          }
-
-          /* PRODUCT OFFER */
-
-          if (
-            offer.type === "product" &&
-            offer.productId === id
-          ) {
-            discount = offer.discount;
-          }
-
-          /* CATEGORY OFFER */
-
-          if (
-            offer.type === "category" &&
-            offer.category &&
-            offer.category.toLowerCase().trim() ===
-              data.category?.toLowerCase().trim()
-          ) {
-            discount = offer.discount;
-          }
-
-        });
-
-        data.discount = discount;
-
-        setProduct(data);
-        setLoading(false);
-
-      } catch (error) {
-
-        console.log(error);
-        setLoading(false);
-
-      }
+      setProduct(data);
+      setLoading(false);
 
     };
 
     fetchProduct();
 
-  }, [id]);
+  },[id]);
 
-  if (loading) {
-    return (
+  if(loading){
+    return(
       <div className="min-h-screen flex items-center justify-center">
         Loading...
       </div>
-    );
+    )
   }
 
-  if (!product) {
-    return (
+  if(!product){
+    return(
       <div className="min-h-screen flex items-center justify-center">
         Product not found
       </div>
-    );
+    )
   }
 
   const finalPrice = getFinalPrice(product);
@@ -124,9 +109,9 @@ export default function ProductPage() {
 
   /* ADD TO CART */
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async ()=>{
 
-    if (outOfStock) return;
+    if(outOfStock) return;
 
     setAdding(true);
 
@@ -137,17 +122,19 @@ export default function ProductPage() {
 
     setAdding(false);
 
+    router.push("/cart");
+
   };
 
-  return (
+  return(
 
     <div className="min-h-screen pt-[96px] p-4">
 
       {/* IMAGE */}
 
       <img
-        src={product.image}
-        className="w-full h-[300px] object-cover rounded-lg"
+      src={product.image}
+      className="w-full h-[300px] object-cover rounded-lg"
       />
 
       {/* NAME */}
@@ -160,20 +147,22 @@ export default function ProductPage() {
 
       <div className="flex gap-3 items-center mt-2">
 
-        <span className="text-2xl font-bold text-black">
+        <span className="text-2xl font-bold">
           ₹{finalPrice}
         </span>
 
         {product.discount > 0 && (
+
+          <>
           <span className="line-through text-gray-400">
             ₹{product.sellPrice}
           </span>
-        )}
 
-        {product.discount > 0 && (
           <span className="text-red-500 text-sm font-bold">
             {product.discount}% OFF
           </span>
+          </>
+
         )}
 
       </div>
@@ -181,9 +170,11 @@ export default function ProductPage() {
       {/* STOCK */}
 
       <p className="mt-2 text-green-600 font-semibold">
+
         {outOfStock
-          ? "Out of Stock"
-          : `In Stock (${product.stock})`}
+        ? "Out of Stock"
+        : `In Stock (${product.stock})`}
+
       </p>
 
       {/* QUANTITY */}
@@ -193,12 +184,10 @@ export default function ProductPage() {
         <div className="flex items-center gap-4 mt-4">
 
           <button
-            onClick={() =>
-              setQuantity((q) => Math.max(1, q - 1))
-            }
-            className="bg-gray-200 px-4 py-2 rounded"
+          onClick={()=>setQuantity(q=>Math.max(1,q-1))}
+          className="bg-gray-200 px-4 py-2 rounded"
           >
-            -
+          -
           </button>
 
           <span className="text-lg font-bold">
@@ -206,14 +195,10 @@ export default function ProductPage() {
           </span>
 
           <button
-            onClick={() =>
-              setQuantity((q) =>
-                Math.min(product.stock || 10, q + 1)
-              )
-            }
-            className="bg-gray-200 px-4 py-2 rounded"
+          onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))}
+          className="bg-gray-200 px-4 py-2 rounded"
           >
-            +
+          +
           </button>
 
         </div>
@@ -235,26 +220,24 @@ export default function ProductPage() {
       <div className="flex gap-4 mt-8">
 
         <button
-          disabled={outOfStock || adding}
-          onClick={handleAddToCart}
-          className="bg-pink-600 text-white px-6 py-3 rounded w-full"
+        disabled={outOfStock || adding}
+        onClick={handleAddToCart}
+        className="bg-pink-600 text-white px-6 py-3 rounded w-full"
         >
-          {adding ? "Adding..." : "Add to Cart"}
+        {adding ? "Adding..." : "Add to Cart"}
         </button>
 
         <button
-          onClick={() =>
-            router.push(`/checkout?productId=${product.id}`)
-          }
-          className="bg-black text-white px-6 py-3 rounded w-full"
+        onClick={()=>router.push(`/checkout?productId=${product.id}`)}
+        className="bg-black text-white px-6 py-3 rounded w-full"
         >
-          Buy Now
+        Buy Now
         </button>
 
       </div>
 
     </div>
 
-  );
+  )
 
 }
