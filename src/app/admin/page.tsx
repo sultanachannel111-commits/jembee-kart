@@ -126,6 +126,16 @@ JembeeKart Admin Panel
 <p className="text-sm text-gray-500">Upload image to public folder</p>
 </div>
 </Link>
+
+{/* IMAGE GALLERY */}
+
+<Link href="/admin/image-gallery">
+<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+<Image className="text-blue-600 mb-2"/>
+<h3 className="font-bold">Image Gallery</h3>
+<p className="text-sm text-gray-500">Copy uploaded image links</p>
+</div>
+</Link>
   
 
 {/* HOMEPAGE */}
