@@ -9,10 +9,7 @@ serverTimestamp,
 getDocs
 } from "firebase/firestore";
 
-import {
-Package,
-PlusCircle
-} from "lucide-react";
+import { Package, PlusCircle } from "lucide-react";
 
 export default function AdminQikinkProducts(){
 
@@ -40,7 +37,7 @@ const [stock,setStock] = useState("");
 const [category,setCategory] = useState("");
 const [categories,setCategories] = useState<any[]>([]);
 
-const [type,setType] = useState("");
+const [variationType,setVariationType] = useState("");
 const [options,setOptions] = useState("");
 
 const profit =
@@ -50,23 +47,21 @@ useEffect(()=>{
 
 loadCategories();
 
-// localStorage से uploaded image लो
 const img = localStorage.getItem("uploadedImage");
-
-const type = localStorage.getItem("uploadedImageType");
+const imgType = localStorage.getItem("uploadedImageType");
 
 if(img){
 
-if(type === "front"){
+if(imgType === "front"){
 setFrontImage(img);
 }
-else if(type === "back"){
+else if(imgType === "back"){
 setBackImage(img);
 }
-else if(type === "side"){
+else if(imgType === "side"){
 setSideImage(img);
 }
-else if(type === "model"){
+else if(imgType === "model"){
 setModelImage(img);
 }
 else{
@@ -135,7 +130,7 @@ description,
 stock:Number(stock),
 
 variations:{
-type:type,
+type:variationType,
 options: options ? options.split(",") : []
 },
 
@@ -217,7 +212,7 @@ className="border w-full p-3 rounded-lg"
 <input
 value={image}
 readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
+onClick={()=>window.location.href="/admin/upload-image?type=main"}
 placeholder="Click to upload product image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
@@ -232,6 +227,8 @@ placeholder="Click to upload front image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{/* BACK IMAGE */}
+
 <input
 value={backImage}
 readOnly
@@ -240,6 +237,8 @@ placeholder="Click to upload back image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{/* SIDE IMAGE */}
+
 <input
 value={sideImage}
 readOnly
@@ -247,6 +246,8 @@ onClick={()=>window.location.href="/admin/upload-image?type=side"}
 placeholder="Click to upload side image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
+
+{/* MODEL IMAGE */}
 
 <input
 value={modelImage}
@@ -309,8 +310,8 @@ className="border w-full p-3 rounded-lg"
 />
 
 <select
-value={type}
-onChange={(e)=>setType(e.target.value)}
+value={variationType}
+onChange={(e)=>setVariationType(e.target.value)}
 className="border p-3 w-full rounded-lg"
 >
 
