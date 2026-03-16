@@ -2,10 +2,12 @@ export function getFinalPrice(product:any){
 
 const basePrice = Number(product.sellPrice || product.price || 0);
 
-if(!product.discount) return basePrice;
+const discount = Number(product.discount || 0);
 
-return Math.round(
-basePrice - (basePrice * product.discount) / 100
-);
+if(discount === 0) return basePrice;
+
+const discountAmount = (basePrice * discount) / 100;
+
+return Math.round(basePrice - discountAmount);
 
 }
