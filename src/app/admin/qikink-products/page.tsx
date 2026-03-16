@@ -53,7 +53,6 @@ loadCategories();
 // localStorage से uploaded image लो
 const img = localStorage.getItem("uploadedImage");
 
-const img = localStorage.getItem("uploadedImage");
 const type = localStorage.getItem("uploadedImageType");
 
 if(img){
