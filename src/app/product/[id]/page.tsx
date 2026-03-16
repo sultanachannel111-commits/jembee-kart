@@ -2,258 +2,259 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
-import { collection, getDocs } from "firebase/firestore";
 
 export default function ProductPage() {
 
-const params = useParams();
-const router = useRouter();
-const id = params?.id as string;
-const { addToCart } = useCart();
+  const params = useParams();
+  const router = useRouter();
 
-const [product,setProduct] = useState<any>(null);
-const [loading,setLoading] = useState(true);
-const [quantity,setQuantity] = useState(1);
-const [adding,setAdding] = useState(false);
-const [showPopup,setShowPopup] = useState(false);
+  const id = params?.id as string;
 
-useEffect(()=>{
+  const { addToCart } = useCart();
 
-if(!id) return;
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
 
-const fetchProduct = async()=>{
+  /* FETCH PRODUCT */
 
-try{
+  useEffect(() => {
 
-const snap = await getDoc(doc(db,"products",id));
+    if (!id) return;
 
-if(snap.exists()){
-const data:any = {id:snap.id,...snap.data()};
+    const fetchProduct = async () => {
 
-const offerSnap = await getDocs(collection(db,"offers"));
+      try {
 
-let discount = 0;
+        const snap = await getDoc(doc(db, "products", id));
 
-offerSnap.forEach((doc)=>{
-  const offer = doc.data();
+        if (!snap.exists()) {
+          setProduct(null);
+          setLoading(false);
+          return;
+        }
 
-  if(!offer.active) return;
+        const data: any = {
+          id: snap.id,
+          ...snap.data()
+        };
 
-  if(offer.type === "product" && offer.productId === id){
-    discount = offer.discountAmount
+        /* FETCH OFFERS */
+
+        const offerSnap = await getDocs(collection(db, "offers"));
+
+        let discount = 0;
+
+        offerSnap.forEach((offerDoc) => {
+
+          const offer: any = offerDoc.data();
+
+          if (!offer.active) return;
+
+          if (offer.endDate) {
+            const end = new Date(offer.endDate);
+            if (end < new Date()) return;
+          }
+
+          /* PRODUCT OFFER */
+
+          if (
+            offer.type === "product" &&
+            offer.productId === id
+          ) {
+            discount = offer.discount;
+          }
+
+          /* CATEGORY OFFER */
+
+          if (
+            offer.type === "category" &&
+            offer.category &&
+            offer.category.toLowerCase().trim() ===
+              data.category?.toLowerCase().trim()
+          ) {
+            discount = offer.discount;
+          }
+
+        });
+
+        data.discount = discount;
+
+        setProduct(data);
+        setLoading(false);
+
+      } catch (error) {
+
+        console.log(error);
+        setLoading(false);
+
+      }
+
+    };
+
+    fetchProduct();
+
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
-  if(offer.type === "category" && offer.category === data.category){
-    discount = offer.discountAmount
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Product not found
+      </div>
+    );
   }
-});
 
-data.discount = discount;
+  const finalPrice = getFinalPrice(product);
 
-setProduct(data);
-}else{
-setProduct(null);
-}
+  const outOfStock = !product.stock || product.stock <= 0;
 
-}catch(error){
-console.log(error);
-}
+  /* ADD TO CART */
 
-setLoading(false);
+  const handleAddToCart = async () => {
 
-};
+    if (outOfStock) return;
 
-fetchProduct();
+    setAdding(true);
 
-},[id]);
+    await addToCart({
+      ...product,
+      quantity
+    });
 
-if(loading){
-return(
-<div className="min-h-screen flex items-center justify-center">
-Loading...
-</div>
-);
-}
+    setAdding(false);
 
-if(!product){
-return(
-<div className="min-h-screen flex items-center justify-center">
-Product not found ❌
-</div>
-);
-}
+  };
 
-const outOfStock = !product.stock || product.stock <= 0;
-  
-const finalPrice = getFinalPrice(product);
-const basePrice = Number(product.sellPrice || product.price || 0);
-/* ========================
-ADD TO CART
-======================== */
+  return (
 
-const handleAddToCart = async()=>{
+    <div className="min-h-screen pt-[96px] p-4">
 
-if(outOfStock) return;
+      {/* IMAGE */}
 
-setAdding(true);
+      <img
+        src={product.image}
+        className="w-full h-[300px] object-cover rounded-lg"
+      />
 
-await addToCart({
-...product,
-quantity
-});
+      {/* NAME */}
 
-setShowPopup(true);
+      <h1 className="text-2xl font-bold mt-4">
+        {product.name}
+      </h1>
 
-setTimeout(()=>{
-router.push("/");
-},500);
+      {/* PRICE */}
 
-};
+      <div className="flex gap-3 items-center mt-2">
 
-/* ========================
-BUY NOW → CHECKOUT
-======================== */
+        <span className="text-2xl font-bold text-black">
+          ₹{finalPrice}
+        </span>
 
-const buyNow = ()=>{
+        {product.discount > 0 && (
+          <span className="line-through text-gray-400">
+            ₹{product.sellPrice}
+          </span>
+        )}
 
-// productId checkout को भेजेंगे
-router.push(`/checkout?productId=${product.id}`);
+        {product.discount > 0 && (
+          <span className="text-red-500 text-sm font-bold">
+            {product.discount}% OFF
+          </span>
+        )}
 
-};
+      </div>
 
-return(
+      {/* STOCK */}
 
-<div className="min-h-screen p-6 pt-[100px] bg-gradient-to-b from-pink-100 to-white">
+      <p className="mt-2 text-green-600 font-semibold">
+        {outOfStock
+          ? "Out of Stock"
+          : `In Stock (${product.stock})`}
+      </p>
 
-{/* IMAGE */}
+      {/* QUANTITY */}
 
-{(product.image || product.imageUrl) && (
+      {!outOfStock && (
 
-<img
-src={product.image || product.imageUrl}
-className="w-full h-80 object-cover rounded-xl"
-/>
+        <div className="flex items-center gap-4 mt-4">
 
-)}
+          <button
+            onClick={() =>
+              setQuantity((q) => Math.max(1, q - 1))
+            }
+            className="bg-gray-200 px-4 py-2 rounded"
+          >
+            -
+          </button>
 
-{/* NAME */}
+          <span className="text-lg font-bold">
+            {quantity}
+          </span>
 
-<h1 className="text-2xl font-bold mt-6">
-{product.name}
-</h1>
+          <button
+            onClick={() =>
+              setQuantity((q) =>
+                Math.min(product.stock || 10, q + 1)
+              )
+            }
+            className="bg-gray-200 px-4 py-2 rounded"
+          >
+            +
+          </button>
 
-{/* PRICE */}
+        </div>
 
-<div className="flex items-center gap-2">
+      )}
 
-<span className="text-2xl font-bold">
-₹{finalPrice}
-</span>
+      {/* DESCRIPTION */}
 
-{product.discount && (
-<span className="line-through text-gray-400">
-₹{basePrice}
-</span>
-)}
+      {product.description && (
 
-</div>
+        <p className="mt-6 text-gray-600">
+          {product.description}
+        </p>
 
-{/* STOCK */}
+      )}
 
-<p className={`mt-2 font-semibold ${outOfStock ? "text-red-600" : "text-green-600"}`}>
-{outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
-</p>
+      {/* BUTTONS */}
 
-{/* QUANTITY */}
+      <div className="flex gap-4 mt-8">
 
-{!outOfStock && (
+        <button
+          disabled={outOfStock || adding}
+          onClick={handleAddToCart}
+          className="bg-pink-600 text-white px-6 py-3 rounded w-full"
+        >
+          {adding ? "Adding..." : "Add to Cart"}
+        </button>
 
-<div className="flex items-center gap-4 mt-6">
+        <button
+          onClick={() =>
+            router.push(`/checkout?productId=${product.id}`)
+          }
+          className="bg-black text-white px-6 py-3 rounded w-full"
+        >
+          Buy Now
+        </button>
 
-<button
-onClick={()=>setQuantity(q=>Math.max(1,q-1))}
-className="bg-gray-200 px-4 py-2 rounded-lg"
->
--
-</button>
+      </div>
 
-<span className="text-lg font-bold">
-{quantity}
-</span>
+    </div>
 
-<button
-onClick={()=>setQuantity(q=>q < product.stock ? q+1 : q)}
-className="bg-gray-200 px-4 py-2 rounded-lg"
->
-+
-</button>
-
-</div>
-
-)}
-
-{/* DESCRIPTION */}
-
-{product.description && (
-
-<div className="mt-6 text-gray-700 whitespace-pre-line">
-{product.description}
-</div>
-
-)}
-
-{/* BUTTONS */}
-
-<div className="flex gap-4 mt-8">
-
-<button
-disabled={outOfStock || adding}
-onClick={handleAddToCart}
-className={`px-6 py-3 rounded-xl w-full transition-all ${
-outOfStock
-? "bg-gray-400 cursor-not-allowed"
-: adding
-? "bg-gray-500"
-: "bg-pink-600 text-white hover:bg-pink-700"
-}`}
->
-
-{adding ? "Adding..." : "Add to Cart"}
-
-</button>
-
-<button
-disabled={outOfStock}
-onClick={buyNow}
-className={`px-6 py-3 rounded-xl w-full ${
-outOfStock
-? "bg-gray-400 cursor-not-allowed"
-: "bg-black text-white"
-}`}
->
-
-Pay Now
-
-</button>
-
-</div>
-
-{/* POPUP */}
-
-{showPopup && (
-
-<div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-5 py-3 rounded-lg shadow-lg">
-Added to Cart ✅
-</div>
-
-)}
-
-</div>
-
-);
+  );
 
 }
