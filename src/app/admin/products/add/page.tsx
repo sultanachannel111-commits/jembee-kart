@@ -1,18 +1,16 @@
 "use client";
 
 import { useState,useEffect } from "react";
-import { useRouter,useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-export default function AddProduct() {
+export default function AddProduct(){
 
 const router = useRouter();
-const params = useSearchParams();
 
 const [name,setName] = useState("");
 const [category,setCategory] = useState("");
 const [basePrice,setBasePrice] = useState("");
 const [sellPrice,setSellPrice] = useState("");
-
 const [image,setImage] = useState("");
 
 const [variations,setVariations] = useState<any[]>([]);
@@ -20,16 +18,22 @@ const [variations,setVariations] = useState<any[]>([]);
 
 useEffect(()=>{
 
+if(typeof window !== "undefined"){
+
+const params = new URLSearchParams(window.location.search);
+
 const img = params.get("image");
 
 if(img){
 setImage(img);
 }
 
-},[params]);
+}
+
+},[]);
 
 
-const addVariation = () => {
+const addVariation = ()=>{
 
 setVariations([
 ...variations,
@@ -42,7 +46,7 @@ options:[""]
 };
 
 
-const updateVariationType = (index:number,value:string) => {
+const updateVariationType = (index:number,value:string)=>{
 
 const updated = [...variations];
 updated[index].type = value;
@@ -51,7 +55,7 @@ setVariations(updated);
 };
 
 
-const updateOption = (vIndex:number,oIndex:number,value:string) => {
+const updateOption = (vIndex:number,oIndex:number,value:string)=>{
 
 const updated = [...variations];
 updated[vIndex].options[oIndex] = value;
@@ -60,7 +64,7 @@ setVariations(updated);
 };
 
 
-const addOption = (index:number) => {
+const addOption = (index:number)=>{
 
 const updated = [...variations];
 updated[index].options.push("");
@@ -69,7 +73,7 @@ setVariations(updated);
 };
 
 
-return (
+return(
 
 <div className="p-6 max-w-2xl">
 
@@ -104,12 +108,12 @@ className="border p-2 w-full mb-3"
 placeholder="Product Image Link"
 value={image}
 readOnly
-onClick={()=>router.push("/admin/upload-image?return=product")}
+onClick={()=>router.push("/admin/upload-image")}
 className="border p-2 w-full mb-3 cursor-pointer"
 />
 
 
-{/* PRICES */}
+{/* PRICE */}
 
 <input
 placeholder="Qikink Base Price"
@@ -126,7 +130,6 @@ className="border p-2 w-full mb-3"
 />
 
 
-
 {/* VARIATIONS */}
 
 <div className="mt-6">
@@ -134,6 +137,7 @@ className="border p-2 w-full mb-3"
 <h2 className="font-bold mb-3">
 Variations
 </h2>
+
 
 {variations.map((v,index)=>(
 
@@ -161,7 +165,7 @@ className="border p-2 w-full mb-3"
 
 <input
 key={oIndex}
-placeholder="Option (S, M, L / Black / 5-7 Years)"
+placeholder="Option (S,M,L / Black / 5-7 Years)"
 value={o}
 onChange={(e)=>updateOption(index,oIndex,e.target.value)}
 className="border p-2 w-full mb-2"
@@ -182,7 +186,6 @@ Add Option
 </div>
 
 ))}
-
 
 
 <button
