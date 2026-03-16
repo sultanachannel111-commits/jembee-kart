@@ -47,6 +47,10 @@ setImageUrl(link);
 
 alert("Image Uploaded");
 
+// redirect back to product page
+window.location.href =
+"/admin/qikink-products?image=" + link;
+
 };
 
 reader.readAsDataURL(file);
