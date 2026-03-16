@@ -51,7 +51,21 @@ const profit =
 Number(sellPrice || 0) - Number(basePrice || 0);
 
 useEffect(()=>{
+
 loadCategories();
+
+if(typeof window !== "undefined"){
+
+const params = new URLSearchParams(window.location.search);
+
+const img = params.get("image");
+
+if(img){
+setImage(img);
+}
+
+}
+
 },[]);
 
 const loadCategories = async()=>{
