@@ -1,11 +1,8 @@
 "use client";
 
 import { useState,useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function AddProduct(){
-
-const router = useRouter();
 
 const [name,setName] = useState("");
 const [category,setCategory] = useState("");
@@ -111,7 +108,7 @@ className="border p-2 w-full mb-3"
 
 {/* PRODUCT IMAGE */}
 
-<div className="mb-3">
+<div className="mb-4">
 
 <input
 placeholder="Product Image Link"
@@ -122,7 +119,7 @@ className="border p-2 w-full mb-2"
 
 <button
 type="button"
-onClick={()=>router.push("/admin/upload-image")}
+onClick={()=>window.location.href="/admin/upload-image"}
 className="bg-blue-600 text-white px-4 py-2 rounded w-full"
 >
 
@@ -135,18 +132,18 @@ Upload Product Image
 
 {/* FRONT IMAGE */}
 
-<div className="mb-3">
+<div className="mb-4">
 
 <input
 placeholder="Front Image Link"
 value={front}
-readOnly
+onChange={(e)=>setFront(e.target.value)}
 className="border p-2 w-full mb-2"
 />
 
 <button
 type="button"
-onClick={()=>router.push("/admin/upload-image")}
+onClick={()=>window.location.href="/admin/upload-image"}
 className="bg-blue-600 text-white px-4 py-2 rounded w-full"
 >
 
@@ -159,18 +156,18 @@ Upload Front Image
 
 {/* BACK IMAGE */}
 
-<div className="mb-3">
+<div className="mb-4">
 
 <input
 placeholder="Back Image Link"
 value={back}
-readOnly
+onChange={(e)=>setBack(e.target.value)}
 className="border p-2 w-full mb-2"
 />
 
 <button
 type="button"
-onClick={()=>router.push("/admin/upload-image")}
+onClick={()=>window.location.href="/admin/upload-image"}
 className="bg-blue-600 text-white px-4 py-2 rounded w-full"
 >
 
@@ -183,18 +180,18 @@ Upload Back Image
 
 {/* SIDE IMAGE */}
 
-<div className="mb-3">
+<div className="mb-4">
 
 <input
 placeholder="Side Image Link"
 value={side}
-readOnly
+onChange={(e)=>setSide(e.target.value)}
 className="border p-2 w-full mb-2"
 />
 
 <button
 type="button"
-onClick={()=>router.push("/admin/upload-image")}
+onClick={()=>window.location.href="/admin/upload-image"}
 className="bg-blue-600 text-white px-4 py-2 rounded w-full"
 >
 
@@ -207,18 +204,18 @@ Upload Side Image
 
 {/* MODEL IMAGE */}
 
-<div className="mb-3">
+<div className="mb-4">
 
 <input
 placeholder="Model Image Link"
 value={model}
-readOnly
+onChange={(e)=>setModel(e.target.value)}
 className="border p-2 w-full mb-2"
 />
 
 <button
 type="button"
-onClick={()=>router.push("/admin/upload-image")}
+onClick={()=>window.location.href="/admin/upload-image"}
 className="bg-blue-600 text-white px-4 py-2 rounded w-full"
 >
 
