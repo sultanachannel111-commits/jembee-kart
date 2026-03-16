@@ -74,7 +74,7 @@ export function CartProvider({ children }: any) {
       product.id
     );
 
-    /* PRICE CALCULATION */
+    /* FINAL PRICE */
 
     const finalPrice =
       product.finalPrice ||
@@ -88,6 +88,15 @@ export function CartProvider({ children }: any) {
       productId: product.id,
 
       name: product.name,
+
+      sellPrice:
+        product.sellPrice ||
+        product.price ||
+        0,
+
+      discount:
+        product.discount ||
+        0,
 
       price: finalPrice,
 
