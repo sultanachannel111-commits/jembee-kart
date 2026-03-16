@@ -145,21 +145,10 @@ export default function ProductPage() {
 
       {/* IMAGE */}
 
-      <div className="relative">
-
-<img
-  src={product.image}
-  className="w-full h-[300px] object-cover rounded-lg"
-/>
-
-<button
-onClick={handleAddToCart}
-className="absolute bottom-3 left-3 right-3 bg-pink-600 text-white py-2 rounded-lg font-semibold shadow"
->
-Add to Cart
-</button>
-
-</div>
+      <img
+        src={product.image}
+        className="w-full h-[300px] object-cover rounded-lg"
+      />
 
       {/* NAME */}
 
