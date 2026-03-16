@@ -1,6 +1,3 @@
-*Src app admin add product page tsc
-* 
-
 "use client";
 
 import { useState } from "react";
