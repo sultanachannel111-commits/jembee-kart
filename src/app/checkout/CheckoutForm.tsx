@@ -1,17 +1,20 @@
 "use client";
 
-import { useState,useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { load } from "@cashfreepayments/cashfree-js";
-import { doc,getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+
+import {
+collection,
+getDocs
+} from "firebase/firestore";
+
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function CheckoutForm(){
 
-const searchParams = useSearchParams();
-const productId = searchParams.get("productId");
-
-const [product,setProduct] = useState<any>(null);
+const [items,setItems] = useState<any[]>([]);
+const [user,setUser] = useState<any>(null);
 const [loading,setLoading] = useState(false);
 
 const [customer,setCustomer] = useState({
@@ -25,76 +28,56 @@ phone:"",
 email:""
 });
 
+
+
 /* =========================
-FETCH PRODUCT
+LOAD CART ITEMS
 ========================= */
 
 useEffect(()=>{
 
-const fetchProduct = async()=>{
+const unsub = onAuthStateChanged(auth,async(u)=>{
 
-if(!productId) return;
+if(!u) return;
 
-try{
+setUser(u);
 
-const snap = await getDoc(doc(db,"products",productId));
-
-if(snap.exists()){
-
-setProduct({
-id:snap.id,
-...snap.data()
-});
-
-}
-
-}catch(err){
-console.log("Product load error",err);
-}
-
-};
-
-fetchProduct();
-
-},[productId]);
-
-/* =========================
-PINCODE → CITY AUTO
-========================= */
-
-const handlePincode = async(pincode:string)=>{
-
-setCustomer({...customer,zip:pincode});
-
-if(pincode.length === 6){
-
-try{
-
-const res = await fetch(
-`https://api.postalpincode.in/pincode/${pincode}`
+const snap = await getDocs(
+collection(db,"cart",u.uid,"items")
 );
 
-const data = await res.json();
+const data:any[] = [];
 
-if(data[0].Status === "Success"){
+snap.forEach(doc=>{
 
-const office = data[0].PostOffice[0];
+data.push({
+id:doc.id,
+...doc.data()
+});
 
-setCustomer(prev=>({
-...prev,
-city:office.District,
-state:office.State
-}));
+});
 
-}
+setItems(data);
 
-}catch(err){
-console.log("Pincode error",err);
-}
+});
 
-}
+return ()=>unsub();
 
-};
+},[]);
+
+
+
+/* =========================
+TOTAL PRICE
+========================= */
+
+const total = items.reduce(
+(sum,i)=>
+sum + (i.price * (i.quantity || 1)),
+0
+);
+
+
 
 /* =========================
 VALIDATION
@@ -141,6 +124,8 @@ return true;
 
 };
 
+
+
 /* =========================
 PAYMENT
 ========================= */
@@ -149,8 +134,8 @@ const placeOrder = async()=>{
 
 if(!validateCustomer()) return;
 
-if(!product){
-alert("Product not loaded");
+if(items.length === 0){
+alert("Cart empty");
 return;
 }
 
@@ -168,25 +153,9 @@ headers:{
 
 body:JSON.stringify({
 
-amount:product.sellPrice || product.price,
+amount:total,
 
-product:{
-
-id:product.id,
-
-name:product.name,
-
-sku:product.sku,
-
-printTypeId:product.printTypeId,
-
-designLink:product.designLink,
-
-mockupLink:product.mockupLink,
-
-sellingPrice:product.sellPrice || product.price
-
-},
+items,
 
 customer
 
@@ -224,21 +193,11 @@ alert("Server error");
 
 };
 
+
+
 /* =========================
 UI
 ========================= */
-
-if(!product){
-
-return(
-
-<div className="p-10 text-center">
-Loading product...
-</div>
-
-);
-
-}
 
 return(
 
@@ -249,24 +208,53 @@ Checkout
 </h1>
 
 
-{/* PRODUCT CARD */}
 
-<div className="bg-white p-4 rounded-xl shadow mb-6">
+{/* CART PRODUCTS */}
+
+<div className="space-y-4 mb-6">
+
+{items.map(item=>(
+
+<div
+key={item.id}
+className="bg-white p-4 rounded-xl shadow flex gap-4"
+>
 
 <img
-src={product.image}
-className="w-full h-48 object-cover rounded-lg mb-3"
+src={item.image}
+className="w-20 h-20 object-cover rounded"
 />
 
-<h2 className="font-semibold text-lg">
-{product.name}
-</h2>
+<div className="flex-1">
 
-<p className="text-pink-600 font-bold text-xl">
-₹{product.sellPrice || product.price}
+<p className="font-semibold">
+{item.name}
+</p>
+
+<p className="text-pink-600 font-bold">
+₹{item.price}
+</p>
+
+<p className="text-sm text-gray-500">
+Qty : {item.quantity}
 </p>
 
 </div>
+
+</div>
+
+))}
+
+</div>
+
+
+
+{/* TOTAL */}
+
+<div className="text-xl font-bold mb-6">
+Total : ₹{total}
+</div>
+
 
 
 {/* CUSTOMER FORM */}
@@ -301,13 +289,6 @@ setCustomer({...customer,address:e.target.value})
 />
 
 <input
-placeholder="Pin Code"
-className="border p-3 w-full rounded"
-value={customer.zip}
-onChange={(e)=>handlePincode(e.target.value)}
-/>
-
-<input
 placeholder="City"
 className="border p-3 w-full rounded"
 value={customer.city}
@@ -322,6 +303,15 @@ className="border p-3 w-full rounded"
 value={customer.state}
 onChange={(e)=>
 setCustomer({...customer,state:e.target.value})
+}
+/>
+
+<input
+placeholder="Pin Code"
+className="border p-3 w-full rounded"
+value={customer.zip}
+onChange={(e)=>
+setCustomer({...customer,zip:e.target.value})
 }
 />
 
@@ -344,16 +334,17 @@ setCustomer({...customer,email:e.target.value})
 />
 
 
-{/* PAYMENT BUTTON */}
+
+{/* PAY BUTTON */}
 
 <button
 onClick={placeOrder}
-className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded w-full"
+className="bg-pink-500 text-white px-6 py-3 rounded w-full"
 >
 
 {loading
 ? "Processing Payment..."
-: `Pay ₹${product.sellPrice || product.price}`
+: `Pay ₹${total}`
 }
 
 </button>
