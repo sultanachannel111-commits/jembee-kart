@@ -124,6 +124,29 @@ createdAt:serverTimestamp()
 
 alert("Product Added Successfully 🎉");
 
+setName("");
+setQikinkId("");
+setSku("");
+setPrintTypeId("");
+
+setImage("");
+setFrontImage("");
+setBackImage("");
+setSideImage("");
+setModelImage("");
+
+setDesignLink("");
+setMockupLink("");
+
+setBasePrice("");
+setSellPrice("");
+
+setDescription("");
+setStock("");
+
+setType("");
+setOptions("");
+
 }catch(err){
 
 console.log(err);
@@ -146,33 +169,86 @@ Add Qikink Product
 
 <div className="space-y-5">
 
+{/* PRODUCT NAME */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+Product Name
+</label>
+
 <input
 value={name}
 onChange={(e)=>setName(e.target.value)}
-placeholder="Product Name"
+placeholder="Oversized T Shirt"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* QIKINK PRODUCT ID */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+Qikink Product ID
+</label>
 
 <input
 value={qikinkId}
 onChange={(e)=>setQikinkId(e.target.value)}
-placeholder="Qikink Product ID"
+placeholder="QK1022"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* SKU */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+SKU
+</label>
 
 <input
 value={sku}
 onChange={(e)=>setSku(e.target.value)}
-placeholder="SKU"
+placeholder="QK1022-BLK-M"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* PRINT TYPE */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+Print Type ID
+</label>
 
 <input
 value={printTypeId}
 onChange={(e)=>setPrintTypeId(e.target.value)}
-placeholder="Print Type ID"
+placeholder="1"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* CATEGORY */}
+
+<div>
+
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<Layers size={18}/>
+Qikink Category
+</label>
 
 <select
 value={category}
@@ -190,7 +266,17 @@ className="border w-full p-3 rounded-lg"
 
 </select>
 
-{/* PRODUCT IMAGE */}
+</div>
+
+
+{/* MAIN IMAGE */}
+
+<div>
+
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<Image size={18}/>
+Product Image
+</label>
 
 <input
 value={image}
@@ -199,6 +285,9 @@ onClick={()=>window.location.href="/admin/upload-image"}
 placeholder="Click to upload product image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
+
+</div>
+
 
 {/* FRONT IMAGE */}
 
@@ -240,12 +329,17 @@ placeholder="Click to upload model image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+
+{/* DESIGN LINK */}
+
 <input
 value={designLink}
 onChange={(e)=>setDesignLink(e.target.value)}
 placeholder="Design Link"
 className="border w-full p-3 rounded-lg"
 />
+
+{/* MOCKUP LINK */}
 
 <input
 value={mockupLink}
@@ -254,27 +348,64 @@ placeholder="Mockup Link"
 className="border w-full p-3 rounded-lg"
 />
 
+
+{/* BASE PRICE */}
+
+<div>
+
+<label className="font-semibold mb-1 block flex items-center gap-2">
+<IndianRupee size={18}/>
+Qikink Base Price
+</label>
+
 <input
 type="number"
 value={basePrice}
 onChange={(e)=>setBasePrice(e.target.value)}
-placeholder="Base Price"
+placeholder="100"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* SELL PRICE */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+Sell Price
+</label>
 
 <input
 type="number"
 value={sellPrice}
 onChange={(e)=>setSellPrice(e.target.value)}
-placeholder="Sell Price"
+placeholder="299"
 className="border w-full p-3 rounded-lg"
 />
+
+</div>
+
+
+{/* PROFIT */}
+
+<div>
+
+<label className="font-semibold mb-1 block">
+Profit
+</label>
 
 <input
 value={profit}
 readOnly
 className="border w-full p-3 rounded-lg bg-gray-100"
 />
+
+</div>
+
+
+{/* DESCRIPTION */}
 
 <textarea
 value={description}
@@ -283,6 +414,9 @@ placeholder="Product Description"
 className="border w-full p-3 rounded-lg"
 />
 
+
+{/* STOCK */}
+
 <input
 type="number"
 value={stock}
@@ -290,6 +424,9 @@ onChange={(e)=>setStock(e.target.value)}
 placeholder="Stock Quantity"
 className="border w-full p-3 rounded-lg"
 />
+
+
+{/* VARIATION */}
 
 <select
 value={type}
@@ -303,12 +440,14 @@ className="border p-3 w-full rounded-lg"
 
 </select>
 
+
 <input
 value={options}
 onChange={(e)=>setOptions(e.target.value)}
 placeholder="Options (S,M,L / Red,Blue)"
 className="border p-3 w-full rounded-lg"
 />
+
 
 <button
 onClick={saveProduct}
