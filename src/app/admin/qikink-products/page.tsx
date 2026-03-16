@@ -207,9 +207,10 @@ className="border w-full p-3 rounded-lg"
 
 <input
 value={image}
-onChange={(e)=>setImage(e.target.value)}
-placeholder="Product Image URL"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload product image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 
@@ -217,9 +218,10 @@ className="border w-full p-3 rounded-lg placeholder-gray-500"
 
 <input
 value={frontImage}
-onChange={(e)=>setFrontImage(e.target.value)}
-placeholder="Front Image URL"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload front image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 
@@ -227,9 +229,10 @@ className="border w-full p-3 rounded-lg placeholder-gray-500"
 
 <input
 value={backImage}
-onChange={(e)=>setBackImage(e.target.value)}
-placeholder="Back Image URL"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload back image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 
@@ -237,9 +240,10 @@ className="border w-full p-3 rounded-lg placeholder-gray-500"
 
 <input
 value={sideImage}
-onChange={(e)=>setSideImage(e.target.value)}
-placeholder="Side Image URL"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload side image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 
@@ -247,9 +251,10 @@ className="border w-full p-3 rounded-lg placeholder-gray-500"
 
 <input
 value={modelImage}
-onChange={(e)=>setModelImage(e.target.value)}
-placeholder="Model Image URL"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+readOnly
+onClick={()=>window.location.href="/admin/upload-image"}
+placeholder="Click to upload model image"
+className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 
