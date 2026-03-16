@@ -9,6 +9,7 @@ Users,
 Store,
 Tag,
 Image,
+ImagePlus,
 Gift,
 Settings,
 Bell,
@@ -114,7 +115,18 @@ JembeeKart Admin Panel
 <p className="text-sm text-gray-500">Homepage banners</p>
 </div>
 </Link>
+  
 
+{/* IMAGE UPLOAD */}
+
+<Link href="/admin/upload-image">
+<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+<ImagePlus className="text-blue-600 mb-2"/>
+<h3 className="font-bold">Upload Image</h3>
+<p className="text-sm text-gray-500">Upload image to public folder</p>
+</div>
+</Link>
+  
 
 {/* HOMEPAGE */}
 
