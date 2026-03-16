@@ -1,26 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ImageGallery(){
 
-const [copied,setCopied] = useState("");
+const [origin,setOrigin] = useState("");
+
+useEffect(()=>{
+setOrigin(window.location.origin);
+},[]);
 
 const images = [
-
 "/banner.png",
 "/shoes.png",
 "/tshirt.png"
-
 ];
 
 function copyLink(img:string){
 
-const link = window.location.origin + img;
+const link = origin + img;
 
 navigator.clipboard.writeText(link);
-
-setCopied(link);
 
 alert("Image link copied");
 
@@ -36,7 +36,11 @@ Image Gallery
 
 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
 
-{images.map((img,index)=>(
+{images.map((img,index)=>{
+
+const link = origin + img;
+
+return(
 
 <div
 key={index}
@@ -50,12 +54,14 @@ className="w-full h-40 object-cover rounded"
 />
 
 <p className="text-xs mt-2 break-all">
-{window.location.origin + img}
+{link}
 </p>
 
 </div>
 
-))}
+);
+
+})}
 
 </div>
 
