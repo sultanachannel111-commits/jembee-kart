@@ -1,6 +1,6 @@
 "use client";
 
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export default function AddProduct(){
 
@@ -14,8 +14,6 @@ const [front,setFront] = useState("");
 const [back,setBack] = useState("");
 const [side,setSide] = useState("");
 const [model,setModel] = useState("");
-const [design,setDesign] = useState("");
-const [mockup,setMockup] = useState("");
 
 const [variations,setVariations] = useState<any[]>([]);
 
@@ -108,141 +106,56 @@ className="border p-2 w-full mb-3"
 
 {/* PRODUCT IMAGE */}
 
-<div className="mb-4">
-
 <input
-placeholder="Product Image Link"
+placeholder="Click to Upload Product Image"
 value={image}
 readOnly
-className="border p-2 w-full mb-2"
-/>
-
-<button
-type="button"
 onClick={()=>window.location.href="/admin/upload-image"}
-className="bg-blue-600 text-white px-4 py-2 rounded w-full"
->
-
-Upload Product Image
-
-</button>
-
-</div>
+className="border p-2 w-full mb-3 cursor-pointer bg-gray-100"
+/>
 
 
 {/* FRONT IMAGE */}
 
-<div className="mb-4">
-
 <input
 placeholder="Front Image Link"
 value={front}
-onChange={(e)=>setFront(e.target.value)}
-className="border p-2 w-full mb-2"
-/>
-
-<button
-type="button"
+readOnly
 onClick={()=>window.location.href="/admin/upload-image"}
-className="bg-blue-600 text-white px-4 py-2 rounded w-full"
->
-
-Upload Front Image
-
-</button>
-
-</div>
+className="border p-2 w-full mb-3 cursor-pointer bg-gray-100"
+/>
 
 
 {/* BACK IMAGE */}
 
-<div className="mb-4">
-
 <input
 placeholder="Back Image Link"
 value={back}
-onChange={(e)=>setBack(e.target.value)}
-className="border p-2 w-full mb-2"
-/>
-
-<button
-type="button"
+readOnly
 onClick={()=>window.location.href="/admin/upload-image"}
-className="bg-blue-600 text-white px-4 py-2 rounded w-full"
->
-
-Upload Back Image
-
-</button>
-
-</div>
+className="border p-2 w-full mb-3 cursor-pointer bg-gray-100"
+/>
 
 
 {/* SIDE IMAGE */}
 
-<div className="mb-4">
-
 <input
 placeholder="Side Image Link"
 value={side}
-onChange={(e)=>setSide(e.target.value)}
-className="border p-2 w-full mb-2"
-/>
-
-<button
-type="button"
+readOnly
 onClick={()=>window.location.href="/admin/upload-image"}
-className="bg-blue-600 text-white px-4 py-2 rounded w-full"
->
-
-Upload Side Image
-
-</button>
-
-</div>
+className="border p-2 w-full mb-3 cursor-pointer bg-gray-100"
+/>
 
 
 {/* MODEL IMAGE */}
 
-<div className="mb-4">
-
 <input
 placeholder="Model Image Link"
 value={model}
-onChange={(e)=>setModel(e.target.value)}
-className="border p-2 w-full mb-2"
-/>
-
-<button
-type="button"
+readOnly
 onClick={()=>window.location.href="/admin/upload-image"}
-className="bg-blue-600 text-white px-4 py-2 rounded w-full"
->
-
-Upload Model Image
-
-</button>
-
-</div>
-
-
-{/* DESIGN */}
-
-<input
-placeholder="Design Link"
-value={design}
-onChange={(e)=>setDesign(e.target.value)}
-className="border p-2 w-full mb-3"
-/>
-
-
-{/* MOCKUP */}
-
-<input
-placeholder="Mockup Link"
-value={mockup}
-onChange={(e)=>setMockup(e.target.value)}
-className="border p-2 w-full mb-3"
+className="border p-2 w-full mb-3 cursor-pointer bg-gray-100"
 />
 
 
