@@ -6,20 +6,14 @@ export default function UploadImage(){
 
 const [file,setFile] = useState<File | null>(null);
 const [preview,setPreview] = useState("");
-const [imageUrl,setImageUrl] = useState("");
 
 function handleFile(e:any){
 
 const selected = e.target.files[0];
 
 if(selected){
-
 setFile(selected);
-
-// preview
-const url = URL.createObjectURL(selected);
-setPreview(url);
-
+setPreview(URL.createObjectURL(selected));
 }
 
 }
@@ -34,14 +28,13 @@ reader.onload = () => {
 
 const base64 = reader.result as string;
 
-// image url set
-setImageUrl(base64);
+// image localStorage में save
+localStorage.setItem("uploadedImage", base64);
 
 alert("Image Uploaded");
 
-// redirect back with image
-window.location.href =
-"/admin/qikink-products?image=" + encodeURIComponent(base64);
+// product page पर वापस
+window.location.href = "/admin/qikink-products";
 
 };
 
@@ -79,24 +72,6 @@ style={{width:"200px",borderRadius:"10px"}}
 <button onClick={upload}>
 Upload Image
 </button>
-
-<br/><br/>
-
-{imageUrl && (
-
-<div>
-
-<p>Image Link:</p>
-
-<input
-value={imageUrl}
-readOnly
-style={{width:"100%"}}
-/>
-
-</div>
-
-)}
 
 </div>
 
