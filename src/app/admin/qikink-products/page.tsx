@@ -53,9 +53,30 @@ loadCategories();
 // localStorage से uploaded image लो
 const img = localStorage.getItem("uploadedImage");
 
+const img = localStorage.getItem("uploadedImage");
+const type = localStorage.getItem("uploadedImageType");
+
 if(img){
+
+if(type === "front"){
+setFrontImage(img);
+}
+else if(type === "back"){
+setBackImage(img);
+}
+else if(type === "side"){
+setSideImage(img);
+}
+else if(type === "model"){
+setModelImage(img);
+}
+else{
 setImage(img);
+}
+
 localStorage.removeItem("uploadedImage");
+localStorage.removeItem("uploadedImageType");
+
 }
 
 },[]);
