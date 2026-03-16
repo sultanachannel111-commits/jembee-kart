@@ -6,12 +6,14 @@ import { auth, db } from "@/lib/firebase";
 
 import {
 collection,
-getDocs
+getDocs,
+addDoc,
+serverTimestamp
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
 
-export default function CheckoutForm(){
+export default function CheckoutPage(){
 
 const [items,setItems] = useState<any[]>([]);
 const [user,setUser] = useState<any>(null);
@@ -28,11 +30,9 @@ phone:"",
 email:""
 });
 
-
-
-/* =========================
-LOAD CART ITEMS
-========================= */
+/* =====================
+LOAD CART
+===================== */
 
 useEffect(()=>{
 
@@ -49,12 +49,10 @@ collection(db,"cart",u.uid,"items")
 const data:any[] = [];
 
 snap.forEach(doc=>{
-
 data.push({
 id:doc.id,
 ...doc.data()
 });
-
 });
 
 setItems(data);
@@ -66,22 +64,19 @@ return ()=>unsub();
 },[]);
 
 
-
-/* =========================
+/* =====================
 TOTAL PRICE
-========================= */
+===================== */
 
 const total = items.reduce(
-(sum,i)=>
-sum + (i.price * (i.quantity || 1)),
+(sum,i)=> sum + (i.price * (i.quantity || 1)),
 0
 );
 
 
-
-/* =========================
+/* =====================
 VALIDATION
-========================= */
+===================== */
 
 const validateCustomer = ()=>{
 
@@ -125,10 +120,9 @@ return true;
 };
 
 
-
-/* =========================
-PAYMENT
-========================= */
+/* =====================
+PLACE ORDER
+===================== */
 
 const placeOrder = async()=>{
 
@@ -143,6 +137,28 @@ setLoading(true);
 
 try{
 
+/* SAVE ORDER */
+
+const orderRef = await addDoc(
+collection(db,"orders"),
+{
+userId:user.uid,
+
+items:items,
+
+total:total,
+
+customer:customer,
+
+status:"pending",
+
+createdAt:serverTimestamp()
+}
+);
+
+
+/* CREATE PAYMENT */
+
 const res = await fetch("/api/cashfree/create-order",{
 
 method:"POST",
@@ -152,6 +168,8 @@ headers:{
 },
 
 body:JSON.stringify({
+
+orderId:orderRef.id,
 
 amount:total,
 
@@ -172,6 +190,8 @@ alert("Payment initialization failed");
 return;
 }
 
+/* CASHFREE */
+
 const cashfree = await load({
 mode:"production"
 });
@@ -186,7 +206,10 @@ redirectTarget:"_self"
 
 }catch(err){
 
+console.log(err);
+
 setLoading(false);
+
 alert("Server error");
 
 }
@@ -195,9 +218,9 @@ alert("Server error");
 
 
 
-/* =========================
+/* =====================
 UI
-========================= */
+===================== */
 
 return(
 
@@ -208,8 +231,7 @@ Checkout
 </h1>
 
 
-
-{/* CART PRODUCTS */}
+{/* PRODUCTS */}
 
 <div className="space-y-4 mb-6">
 
@@ -248,13 +270,11 @@ Qty : {item.quantity}
 </div>
 
 
-
 {/* TOTAL */}
 
 <div className="text-xl font-bold mb-6">
 Total : ₹{total}
 </div>
-
 
 
 {/* CUSTOMER FORM */}
@@ -334,12 +354,11 @@ setCustomer({...customer,email:e.target.value})
 />
 
 
-
 {/* PAY BUTTON */}
 
 <button
 onClick={placeOrder}
-className="bg-pink-500 text-white px-6 py-3 rounded w-full"
+className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded w-full"
 >
 
 {loading
