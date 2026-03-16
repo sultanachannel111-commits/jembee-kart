@@ -13,43 +13,35 @@ function handleFile(e:any){
 const selected = e.target.files[0];
 
 if(selected){
+
 setFile(selected);
-setPreview(URL.createObjectURL(selected));
+
+// preview
+const url = URL.createObjectURL(selected);
+setPreview(url);
+
 }
 
 }
 
 async function upload(){
 
-if(!file) return alert("Select image");
+if(!file) return alert("Select image first");
 
 const reader = new FileReader();
 
-reader.onload = async () => {
+reader.onload = () => {
 
-const base64 = (reader.result as string).split(",")[1];
+const base64 = reader.result as string;
 
-await fetch("/api/upload-image",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-fileName:file.name,
-base64
-})
-});
-
-const link =
-"https://jembee-kart-h39deei2i-md-alim-ansar-s-projects.vercel.app/"+file.name;
-
-setImageUrl(link);
+// image url set
+setImageUrl(base64);
 
 alert("Image Uploaded");
 
-// redirect back to product page
+// redirect back with image
 window.location.href =
-"/admin/qikink-products?image=" + link;
+"/admin/qikink-products?image=" + encodeURIComponent(base64);
 
 };
 
@@ -109,4 +101,5 @@ style={{width:"100%"}}
 </div>
 
 );
+
 }
