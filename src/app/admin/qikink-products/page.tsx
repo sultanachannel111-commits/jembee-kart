@@ -1,6 +1,6 @@
 "use client";
 
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import {
 addDoc,
@@ -39,7 +39,6 @@ const [basePrice,setBasePrice] = useState("");
 const [sellPrice,setSellPrice] = useState("");
 
 const [description,setDescription] = useState("");
-
 const [stock,setStock] = useState("");
 
 const [category,setCategory] = useState("");
@@ -53,22 +52,11 @@ Number(sellPrice || 0) - Number(basePrice || 0);
 
 useEffect(()=>{
 loadCategories();
-
-if(typeof window !== "undefined"){
-
-const params = new URLSearchParams(window.location.search);
-
-const img = params.get("image");
-
-if(img){
-setImage(img);
-}
-
-}
-
 },[]);
 
 const loadCategories = async()=>{
+
+try{
 
 const snap = await getDocs(
 collection(db,"qikinkCategories")
@@ -81,9 +69,20 @@ id:doc.id,
 
 setCategories(list);
 
+}catch(err){
+console.log(err);
+}
+
 };
 
 const saveProduct = async()=>{
+
+if(!name || !qikinkId || !category){
+alert("Please fill required fields");
+return;
+}
+
+try{
 
 await addDoc(collection(db,"products"),{
 
@@ -117,12 +116,18 @@ options: options ? options.split(",") : []
 },
 
 supplier:"qikink",
-
 createdAt:serverTimestamp()
 
 });
 
 alert("Product Added Successfully 🎉");
+
+}catch(err){
+
+console.log(err);
+alert("Error adding product");
+
+}
 
 };
 
@@ -139,19 +144,47 @@ Add Qikink Product
 
 <div className="space-y-5">
 
+{/* PRODUCT NAME */}
+
 <input
 value={name}
 onChange={(e)=>setName(e.target.value)}
 placeholder="Product Name"
-className="border w-full p-3 rounded-lg"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
+
+{/* QIKINK PRODUCT ID */}
 
 <input
 value={qikinkId}
 onChange={(e)=>setQikinkId(e.target.value)}
 placeholder="Qikink Product ID"
-className="border w-full p-3 rounded-lg"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
+
+{/* SKU */}
+
+<input
+value={sku}
+onChange={(e)=>setSku(e.target.value)}
+placeholder="SKU (Example: QK1022-BLK-M)"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
+/>
+
+
+{/* PRINT TYPE */}
+
+<input
+value={printTypeId}
+onChange={(e)=>setPrintTypeId(e.target.value)}
+placeholder="Print Type ID (Example: 1)"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
+/>
+
+
+{/* CATEGORY */}
 
 <select
 value={category}
@@ -169,63 +202,89 @@ className="border w-full p-3 rounded-lg"
 
 </select>
 
+
 {/* PRODUCT IMAGE */}
 
 <input
 value={image}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload product image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setImage(e.target.value)}
+placeholder="Product Image URL"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
 
 {/* FRONT IMAGE */}
 
 <input
 value={frontImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload front image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setFrontImage(e.target.value)}
+placeholder="Front Image URL"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
 
 {/* BACK IMAGE */}
 
 <input
 value={backImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload back image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setBackImage(e.target.value)}
+placeholder="Back Image URL"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
 
 {/* SIDE IMAGE */}
 
 <input
 value={sideImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload side image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setSideImage(e.target.value)}
+placeholder="Side Image URL"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
 
 {/* MODEL IMAGE */}
 
 <input
 value={modelImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload model image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setModelImage(e.target.value)}
+placeholder="Model Image URL"
+className="border w-full p-3 rounded-lg placeholder-gray-500"
 />
+
+
+{/* DESIGN LINK */}
+
+<input
+value={designLink}
+onChange={(e)=>setDesignLink(e.target.value)}
+placeholder="Design Link"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* MOCKUP LINK */}
+
+<input
+value={mockupLink}
+onChange={(e)=>setMockupLink(e.target.value)}
+placeholder="Mockup Link"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* BASE PRICE */}
 
 <input
 type="number"
 value={basePrice}
 onChange={(e)=>setBasePrice(e.target.value)}
-placeholder="Base Price"
+placeholder="Qikink Base Price"
 className="border w-full p-3 rounded-lg"
 />
+
+
+{/* SELL PRICE */}
 
 <input
 type="number"
@@ -235,11 +294,60 @@ placeholder="Sell Price"
 className="border w-full p-3 rounded-lg"
 />
 
+
+{/* PROFIT */}
+
 <input
 value={profit}
 readOnly
+placeholder="Profit Auto Calculate"
 className="border w-full p-3 rounded-lg bg-gray-100"
 />
+
+
+{/* DESCRIPTION */}
+
+<textarea
+value={description}
+onChange={(e)=>setDescription(e.target.value)}
+placeholder="Product Description"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* STOCK */}
+
+<input
+type="number"
+value={stock}
+onChange={(e)=>setStock(e.target.value)}
+placeholder="Stock Quantity"
+className="border w-full p-3 rounded-lg"
+/>
+
+
+{/* VARIATION */}
+
+<select
+value={type}
+onChange={(e)=>setType(e.target.value)}
+className="border p-3 w-full rounded-lg"
+>
+
+<option value="">Select Variation</option>
+<option value="Size">Size</option>
+<option value="Color">Color</option>
+
+</select>
+
+
+<input
+value={options}
+onChange={(e)=>setOptions(e.target.value)}
+placeholder="Options (Example: S,M,L / Red,Blue)"
+className="border p-3 w-full rounded-lg"
+/>
+
 
 <button
 onClick={saveProduct}
