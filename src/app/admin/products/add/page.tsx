@@ -11,7 +11,14 @@ const [name,setName] = useState("");
 const [category,setCategory] = useState("");
 const [basePrice,setBasePrice] = useState("");
 const [sellPrice,setSellPrice] = useState("");
+
 const [image,setImage] = useState("");
+const [front,setFront] = useState("");
+const [back,setBack] = useState("");
+const [side,setSide] = useState("");
+const [model,setModel] = useState("");
+const [design,setDesign] = useState("");
+const [mockup,setMockup] = useState("");
 
 const [variations,setVariations] = useState<any[]>([]);
 
@@ -113,7 +120,71 @@ className="border p-2 w-full mb-3 cursor-pointer"
 />
 
 
-{/* PRICE */}
+{/* FRONT IMAGE */}
+
+<input
+placeholder="Front Image Link"
+value={front}
+onChange={(e)=>setFront(e.target.value)}
+onClick={()=>router.push("/admin/upload-image")}
+className="border p-2 w-full mb-3 cursor-pointer"
+/>
+
+
+{/* BACK IMAGE */}
+
+<input
+placeholder="Back Image Link"
+value={back}
+onChange={(e)=>setBack(e.target.value)}
+onClick={()=>router.push("/admin/upload-image")}
+className="border p-2 w-full mb-3 cursor-pointer"
+/>
+
+
+{/* SIDE IMAGE */}
+
+<input
+placeholder="Side Image Link"
+value={side}
+onChange={(e)=>setSide(e.target.value)}
+onClick={()=>router.push("/admin/upload-image")}
+className="border p-2 w-full mb-3 cursor-pointer"
+/>
+
+
+{/* MODEL IMAGE */}
+
+<input
+placeholder="Model Image Link"
+value={model}
+onChange={(e)=>setModel(e.target.value)}
+onClick={()=>router.push("/admin/upload-image")}
+className="border p-2 w-full mb-3 cursor-pointer"
+/>
+
+
+{/* DESIGN */}
+
+<input
+placeholder="Design Link"
+value={design}
+onChange={(e)=>setDesign(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
+
+
+{/* MOCKUP */}
+
+<input
+placeholder="Mockup Link"
+value={mockup}
+onChange={(e)=>setMockup(e.target.value)}
+className="border p-2 w-full mb-3"
+/>
+
+
+{/* PRICES */}
 
 <input
 placeholder="Qikink Base Price"
@@ -200,7 +271,7 @@ Add Variation
 </div>
 
 
-{/* SAVE BUTTON */}
+{/* SAVE PRODUCT */}
 
 <button
 className="bg-green-600 text-white px-5 py-2 rounded mt-6"
