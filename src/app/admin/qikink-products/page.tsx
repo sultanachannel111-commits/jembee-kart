@@ -210,52 +210,87 @@ className="border w-full p-3 rounded-lg"
 {/* PRODUCT IMAGE */}
 
 <input
-value={image}
+value={image ? "Image Uploaded" : ""}
 readOnly
 onClick={()=>window.location.href="/admin/upload-image?type=main"}
 placeholder="Click to upload product image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{image && (
+<img
+src={image}
+className="w-24 h-24 object-cover rounded mt-2"
+/>
+)}
+
 {/* FRONT IMAGE */}
 
 <input
-value={frontImage}
+value={frontImage ? "Image Uploaded" : ""}
 readOnly
 onClick={()=>window.location.href="/admin/upload-image?type=front"}
 placeholder="Click to upload front image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{frontImage && (
+<img
+src={frontImage}
+className="w-24 h-24 object-cover rounded mt-2"
+/>
+)}
+
 {/* BACK IMAGE */}
 
 <input
-value={backImage}
+value={backImage ? "Image Uploaded" : ""}
 readOnly
 onClick={()=>window.location.href="/admin/upload-image?type=back"}
 placeholder="Click to upload back image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{backImage && (
+<img
+src={backImage}
+className="w-24 h-24 object-cover rounded mt-2"
+/>
+)}
+
 {/* SIDE IMAGE */}
 
 <input
-value={sideImage}
+value={sideImage ? "Image Uploaded" : ""}
 readOnly
 onClick={()=>window.location.href="/admin/upload-image?type=side"}
 placeholder="Click to upload side image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
+{sideImage && (
+<img
+src={sideImage}
+className="w-24 h-24 object-cover rounded mt-2"
+/>
+)}
+
 {/* MODEL IMAGE */}
 
 <input
-value={modelImage}
+value={modelImage ? "Image Uploaded" : ""}
 readOnly
 onClick={()=>window.location.href="/admin/upload-image?type=model"}
 placeholder="Click to upload model image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
+
+{modelImage && (
+<img
+src={modelImage}
+className="w-24 h-24 object-cover rounded mt-2"
+/>
+)}
 
 <input
 value={designLink}
