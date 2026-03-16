@@ -11,9 +11,6 @@ getDocs
 
 import {
 Package,
-Image,
-Layers,
-IndianRupee,
 PlusCircle
 } from "lucide-react";
 
@@ -21,7 +18,6 @@ export default function AdminQikinkProducts(){
 
 const [name,setName] = useState("");
 const [qikinkId,setQikinkId] = useState("");
-
 const [sku,setSku] = useState("");
 const [printTypeId,setPrintTypeId] = useState("");
 
@@ -54,16 +50,12 @@ useEffect(()=>{
 
 loadCategories();
 
-if(typeof window !== "undefined"){
-
-const params = new URLSearchParams(window.location.search);
-
-const img = params.get("image");
+// localStorage से uploaded image लो
+const img = localStorage.getItem("uploadedImage");
 
 if(img){
 setImage(img);
-}
-
+localStorage.removeItem("uploadedImage");
 }
 
 },[]);
@@ -104,7 +96,6 @@ name,
 qikinkId,
 sku,
 printTypeId,
-
 category,
 
 image,
@@ -121,7 +112,6 @@ sellPrice:Number(sellPrice),
 profit,
 
 description,
-
 stock:Number(stock),
 
 variations:{
@@ -158,47 +148,33 @@ Add Qikink Product
 
 <div className="space-y-5">
 
-{/* PRODUCT NAME */}
-
 <input
 value={name}
 onChange={(e)=>setName(e.target.value)}
 placeholder="Product Name"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* QIKINK PRODUCT ID */}
 
 <input
 value={qikinkId}
 onChange={(e)=>setQikinkId(e.target.value)}
 placeholder="Qikink Product ID"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* SKU */}
 
 <input
 value={sku}
 onChange={(e)=>setSku(e.target.value)}
 placeholder="SKU (Example: QK1022-BLK-M)"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* PRINT TYPE */}
 
 <input
 value={printTypeId}
 onChange={(e)=>setPrintTypeId(e.target.value)}
 placeholder="Print Type ID (Example: 1)"
-className="border w-full p-3 rounded-lg placeholder-gray-500"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* CATEGORY */}
 
 <select
 value={category}
@@ -216,7 +192,6 @@ className="border w-full p-3 rounded-lg"
 
 </select>
 
-
 {/* PRODUCT IMAGE */}
 
 <input
@@ -227,52 +202,33 @@ placeholder="Click to upload product image"
 className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
-
-{/* FRONT IMAGE */}
-
 <input
 value={frontImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload front image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setFrontImage(e.target.value)}
+placeholder="Front Image Link"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* BACK IMAGE */}
 
 <input
 value={backImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload back image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setBackImage(e.target.value)}
+placeholder="Back Image Link"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* SIDE IMAGE */}
 
 <input
 value={sideImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload side image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setSideImage(e.target.value)}
+placeholder="Side Image Link"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* MODEL IMAGE */}
 
 <input
 value={modelImage}
-readOnly
-onClick={()=>window.location.href="/admin/upload-image"}
-placeholder="Click to upload model image"
-className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
+onChange={(e)=>setModelImage(e.target.value)}
+placeholder="Model Image Link"
+className="border w-full p-3 rounded-lg"
 />
-
-
-{/* DESIGN LINK */}
 
 <input
 value={designLink}
@@ -281,18 +237,12 @@ placeholder="Design Link"
 className="border w-full p-3 rounded-lg"
 />
 
-
-{/* MOCKUP LINK */}
-
 <input
 value={mockupLink}
 onChange={(e)=>setMockupLink(e.target.value)}
 placeholder="Mockup Link"
 className="border w-full p-3 rounded-lg"
 />
-
-
-{/* BASE PRICE */}
 
 <input
 type="number"
@@ -302,9 +252,6 @@ placeholder="Qikink Base Price"
 className="border w-full p-3 rounded-lg"
 />
 
-
-{/* SELL PRICE */}
-
 <input
 type="number"
 value={sellPrice}
@@ -313,18 +260,12 @@ placeholder="Sell Price"
 className="border w-full p-3 rounded-lg"
 />
 
-
-{/* PROFIT */}
-
 <input
 value={profit}
 readOnly
 placeholder="Profit Auto Calculate"
 className="border w-full p-3 rounded-lg bg-gray-100"
 />
-
-
-{/* DESCRIPTION */}
 
 <textarea
 value={description}
@@ -333,9 +274,6 @@ placeholder="Product Description"
 className="border w-full p-3 rounded-lg"
 />
 
-
-{/* STOCK */}
-
 <input
 type="number"
 value={stock}
@@ -343,9 +281,6 @@ onChange={(e)=>setStock(e.target.value)}
 placeholder="Stock Quantity"
 className="border w-full p-3 rounded-lg"
 />
-
-
-{/* VARIATION */}
 
 <select
 value={type}
@@ -359,14 +294,12 @@ className="border p-3 w-full rounded-lg"
 
 </select>
 
-
 <input
 value={options}
 onChange={(e)=>setOptions(e.target.value)}
 placeholder="Options (Example: S,M,L / Red,Blue)"
 className="border p-3 w-full rounded-lg"
 />
-
 
 <button
 onClick={saveProduct}
