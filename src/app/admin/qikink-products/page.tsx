@@ -19,7 +19,6 @@ const [sku,setSku] = useState("");
 const [printTypeId,setPrintTypeId] = useState("");
 
 const [image,setImage] = useState("");
-
 const [frontImage,setFrontImage] = useState("");
 const [backImage,setBackImage] = useState("");
 const [sideImage,setSideImage] = useState("");
@@ -53,25 +52,27 @@ const imgType = localStorage.getItem("uploadedImageType");
 if(img){
 
 if(imgType === "front"){
-setFrontImage(prev => prev || img);
+setFrontImage(img);
 }
 else if(imgType === "back"){
-setBackImage(prev => prev || img);
+setBackImage(img);
 }
 else if(imgType === "side"){
-setSideImage(prev => prev || img);
+setSideImage(img);
 }
 else if(imgType === "model"){
-setModelImage(prev => prev || img);
+setModelImage(img);
 }
 else{
-setImage(prev => prev || img);
+setImage(img);
 }
 
 localStorage.removeItem("uploadedImage");
 localStorage.removeItem("uploadedImageType");
 
 }
+
+},[]);
 
 const loadCategories = async()=>{
 
@@ -216,13 +217,10 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 {image && (
-<img
-src={image}
-className="w-24 h-24 object-cover rounded mt-2"
-/>
+<img src={image} className="w-24 h-24 rounded mt-2"/>
 )}
 
-{/* FRONT IMAGE */}
+{/* FRONT */}
 
 <input
 value={frontImage ? "Image Uploaded" : ""}
@@ -233,13 +231,10 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 {frontImage && (
-<img
-src={frontImage}
-className="w-24 h-24 object-cover rounded mt-2"
-/>
+<img src={frontImage} className="w-24 h-24 rounded mt-2"/>
 )}
 
-{/* BACK IMAGE */}
+{/* BACK */}
 
 <input
 value={backImage ? "Image Uploaded" : ""}
@@ -250,13 +245,10 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 {backImage && (
-<img
-src={backImage}
-className="w-24 h-24 object-cover rounded mt-2"
-/>
+<img src={backImage} className="w-24 h-24 rounded mt-2"/>
 )}
 
-{/* SIDE IMAGE */}
+{/* SIDE */}
 
 <input
 value={sideImage ? "Image Uploaded" : ""}
@@ -267,13 +259,10 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 {sideImage && (
-<img
-src={sideImage}
-className="w-24 h-24 object-cover rounded mt-2"
-/>
+<img src={sideImage} className="w-24 h-24 rounded mt-2"/>
 )}
 
-{/* MODEL IMAGE */}
+{/* MODEL */}
 
 <input
 value={modelImage ? "Image Uploaded" : ""}
@@ -284,10 +273,7 @@ className="border w-full p-3 rounded-lg cursor-pointer bg-gray-100"
 />
 
 {modelImage && (
-<img
-src={modelImage}
-className="w-24 h-24 object-cover rounded mt-2"
-/>
+<img src={modelImage} className="w-24 h-24 rounded mt-2"/>
 )}
 
 <input
@@ -323,7 +309,6 @@ className="border w-full p-3 rounded-lg"
 <input
 value={profit}
 readOnly
-placeholder="Profit Auto Calculate"
 className="border w-full p-3 rounded-lg bg-gray-100"
 />
 
@@ -357,7 +342,7 @@ className="border p-3 w-full rounded-lg"
 <input
 value={options}
 onChange={(e)=>setOptions(e.target.value)}
-placeholder="Options (Example: S,M,L / Red,Blue)"
+placeholder="Options (Example: S,M,L)"
 className="border p-3 w-full rounded-lg"
 />
 
