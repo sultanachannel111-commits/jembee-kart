@@ -53,27 +53,25 @@ const imgType = localStorage.getItem("uploadedImageType");
 if(img){
 
 if(imgType === "front"){
-setFrontImage(img);
+setFrontImage(prev => prev || img);
 }
 else if(imgType === "back"){
-setBackImage(img);
+setBackImage(prev => prev || img);
 }
 else if(imgType === "side"){
-setSideImage(img);
+setSideImage(prev => prev || img);
 }
 else if(imgType === "model"){
-setModelImage(img);
+setModelImage(prev => prev || img);
 }
 else{
-setImage(img);
+setImage(prev => prev || img);
 }
 
 localStorage.removeItem("uploadedImage");
 localStorage.removeItem("uploadedImageType");
 
 }
-
-},[]);
 
 const loadCategories = async()=>{
 
