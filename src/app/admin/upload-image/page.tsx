@@ -52,7 +52,7 @@ localStorage.setItem("image_main",base64);
 alert("Image Uploaded");
 
 // वापस product page
-window.location.href="/admin/qikink-products";
+window.history.back();
 
 };
 
