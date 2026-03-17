@@ -22,6 +22,8 @@ const imgRef = useRef<HTMLImageElement>(null);
 
 useEffect(()=>{
 
+if(zoom) return; // zoom open ho to slide band
+
 const interval = setInterval(()=>{
 
 setActive(prev =>
@@ -32,14 +34,13 @@ prev === images.length-1 ? 0 : prev + 1
 
 return ()=>clearInterval(interval);
 
-},[images.length]);
+},[images.length,zoom]);
 
 /* 3D ZOOM MOVE */
 
 const handleMove = (e:any)=>{
 
 const rect = imgRef.current?.getBoundingClientRect();
-
 if(!rect) return;
 
 const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -54,7 +55,6 @@ setPosition({x,y});
 const handleTouchMove = (e:any)=>{
 
 const rect = imgRef.current?.getBoundingClientRect();
-
 if(!rect) return;
 
 const touch = e.touches[0];
