@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
+import ImageSlider from "@/components/product/ImageSlider";
 
 export default function ProductPage() {
 
@@ -132,10 +133,7 @@ export default function ProductPage() {
 
       {/* IMAGE */}
 
-      <img
-      src={product.image}
-      className="w-full h-[300px] object-cover rounded-lg"
-      />
+      <ImageSlider product={product} />
 
       {/* NAME */}
 
