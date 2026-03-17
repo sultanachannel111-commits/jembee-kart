@@ -6,100 +6,127 @@ export default function UploadImage(){
 
 const [file,setFile] = useState<File | null>(null);
 const [preview,setPreview] = useState("");
+const [loading,setLoading] = useState(false);
 
 function handleFile(e:any){
 
 const selected = e.target.files[0];
 
-if(selected){
+if(!selected) return;
+
+if(!selected.type.startsWith("image/")){
+alert("Please select an image");
+return;
+}
+
 setFile(selected);
 setPreview(URL.createObjectURL(selected));
-}
 
 }
 
 function upload(){
 
-if(!file) return alert("Select image first");
+if(!file){
+alert("Select image first");
+return;
+}
 
-const reader = new FileReader();
+setLoading(true);
 
-reader.onload = () => {
+const img = new Image();
+img.src = URL.createObjectURL(file);
 
-const base64 = reader.result as string;
+img.onload = () => {
 
-// url से type निकालो
+const canvas = document.createElement("canvas");
+
+const width = 1200;
+const height = 1600;
+
+canvas.width = width;
+canvas.height = height;
+
+const ctx = canvas.getContext("2d");
+
+ctx?.drawImage(img,0,0,width,height);
+
+// compress
+const compressed = canvas.toDataURL("image/webp",0.8);
+
 const params = new URLSearchParams(window.location.search);
 const type = params.get("type") || "main";
 
-// सही key में save करो
 if(type === "front"){
-localStorage.setItem("image_front",base64);
+localStorage.setItem("image_front",compressed);
 }
 else if(type === "back"){
-localStorage.setItem("image_back",base64);
+localStorage.setItem("image_back",compressed);
 }
 else if(type === "side"){
-localStorage.setItem("image_side",base64);
+localStorage.setItem("image_side",compressed);
 }
 else if(type === "model"){
-localStorage.setItem("image_model",base64);
+localStorage.setItem("image_model",compressed);
 }
 else{
-localStorage.setItem("image_main",base64);
+localStorage.setItem("image_main",compressed);
 }
 
-alert("Image Uploaded");
+setLoading(false);
 
-// वापस product page
+alert("Image Uploaded Successfully");
+
 window.history.back();
 
 };
-
-reader.readAsDataURL(file);
 
 }
 
 return(
 
-<div style={{padding:"20px"}}>
+<div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-<h2>Upload Product Image</h2>
+<div className="bg-white p-6 rounded-xl shadow w-full max-w-md">
 
-<input type="file" onChange={handleFile} />
+<h2 className="text-xl font-bold mb-4">
+Upload Product Image
+</h2>
 
-<br/><br/>
+<input
+type="file"
+accept="image/*"
+onChange={handleFile}
+className="border p-2 w-full rounded"
+/>
 
 {preview && (
 
-<div>
+<div className="mt-4 text-center">
 
-<p>Preview:</p>
+<p className="text-sm mb-2 text-gray-500">
+Preview
+</p>
 
 <img
 src={preview}
-style={{width:"200px",borderRadius:"10px"}}
+className="w-48 mx-auto rounded-lg shadow"
 />
 
 </div>
 
 )}
 
-<br/>
-
 <button
 onClick={upload}
-style={{
-padding:"10px 20px",
-background:"purple",
-color:"white",
-borderRadius:"6px"
-}}
+disabled={loading}
+className="mt-6 w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700"
 >
 
-Upload Image
+{loading ? "Uploading..." : "Upload Image"}
 
 </button>
+
+</div>
 
 </div>
 
