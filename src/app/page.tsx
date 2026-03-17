@@ -22,13 +22,10 @@ import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 
 import { getLightningDeals } from "@/services/lightningService";
-import { loadTheme } from "@/lib/themeLoader";
 
 export default function HomePage() {
   const { cartCount } = useCart();
-  useEffect(() => {
-  loadTheme();
-}, []);
+  const [theme, setTheme] = useState<any>({});
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -76,6 +73,18 @@ const [loadingAI,setLoadingAI] = useState(false);
   useEffect(() => {
     loadData();
   }, []);
+// ✅ ISKE NICHE ADD KARO
+useEffect(() => {
+  async function loadTheme() {
+    const snap = await getDoc(doc(db, "settings", "theme"));
+    if (snap.exists()) {
+      setTheme(snap.data());
+      console.log("THEME:", snap.data());
+    }
+  }
+
+  loadTheme();
+}, []);
   const askAI = async () => {
 
 if(!question) return;
@@ -307,7 +316,12 @@ const filteredProducts = products.filter((p) => {
 
   return (
 
-<div className="bg-gradient-to-b from-pink-100 to-white min-h-screen pb-[80px]">
+<div
+  style={{
+    background: theme.background || "#ffffff"
+  }}
+  className="min-h-screen pb-[80px]"
+>
 
 <Header />
 
