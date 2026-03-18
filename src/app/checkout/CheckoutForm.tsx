@@ -358,7 +358,8 @@ setCustomer({...customer,email:e.target.value})
 
 <button
 onClick={placeOrder}
-className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded w-full"
+style={{ background: theme.button }}
+className="text-white px-6 py-3 rounded w-full"
 >
 
 {loading
