@@ -19,15 +19,14 @@ export default function SearchBar({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
 
-  // 🔥 Dummy suggestions (replace later with real data)
+  // 🔥 Demo suggestions
   const demoSuggestions = [
     "black tshirt",
     "oversize tshirt",
     "hoodie",
     "anime tshirt",
-    "couple tshirt",
-    "nike shoes",
-    "jeans for men"
+    "jeans",
+    "shoes"
   ];
 
   useEffect(() => {
@@ -43,6 +42,7 @@ export default function SearchBar({
     setSuggestions(filtered.slice(0, 5));
   }, [search]);
 
+  // 🎤 Voice
   const handleVoice = () => {
     setListening(true);
     startVoice();
@@ -52,19 +52,38 @@ export default function SearchBar({
     }, 3000);
   };
 
+  // 📷 REAL CAMERA
+  const handleCamera = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment"; // back camera
+
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+
+      if (file) {
+        console.log("Image selected:", file);
+
+        // 🔥 future: AI search yaha add karenge
+        alert("Image selected successfully 📷");
+      }
+    };
+
+    input.click();
+  };
+
   return (
     <div className="sticky top-[72px] z-[60] bg-[#eaf3ef] px-4 py-2">
 
-      {/* 🔥 Search Box */}
       <div className="relative">
 
+        {/* 🔥 Search Box */}
         <div className={`bg-white border rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm transition 
         ${focused ? "ring-2 ring-green-500" : "border-gray-300"}`}>
 
-          {/* 🔍 */}
           <Search size={18} className="text-gray-500" />
 
-          {/* INPUT */}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -77,8 +96,8 @@ export default function SearchBar({
           {/* 📷 Camera */}
           <Camera
             size={18}
+            onClick={handleCamera}
             className="text-gray-500 cursor-pointer"
-            onClick={() => alert("Camera scan coming soon 📷")}
           />
 
           {/* 🎤 Mic */}
@@ -92,9 +111,9 @@ export default function SearchBar({
 
         </div>
 
-        {/* 🔥 Suggestions Dropdown */}
+        {/* 🔥 Suggestions */}
         {focused && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border z-50 overflow-hidden">
+          <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border z-50">
 
             {suggestions.map((item, i) => (
               <div
