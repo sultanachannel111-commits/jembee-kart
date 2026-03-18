@@ -22,9 +22,10 @@ export default function SearchBar({
   // 🔥 Demo suggestions
   const demoSuggestions = [
     "black tshirt",
+    "white tshirt",
+    "red tshirt",
     "oversize tshirt",
     "hoodie",
-    "anime tshirt",
     "jeans",
     "shoes"
   ];
@@ -88,19 +89,21 @@ export default function SearchBar({
 
       console.log("Detected Color:", r, g, b);
 
-      // 🔥 COLOR → KEYWORD
+      // 🔥 COLOR → KEYWORD (improved)
       let keyword = "";
 
-      if (r > 150 && g < 100 && b < 100) keyword = "red tshirt";
-      else if (g > 150 && r < 100) keyword = "green tshirt";
+      if (r > 180 && g < 100 && b < 100) keyword = "red tshirt";
+      else if (g > 150 && r < 120) keyword = "green tshirt";
       else if (b > 150) keyword = "blue tshirt";
       else if (r < 80 && g < 80 && b < 80) keyword = "black tshirt";
+      else if (r > 200 && g > 200 && b > 200) keyword = "white tshirt";
       else keyword = "tshirt";
 
-      // 🔥 SEARCH APPLY
+      // 🔥 APPLY SEARCH (NO ALERT)
       setSearch(keyword);
+      setFocused(false); // suggestions close
 
-      alert("Searching: " + keyword);
+      URL.revokeObjectURL(url); // cleanup
     };
   };
 
@@ -117,7 +120,6 @@ export default function SearchBar({
       if (file) {
         console.log("Image selected:", file);
 
-        // 🔥 AUTO SEARCH
         detectColorAndSearch(file);
       }
     };
@@ -170,7 +172,10 @@ export default function SearchBar({
             {suggestions.map((item, i) => (
               <div
                 key={i}
-                onClick={() => setSearch(item)}
+                onClick={() => {
+                  setSearch(item);
+                  setFocused(false);
+                }}
                 className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
               >
                 🔍 {item}
