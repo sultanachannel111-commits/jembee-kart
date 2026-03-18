@@ -18,16 +18,17 @@ export default function SearchBar({
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
+  const [showCameraMsg, setShowCameraMsg] = useState(false); // 🔥 popup state
 
+  // 🔥 Suggestions
   const demoSuggestions = [
     "black tshirt",
-    "white tshirt",
-    "red tshirt",
+    "oversize tshirt",
     "hoodie",
-    "jeans",
-    "black shoes",
-    "white shoes",
-    "watch"
+    "anime tshirt",
+    "couple tshirt",
+    "nike shoes",
+    "jeans for men"
   ];
 
   useEffect(() => {
@@ -43,85 +44,14 @@ export default function SearchBar({
     setSuggestions(filtered.slice(0, 5));
   }, [search]);
 
+  // 🎤 Voice
   const handleVoice = () => {
     setListening(true);
     startVoice();
-    setTimeout(() => setListening(false), 3000);
-  };
 
-  // 🔥 SMART DETECT
-  const detectAndSearch = (file: File) => {
-
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-
-    img.src = url;
-
-    img.onload = () => {
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      ctx?.drawImage(img, 0, 0);
-
-      const data = ctx?.getImageData(0, 0, canvas.width, canvas.height).data;
-
-      let r = 0, g = 0, b = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        r += data[i];
-        g += data[i + 1];
-        b += data[i + 2];
-      }
-
-      const total = data.length / 4;
-
-      r = Math.floor(r / total);
-      g = Math.floor(g / total);
-      b = Math.floor(b / total);
-
-      const ratio = img.width / img.height;
-
-      let keywords: string[] = [];
-
-      // 🎨 COLOR
-      if (r > 180 && g < 100 && b < 100) keywords.push("red");
-      if (b > 150) keywords.push("blue");
-      if (g > 150) keywords.push("green");
-      if (r < 80 && g < 80 && b < 80) keywords.push("black");
-      if (r > 200 && g > 200 && b > 200) keywords.push("white");
-
-      // 📦 CATEGORY
-      if (ratio > 1.2) keywords.push("tshirt");
-      else if (ratio < 0.8) keywords.push("shoes");
-      else keywords.push("watch");
-
-      const finalKeyword = keywords.join(" ");
-
-      console.log("AI Search:", finalKeyword);
-
-      setSearch(finalKeyword);
-      setFocused(false);
-
-      URL.revokeObjectURL(url);
-    };
-  };
-
-  const handleCamera = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.capture = "environment";
-
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (file) detectAndSearch(file);
-    };
-
-    input.click();
+    setTimeout(() => {
+      setListening(false);
+    }, 3000);
   };
 
   return (
@@ -129,32 +59,45 @@ export default function SearchBar({
 
       <div className="relative">
 
-        <div className={`bg-white border rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm 
+        {/* 🔥 SEARCH BOX */}
+        <div className={`bg-white border rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm transition 
         ${focused ? "ring-2 ring-green-500" : "border-gray-300"}`}>
 
-          <Search size={18} />
+          {/* 🔍 */}
+          <Search size={18} className="text-gray-500" />
 
+          {/* INPUT */}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => setFocused(false), 200)}
-            placeholder="Search products..."
-            className="flex-1 outline-none text-sm"
+            placeholder="Search for products, brands and more"
+            className="flex-1 outline-none text-sm bg-transparent"
           />
 
-          <Camera size={18} onClick={handleCamera} className="cursor-pointer" />
+          {/* 📷 Camera */}
+          <Camera
+            size={18}
+            className="text-gray-500 cursor-pointer"
+            onClick={() => setShowCameraMsg(true)}
+          />
 
+          {/* 🎤 Mic */}
           <Mic
             size={20}
             onClick={handleVoice}
-            className={listening ? "text-red-500 animate-pulse" : ""}
+            className={`cursor-pointer ${
+              listening ? "text-red-500 animate-pulse" : "text-gray-600"
+            }`}
           />
 
         </div>
 
+        {/* 🔥 Suggestions */}
         {focused && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow border z-50">
+          <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border z-50 overflow-hidden">
+
             {suggestions.map((item, i) => (
               <div
                 key={i}
@@ -162,15 +105,38 @@ export default function SearchBar({
                   setSearch(item);
                   setFocused(false);
                 }}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
               >
                 🔍 {item}
               </div>
             ))}
+
           </div>
         )}
 
       </div>
+
+      {/* 🔥 CAMERA POPUP (NO LINK ISSUE) */}
+      {showCameraMsg && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
+
+          <div className="bg-white rounded-xl p-5 w-[85%] max-w-sm text-center shadow-xl">
+
+            <p className="text-lg font-semibold">
+              Camera coming soon 📷
+            </p>
+
+            <button
+              onClick={() => setShowCameraMsg(false)}
+              className="mt-4 px-4 py-2 bg-black text-white rounded-lg w-full"
+            >
+              OK
+            </button>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   );
