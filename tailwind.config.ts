@@ -16,11 +16,6 @@ export default {
       },
 
       colors: {
-        /* 🔥 Jembee Pink Branding */
-        brand: {
-          pink: "#ec4899",
-          dark: "#000000",
-        },
 
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
