@@ -198,12 +198,15 @@ Loading...
 }
 
 return (
-<div className="min-h-screen bg-gradient-to-b from-pink-100 to-white p-4 pt-[96px]">
+<div style={{ background: theme.background }} className="min-h-screen">
 
 {/* PROFILE CARD */}  
   <div className="bg-white rounded-2xl shadow-lg p-6 text-center">  
     <div className="flex justify-center">  
-      <div className="w-24 h-24 rounded-full bg-pink-500 flex items-center justify-center text-white text-3xl font-bold">  
+        <div
+  style={{ background: theme.button }}
+  className="w-24 h-24 rounded-full flex items-center justify-center text-white"
+>
         {user?.email?.charAt(0).toUpperCase()}  
       </div>  
     </div>  
@@ -224,7 +227,8 @@ return (
         />  
         <button  
           onClick={saveProfile}  
-          className="mt-3 bg-green-500 text-white px-4 py-2 rounded-lg w-full"  
+      style={{ background: theme.button }}
+className="mt-3 text-white px-4 py-2 rounded-lg w-full"
         >  
           Save Profile  
         </button>  
@@ -240,7 +244,8 @@ return (
         </p>  
         <button  
           onClick={() => setEditingProfile(true)}  
-          className="mt-2 text-pink-600 text-sm font-semibold"  
+           style={{ color: theme.button }}
+className="mt-2 text-sm font-semibold"
         >  
           Edit Profile  
         </button>  
@@ -256,7 +261,8 @@ return (
 
     <button  
       onClick={handleLogout}  
-      className="mt-6 w-full bg-gradient-to-r from-pink-500 to-pink-600 text-white py-2 rounded-xl font-semibold"  
+        style={{ background: theme.button }}
+className="mt-6 w-full text-white py-3 rounded-lg"
     >  
       🚪 Logout  
     </button>  
