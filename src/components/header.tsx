@@ -5,7 +5,7 @@ import { ShoppingCart } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useCart } from "@/context/CartContext";
 
-export default function Header() {
+export default function Header({ theme }: any) {
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
 
