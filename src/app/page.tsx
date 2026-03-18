@@ -318,7 +318,9 @@ const filteredProducts = products.filter((p) => {
 
 <div
   style={{
-    background: theme.background || "#ffffff"
+    background: theme.gradient
+      ? `linear-gradient(135deg, ${theme.color1}, ${theme.color2})`
+      : theme.background || "#ffffff"
   }}
   className="min-h-screen pb-[80px]"
 >
