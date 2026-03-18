@@ -246,17 +246,26 @@ setLightning(lightningDeals);
 
   const fixedSearch = correctSearch(search);
 
-const filteredProducts = products.filter((p) => {
+const filteredProducts = products
+  .map((p) => {
+    const name = p.name.toLowerCase();
+    const words = fixedSearch.toLowerCase().split(" ");
 
-  const matchSearch =
-    normalize(p.name).includes(normalize(fixedSearch));
+    let score = 0;
 
-  const matchCategory =
-    selectedCategory === "All" || p.category === selectedCategory;
+    words.forEach((word) => {
+      if (name.includes(word)) score++;
+    });
 
-  return matchSearch && matchCategory;
+    return { ...p, score };
+  })
+  .filter((p) => {
+    const matchCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
 
-});
+    return p.score > 0 && matchCategory;
+  })
+  .sort((a, b) => b.score - a.score);
 
   useEffect(() => {
 
