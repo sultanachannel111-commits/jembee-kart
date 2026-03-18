@@ -10,7 +10,12 @@ export default function Header() {
   const { cartCount } = useCart();
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white shadow-md">
+    <header
+  style={{
+    background: theme?.header || "#ffffff"
+  }}
+  className="sticky top-0 z-50 w-full shadow-md"
+>
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
 
         {/* 🔹 Logo */}
