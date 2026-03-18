@@ -1,24 +1,30 @@
 "use client";
 
 import { useEffect } from "react";
-import { getTheme } from "@/lib/themeLoader";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ThemeLoader() {
 
   useEffect(() => {
     async function setThemeColor() {
-      const theme = await getTheme();
 
-      if (theme?.statusBar) {
-        let meta = document.querySelector('meta[name="theme-color"]');
+      const snap = await getDoc(doc(db, "settings", "theme"));
 
-        if (!meta) {
-          meta = document.createElement("meta");
-          meta.setAttribute("name", "theme-color");
-          document.head.appendChild(meta);
+      if (snap.exists()) {
+        const theme = snap.data();
+
+        if (theme?.statusBar) {
+          let meta = document.querySelector('meta[name="theme-color"]');
+
+          if (!meta) {
+            meta = document.createElement("meta");
+            meta.setAttribute("name", "theme-color");
+            document.head.appendChild(meta);
+          }
+
+          meta.setAttribute("content", theme.statusBar);
         }
-
-        meta.setAttribute("content", theme.statusBar);
       }
     }
 
