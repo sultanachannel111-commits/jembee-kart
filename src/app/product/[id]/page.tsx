@@ -8,6 +8,8 @@ import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
 import ImageSlider from "@/components/product/ImageSlider";
+import { getTheme } from "@/services/themeService";
+import { getTextColor } from "@/lib/utils";
 
 export default function ProductPage() {
 
