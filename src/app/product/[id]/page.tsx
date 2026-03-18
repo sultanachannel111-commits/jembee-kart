@@ -24,6 +24,10 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
+  // 🔥 THEME STATE
+const [theme, setTheme] = useState<any>({
+  button: "#ec4899"
+});
 
   /* FETCH PRODUCT */
 
