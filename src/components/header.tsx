@@ -9,18 +9,34 @@ export default function Header({ theme }: any) {
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
 
+  console.log("🔥 HEADER THEME:", theme);
+
   return (
     <header
-  style={{
-    background: theme?.header || "#ffffff"
-  }}
-  className="sticky top-0 z-50 w-full shadow-md"
->
+      style={{
+        background: theme?.header || "#ffffff",
+        backgroundImage: "none", // 🔥 gradient kill
+      }}
+      className="sticky top-0 z-50 w-full shadow-md"
+    >
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
 
         {/* 🔹 Logo */}
-        <Link href="/" className="text-2xl font-bold text-gray-800">
-          Jembee<span className="text-pink-600">Kart</span>
+        <Link
+          href="/"
+          className="text-2xl font-bold"
+          style={{
+            color: "#000",
+          }}
+        >
+          Jembee
+          <span
+            style={{
+              color: theme?.button || "#ec4899",
+            }}
+          >
+            Kart
+          </span>
         </Link>
 
         {/* 🔹 Right Section */}
@@ -30,14 +46,22 @@ export default function Header({ theme }: any) {
           {user ? (
             <button
               onClick={logout}
-              className="px-4 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
+              style={{
+                background: theme?.button || "#000",
+                color: "#fff",
+              }}
+              className="px-4 py-2 rounded-full font-medium"
             >
               Logout
             </button>
           ) : (
             <Link
               href="/login"
-              className="px-4 py-2 rounded-full font-medium text-white bg-black hover:bg-gray-800 transition"
+              style={{
+                background: theme?.button || "#000",
+                color: "#fff",
+              }}
+              className="px-4 py-2 rounded-full font-medium"
             >
               Login
             </Link>
@@ -46,9 +70,12 @@ export default function Header({ theme }: any) {
           {/* Cart Icon */}
           <Link
             href="/cart"
-            className="relative p-2 rounded-full hover:bg-gray-100 transition"
+            className="relative p-2 rounded-full"
           >
-            <ShoppingCart className="w-6 h-6 text-gray-700" />
+            <ShoppingCart
+              className="w-6 h-6"
+              style={{ color: "#000" }}
+            />
 
             {/* 🔴 Cart Badge */}
             {cartCount > 0 && (
@@ -57,6 +84,7 @@ export default function Header({ theme }: any) {
               </span>
             )}
           </Link>
+
         </div>
       </div>
     </header>
