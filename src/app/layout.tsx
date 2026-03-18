@@ -21,7 +21,6 @@ export default function RootLayout({
   /* =========================
      LOAD WEBSITE THEME
   ========================= */
-
   useEffect(() => {
     loadTheme();
   }, []);
@@ -30,14 +29,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
 
-
-        {/* iPhone Status Bar */}
+        {/* ✅ iPhone Status Bar */}
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="default"
         />
 
-        {/* Viewport */}
+        {/* ✅ Viewport */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1"
@@ -49,22 +47,23 @@ export default function RootLayout({
         id="theme-body"
         className={`${inter.className} pb-16 min-h-screen transition-colors duration-300`}
       >
-     <ThemeLoader />
-        <AuthProvider>
 
+        {/* 🔥 STATUS BAR + THEME LOADER */}
+        <ThemeLoader />
+
+        <AuthProvider>
           <CartProvider>
 
             {/* WEBSITE CONTENT */}
             {children}
 
-            {/* TOAST NOTIFICATION */}
+            {/* TOAST */}
             <Toaster position="top-center" />
 
-            {/* BOTTOM NAVBAR */}
+            {/* BOTTOM NAV */}
             <Navbar />
 
           </CartProvider>
-
         </AuthProvider>
 
       </body>
