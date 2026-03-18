@@ -323,7 +323,7 @@ const filteredProducts = products.filter((p) => {
   className="min-h-screen pb-[80px]"
 >
 
-<Header />
+<Header theme={theme} />
 
 <div className="pt-[80px] px-4 space-y-4">
 
