@@ -93,6 +93,13 @@ const [theme, setTheme] = useState<any>({
     fetchProduct();
 
   },[id]);
+  useEffect(() => {
+  async function loadThemeData() {
+    const t = await getTheme();
+    if (t) setTheme(t);
+  }
+  loadThemeData();
+}, []);
 
   if(loading){
     return(
@@ -224,19 +231,27 @@ const [theme, setTheme] = useState<any>({
       <div className="flex gap-4 mt-8">
 
         <button
-        disabled={outOfStock || adding}
-        onClick={handleAddToCart}
-        className="bg-pink-600 text-white px-6 py-3 rounded w-full"
-        >
-        {adding ? "Adding..." : "Add to Cart"}
-        </button>
+disabled={outOfStock || adding}
+onClick={handleAddToCart}
+style={{
+  background: theme.button,
+  color: getTextColor(theme.button)
+}}
+className="px-6 py-3 rounded w-full"
+>
+{adding ? "Adding..." : "Add to Cart"}
+</button>
 
-        <button
-        onClick={()=>router.push(`/checkout?productId=${product.id}`)}
-        className="bg-black text-white px-6 py-3 rounded w-full"
-        >
-        Buy Now
-        </button>
+<button
+onClick={()=>router.push(`/checkout?productId=${product.id}`)}
+style={{
+  background: theme.button,
+  color: getTextColor(theme.button)
+}}
+className="px-6 py-3 rounded w-full"
+>
+Buy Now
+</button>
 
       </div>
 
