@@ -66,6 +66,13 @@ setItems(data);
 return ()=>unsub();
 
 },[]);
+useEffect(() => {
+  async function loadThemeData() {
+    const t = await getTheme();
+    if (t) setTheme(t);
+  }
+  loadThemeData();
+}, []);
 
 
 /* =====================
