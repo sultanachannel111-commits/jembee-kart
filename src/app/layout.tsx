@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
+import ThemeLoader from "@/components/ThemeLoader";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,8 +30,6 @@ export default function RootLayout({
     <html lang="en">
       <head>
 
-        {/* Mobile Theme Color */}
-        <meta name="theme-color" content="#f472b6" />
 
         {/* iPhone Status Bar */}
         <meta
@@ -50,7 +49,7 @@ export default function RootLayout({
         id="theme-body"
         className={`${inter.className} pb-16 min-h-screen transition-colors duration-300`}
       >
-
+     <ThemeLoader />
         <AuthProvider>
 
           <CartProvider>
