@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getTheme } from "@/services/themeService";
 import { load } from "@cashfreepayments/cashfree-js";
 import { auth, db } from "@/lib/firebase";
 
@@ -18,6 +19,9 @@ export default function CheckoutPage(){
 const [items,setItems] = useState<any[]>([]);
 const [user,setUser] = useState<any>(null);
 const [loading,setLoading] = useState(false);
+const [theme, setTheme] = useState<any>({
+  button: "#ec4899"
+});
 
 const [customer,setCustomer] = useState({
 firstName:"",
