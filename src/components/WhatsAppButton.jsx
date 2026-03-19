@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 export default function WhatsAppButton() {
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const phoneNumber = "91706136921";
+  const phoneNumber = "917061369212";
   const message = "Hello, mujhe product ke bare me jankari chahiye";
 
   const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
