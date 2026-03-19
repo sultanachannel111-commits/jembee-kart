@@ -145,7 +145,10 @@ const [theme, setTheme] = useState<any>({
     <div className="min-h-screen pt-[96px] p-4">
 
       {/* IMAGE */}
-
+      <img
+  src={product.image}
+  className="w-full rounded-xl"
+/>
 
       {/* NAME */}
 
