@@ -10,7 +10,6 @@ import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
 import ThemeLoader from "@/components/ThemeLoader";
 import WhatsAppButton from "@/components/WhatsAppButton";
-import BellNotification from "@/components/BellNotification";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -58,8 +57,6 @@ export default function RootLayout({
 
             {/* WEBSITE CONTENT */}
             {children}
-            {/* 🔔 Bell Notification */}
-<BellNotification />
 
             {/* TOAST */}
             <Toaster position="top-center" />
