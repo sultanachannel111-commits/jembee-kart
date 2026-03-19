@@ -1,5 +1,3 @@
-Product id page tsc
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,255 +13,250 @@ import { getTextColor } from "@/lib/utils";
 
 export default function ProductPage() {
 
-const params = useParams();
-const router = useRouter();
+  const params = useParams();
+  const router = useRouter();
 
-const id = params?.id as string;
+  const id = params?.id as string;
 
-const { addToCart } = useCart();
+  const { addToCart } = useCart();
 
-const [product, setProduct] = useState<any>(null);
-const [loading, setLoading] = useState(true);
-const [quantity, setQuantity] = useState(1);
-const [adding, setAdding] = useState(false);
-// 🔥 THEME STATE
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
+  // 🔥 THEME STATE
 const [theme, setTheme] = useState<any>({
-button: "#ec4899"
+  button: "#ec4899"
 });
 
-/* FETCH PRODUCT */
+  /* FETCH PRODUCT */
 
-useEffect(() => {
+  useEffect(() => {
 
-if (!id) return;  
+    if (!id) return;
 
-const fetchProduct = async () => {  
+    const fetchProduct = async () => {
 
-  const snap = await getDoc(doc(db,"products",id));  
+      const snap = await getDoc(doc(db,"products",id));
 
-  if(!snap.exists()){  
-    setLoading(false);  
-    return;  
-  }  
+      if(!snap.exists()){
+        setLoading(false);
+        return;
+      }
 
-  const data:any = {  
-    id:snap.id,  
-    ...snap.data()  
-  };  
+      const data:any = {
+        id:snap.id,
+        ...snap.data()
+      };
 
-  /* FETCH OFFERS */  
+      /* FETCH OFFERS */
 
-  const offerSnap = await getDocs(collection(db,"offers"));  
+      const offerSnap = await getDocs(collection(db,"offers"));
 
-  let discount = 0;  
+      let discount = 0;
 
-  offerSnap.forEach((doc)=>{  
+      offerSnap.forEach((doc)=>{
 
-    const offer:any = doc.data();  
+        const offer:any = doc.data();
 
-    if(!offer.active) return;  
+        if(!offer.active) return;
 
-    if(offer.endDate){  
-      const end = new Date(offer.endDate);  
-      if(end < new Date()) return;  
-    }  
+        if(offer.endDate){
+          const end = new Date(offer.endDate);
+          if(end < new Date()) return;
+        }
 
-    if(  
-      offer.type === "product" &&  
-      offer.productId === id  
-    ){  
-      discount = offer.discount;  
-    }  
+        if(
+          offer.type === "product" &&
+          offer.productId === id
+        ){
+          discount = offer.discount;
+        }
 
-    if(  
-      offer.type === "category" &&  
-      offer.category?.toLowerCase().trim() ===  
-      data.category?.toLowerCase().trim()  
-    ){  
-      discount = offer.discount;  
-    }  
+        if(
+          offer.type === "category" &&
+          offer.category?.toLowerCase().trim() ===
+          data.category?.toLowerCase().trim()
+        ){
+          discount = offer.discount;
+        }
 
-  });  
+      });
 
-  data.discount = discount;  
+      data.discount = discount;
 
-  setProduct(data);  
-  setLoading(false);  
+      setProduct(data);
+      setLoading(false);
 
-};  
+    };
 
-fetchProduct();
+    fetchProduct();
 
-},[id]);
-useEffect(() => {
-async function loadThemeData() {
-const t = await getTheme();
-if (t) setTheme(t);
-}
-loadThemeData();
+  },[id]);
+  useEffect(() => {
+  async function loadThemeData() {
+    const t = await getTheme();
+    if (t) setTheme(t);
+  }
+  loadThemeData();
 }, []);
 
-if(loading){
-return(
-<div className="min-h-screen flex items-center justify-center">
-Loading...
-</div>
-)
-}
+  if(loading){
+    return(
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    )
+  }
 
-if(!product){
-return(
-<div className="min-h-screen flex items-center justify-center">
-Product not found
-</div>
-)
-}
+  if(!product){
+    return(
+      <div className="min-h-screen flex items-center justify-center">
+        Product not found
+      </div>
+    )
+  }
 
-const finalPrice = getFinalPrice(product);
+  const finalPrice = getFinalPrice(product);
 
-const outOfStock = !product.stock || product.stock <= 0;
+  const outOfStock = !product.stock || product.stock <= 0;
 
-/* ADD TO CART */
+  /* ADD TO CART */
 
-const handleAddToCart = async ()=>{
+  const handleAddToCart = async ()=>{
 
-if(outOfStock) return;  
+    if(outOfStock) return;
 
-setAdding(true);  
+    setAdding(true);
 
-await addToCart({  
-  ...product,  
-  quantity  
-});  
+    await addToCart({
+      ...product,
+      quantity
+    });
 
-setAdding(false);  
+    setAdding(false);
 
-router.push("/cart");
+    router.push("/cart");
 
-};
+  };
 
-return(
+  return(
 
-<div className="min-h-screen pt-[96px] p-4">  
+    <div className="min-h-screen pt-[96px] p-4">
 
-  {/* IMAGE */}  
+      {/* IMAGE */}
 
-  <ImageSlider product={product} />  
+      <ImageSlider product={product} />
 
-  {/* NAME */}  
+      {/* NAME */}
 
-  <h1 className="text-2xl font-bold mt-4">  
-    {product.name}  
-  </h1>  
+      <h1 className="text-2xl font-bold mt-4">
+        {product.name}
+      </h1>
 
-  {/* PRICE */}  
+      {/* PRICE */}
 
-  <div className="flex gap-3 items-center mt-2">  
+      <div className="flex gap-3 items-center mt-2">
 
-    <span className="text-2xl font-bold">  
-      ₹{finalPrice}  
-    </span>  
+        <span className="text-2xl font-bold">
+          ₹{finalPrice}
+        </span>
 
-    {product.discount > 0 && (  
+        {product.discount > 0 && (
 
-      <>  
-      <span className="line-through text-gray-400">  
-        ₹{product.sellPrice}  
-      </span>  
+          <>
+          <span className="line-through text-gray-400">
+            ₹{product.sellPrice}
+          </span>
 
-      <span className="text-red-500 text-sm font-bold">  
-        {product.discount}% OFF  
-      </span>  
-      </>  
+          <span className="text-red-500 text-sm font-bold">
+            {product.discount}% OFF
+          </span>
+          </>
 
-    )}  
+        )}
 
-  </div>  
+      </div>
 
-  {/* STOCK */}  
+      {/* STOCK */}
 
-  <p className="mt-2 text-green-600 font-semibold">  
+      <p className="mt-2 text-green-600 font-semibold">
 
-    {outOfStock  
-    ? "Out of Stock"  
-    : `In Stock (${product.stock})`}  
+        {outOfStock
+        ? "Out of Stock"
+        : `In Stock (${product.stock})`}
 
-  </p>  
+      </p>
 
-  {/* QUANTITY */}  
+      {/* QUANTITY */}
 
-  {!outOfStock && (  
+      {!outOfStock && (
 
-    <div className="flex items-center gap-4 mt-4">  
+        <div className="flex items-center gap-4 mt-4">
 
-      <button  
-      onClick={()=>setQuantity(q=>Math.max(1,q-1))}  
-      className="bg-gray-200 px-4 py-2 rounded"  
-      >  
-      -  
-      </button>  
+          <button
+          onClick={()=>setQuantity(q=>Math.max(1,q-1))}
+          className="bg-gray-200 px-4 py-2 rounded"
+          >
+          -
+          </button>
 
-      <span className="text-lg font-bold">  
-        {quantity}  
-      </span>  
+          <span className="text-lg font-bold">
+            {quantity}
+          </span>
 
-      <button  
-      onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))}  
-      className="bg-gray-200 px-4 py-2 rounded"  
-      >  
-      +  
-      </button>  
+          <button
+          onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))}
+          className="bg-gray-200 px-4 py-2 rounded"
+          >
+          +
+          </button>
 
-    </div>  
+        </div>
 
-  )}  
+      )}
 
-  {/* DESCRIPTION */}  
+      {/* DESCRIPTION */}
 
-  {product.description && (  
+      {product.description && (
 
-    <p className="mt-6 text-gray-600">  
-      {product.description}  
-    </p>  
+        <p className="mt-6 text-gray-600">
+          {product.description}
+        </p>
 
-  )}  
+      )}
 
-  {/* BUTTONS */}  
+      {/* BUTTONS */}
 
-  <div className="flex gap-4 mt-8">  
+      <div className="flex gap-4 mt-8">
 
-    <button
-
+        <button
 disabled={outOfStock || adding}
 onClick={handleAddToCart}
 style={{
-background: theme.button,
-color: getTextColor(theme.button)
+  background: theme.button,
+  color: getTextColor(theme.button)
 }}
 className="px-6 py-3 rounded w-full"
-
-> 
-
+>
 {adding ? "Adding..." : "Add to Cart"}
 </button>
 
 <button
-onClick={()=>router.push(/checkout?productId=${product.id})}
+onClick={()=>router.push(`/checkout?productId=${product.id}`)}
 style={{
-background: theme.button,
-color: getTextColor(theme.button)
+  background: theme.button,
+  color: getTextColor(theme.button)
 }}
 className="px-6 py-3 rounded w-full"
-
-> 
-
+>
 Buy Now
 </button>
 
-</div>  
+      </div>
 
-</div>
+    </div>
 
-)
+  )
 
 }
