@@ -1,48 +1,61 @@
 "use client";
 
 export default function CategoryList({
-categories,
-selectedCategory,
-setSelectedCategory
-}: any){
+  categories,
+  selectedCategory,
+  setSelectedCategory
+}) {
 
-return(
+  return (
+    <div className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar">
 
-<div className="flex gap-4 overflow-x-auto py-2">
+      {categories.map((cat) => (
 
-{categories.map((cat:any)=>(
+        <div
+          key={cat.id}
+          onClick={() => setSelectedCategory(cat.name)}
+          className="flex flex-col items-center cursor-pointer min-w-[80px] transition-all duration-300"
+        >
 
-<div
-key={cat.id}
-onClick={()=>setSelectedCategory(cat.name)}
-className="flex flex-col items-center cursor-pointer min-w-[70px]"
->
+          {/* 🔥 ICON BOX */}
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center
+            transition-all duration-300
 
-<div
-className={`w-14 h-14 rounded-full border flex items-center justify-center
-${selectedCategory===cat.name ? "border-pink-600" : "border-gray-300"}
-`}
->
+            ${
+              selectedCategory === cat.name
+                ? "bg-green-500 scale-110 shadow-[0_8px_25px_rgba(34,197,94,0.6)]"
+                : "bg-gray-100"
+            }
+            `}
+          >
 
-{cat.image && (
-<img
-src={cat.image}
-className="w-full h-full rounded-full object-cover"
-/>
-)}
+            {cat.image && (
+              <img
+                src={cat.image}
+                className="w-full h-full rounded-full object-cover"
+              />
+            )}
 
-</div>
+          </div>
 
-<span className="text-xs mt-1">
-{cat.name}
-</span>
+          {/* 📝 TEXT */}
+          <span
+            className={`text-xs mt-2 transition-all duration-300
+            ${
+              selectedCategory === cat.name
+                ? "text-green-600 scale-105 font-semibold"
+                : "text-gray-500"
+            }
+            `}
+          >
+            {cat.name}
+          </span>
 
-</div>
+        </div>
 
-))}
+      ))}
 
-</div>
-
-);
-
+    </div>
+  );
 }
