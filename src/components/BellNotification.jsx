@@ -1,16 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function BellNotification() {
   const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
-  // 🔥 Sample notifications (baad me Firestore se aayega)
-  const notifications = [
-    { id: 1, text: "🎉 New offer available" },
-    { id: 2, text: "📦 Your order has been shipped" },
-    { id: 3, text: "🔥 Flash sale live now" },
-  ];
+  // 🔊 Sound function
+  const playSound = () => {
+    const audio = new Audio("/notification.mp3"); // public folder me file daalna
+    audio.play().catch(() => {});
+  };
+
+  // 🔥 DEMO (5 sec baad bell bajega)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const newNotification = {
+        id: Date.now(),
+        text: "🛒 New Order Received!",
+      };
+
+      setNotifications((prev) => [newNotification, ...prev]);
+
+      // 🔔 SOUND PLAY
+      playSound();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="relative">
@@ -23,7 +40,9 @@ export default function BellNotification() {
         🔔
 
         {/* 🔴 Notification Dot */}
-        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+        {notifications.length > 0 && (
+          <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+        )}
       </button>
 
       {/* 📩 Dropdown */}
