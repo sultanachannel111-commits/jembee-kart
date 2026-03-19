@@ -1,72 +1,86 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function BellNotification() {
-  const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
 
-  // 🔊 Sound function
-  const playSound = () => {
-    const audio = new Audio("/notification.mp3"); // public folder me file daalna
-    audio.play().catch(() => {});
+  useEffect(() => {
+    const audio = new Audio("/notification.mp3");
+
+    const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
+      const newOrders = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // 🔥 New order detect
+      if (newOrders.length > notifications.length) {
+        setShowPopup(true);
+
+        if (soundOn) {
+          audio.loop = true; // 🔁 repeat sound
+          audio.play();
+        }
+      }
+
+      setNotifications(newOrders);
+    });
+
+    return () => unsubscribe();
+  }, [notifications.length, soundOn]);
+
+  // 🔕 Stop sound
+  const stopSound = () => {
+    const audio = document.querySelector("audio");
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setSoundOn(false);
+    setShowPopup(false);
   };
 
-  // 🔥 DEMO (5 sec baad bell bajega)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const newNotification = {
-        id: Date.now(),
-        text: "🛒 New Order Received!",
-      };
-
-      setNotifications((prev) => [newNotification, ...prev]);
-
-      // 🔔 SOUND PLAY
-      playSound();
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
-    <div className="relative">
+    <>
+      {/* 🔥 Notification Popup */}
+      {showPopup && (
+        <div className="fixed top-20 right-4 z-50 bg-white shadow-2xl rounded-xl p-4 w-72 border animate-slide-in">
 
-      {/* 🔔 Icon */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="relative text-2xl"
-      >
-        🔔
+          <p className="font-semibold text-sm mb-2">
+            🛒 New Order Received!
+          </p>
 
-        {/* 🔴 Notification Dot */}
-        {notifications.length > 0 && (
-          <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-        )}
-      </button>
+          <p className="text-xs text-gray-500 mb-3">
+            Customer ne abhi order place kiya hai
+          </p>
 
-      {/* 📩 Dropdown */}
-      {open && (
-        <div className="absolute right-0 mt-2 w-64 bg-white shadow-xl rounded-xl p-3 z-50">
+          {/* 🔘 Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={stopSound}
+              className="flex-1 bg-red-500 text-white text-xs py-2 rounded-lg"
+            >
+              🔕 Stop
+            </button>
 
-          <p className="font-semibold mb-2">Notifications</p>
-
-          {notifications.length === 0 ? (
-            <p className="text-sm text-gray-500">No notifications</p>
-          ) : (
-            notifications.map((n) => (
-              <div
-                key={n.id}
-                className="text-sm py-1 border-b last:border-none"
-              >
-                {n.text}
-              </div>
-            ))
-          )}
+            <button
+              onClick={() => setShowPopup(false)}
+              className="flex-1 bg-gray-200 text-xs py-2 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
 
         </div>
       )}
 
-    </div>
+      {/* Hidden audio element */}
+      <audio src="/notification.mp3" />
+    </>
   );
 }
