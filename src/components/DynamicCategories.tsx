@@ -36,21 +36,29 @@ export default function DynamicCategories() {
   if (categories.length === 0) return null;
 
   return (
-    <div className="bg-white py-3 border-b overflow-x-auto">
+    <div className="bg-white py-3 overflow-x-auto no-scrollbar">
       <div className="flex gap-4 px-4">
         {categories.map((cat) => (
           <Link key={cat.id} href={`/category/${cat.slug}`}>
-            <div className="flex flex-col items-center min-w-[80px]">
-              <div className="w-16 h-16 rounded-full border-2 border-pink-500 overflow-hidden shadow">
+            <div className="flex flex-col items-center min-w-[80px] cursor-pointer transition-all duration-300">
+
+              {/* 🔥 ICON BOX */}
+              <div className="w-16 h-16 rounded-full overflow-hidden shadow
+                              hover:scale-110 transition-all duration-300">
+
                 <img
                   src={cat.image}
                   alt={cat.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <p className="text-xs mt-1 font-medium text-center">
+
+              {/* 📝 TEXT */}
+              <p className="text-xs mt-2 font-medium text-center text-gray-600
+                            transition-all duration-300">
                 {cat.name}
               </p>
+
             </div>
           </Link>
         ))}
