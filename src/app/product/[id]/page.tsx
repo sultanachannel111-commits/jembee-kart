@@ -1,6 +1,3 @@
-Product id page tsc
-
-
 "use client";
 
 import { useEffect, useState } from "react";
