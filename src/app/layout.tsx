@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
 import ThemeLoader from "@/components/ThemeLoader";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -62,7 +63,9 @@ export default function RootLayout({
 
             {/* BOTTOM NAV */}
             <Navbar />
-
+            {/* 💬 WhatsApp Button (GLOBAL) */}
+            <WhatsAppButton /
+            
           </CartProvider>
         </AuthProvider>
 
