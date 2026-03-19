@@ -146,7 +146,6 @@ const [theme, setTheme] = useState<any>({
 
       {/* IMAGE */}
 
-      <ImageSlider product={product} />
 
       {/* NAME */}
 
