@@ -1,3 +1,6 @@
+Product id page tsc
+
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,6 +10,7 @@ import { db } from "@/lib/firebase";
 
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
+import ImageSlider from "@/components/product/ImageSlider";
 import { getTheme } from "@/services/themeService";
 import { getTextColor } from "@/lib/utils";
 
@@ -23,7 +27,6 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
   // 🔥 THEME STATE
 const [theme, setTheme] = useState<any>({
   button: "#ec4899"
@@ -145,23 +148,8 @@ const [theme, setTheme] = useState<any>({
     <div className="min-h-screen pt-[96px] p-4">
 
       {/* IMAGE */}
-      {/* 🖼️ GALLERY */}
-<img
-  src={(product.images || [product.image])[activeImage]}
-  className="w-full rounded-xl"
-/>
 
-<div className="flex gap-2 mt-3 overflow-x-auto">
-  {(product.images || [product.image]).map((img:any, i:number) => (
-    <img
-      key={i}
-      src={img}
-      onClick={() => setActiveImage(i)}
-      className={`w-16 h-16 rounded-lg cursor-pointer border-2
-      ${activeImage === i ? "border-green-500" : "border-gray-200"}`}
-    />
-  ))}
-</div>
+      <ImageSlider product={product} />
 
       {/* NAME */}
 
