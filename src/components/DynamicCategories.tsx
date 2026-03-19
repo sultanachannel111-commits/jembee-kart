@@ -58,4 +58,4 @@ className="w-full h-full object-cover"
 </div>
 </div>
 );
-} Iska poora code likho do bina or kuch chhed chhad kiye
+}
