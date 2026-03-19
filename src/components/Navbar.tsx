@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import BellNotification from "@/components/BellNotification";
 
 export default function Navbar() {
 
