@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
-import { getTheme } from "@/services/themeService";
-import { getTextColor } from "@/lib/utils";
 
 export default function ProductPage() {
 
@@ -20,115 +18,97 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   const [activeImage, setActiveImage] = useState(0);
-  const [fullscreen, setFullscreen] = useState(false);
 
-  const [theme, setTheme] = useState<any>({
-    button: "#22c55e"
-  });
+  const [selectedColor, setSelectedColor] = useState<any>(null);
+  const [selectedSize, setSelectedSize] = useState<any>(null);
 
-  // 🔥 FETCH PRODUCT
+  // 🔥 FETCH
   useEffect(() => {
     if (!id) return;
 
     const fetchProduct = async () => {
-      try {
-        const snap = await getDoc(doc(db, "products", id));
+      const snap = await getDoc(doc(db, "products", id));
 
-        if (!snap.exists()) {
-          setLoading(false);
-          return;
-        }
-
-        const data:any = {
-          id: snap.id,
-          ...snap.data()
-        };
-
-        // 🔥 OFFERS
-        const offerSnap = await getDocs(collection(db,"offers"));
-        let discount = 0;
-
-        offerSnap.forEach((doc)=>{
-          const offer:any = doc.data();
-
-          if(!offer?.active) return;
-
-          if(offer.type === "product" && offer.productId === id){
-            discount = offer.discount;
-          }
-
-          if(
-            offer.type === "category" &&
-            offer.category?.toLowerCase?.() === data.category?.toLowerCase?.()
-          ){
-            discount = offer.discount;
-          }
-        });
-
-        data.discount = discount;
-
-        setProduct(data);
+      if (!snap.exists()) {
         setLoading(false);
-
-      } catch (err) {
-        console.log(err);
-        setLoading(false);
+        return;
       }
+
+      const data: any = {
+        id: snap.id,
+        ...snap.data()
+      };
+
+      if (!Array.isArray(data.variations)) {
+        data.variations = [];
+      }
+
+      setProduct(data);
+      setLoading(false);
     };
 
     fetchProduct();
   }, [id]);
 
-  // 🔥 THEME LOAD (ADMIN PANEL FIX)
-  useEffect(() => {
-    async function loadThemeData() {
-      const t = await getTheme();
-      if (t) setTheme(t);
-    }
-    loadThemeData();
-  }, []);
-
   if (loading) return <div className="p-5">Loading...</div>;
   if (!product) return <div className="p-5">Product not found</div>;
 
-  const finalPrice = getFinalPrice(product);
+  const variations = product.variations || [];
 
-  // ✅ IMAGES FIX
-  const images = [
+  // 🎯 SELECTED VARIATION
+  const selectedVariation = variations.find(
+    (v: any) =>
+      v.color === selectedColor &&
+      v.size === selectedSize
+  );
+
+  // 🖼 IMAGE
+  const baseImages = [
     product?.image,
     product?.frontImage,
     product?.backImage,
     product?.sideImage
-  ].filter((img) => typeof img === "string" && img !== "");
+  ].filter(Boolean);
 
-  const finalImages = images.length ? images : ["/no-image.png"];
+  const images =
+    selectedVariation?.images?.length > 0
+      ? selectedVariation.images
+      : baseImages;
 
-  // 👉 SWIPE (SMOOTH)
-  const handleSwipe = (e:any) => {
-    const startX = e.touches[0].clientX;
+  useEffect(() => {
+    setActiveImage(0);
+  }, [selectedColor, selectedSize]);
 
-    const end = (ev:any) => {
-      const endX = ev.changedTouches[0].clientX;
+  // 🎨 COLORS
+  const colors = [...new Set(variations.map((v:any)=>v.color))];
 
-      if (startX - endX > 50)
-        setActiveImage((p)=>Math.min(p+1, finalImages.length-1));
+  // 📏 SIZES
+  const sizes = [
+    ...new Set(
+      variations
+        .filter((v:any)=>v.color === selectedColor)
+        .map((v:any)=>v.size)
+    )
+  ];
 
-      if (endX - startX > 50)
-        setActiveImage((p)=>Math.max(p-1, 0));
+  // 💰 PRICE
+  const price =
+    selectedVariation?.price || getFinalPrice(product);
 
-      window.removeEventListener("touchend", end);
-    };
+  // 📦 STOCK
+  const stock =
+    selectedVariation?.stock ?? product.stock;
 
-    window.addEventListener("touchend", end);
-  };
-
-  // 🛒 ADD TO CART
-  const handleAddToCart = async () => {
-    await addToCart({
+  // 🛒 ADD
+  const handleAddToCart = () => {
+    addToCart({
       ...product,
-      quantity: 1,
-      image: finalImages[activeImage]
+      selectedColor,
+      selectedSize,
+      image: images[0],
+      quantity: 1
     });
     router.push("/cart");
   };
@@ -139,138 +119,117 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="min-h-screen pt-[96px] bg-white">
+    <div className="pb-24 bg-white min-h-screen">
 
-      {/* 🔥 FULL WIDTH SLIDER (FLIPKART STYLE) */}
-      <div
-        className="w-full overflow-hidden relative"
-        onTouchStart={handleSwipe}
-      >
-        <div
-          className="flex transition-transform duration-300"
-          style={{
-            transform: `translateX(-${activeImage * 100}%)`
-          }}
-        >
-          {finalImages.map((img:any, i:number)=>(
-            <img
-              key={i}
-              src={img}
-              onClick={()=>setFullscreen(true)}
-              className="w-full h-[380px] object-contain bg-white flex-shrink-0"
-            />
-          ))}
-        </div>
+      {/* 🔥 IMAGE */}
+      <img
+        src={images[activeImage]}
+        className="w-full h-[350px] object-contain"
+      />
 
-        {/* DOTS */}
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-          {finalImages.map((_:any,i:number)=>(
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full ${
-                activeImage===i ? "bg-blue-600" : "bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
+      {/* DOTS */}
+      <div className="flex justify-center gap-2 mt-2">
+        {images.map((_:any,i:number)=>(
+          <div
+            key={i}
+            className={`w-2 h-2 rounded-full ${
+              activeImage===i ? "bg-blue-600" : "bg-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* THUMB */}
+      <div className="flex gap-2 mt-3 px-4 overflow-x-auto">
+        {images.map((img:any,i:number)=>(
+          <div
+            key={i}
+            onClick={()=>setActiveImage(i)}
+            className={`p-[2px] rounded ${
+              activeImage===i
+              ? "border-2 border-green-500"
+              : "border"
+            }`}
+          >
+            <img src={img} className="w-16 h-16 rounded"/>
+          </div>
+        ))}
       </div>
 
       <div className="p-4">
 
-        {/* 🔥 THUMBNAILS */}
-        {finalImages.length > 1 && (
-          <div className="flex gap-3 mt-3 overflow-x-auto">
-            {finalImages.map((img:any,i:number)=>(
-              <div
-                key={i}
-                onClick={()=>setActiveImage(i)}
-                className={`p-[2px] rounded-xl cursor-pointer ${
-                  activeImage===i
-                    ? "border-2 border-green-500 scale-105"
-                    : "border border-gray-300"
-                }`}
-              >
-                <img
-                  src={img}
-                  className="w-16 h-16 object-cover rounded"
+        {/* NAME */}
+        <h1 className="text-xl font-bold">{product.name}</h1>
+
+        {/* PRICE */}
+        <p className="text-2xl font-bold mt-1">₹{price}</p>
+
+        {/* STOCK */}
+        <p className="text-green-600 text-sm mt-1">
+          {stock > 0 ? `In Stock (${stock})` : "Out of Stock"}
+        </p>
+
+        {/* 🎨 COLOR */}
+        {colors.length > 0 && (
+          <div className="mt-4">
+            <p className="font-semibold">Color</p>
+
+            <div className="flex gap-2 mt-2">
+              {colors.map((c:any)=>(
+                <div
+                  key={c}
+                  onClick={()=>setSelectedColor(c)}
+                  className={`w-8 h-8 rounded-full border cursor-pointer ${
+                    selectedColor===c ? "border-black scale-110" : ""
+                  }`}
+                  style={{background:c}}
                 />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        {/* NAME */}
-        <h1 className="text-2xl font-bold mt-4">
-          {product.name}
-        </h1>
+        {/* 📏 SIZE */}
+        {sizes.length > 0 && (
+          <div className="mt-4">
+            <p className="font-semibold">Size</p>
 
-        {/* PRICE */}
-        <div className="flex gap-3 items-center mt-2">
-          <span className="text-2xl font-bold">
-            ₹{finalPrice}
-          </span>
-
-          {product.discount > 0 && (
-            <>
-              <span className="line-through text-gray-400">
-                ₹{product.sellPrice}
-              </span>
-              <span className="text-red-500 text-sm font-bold">
-                {product.discount}% OFF
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* STOCK */}
-        <p className="mt-2 text-green-600 font-semibold">
-          In Stock ({product.stock})
-        </p>
-
-        {/* BUTTONS */}
-        <div className="flex gap-4 mt-6">
-
-          <button
-            onClick={handleAddToCart}
-            style={{
-              background: theme.button,
-              color: getTextColor(theme.button)
-            }}
-            className="w-full py-3 rounded-xl"
-          >
-            Add to Cart
-          </button>
-
-          <button
-            onClick={handleBuyNow}
-            style={{
-              background: theme.button,
-              color: getTextColor(theme.button)
-            }}
-            className="w-full py-3 rounded-xl"
-          >
-            Buy Now
-          </button>
-
-        </div>
+            <div className="flex gap-2 mt-2">
+              {sizes.map((s:any)=>(
+                <button
+                  key={s}
+                  onClick={()=>setSelectedSize(s)}
+                  className={`px-3 py-1 border rounded ${
+                    selectedSize===s ? "bg-black text-white" : ""
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
 
-      {/* 🔥 FULLSCREEN */}
-      {fullscreen && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <img
-            src={finalImages[activeImage]}
-            className="w-full object-contain"
-          />
-          <button
-            onClick={()=>setFullscreen(false)}
-            className="absolute top-4 right-4 text-white text-xl"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {/* 🔥 STICKY BAR */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex gap-3">
+
+        <button
+          onClick={handleAddToCart}
+          className="w-1/2 py-3 rounded border"
+        >
+          Add to Cart
+        </button>
+
+        <button
+          onClick={handleBuyNow}
+          className="w-1/2 py-3 rounded bg-yellow-400 font-bold"
+        >
+          Buy Now ₹{price}
+        </button>
+
+      </div>
 
     </div>
   );
