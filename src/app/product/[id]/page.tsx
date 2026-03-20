@@ -2,66 +2,131 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { useCart } from "@/context/CartContext";
 import { getFinalPrice } from "@/lib/priceCalculator";
+import { getTheme } from "@/services/themeService";
+import { getTextColor } from "@/lib/utils";
 
 export default function ProductPage() {
 
   const params = useParams();
   const router = useRouter();
+
   const id = params?.id as string;
 
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
 
+  const [theme, setTheme] = useState<any>({
+    button: "#ec4899"
+  });
+
+  // 🔥 NEW STATES
   const [activeImage, setActiveImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
+  /* FETCH PRODUCT */
+
   useEffect(() => {
+
     if (!id) return;
 
     const fetchProduct = async () => {
-      const snap = await getDoc(doc(db, "products", id));
 
-      if (!snap.exists()) {
+      const snap = await getDoc(doc(db,"products",id));
+
+      if(!snap.exists()){
         setLoading(false);
         return;
       }
 
-      const data: any = {
-        id: snap.id,
-        ...snap.data(),
+      const data:any = {
+        id:snap.id,
+        ...snap.data()
       };
+
+      const offerSnap = await getDocs(collection(db,"offers"));
+
+      let discount = 0;
+
+      offerSnap.forEach((doc)=>{
+        const offer:any = doc.data();
+
+        if(!offer.active) return;
+
+        if(
+          offer.type === "product" &&
+          offer.productId === id
+        ){
+          discount = offer.discount;
+        }
+
+        if(
+          offer.type === "category" &&
+          offer.category?.toLowerCase().trim() ===
+          data.category?.toLowerCase().trim()
+        ){
+          discount = offer.discount;
+        }
+
+      });
+
+      data.discount = discount;
 
       setProduct(data);
       setLoading(false);
+
     };
 
     fetchProduct();
-  }, [id]);
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!product) return <div className="p-5">Product not found</div>;
+  },[id]);
 
-  // ✅ SAFE VARIATIONS
-  const variations = Array.isArray(product.variations)
-    ? product.variations
-    : [];
+  useEffect(() => {
+    async function loadThemeData() {
+      const t = await getTheme();
+      if (t) setTheme(t);
+    }
+    loadThemeData();
+  }, []);
+
+  if(loading){
+    return(
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    )
+  }
+
+  if(!product){
+    return(
+      <div className="min-h-screen flex items-center justify-center">
+        Product not found
+      </div>
+    )
+  }
+
+  const finalPrice = getFinalPrice(product);
+
+  // ✅ VARIATION SAFE
+  const variations = Array.isArray(product.variations) ? product.variations : [];
 
   const colors = [...new Set(variations.map(v => v?.color).filter(Boolean))];
   const sizes = [...new Set(variations.map(v => v?.size).filter(Boolean))];
 
   const selectedVariation = variations.find(
-    (v) => v?.color === selectedColor && v?.size === selectedSize
+    v => v?.color === selectedColor && v?.size === selectedSize
   );
 
-  // ✅ SAFE IMAGE SYSTEM
+  // ✅ IMAGE SAFE
   const images =
     selectedVariation?.images?.length > 0
       ? selectedVariation.images
@@ -71,32 +136,42 @@ export default function ProductPage() {
       ? [product.image]
       : [];
 
-  // ✅ PRICE
-  const basePrice = getFinalPrice(product);
-  const price = selectedVariation?.price || basePrice;
+  const price = selectedVariation?.price || finalPrice;
 
   const stock = product?.stock ?? 0;
+  const outOfStock = stock <= 0;
 
-  // ✅ ADD TO CART
-  const handleAddToCart = async () => {
+  /* ADD TO CART */
+
+  const handleAddToCart = async ()=>{
+
+    if(outOfStock) return;
+
     if (variations.length > 0 && (!selectedColor || !selectedSize)) {
       alert("Select color & size");
       return;
     }
 
+    setAdding(true);
+
     await addToCart({
       ...product,
+      quantity,
       selectedColor,
       selectedSize,
       price,
-      image: images[0] || "",
+      image: images[0] || ""
     });
 
+    setAdding(false);
+
     router.push("/cart");
+
   };
 
-  return (
-    <div className="p-4 pt-[90px]">
+  return(
+
+    <div className="min-h-screen pt-[96px] p-4">
 
       {/* 🖼 IMAGE */}
       <img
@@ -122,8 +197,8 @@ export default function ProductPage() {
       {/* 🎨 COLOR */}
       {colors.length > 0 && (
         <div className="mt-4">
-          <p>Color</p>
-          <div className="flex gap-2">
+          <p className="font-semibold">Color</p>
+          <div className="flex gap-2 mt-1">
             {colors.map((c) => (
               <div
                 key={c}
@@ -131,8 +206,8 @@ export default function ProductPage() {
                   setSelectedColor(c);
                   setActiveImage(0);
                 }}
-                className={`w-8 h-8 rounded-full border cursor-pointer
-                ${selectedColor === c ? "border-black scale-110" : ""}`}
+                className={`w-8 h-8 rounded-full border-2 cursor-pointer
+                ${selectedColor === c ? "border-black scale-110" : "border-gray-300"}`}
                 style={{ backgroundColor: c }}
               />
             ))}
@@ -143,8 +218,8 @@ export default function ProductPage() {
       {/* 📏 SIZE */}
       {sizes.length > 0 && (
         <div className="mt-4">
-          <p>Size</p>
-          <div className="flex gap-2">
+          <p className="font-semibold">Size</p>
+          <div className="flex gap-2 mt-1">
             {sizes.map((s) => (
               <button
                 key={s}
@@ -160,22 +235,63 @@ export default function ProductPage() {
       )}
 
       {/* NAME */}
-      <h1 className="text-xl font-bold mt-4">{product.name}</h1>
+      <h1 className="text-2xl font-bold mt-4">
+        {product.name}
+      </h1>
 
       {/* PRICE */}
-      <p className="text-lg font-bold">₹{price}</p>
+      <div className="flex gap-3 items-center mt-2">
+        <span className="text-2xl font-bold">
+          ₹{price}
+        </span>
+      </div>
 
       {/* STOCK */}
-      <p className="text-green-600">In Stock ({stock})</p>
+      <p className="mt-2 text-green-600 font-semibold">
+        {outOfStock
+        ? "Out of Stock"
+        : `In Stock (${stock})`}
+      </p>
 
-      {/* BUTTON */}
-      <button
-        onClick={handleAddToCart}
-        className="mt-4 w-full bg-green-600 text-white py-3 rounded"
-      >
-        Add to Cart
-      </button>
+      {/* QUANTITY */}
+      {!outOfStock && (
+        <div className="flex items-center gap-4 mt-4">
+          <button onClick={()=>setQuantity(q=>Math.max(1,q-1))} className="bg-gray-200 px-4 py-2 rounded">-</button>
+          <span className="text-lg font-bold">{quantity}</span>
+          <button onClick={()=>setQuantity(q=>Math.min(stock || 10,q+1))} className="bg-gray-200 px-4 py-2 rounded">+</button>
+        </div>
+      )}
+
+      {/* BUTTONS */}
+      <div className="flex gap-4 mt-8">
+
+        <button
+          disabled={outOfStock || adding}
+          onClick={handleAddToCart}
+          style={{
+            background: theme.button,
+            color: getTextColor(theme.button)
+          }}
+          className="px-6 py-3 rounded w-full"
+        >
+          {adding ? "Adding..." : "Add to Cart"}
+        </button>
+
+        <button
+          onClick={()=>router.push(`/checkout?productId=${product.id}&color=${selectedColor || ""}&size=${selectedSize || ""}`)}
+          style={{
+            background: theme.button,
+            color: getTextColor(theme.button)
+          }}
+          className="px-6 py-3 rounded w-full"
+        >
+          Buy Now
+        </button>
+
+      </div>
 
     </div>
-  );
+
+  )
+
 }
