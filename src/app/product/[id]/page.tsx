@@ -22,65 +22,63 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
-
   const [activeImage, setActiveImage] = useState(0);
-
-  const [selectedColor, setSelectedColor] = useState<any>(null);
-  const [selectedSize, setSelectedSize] = useState<any>(null);
 
   const [theme, setTheme] = useState<any>({
     button: "#ec4899"
   });
 
-  /* FETCH PRODUCT */
-
   useEffect(() => {
     if (!id) return;
 
     const fetchProduct = async () => {
+      try {
+        const snap = await getDoc(doc(db,"products",id));
 
-      const snap = await getDoc(doc(db,"products",id));
+        if(!snap.exists()){
+          setLoading(false);
+          return;
+        }
 
-      if(!snap.exists()){
+        const data:any = {
+          id:snap.id,
+          ...snap.data()
+        };
+
+        const offerSnap = await getDocs(collection(db,"offers"));
+
+        let discount = 0;
+
+        offerSnap.forEach((doc)=>{
+          const offer:any = doc.data();
+
+          if(!offer?.active) return;
+
+          if(
+            offer.type === "product" &&
+            offer.productId === id
+          ){
+            discount = offer.discount;
+          }
+
+          if(
+            offer.type === "category" &&
+            offer.category?.toLowerCase?.() ===
+            data.category?.toLowerCase?.()
+          ){
+            discount = offer.discount;
+          }
+        });
+
+        data.discount = discount;
+
+        setProduct(data);
         setLoading(false);
-        return;
+
+      } catch (err) {
+        console.log("ERROR:", err);
+        setLoading(false);
       }
-
-      const data:any = {
-        id:snap.id,
-        ...snap.data()
-      };
-
-      const offerSnap = await getDocs(collection(db,"offers"));
-      let discount = 0;
-
-      offerSnap.forEach((doc)=>{
-        const offer:any = doc.data();
-
-        if(!offer.active) return;
-
-        if(offer.endDate){
-          const end = new Date(offer.endDate);
-          if(end < new Date()) return;
-        }
-
-        if(offer.type === "product" && offer.productId === id){
-          discount = offer.discount;
-        }
-
-        if(
-          offer.type === "category" &&
-          offer.category?.toLowerCase().trim() ===
-          data.category?.toLowerCase().trim()
-        ){
-          discount = offer.discount;
-        }
-      });
-
-      data.discount = discount;
-
-      setProduct(data);
-      setLoading(false);
     };
 
     fetchProduct();
@@ -105,49 +103,26 @@ export default function ProductPage() {
 
   const finalPrice = getFinalPrice(product);
 
-  const variations = product.variations || [];
+  // ✅ SAFE IMAGE ARRAY
+  const images = [
+    product?.image,
+    product?.frontImage,
+    product?.backImage,
+    product?.sideImage
+  ].filter(Boolean);
 
-  const colors = [...new Set(variations.map((v:any)=>v.color).filter(Boolean))];
-  const sizes = [...new Set(variations.map((v:any)=>v.size).filter(Boolean))];
-
-  const selectedVariation = variations.find(
-    (v:any)=> v.color === selectedColor && v.size === selectedSize
-  );
-
-  // 🔥 IMAGE SYSTEM
-  const variationImages = selectedVariation?.images || [];
-
-  const images = variationImages.length > 0
-    ? variationImages
-    : [
-        product.image,
-        product.frontImage,
-        product.backImage,
-        product.sideImage
-      ].filter(Boolean);
-
-  const outOfStock = !product.stock || product.stock <= 0;
-
-  /* ADD TO CART */
+  const outOfStock = !product?.stock || product.stock <= 0;
 
   const handleAddToCart = async ()=>{
 
     if(outOfStock) return;
-
-    if(variations.length > 0 && (!selectedColor || !selectedSize)){
-      alert("Select variation");
-      return;
-    }
 
     setAdding(true);
 
     await addToCart({
       ...product,
       quantity,
-      selectedColor,
-      selectedSize,
-      price: selectedVariation?.price || finalPrice,
-      image: images[0]
+      image: images[0] || ""
     });
 
     setAdding(false);
@@ -159,13 +134,13 @@ export default function ProductPage() {
 
     <div className="min-h-screen pt-[96px] p-4">
 
-      {/* 🖼️ MAIN IMAGE */}
+      {/* IMAGE */}
       <img
         src={images[activeImage] || "/no-image.png"}
         className="w-full rounded-xl"
       />
 
-      {/* 🔥 THUMBNAILS */}
+      {/* THUMBNAILS */}
       {images.length > 1 && (
         <div className="flex gap-2 mt-3 overflow-x-auto">
           {images.map((img:any, i:number)=>(
@@ -182,52 +157,15 @@ export default function ProductPage() {
 
       {/* NAME */}
       <h1 className="text-2xl font-bold mt-4">
-        {product.name}
+        {product?.name}
       </h1>
 
       {/* PRICE */}
       <div className="flex gap-3 items-center mt-2">
         <span className="text-2xl font-bold">
-          ₹{selectedVariation?.price || finalPrice}
+          ₹{finalPrice}
         </span>
       </div>
-
-      {/* 🎨 COLORS */}
-      {colors.length > 0 && (
-        <div className="mt-4">
-          <p className="font-semibold mb-2">Color</p>
-          <div className="flex gap-2">
-            {colors.map((color:any)=>(
-              <div
-                key={color}
-                onClick={()=>setSelectedColor(color)}
-                className={`w-8 h-8 rounded-full border-2 cursor-pointer
-                ${selectedColor === color ? "border-black scale-110" : "border-gray-300"}`}
-                style={{ backgroundColor: color.toLowerCase() }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 📏 SIZE */}
-      {sizes.length > 0 && (
-        <div className="mt-4">
-          <p className="font-semibold mb-2">Size</p>
-          <div className="flex gap-2">
-            {sizes.map((size:any)=>(
-              <button
-                key={size}
-                onClick={()=>setSelectedSize(size)}
-                className={`px-3 py-1 border rounded-lg
-                ${selectedSize === size ? "bg-black text-white" : ""}`}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* STOCK */}
       <p className="mt-2 text-green-600 font-semibold">
@@ -244,7 +182,7 @@ export default function ProductPage() {
       )}
 
       {/* DESCRIPTION */}
-      {product.description && (
+      {product?.description && (
         <p className="mt-6 text-gray-600">
           {product.description}
         </p>
@@ -266,13 +204,7 @@ export default function ProductPage() {
         </button>
 
         <button
-          onClick={()=>{
-            if (variations.length > 0 && (!selectedColor || !selectedSize)) {
-              alert("Select variation");
-              return;
-            }
-            router.push(`/checkout?productId=${product.id}`);
-          }}
+          onClick={()=>router.push(`/checkout?productId=${product.id}`)}
           style={{
             background: theme.button,
             color: getTextColor(theme.button)
@@ -285,6 +217,7 @@ export default function ProductPage() {
       </div>
 
     </div>
+
   )
 
 }
