@@ -31,14 +31,14 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* ================= LOAD DATA ================= */
+  /* ================= LOAD ================= */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth,async(u)=>{
       if(!u) return;
 
       setUser(u);
 
-      // 🛒 CART LOAD
+      // CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -50,7 +50,7 @@ export default function CheckoutPage(){
 
       setItems(data);
 
-      // 💳 PREPAID COUNT
+      // PREPAID COUNT
       const orderSnap = await getDocs(collection(db,"orders"));
 
       let count = 0;
@@ -83,15 +83,15 @@ export default function CheckoutPage(){
   /* ================= VALIDATION ================= */
   const validate = ()=>{
 
-    if(!customer.firstName) return alert("Enter First Name");
-    if(!customer.address) return alert("Enter Address");
+    if(!customer.firstName) return alert("⚠️ Enter First Name");
+    if(!customer.address) return alert("⚠️ Enter Address");
     if(!customer.phone || customer.phone.length !== 10)
-      return alert("Enter valid phone");
+      return alert("⚠️ Enter valid Phone Number");
 
     return true;
   };
 
-  /* ================= ONLINE PAYMENT ================= */
+  /* ================= PAYMENT ================= */
   const placeOrder = async()=>{
 
     if(!validate()) return;
@@ -105,7 +105,6 @@ export default function CheckoutPage(){
 
       setLoading(true);
 
-      // 📝 ORDER CREATE
       const orderRef = await addDoc(
         collection(db,"orders"),
         {
@@ -122,7 +121,6 @@ export default function CheckoutPage(){
         }
       );
 
-      // 💳 CALL API
       const res = await fetch("/api/cashfree/create-order",{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
@@ -135,16 +133,12 @@ export default function CheckoutPage(){
 
       const data = await res.json();
 
-      console.log("PAYMENT RESPONSE:", data);
-
-      // ❌ ERROR HANDLE
       if(!data.payment_session_id){
-        alert("❌ Payment failed. Try again.");
+        alert("❌ Payment failed");
         setLoading(false);
         return;
       }
 
-      // 🔥 SANDBOX MODE USE
       const cashfree = await load({
         mode:"sandbox"
       });
@@ -190,39 +184,112 @@ export default function CheckoutPage(){
 
   return(
 
-    <div className="p-6 max-w-xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4">
 
-      <h1 className="text-2xl font-bold mb-6">
-        Checkout
-      </h1>
+      <div className="max-w-xl mx-auto">
 
-      <div className="mb-4 text-lg font-bold">
-        Total : ₹{total}
+        {/* HEADER */}
+        <h1 className="text-3xl font-bold mb-4 text-center">
+          Checkout
+        </h1>
+
+        {/* TOTAL CARD */}
+        <div className="bg-white rounded-2xl shadow p-4 mb-4 flex justify-between">
+          <span className="font-semibold">Total</span>
+          <span className="font-bold text-lg">₹{total}</span>
+        </div>
+
+        {/* FORM */}
+        <div className="bg-white rounded-2xl shadow p-5 space-y-4">
+
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              placeholder="First Name"
+              className="p-3 rounded-xl border bg-gray-100"
+              value={customer.firstName}
+              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+            />
+
+            <input
+              placeholder="Last Name"
+              className="p-3 rounded-xl border bg-gray-100"
+              value={customer.lastName}
+              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+            />
+          </div>
+
+          <textarea
+            placeholder="Full Address"
+            className="p-3 rounded-xl border bg-gray-100 w-full"
+            value={customer.address}
+            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              placeholder="City"
+              className="p-3 rounded-xl border bg-gray-100"
+              value={customer.city}
+              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+            />
+
+            <input
+              placeholder="State"
+              className="p-3 rounded-xl border bg-gray-100"
+              value={customer.state}
+              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+            />
+          </div>
+
+          <input
+            placeholder="Pin Code"
+            className="p-3 rounded-xl border bg-gray-100 w-full"
+            value={customer.zip}
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          />
+
+          <input
+            placeholder="Phone Number"
+            className="p-3 rounded-xl border bg-gray-100 w-full"
+            value={customer.phone}
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          />
+
+          <input
+            placeholder="Email Address"
+            className="p-3 rounded-xl border bg-gray-100 w-full"
+            value={customer.email}
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          />
+
+          {/* PAY BUTTON */}
+          <button
+            onClick={placeOrder}
+            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow"
+          >
+            {loading ? "Processing..." : `Pay ₹${total}`}
+          </button>
+
+          {/* COD BUTTON */}
+          <button
+            onClick={handleCOD}
+            disabled={prepaidCount < 2}
+            className={`w-full py-3 rounded-xl font-semibold ${
+              prepaidCount < 2
+                ? "bg-gray-300 text-gray-600"
+                : "border border-black"
+            }`}
+          >
+            {prepaidCount < 2
+              ? `COD Locked (${prepaidCount}/2)`
+              : "Cash on Delivery"}
+          </button>
+
+        </div>
+
       </div>
 
-      {/* PAY BUTTON */}
-      <button
-        onClick={placeOrder}
-        className="bg-green-600 text-white px-6 py-3 rounded w-full mb-3"
-      >
-        {loading ? "Processing..." : `Pay ₹${total}`}
-      </button>
-
-      {/* COD */}
-      <button
-        onClick={handleCOD}
-        disabled={prepaidCount < 2}
-        className={`w-full py-3 rounded ${
-          prepaidCount < 2
-            ? "bg-gray-300 text-gray-600"
-            : "border border-black"
-        }`}
-      >
-        {prepaidCount < 2
-          ? `COD Locked (${prepaidCount}/2)`
-          : "Cash on Delivery"}
-      </button>
-
     </div>
+
   );
 }
