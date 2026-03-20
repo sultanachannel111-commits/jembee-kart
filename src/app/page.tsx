@@ -1,4 +1,5 @@
 "use client";
+
 import Header from "@/components/home/Header";
 import SearchBar from "@/components/home/SearchBar";
 import BannerSlider from "@/components/home/BannerSlider";
@@ -7,411 +8,187 @@ import ProductGrid from "@/components/home/ProductGrid";
 import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
 import FlashSale from "@/components/home/FlashSale";
+
 import { correctSearch } from "@/lib/typoCorrect";
 import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
-import { getQikinkProducts } from "@/lib/qikink";
+import { getLightningDeals } from "@/services/lightningService";
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
-import { useCart } from "@/context/CartContext";
-import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import { signOut } from "firebase/auth";
-
-import { getLightningDeals } from "@/services/lightningService";
+import { db } from "@/lib/firebase";
 
 export default function HomePage() {
-  const { cartCount } = useCart();
-  const [theme, setTheme] = useState<any>({});
-  const pathname = usePathname();
-  const { user } = useAuth();
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const [theme,setTheme] = useState<any>({});
+  const [categories,setCategories] = useState<any[]>([]);
+  const [banners,setBanners] = useState<any[]>([]);
+  const [products,setProducts] = useState<any[]>([]);
+
+  const [festival,setFestival] = useState<any>(null);
+  const [slide,setSlide] = useState(0);
+  const [search,setSearch] = useState("");
+
+  const [selectedCategory,setSelectedCategory] = useState("All");
+  const [ratings,setRatings] = useState<any>({});
+  const [timeLeft,setTimeLeft] = useState<any>(null);
+
+  const [trending,setTrending] = useState<any[]>([]);
+  const [clearance,setClearance] = useState<any[]>([]);
+  const [recommended,setRecommended] = useState<any[]>([]);
+  const [lightning,setLightning] = useState<any[]>([]);
+
+  const trendingSearch = [
+    "black tshirt","oversize tshirt","hoodie","anime tshirt","couple tshirt"
+  ];
+
+  // 🔥 PRICE FIX FUNCTION
+  const getPrice = (data:any)=>{
+    return (
+      data?.variations?.[0]?.sizes?.[0]?.price ||
+      data?.variations?.[0]?.basePrice ||
+      data?.sellPrice ||
+      data?.price ||
+      0
+    );
   };
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [banners, setBanners] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  useEffect(() => {
-  async function loadQikinkProducts() {
-    const data = await getQikinkProducts();
-    console.log("Qikink Products:", data);
-    setProducts(data);
-  }
-
-  loadQikinkProducts();
-}, []);
-  const [festival, setFestival] = useState<any>(null);
-  const [slide, setSlide] = useState(0);
-  const [search, setSearch] = useState("");
-  /* 🔥 Trending Searches */
-const trendingSearch = [
-  "black tshirt",
-  "oversize tshirt",
-  "hoodie",
-  "anime tshirt",
-  "couple tshirt"
-];
-  
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [wishlist, setWishlist] = useState<string[]>([]);
-  const [ratings, setRatings] = useState<any>({});
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [timeLeft, setTimeLeft] = useState<any>(null);
-  const [trending, setTrending] = useState<any[]>([]);
-  const [clearance, setClearance] = useState<any[]>([]);
-  const [recommended, setRecommended] = useState<any[]>([]);
-  const [lightning, setLightning] = useState<any[]>([]);
-  const [question,setQuestion] = useState("");
-const [answer,setAnswer] = useState("");
-const [loadingAI,setLoadingAI] = useState(false);
-  
-  useEffect(() => {
+  // 🔥 LOAD DATA
+  useEffect(()=>{
     loadData();
-  }, []);
-// ✅ ISKE NICHE ADD KARO
-useEffect(() => {
-  async function loadTheme() {
-    const snap = await getDoc(doc(db, "settings", "theme"));
-    if (snap.exists()) {
-      setTheme(snap.data());
-      console.log("THEME:", snap.data());
-    }
-  }
+  },[]);
 
-  loadTheme();
-}, []);
-  const askAI = async () => {
+  const loadData = async()=>{
 
-if(!question) return;
-
-setLoadingAI(true);
-
-try{
-
-const res = await fetch("/api/ai-answer",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({question})
-});
-
-const data = await res.json();
-
-setAnswer(data.answer);
-
-}catch(error){
-console.log(error)
-}
-
-setLoadingAI(false);
-
-};
-  
-  const loadData = async () => {
-    const catSnap = await getDocs(collection(db, "qikinkCategories"));
+    const catSnap = await getDocs(collection(db,"qikinkCategories"));
     setCategories([
-      { 
-  id: "all", 
-  name: "All",
-  image: "https://cdn-icons-png.flaticon.com/512/3081/3081559.png"
- },
-      ...catSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
+      ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
     ]);
 
-    const bannerSnap = await getDocs(collection(db, "banners"));
-    setBanners(bannerSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    const offerSnap = await getDocs(collection(db, "offers"));
+    const bannerSnap = await getDocs(collection(db,"banners"));
+    setBanners(bannerSnap.docs.map(d=>({id:d.id,...d.data()})));
 
-const activeOffers = offerSnap.docs
-  .map(d => ({ id: d.id, ...d.data() }))
-  .filter(
-    (o: any) =>
-      o.active &&
-      new Date(o.endDate).getTime() > new Date().getTime()
-  );
-    const productSnap = await getDocs(collection(db, "products"));
+    const productSnap = await getDocs(collection(db,"products"));
 
-const productsWithOffers = productSnap.docs.map(d => {
-  const data = d.data();
+    const productsData = productSnap.docs.map(d=>{
+      const data = d.data();
 
-  const baseProduct = {
-    id: d.id,
-    ...data,
-    price: Number(data.sellPrice || data.price || 0)
-  };
-
-  let matchedOffer = activeOffers.find((o: any) => {
-
-    // Product offer
-    if (o.type === "product" && o.productId === d.id)
-      return true;
-
-    // Category offer
-    if (
-      o.type === "category" &&
-      o.category?.trim().toLowerCase() ===
-      data.category?.trim().toLowerCase()
-    )
-      return true;
-
-    return false;
-  });
-
-  if (!matchedOffer) return baseProduct;
-
-const price = Number(baseProduct.price || 0);
-const discountPercent = Number(matchedOffer.discount || 0);
-
-if (!price) return baseProduct;
-
-const discountAmount = (price * discountPercent) / 100;
-
-return {
-  ...baseProduct,
-  originalPrice: price,
-  price: Math.round(price - discountAmount),
-  discount: discountPercent
-};
-});
-
-setProducts(productsWithOffers);
-    
-    const trendingProducts = await getTrendingProducts();
-setTrending(trendingProducts);
-
-const clearanceProducts = await getClearanceProducts();
-setClearance(clearanceProducts);
-
-const recommendedProducts = await getRecommendedProducts();
-setRecommended(recommendedProducts);
-
-const lightningDeals = await getLightningDeals();
-setLightning(lightningDeals);    
-    const festSnap = await getDoc(doc(db, "settings", "festival"));
-    if (festSnap.exists()) setFestival(festSnap.data());
-
-    const reviewSnap = await getDocs(collection(db, "reviews"));
-    const ratingMap: any = {};
-
-    reviewSnap.forEach((doc) => {
-      const r = doc.data();
-      if (!ratingMap[r.productId]) {
-        ratingMap[r.productId] = { total: 0, count: 0 };
-      }
-      ratingMap[r.productId].total += r.rating;
-      ratingMap[r.productId].count += 1;
+      return {
+        id:d.id,
+        ...data,
+        price:getPrice(data)
+      };
     });
 
-    setRatings(ratingMap);
+    setProducts(productsData);
+
+    // extra sections
+    setTrending(await getTrendingProducts());
+    setClearance(await getClearanceProducts());
+    setRecommended(await getRecommendedProducts());
+    setLightning(await getLightningDeals());
+
+    const festSnap = await getDoc(doc(db,"settings","festival"));
+    if(festSnap.exists()) setFestival(festSnap.data());
   };
 
-  useEffect(() => {
-    if (!banners.length) return;
-    const interval = setInterval(() => {
-      setSlide((prev) => (prev + 1) % banners.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [banners]);
+  // 🔥 THEME
+  useEffect(()=>{
+    const loadTheme = async()=>{
+      const snap = await getDoc(doc(db,"settings","theme"));
+      if(snap.exists()) setTheme(snap.data());
+    };
+    loadTheme();
+  },[]);
 
-  useEffect(() => {
-    if (!festival?.endDate) return;
-
-    const interval = setInterval(() => {
-      const diff =
-        new Date(festival.endDate).getTime() - new Date().getTime();
-
-      if (diff <= 0) {
-        setTimeLeft(null);
-        clearInterval(interval);
-      } else {
-        setTimeLeft({
-          hours: Math.floor(diff / (1000 * 60 * 60)),
-          minutes: Math.floor((diff / (1000 * 60)) % 60),
-          seconds: Math.floor((diff / 1000) % 60),
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [festival]);
-
-  const normalize = (text: string) =>
-    text?.toLowerCase().replace(/\s|-/g, "");
+  // 🔥 SEARCH
+  const normalize = (text:string)=>
+    text?.toLowerCase().replace(/\s|-/g,"");
 
   const fixedSearch = correctSearch(search);
 
-const filteredProducts = products.filter((p) => {
+  const filteredProducts = products.filter(p=>{
+    const matchSearch = normalize(p.name).includes(normalize(fixedSearch));
+    const matchCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
+    return matchSearch && matchCategory;
+  });
 
-  const matchSearch =
-    normalize(p.name).includes(normalize(fixedSearch));
+  // 🔥 SLIDER AUTO
+  useEffect(()=>{
+    if(!banners.length) return;
+    const interval = setInterval(()=>{
+      setSlide(prev=>(prev+1)%banners.length);
+    },3000);
+    return ()=>clearInterval(interval);
+  },[banners]);
 
-  const matchCategory =
-    selectedCategory === "All" || p.category === selectedCategory;
-
-  return matchSearch && matchCategory;
-
-});
-
-  useEffect(() => {
-
-  if (!search) {
-    setSuggestions([]);
-    return;
-  }
-
-  const fixedSearch = correctSearch(search);
-
-  const matches = products.filter((p) =>
-    normalize(p.name).includes(normalize(fixedSearch))
-  );
-
-  setSuggestions(matches.slice(0, 5));
-
-}, [search, products]);
-
-  const startVoice = () => {
-
-  const SpeechRecognition =
-    (window as any).SpeechRecognition ||
-    (window as any).webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    alert("Voice search not supported");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-
-  recognition.lang = "en-IN";
-  recognition.interimResults = false;
-  recognition.continuous = false;
-
-  recognition.start();
-
-  recognition.onresult = (event: any) => {
-    const transcript = event.results[0][0].transcript;
-    setSearch(transcript);
-  };
-
-};
-
-  const toggleWishlist = (id: string) => {
-    if (wishlist.includes(id)) {
-      setWishlist(wishlist.filter((w) => w !== id));
-    } else {
-      setWishlist([...wishlist, id]);
-    }
-  };
-
-  const calculateDiscount = (price: number, original: number) => {
-    if (!original) return null;
-    return Math.round(((original - price) / original) * 100);
-  };
-
-  return (
+  return(
 
 <div
   style={{
-    background: theme?.gradient && theme?.gradientFrom && theme?.gradientTo
+    background: theme?.gradient
       ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-      : theme?.background || "#ffffff"
+      : "#ffffff"
   }}
   className="min-h-screen pb-[80px]"
 >
 
-<Header theme={theme} />
+<Header theme={theme}/>
 
 <div className="pt-[80px] px-4 space-y-4">
 
-<SearchBar
-search={search}
-setSearch={setSearch}
-startVoice={startVoice}
-/>
+<SearchBar search={search} setSearch={setSearch}/>
 
-{/* 🔥 Trending Searches */}
-
+{/* 🔥 TRENDING */}
 {!search && (
 <div className="bg-white rounded-xl shadow p-3">
-
-<p className="text-sm font-semibold mb-2">
-🔥 Trending Searches
-</p>
-
+<p className="text-sm font-semibold mb-2">🔥 Trending</p>
 <div className="flex flex-wrap gap-2">
-
-{trendingSearch.map((item)=>(
+{trendingSearch.map(item=>(
 <button
 key={item}
 onClick={()=>setSearch(item)}
-className="px-3 py-1 bg-gray-100 rounded-full text-xs hover:bg-gray-200"
+className="px-3 py-1 bg-gray-100 rounded-full text-xs"
 >
-
 {item}
-
 </button>
 ))}
-
 </div>
-
 </div>
 )}
-  
+
+{/* 🔥 CATEGORY (PINK LINE FIX) */}
+<div className="overflow-x-auto no-scrollbar">
 <CategoryList
 categories={categories}
 selectedCategory={selectedCategory}
 setSelectedCategory={setSelectedCategory}
 />
+</div>
 
-<BannerSlider
-banners={banners}
-slide={slide}
-/>
+<BannerSlider banners={banners} slide={slide}/>
 
-<FlashSale />
+<FlashSale/>
 
 {festival?.active && (
-<FestivalBanner
-festival={festival}
-timeLeft={timeLeft}
-/>
+<FestivalBanner festival={festival} timeLeft={timeLeft}/>
 )}
 
-<ProductGrid
-products={filteredProducts}
-/>
+<ProductGrid products={filteredProducts}/>
 
-<ProductGrid
-title="⚡ Lightning Deals"
-products={lightning}
-/>
-
-<ProductGrid
-title="🔥 Trending Products"
-products={trending}
-/>
-
-<ProductGrid
-title="⚡ Clearance Sale"
-products={clearance}
-/>
-
-<ProductGrid
-title="⭐ Recommended For You"
-products={recommended}
-/>
+<ProductGrid title="⚡ Lightning Deals" products={lightning}/>
+<ProductGrid title="🔥 Trending" products={trending}/>
+<ProductGrid title="⚡ Clearance" products={clearance}/>
+<ProductGrid title="⭐ Recommended" products={recommended}/>
 
 </div>
 
-<BottomNav />
+<BottomNav/>
 
 </div>
 
 );
-  }
+}
