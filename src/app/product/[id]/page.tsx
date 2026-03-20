@@ -25,10 +25,9 @@ export default function ProductPage() {
 
   const [theme, setTheme] = useState<any>({ button: "#ec4899" });
 
-  // 🔥 IMAGE + VARIATION STATE
   const [activeImage, setActiveImage] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<any>(null);
-  const [selectedSize, setSelectedSize] = useState<any>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
   /* FETCH PRODUCT */
   useEffect(() => {
@@ -47,33 +46,6 @@ export default function ProductPage() {
           id: snap.id,
           ...snap.data(),
         };
-
-        // 🔥 OFFERS
-        const offerSnap = await getDocs(collection(db, "offers"));
-        let discount = 0;
-
-        offerSnap.forEach((doc) => {
-          const offer: any = doc.data();
-
-          if (!offer.active) return;
-
-          if (
-            offer.type === "product" &&
-            offer.productId === id
-          ) {
-            discount = offer.discount;
-          }
-
-          if (
-            offer.type === "category" &&
-            offer.category?.toLowerCase().trim() ===
-              data.category?.toLowerCase().trim()
-          ) {
-            discount = offer.discount;
-          }
-        });
-
-        data.discount = discount;
 
         setProduct(data);
       } catch (err) {
@@ -95,35 +67,38 @@ export default function ProductPage() {
   }, []);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="p-5">Loading...</div>;
   }
 
   if (!product) {
-    return <div className="min-h-screen flex items-center justify-center">Product not found</div>;
+    return <div className="p-5">Product not found</div>;
   }
 
-  const finalPrice = getFinalPrice(product);
+  // ✅ SAFE VALUES
+  const variations = Array.isArray(product.variations) ? product.variations : [];
 
-  const variations = product?.variations || [];
-
-  const colors = [...new Set(variations.map((v: any) => v.color))];
-  const sizes = [...new Set(variations.map((v: any) => v.size))];
+  const colors = [...new Set(variations.map((v: any) => v?.color).filter(Boolean))];
+  const sizes = [...new Set(variations.map((v: any) => v?.size).filter(Boolean))];
 
   const selectedVariation = variations.find(
-    (v: any) => v.color === selectedColor && v.size === selectedSize
+    (v: any) => v?.color === selectedColor && v?.size === selectedSize
   );
 
-  // ✅ SAFE IMAGE SYSTEM
   const images =
     selectedVariation?.images?.length > 0
       ? selectedVariation.images
-      : product?.images?.length > 0
+      : Array.isArray(product.images) && product.images.length > 0
       ? product.images
-      : product?.image
+      : product.image
       ? [product.image]
       : [];
 
-  const outOfStock = !product.stock || product.stock <= 0;
+  const finalPrice = getFinalPrice(product);
+
+  const price = selectedVariation?.price || finalPrice;
+
+  const stock = product?.stock ?? 0;
+  const outOfStock = stock <= 0;
 
   /* ADD TO CART */
   const handleAddToCart = async () => {
@@ -141,8 +116,8 @@ export default function ProductPage() {
       quantity,
       selectedColor,
       selectedSize,
-      price: selectedVariation?.price || finalPrice,
-      image: images[0],
+      price,
+      image: images[0] || "",
     });
 
     setAdding(false);
@@ -152,13 +127,13 @@ export default function ProductPage() {
   return (
     <div className="min-h-screen pt-[96px] p-4">
 
-      {/* 🖼️ MAIN IMAGE */}
+      {/* IMAGE */}
       <img
         src={images[activeImage] || "/no-image.png"}
         className="w-full rounded-xl"
       />
 
-      {/* 🔽 THUMBNAILS */}
+      {/* THUMBNAIL */}
       {images.length > 1 && (
         <div className="flex gap-2 mt-3 overflow-x-auto">
           {images.map((img: any, i: number) => (
@@ -166,19 +141,19 @@ export default function ProductPage() {
               key={i}
               src={img}
               onClick={() => setActiveImage(i)}
-              className={`w-16 h-16 object-cover rounded-lg cursor-pointer border
+              className={`w-16 h-16 rounded-lg object-cover border cursor-pointer
               ${activeImage === i ? "border-green-500" : "border-gray-300"}`}
             />
           ))}
         </div>
       )}
 
-      {/* 🎨 COLOR */}
+      {/* COLOR */}
       {colors.length > 0 && (
         <div className="mt-4">
           <p className="font-semibold mb-2">Color</p>
           <div className="flex gap-2">
-            {colors.map((c: any) => (
+            {colors.map((c) => (
               <div
                 key={c}
                 onClick={() => {
@@ -194,12 +169,12 @@ export default function ProductPage() {
         </div>
       )}
 
-      {/* 📏 SIZE */}
+      {/* SIZE */}
       {sizes.length > 0 && (
         <div className="mt-4">
           <p className="font-semibold mb-2">Size</p>
           <div className="flex gap-2">
-            {sizes.map((s: any) => (
+            {sizes.map((s) => (
               <button
                 key={s}
                 onClick={() => setSelectedSize(s)}
@@ -214,28 +189,28 @@ export default function ProductPage() {
       )}
 
       {/* NAME */}
-      <h1 className="text-2xl font-bold mt-4">{product.name}</h1>
+      <h1 className="text-2xl font-bold mt-4">{product?.name || "No Name"}</h1>
 
       {/* PRICE */}
       <div className="text-2xl font-bold mt-2">
-        ₹{selectedVariation?.price || finalPrice}
+        ₹{price}
       </div>
 
       {/* STOCK */}
       <p className="mt-2 text-green-600">
-        {outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
+        {outOfStock ? "Out of Stock" : `In Stock (${stock})`}
       </p>
 
       {/* QUANTITY */}
       {!outOfStock && (
-        <div className="flex items-center gap-4 mt-4">
-          <button onClick={()=>setQuantity(q=>Math.max(1,q-1))} className="bg-gray-200 px-4 py-2 rounded">-</button>
+        <div className="flex gap-4 mt-4 items-center">
+          <button onClick={()=>setQuantity(q=>Math.max(1,q-1))}>-</button>
           <span>{quantity}</span>
-          <button onClick={()=>setQuantity(q=>q+1)} className="bg-gray-200 px-4 py-2 rounded">+</button>
+          <button onClick={()=>setQuantity(q=>q+1)}>+</button>
         </div>
       )}
 
-      {/* BUTTONS */}
+      {/* BUTTON */}
       <div className="flex gap-4 mt-6">
 
         <button
@@ -249,7 +224,7 @@ export default function ProductPage() {
 
         <button
           onClick={() =>
-            router.push(`/checkout?productId=${product.id}&color=${selectedColor}&size=${selectedSize}`)
+            router.push(`/checkout?productId=${product.id}&color=${selectedColor || ""}&size=${selectedSize || ""}`)
           }
           style={{ background: theme.button, color: getTextColor(theme.button) }}
           className="px-6 py-3 rounded w-full"
