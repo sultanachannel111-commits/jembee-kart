@@ -15,7 +15,6 @@ const SIZE_OPTIONS = ["S","M","L","XL","XXL"];
 
 export default function AdminQikinkProducts() {
 
-  // BASIC
   const [name,setName] = useState("");
   const [qikinkId,setQikinkId] = useState("");
   const [sku,setSku] = useState("");
@@ -25,24 +24,25 @@ export default function AdminQikinkProducts() {
   const [categories,setCategories] = useState<any[]>([]);
 
   const [description,setDescription] = useState("");
-
-  // IMAGE
-  const [image,setImage] = useState("");
-
-  // LINKS
   const [designLink,setDesignLink] = useState("");
   const [mockupLink,setMockupLink] = useState("");
 
-  // VARIATIONS (COLOR + SIZE)
+  // 🔥 VARIATIONS FULL
   const [variations,setVariations] = useState<any[]>([
     {
       color:"",
-      image:"",
+      mainImage:"",
+      frontImage:"",
+      backImage:"",
+      sideImage:"",
+      modelImage:"",
+      basePrice:"",
+      sellPrice:"",
       sizes:[{ size:"", price:"", stock:"" }]
     }
   ]);
 
-  // 🔥 LOAD CATEGORY
+  // CATEGORY LOAD
   useEffect(()=>{
     loadCategories();
   },[]);
@@ -55,7 +55,7 @@ export default function AdminQikinkProducts() {
     })));
   };
 
-  // 🔥 IMAGE COMPRESS (200KB)
+  // 🔥 IMAGE COMPRESS
   const compressImage = (file:any):Promise<string>=>{
     return new Promise((resolve)=>{
       const reader = new FileReader();
@@ -77,51 +77,47 @@ export default function AdminQikinkProducts() {
 
           ctx?.drawImage(img,0,0,canvas.width,canvas.height);
 
-          const compressed = canvas.toDataURL("image/jpeg",0.6); // 🔥 compress
-
-          resolve(compressed);
+          resolve(canvas.toDataURL("image/jpeg",0.6));
         };
       };
     });
   };
 
-  // 📸 MAIN IMAGE
-  const handleMainImage = async(e:any)=>{
-    const file = e.target.files[0];
-    const compressed = await compressImage(file);
-    setImage(compressed);
-  };
-
-  // 📸 COLOR IMAGE
-  const handleColorImage = async(e:any,i:number)=>{
+  const handleImage = async(e:any,i:number,field:string)=>{
     const file = e.target.files[0];
     const compressed = await compressImage(file);
 
     const updated = [...variations];
-    updated[i].image = compressed;
+    updated[i][field] = compressed;
     setVariations(updated);
   };
 
-  // ➕ COLOR VARIANT
+  // ADD COLOR
   const addColor = ()=>{
     setVariations([
       ...variations,
       {
         color:"",
-        image:"",
+        mainImage:"",
+        frontImage:"",
+        backImage:"",
+        sideImage:"",
+        modelImage:"",
+        basePrice:"",
+        sellPrice:"",
         sizes:[{ size:"", price:"", stock:"" }]
       }
     ]);
   };
 
-  // ➕ SIZE
+  // ADD SIZE
   const addSize = (i:number)=>{
     const updated = [...variations];
     updated[i].sizes.push({ size:"", price:"", stock:"" });
     setVariations(updated);
   };
 
-  // ✏️ UPDATE
+  // UPDATE
   const updateColor = (i:number,field:string,value:any)=>{
     const updated = [...variations];
     updated[i][field] = value;
@@ -134,153 +130,168 @@ export default function AdminQikinkProducts() {
     setVariations(updated);
   };
 
-  // ❌ REMOVE
   const removeColor = (i:number)=>{
     setVariations(variations.filter((_,idx)=>idx!==i));
   };
 
-  // 💾 SAVE
+  // SAVE
   const saveProduct = async()=>{
 
-    try{
+    const finalVariations = variations.map(v=>({
+      color: v.color,
 
-      const finalVariations = variations.map(v=>({
-        color: v.color,
-        image: v.image || image,
-        sizes: v.sizes.map((s:any)=>({
-          size:s.size,
-          price:Number(s.price),
-          stock:Number(s.stock)
-        }))
-      }));
+      images:{
+        main: v.mainImage,
+        front: v.frontImage,
+        back: v.backImage,
+        side: v.sideImage,
+        model: v.modelImage
+      },
 
-      await addDoc(collection(db,"products"),{
+      basePrice: Number(v.basePrice),
+      sellPrice: Number(v.sellPrice),
 
-        name,
-        qikinkId,
-        sku,
-        printTypeId,
-        category,
+      sizes: v.sizes.map((s:any)=>({
+        size:s.size,
+        price:Number(s.price),
+        stock:Number(s.stock)
+      }))
+    }));
 
-        image,
+    await addDoc(collection(db,"products"),{
 
-        designLink,
-        mockupLink,
+      name,
+      qikinkId,
+      sku,
+      printTypeId,
+      category,
 
-        description,
+      designLink,
+      mockupLink,
+      description,
 
-        variations: finalVariations,
+      variations: finalVariations,
 
-        supplier:"qikink",
-        createdAt:serverTimestamp()
+      createdAt:serverTimestamp()
 
-      });
+    });
 
-      alert("✅ Product Added");
-
-    }catch(err){
-      console.log(err);
-      alert("Error");
-    }
-
+    alert("🔥 Product Added Successfully");
   };
 
   return(
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
 
-    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-4xl mx-auto bg-white p-6 rounded-3xl shadow-2xl">
 
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
-
-        <h1 className="text-2xl font-bold flex gap-2 mb-6">
+        <h1 className="text-3xl font-bold mb-6 flex gap-2">
           <Package className="text-blue-600"/>
-          Ultra Qikink Product 🚀
+          Ultra Product Panel 🚀
         </h1>
 
         {/* BASIC */}
-        <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
+        <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
+        <input placeholder="Qikink Product ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="input"/>
+        <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="input"/>
+        <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="input"/>
 
-        <input placeholder="Qikink Product ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
-
-        <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
-
-        <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
-
-        {/* CATEGORY */}
-        <select value={category} onChange={(e)=>setCategory(e.target.value)} className="border p-3 rounded-xl w-full mb-3">
+        <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
           <option value="">Select Category</option>
           {categories.map((c:any)=>(
             <option key={c.id}>{c.name}</option>
           ))}
         </select>
 
-        {/* IMAGE */}
-        <input type="file" onChange={handleMainImage} className="mb-3"/>
-        {image && <img src={image} className="w-24 rounded-xl mb-3"/>}
+        <input placeholder="Design Link" value={designLink} onChange={(e)=>setDesignLink(e.target.value)} className="input"/>
+        <input placeholder="Mockup Link" value={mockupLink} onChange={(e)=>setMockupLink(e.target.value)} className="input"/>
 
-        {/* LINKS */}
-        <input placeholder="Design Link" value={designLink} onChange={(e)=>setDesignLink(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
+        <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
 
-        <input placeholder="Mockup Link" value={mockupLink} onChange={(e)=>setMockupLink(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
-
-        {/* DESCRIPTION */}
-        <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="border p-3 rounded-xl w-full mb-3"/>
-
-        {/* VARIATIONS */}
-        <h2 className="font-bold mt-4">Variants</h2>
+        {/* VARIANTS */}
+        <h2 className="text-xl font-bold mt-6">Variants</h2>
 
         {variations.map((v,i)=>(
-          <div key={i} className="border p-4 rounded-xl mt-3">
+          <div key={i} className="bg-gray-50 p-4 rounded-2xl mt-4 shadow">
 
             <input
               placeholder="Color Name"
               value={v.color}
               onChange={(e)=>updateColor(i,"color",e.target.value)}
-              className="border p-2 w-full mb-2 rounded"
+              className="input"
             />
 
-            <input type="file" onChange={(e)=>handleColorImage(e,i)} className="mb-2"/>
+            {/* IMAGES */}
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(
+                <input key={field} type="file" onChange={(e)=>handleImage(e,i,field)} className="input"/>
+              ))}
+            </div>
 
+            {/* PRICE */}
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <input placeholder="Base Price" value={v.basePrice} onChange={(e)=>updateColor(i,"basePrice",e.target.value)} className="input"/>
+              <input placeholder="Sell Price" value={v.sellPrice} onChange={(e)=>updateColor(i,"sellPrice",e.target.value)} className="input"/>
+            </div>
+
+            {/* SIZES */}
             {v.sizes.map((s:any,j:number)=>(
-              <div key={j} className="grid grid-cols-3 gap-2 mb-2">
-
-                <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="border p-2 rounded">
+              <div key={j} className="grid grid-cols-3 gap-2 mt-2">
+                <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
                   <option value="">Size</option>
                   {SIZE_OPTIONS.map(size=>(
                     <option key={size}>{size}</option>
                   ))}
                 </select>
 
-                <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="border p-2 rounded"/>
-
-                <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="border p-2 rounded"/>
-
+                <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>
+                <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>
               </div>
             ))}
 
-            <button onClick={()=>addSize(i)} className="bg-black text-white px-3 py-1 rounded mt-2">
+            <button onClick={()=>addSize(i)} className="btn-black mt-2">
               + Add Size
             </button>
 
-            <button onClick={()=>removeColor(i)} className="text-red-500 mt-2 flex gap-1 items-center">
+            <button onClick={()=>removeColor(i)} className="text-red-500 mt-2 flex gap-1">
               <Trash2 size={16}/> Remove
             </button>
 
           </div>
         ))}
 
-        <button onClick={addColor} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded">
+        <button onClick={addColor} className="btn-blue mt-4">
           + Add Color Variant
         </button>
 
-        {/* SAVE */}
-        <button onClick={saveProduct} className="w-full mt-6 bg-blue-600 text-white py-3 rounded-xl flex justify-center gap-2">
+        <button onClick={saveProduct} className="btn-blue w-full mt-6 flex justify-center gap-2">
           <PlusCircle/> Add Product
         </button>
 
       </div>
 
+      {/* 🔥 STYLES */}
+      <style jsx>{`
+        .input {
+          border:1px solid #ddd;
+          padding:12px;
+          border-radius:12px;
+          width:100%;
+          margin-top:10px;
+        }
+        .btn-blue {
+          background:#2563eb;
+          color:white;
+          padding:12px;
+          border-radius:12px;
+        }
+        .btn-black {
+          background:black;
+          color:white;
+          padding:8px 12px;
+          border-radius:10px;
+        }
+      `}</style>
+
     </div>
-
   );
-
 }
