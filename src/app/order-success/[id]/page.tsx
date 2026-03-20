@@ -1,88 +1,75 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { getAuth } from "firebase/auth";
+import { doc, updateDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+
+import {
+  collection,
+  getDocs,
+  deleteDoc
+} from "firebase/firestore";
 
 export default function OrderSuccess(){
 
-const { id } = useParams();
-const [order,setOrder] = useState<any>(null);
+  const { id } = useParams();
 
-useEffect(()=>{
+  useEffect(()=>{
 
-const saveOrder = async()=>{
+    const handle = async()=>{
 
-const auth = getAuth();
-const user = auth.currentUser;
+      if(!id) return;
 
-if(!user) return;
+      // ✅ ONLY PAYMENT STATUS UPDATE
+      await updateDoc(
+        doc(db,"orders",id as string),
+        {
+          paymentStatus:"paid"
+        }
+      );
 
-const productName = localStorage.getItem("productName");
-const price = localStorage.getItem("price");
+      // 🧹 CLEAR CART
+      const user = auth.currentUser;
+      if(!user) return;
 
-const ref = doc(db,"orders",id as string);
+      const snap = await getDocs(
+        collection(db,"carts",user.uid,"items")
+      );
 
-const snap = await getDoc(ref);
+      for(const d of snap.docs){
+        await deleteDoc(
+          doc(db,"carts",user.uid,"items",d.id)
+        );
+      }
 
-if(!snap.exists()){
+    };
 
-await setDoc(ref,{
+    handle();
 
-userId:user.uid,
-productName:productName || "Product",
-price:price || 0,
+  },[id]);
 
-status:"Pending",
+  return(
 
-trackingId:null,
-qikinkOrderId:null,
+    <div className="min-h-screen flex items-center justify-center bg-green-50">
 
-createdAt:serverTimestamp()
+      <div className="bg-white p-6 rounded-xl shadow text-center">
 
-});
+        <h1 className="text-green-600 text-2xl font-bold">
+          Payment Successful 🎉
+        </h1>
 
+        <p className="mt-2">
+          Order ID: {id}
+        </p>
+
+        <p className="text-gray-500 mt-2">
+          Your order is being prepared...
+        </p>
+
+      </div>
+
+    </div>
+
+  );
 }
-
-const newSnap = await getDoc(ref);
-setOrder(newSnap.data());
-
-};
-
-saveOrder();
-
-},[id]);
-
-if(!order){
-
-return(
-<div className="min-h-screen flex items-center justify-center">
-Loading...
-</div>
-);
-
-}
-
-return(
-
-<div className="p-6 pt-[100px]">
-
-<h1 className="text-green-600 text-2xl font-bold">
-Payment Successful 🎉
-</h1>
-
-<p>Order ID: {id}</p>
-
-<p>Product: {order.productName}</p>
-
-<p>Total: ₹{order.price}</p>
-
-<p>Status: {order.status}</p>
-
-</div>
-
-);
-
-  }q
