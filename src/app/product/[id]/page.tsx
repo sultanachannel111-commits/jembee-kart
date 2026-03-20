@@ -32,46 +32,47 @@ export default function ProductPage() {
 
   const [theme, setTheme] = useState<any>({ button: "#ec4899" });
 
-  // ✅ FETCH PRODUCT
+  // 🔥 FETCH PRODUCT
   useEffect(() => {
     if (!id) return;
 
     const fetchProduct = async () => {
       try {
-        const snap = await getDoc(doc(db, "products", id));
+        const snap = await getDoc(doc(db,"products",id));
 
-        if (!snap.exists()) {
+        if(!snap.exists()){
           setLoading(false);
           return;
         }
 
-        const data: any = {
-          id: snap.id,
+        const data:any = {
+          id:snap.id,
           ...snap.data()
         };
 
-        // 🔥 SAFE VARIATION FIX
+        // ✅ SAFE VARIATION FIX
         if (!Array.isArray(data.variations)) {
           data.variations = [];
         }
 
-        const offerSnap = await getDocs(collection(db, "offers"));
+        // 🔥 OFFER
+        const offerSnap = await getDocs(collection(db,"offers"));
 
         let discount = 0;
 
-        offerSnap.forEach((doc) => {
-          const offer: any = doc.data();
+        offerSnap.forEach((doc)=>{
+          const offer:any = doc.data();
 
-          if (!offer?.active) return;
+          if(!offer?.active) return;
 
-          if (offer.type === "product" && offer.productId === id) {
+          if(offer.type === "product" && offer.productId === id){
             discount = offer.discount;
           }
 
-          if (
+          if(
             offer.type === "category" &&
             offer.category?.toLowerCase?.() === data.category?.toLowerCase?.()
-          ) {
+          ){
             discount = offer.discount;
           }
         });
@@ -89,8 +90,9 @@ export default function ProductPage() {
 
     fetchProduct();
 
-  }, [id]);
+  },[id]);
 
+  // 🔥 THEME
   useEffect(() => {
     async function loadThemeData() {
       const t = await getTheme();
@@ -99,41 +101,50 @@ export default function ProductPage() {
     loadThemeData();
   }, []);
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!product) return <div className="p-5">Product not found</div>;
+  if(loading) return <div className="p-5">Loading...</div>;
+  if(!product) return <div className="p-5">Product not found</div>;
 
   const finalPrice = getFinalPrice(product);
 
-  const variations = product?.variations || [];
+  const variations = Array.isArray(product?.variations)
+    ? product.variations
+    : [];
 
   const selectedVariation = variations.find(
-    (v: any) =>
+    (v:any) =>
       v?.color === selectedColor &&
       v?.size === selectedSize
   );
 
-  // ✅ SAFE IMAGE ARRAY (NO CRASH)
+  // ✅ SAFE IMAGES
   const baseImages = [
     product?.image,
     product?.frontImage,
     product?.backImage,
     product?.sideImage
-  ].filter((img) => typeof img === "string" && img !== "");
+  ].filter((img)=> typeof img === "string" && img !== "");
 
-  const images =
-    selectedVariation?.images && Array.isArray(selectedVariation.images)
-      ? selectedVariation.images
-      : baseImages;
+  const images = (() => {
+    if (
+      selectedVariation &&
+      Array.isArray(selectedVariation.images) &&
+      selectedVariation.images.length > 0
+    ) {
+      return selectedVariation.images;
+    }
+
+    return baseImages.length > 0 ? baseImages : ["/no-image.png"];
+  })();
 
   // reset image
-  useEffect(() => {
+  useEffect(()=>{
     setActiveImage(0);
-  }, [selectedColor, selectedSize]);
+  },[selectedColor, selectedSize]);
 
   const outOfStock = !product?.stock || product.stock <= 0;
 
-  const handleAddToCart = async () => {
-    if (outOfStock) return;
+  const handleAddToCart = async ()=>{
+    if(outOfStock) return;
 
     setAdding(true);
 
@@ -149,18 +160,18 @@ export default function ProductPage() {
     router.push("/cart");
   };
 
-  // 🔥 SWIPE FIX
-  const handleSwipe = (e: any) => {
+  // 🔥 SWIPE
+  const handleSwipe = (e:any)=>{
     const startX = e.touches[0].clientX;
 
-    const end = (ev: any) => {
+    const end = (ev:any)=>{
       const endX = ev.changedTouches[0].clientX;
 
-      if (startX - endX > 50)
-        setActiveImage((p) => Math.min(p + 1, images.length - 1));
+      if(startX - endX > 50)
+        setActiveImage(p=>Math.min(p+1, images.length-1));
 
-      if (endX - startX > 50)
-        setActiveImage((p) => Math.max(p - 1, 0));
+      if(endX - startX > 50)
+        setActiveImage(p=>Math.max(p-1,0));
 
       window.removeEventListener("touchend", end);
     };
@@ -168,7 +179,7 @@ export default function ProductPage() {
     window.addEventListener("touchend", end);
   };
 
-  return (
+  return(
     <div className="min-h-screen pt-[96px] p-4">
 
       {/* 🔥 SLIDER */}
@@ -180,12 +191,12 @@ export default function ProductPage() {
           className="flex transition-transform duration-300"
           style={{ transform: `translateX(-${activeImage * 100}%)` }}
         >
-          {images.map((img: any, i: number) => (
+          {(images || []).map((img:any,i:number)=>(
             <img
               key={i}
               src={img}
-              onClick={() => setFullscreen(true)}
-              onDoubleClick={() => setZoom(!zoom)}
+              onClick={()=>setFullscreen(true)}
+              onDoubleClick={()=>setZoom(!zoom)}
               className={`w-full h-[320px] object-cover flex-shrink-0 ${
                 zoom ? "scale-150" : ""
               }`}
@@ -195,11 +206,11 @@ export default function ProductPage() {
 
         {/* DOTS */}
         <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-          {images.map((_: any, i: number) => (
+          {(images || []).map((_:any,i:number)=>(
             <div
               key={i}
               className={`w-2 h-2 rounded-full ${
-                activeImage === i ? "bg-blue-600" : "bg-gray-300"
+                activeImage===i ? "bg-blue-600" : "bg-gray-300"
               }`}
             />
           ))}
@@ -209,58 +220,19 @@ export default function ProductPage() {
       {/* 🔥 THUMBNAILS */}
       {images.length > 1 && (
         <div className="flex gap-3 mt-3 overflow-x-auto">
-          {images.map((img: any, i: number) => (
+          {images.map((img:any,i:number)=>(
             <div
               key={i}
-              onClick={() => setActiveImage(i)}
+              onClick={()=>setActiveImage(i)}
               className={`p-[2px] rounded-lg cursor-pointer ${
-                activeImage === i
+                activeImage===i
                   ? "border-2 border-green-500"
                   : "border border-gray-300"
               }`}
             >
-              <img src={img} className="w-16 h-16 object-cover rounded" />
+              <img src={img} className="w-16 h-16 object-cover rounded"/>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* 🎨 COLOR */}
-      {variations.length > 0 && (
-        <div className="mt-4">
-          <p>Color</p>
-          <div className="flex gap-2">
-            {[...new Set(variations.map((v: any) => v.color).filter(Boolean))].map((c: any) => (
-              <div
-                key={c}
-                onClick={() => setSelectedColor(c)}
-                className={`w-8 h-8 rounded-full border ${
-                  selectedColor === c ? "scale-110 border-black" : ""
-                }`}
-                style={{ background: c }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 📏 SIZE */}
-      {variations.length > 0 && (
-        <div className="mt-4">
-          <p>Size</p>
-          <div className="flex gap-2">
-            {[...new Set(variations.map((v: any) => v.size).filter(Boolean))].map((s: any) => (
-              <button
-                key={s}
-                onClick={() => setSelectedSize(s)}
-                className={`px-3 py-1 border ${
-                  selectedSize === s ? "bg-black text-white" : ""
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -272,24 +244,54 @@ export default function ProductPage() {
         ₹{selectedVariation?.price || finalPrice}
       </p>
 
-      {/* BUTTON */}
-      <button
-        onClick={handleAddToCart}
-        className="mt-4 w-full py-3 rounded"
-        style={{
-          background: theme.button,
-          color: getTextColor(theme.button)
-        }}
-      >
-        Add to Cart
-      </button>
+      {/* STOCK */}
+      <p className="mt-2 text-green-600">
+        {outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
+      </p>
+
+      {/* QUANTITY */}
+      {!outOfStock && (
+        <div className="flex items-center gap-4 mt-4">
+          <button onClick={()=>setQuantity(q=>Math.max(1,q-1))} className="bg-gray-200 px-4 py-2 rounded">-</button>
+          <span>{quantity}</span>
+          <button onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))} className="bg-gray-200 px-4 py-2 rounded">+</button>
+        </div>
+      )}
+
+      {/* BUTTONS */}
+      <div className="flex gap-4 mt-8">
+
+        <button
+          disabled={outOfStock || adding}
+          onClick={handleAddToCart}
+          style={{
+            background: theme.button,
+            color: getTextColor(theme.button)
+          }}
+          className="px-6 py-3 rounded w-full"
+        >
+          {adding ? "Adding..." : "Add to Cart"}
+        </button>
+
+        <button
+          onClick={()=>router.push(`/checkout?productId=${product.id}`)}
+          style={{
+            background: theme.button,
+            color: getTextColor(theme.button)
+          }}
+          className="px-6 py-3 rounded w-full"
+        >
+          Buy Now
+        </button>
+
+      </div>
 
       {/* 🔥 FULLSCREEN */}
       {fullscreen && (
         <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <img src={images[activeImage]} className="w-full object-contain" />
+          <img src={images[activeImage]} className="w-full object-contain"/>
           <button
-            onClick={() => setFullscreen(false)}
+            onClick={()=>setFullscreen(false)}
             className="absolute top-4 right-4 text-white text-xl"
           >
             ✕
@@ -298,5 +300,5 @@ export default function ProductPage() {
       )}
 
     </div>
-  );
+  )
 }
