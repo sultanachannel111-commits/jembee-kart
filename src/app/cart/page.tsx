@@ -33,20 +33,21 @@ export default function CartPage() {
 
         setUser(u);
 
-        const itemsRef = collection(db, "cart", u.uid, "items");
+        // ✅ FIX HERE
+        const itemsRef = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(itemsRef, (snapshot) => {
 
           const data:any[] = [];
 
           snapshot.forEach((doc) => {
-
             data.push({
               id: doc.id,
               ...doc.data()
             });
-
           });
+
+          console.log("CART DATA:", data); // 🔥 DEBUG
 
           setItems(data);
 
@@ -57,11 +58,8 @@ export default function CartPage() {
     });
 
     return () => {
-
       unsubAuth();
-
       if (unsubscribe) unsubscribe();
-
     };
 
   }, []);
@@ -71,7 +69,7 @@ export default function CartPage() {
   const increase = async (item:any) => {
 
     await updateDoc(
-      doc(db, "cart", user.uid, "items", item.id),
+      doc(db, "carts", user.uid, "items", item.id),
       {
         quantity: increment(1)
       }
@@ -86,7 +84,7 @@ export default function CartPage() {
     if (item.quantity <= 1) return;
 
     await updateDoc(
-      doc(db, "cart", user.uid, "items", item.id),
+      doc(db, "carts", user.uid, "items", item.id),
       {
         quantity: increment(-1)
       }
@@ -99,7 +97,7 @@ export default function CartPage() {
   const remove = async (id:string) => {
 
     await deleteDoc(
-      doc(db, "cart", user.uid, "items", id)
+      doc(db, "carts", user.uid, "items", id)
     );
 
   };
@@ -123,7 +121,7 @@ export default function CartPage() {
     <div className="p-6 pt-[110px]">
 
       <h1 className="text-2xl font-bold mb-6">
-        Cart
+        🛒 Cart
       </h1>
 
       {items.length === 0 && (
@@ -193,10 +191,8 @@ export default function CartPage() {
         onClick={() => {
 
           if (items.length === 0) {
-
             alert("Cart is empty");
             return;
-
           }
 
           const item = items[0];
