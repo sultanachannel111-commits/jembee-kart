@@ -23,10 +23,11 @@ export default function VariantPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [zoom, setZoom] = useState(false);
 
-  // 🔥 FETCH
+  // 🔥 FETCH PRODUCT
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       const snap = await getDoc(doc(db, "products", id));
+
       if (!snap.exists()) return;
 
       const data:any = {
@@ -34,24 +35,31 @@ export default function VariantPage() {
         ...snap.data()
       };
 
-      if (!Array.isArray(data.variations)) data.variations = [];
+      // ✅ SAFE VARIATION FIX
+      const safeVariations = Array.isArray(data.variations)
+        ? data.variations
+        : data?.variations?.options || [];
+
+      data.variations = safeVariations;
 
       setProduct(data);
     };
 
-    fetch();
+    fetchData();
   }, [id]);
 
   if (!product) return <div className="p-5">Loading...</div>;
 
   const variations = product.variations || [];
 
-  // 🎯 CURRENT VARIATION
+  // 🎯 SELECTED VARIANT
   const selectedVariation = variations.find(
-    (v:any)=>v.color===selectedColor && v.size===selectedSize
+    (v:any)=>
+      v?.color === selectedColor &&
+      v?.size === selectedSize
   );
 
-  // 🖼 IMAGE
+  // 🖼 IMAGES
   const images =
     selectedVariation?.images?.length > 0
       ? selectedVariation.images
@@ -62,15 +70,22 @@ export default function VariantPage() {
   },[selectedColor,selectedSize]);
 
   // 🎨 COLORS
-  const colors = [...new Set(variations.map((v:any)=>v.color))];
+  const colors = [...new Set(
+    variations.map((v:any)=>v?.color).filter(Boolean)
+  )];
 
   // 📏 SIZES
-  const sizes = [...new Set(variations.map((v:any)=>v.size))];
+  const sizes = [...new Set(
+    variations.map((v:any)=>v?.size).filter(Boolean)
+  )];
 
-  // STOCK CHECK
+  // 🔥 STOCK CHECK
   const isAvailable = (size:any)=>{
     return variations.some(
-      (v:any)=>v.size===size && v.color===selectedColor && v.stock > 0
+      (v:any)=>
+        v.size===size &&
+        v.color===selectedColor &&
+        v.stock > 0
     );
   };
 
@@ -93,7 +108,7 @@ export default function VariantPage() {
     window.addEventListener("touchend", end);
   };
 
-  // 🛒 ADD
+  // 🛒 ADD TO CART
   const handleAdd = async ()=>{
     if(!selectedVariation) return alert("Select variant");
 
@@ -109,7 +124,7 @@ export default function VariantPage() {
     router.push("/cart");
   };
 
-  // ⚡ BUY
+  // ⚡ BUY NOW
   const handleBuy = ()=>{
     if(!selectedVariation) return alert("Select variant");
 
@@ -208,7 +223,7 @@ export default function VariantPage() {
 
       </div>
 
-      {/* 🔥 STICKY */}
+      {/* 🔥 STICKY BUTTON */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex gap-3">
 
         <button
