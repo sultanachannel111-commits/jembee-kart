@@ -6,7 +6,17 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const orderId = body.orderId; // ✅ SAME ID
+    const orderId = body.orderId;
+
+    // 🔥 SAFE DATA FIX
+    const amount = Number(body.amount);
+    const phone = String(body.customer.phone);
+
+    if (!amount || !phone) {
+      return NextResponse.json({
+        error: "Invalid data"
+      });
+    }
 
     const response = await fetch("https://api.cashfree.com/pg/orders", {
       method: "POST",
@@ -21,21 +31,22 @@ export async function POST(req: Request) {
       body: JSON.stringify({
 
         order_id: orderId,
-        order_amount: body.amount,
+        order_amount: amount, // ✅ FIXED
         order_currency: "INR",
 
         customer_details: {
           customer_id: "cust_" + Date.now(),
           customer_name:
-            body.customer.firstName + " " + body.customer.lastName,
-          customer_email: body.customer.email,
-          customer_phone: body.customer.phone
+            (body.customer.firstName || "User") + " " +
+            (body.customer.lastName || ""),
+          customer_email: body.customer.email || "test@test.com",
+          customer_phone: phone // ✅ FIXED
         },
 
         order_meta: {
           return_url:
             process.env.NEXT_PUBLIC_SITE_URL +
-            "/success?order_id=" + orderId
+            "/order-success/" + orderId // ✅ FIXED
         }
 
       })
@@ -44,9 +55,14 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
+    // 🔥 DEBUG
+    console.log("CASHFREE RESPONSE:", data);
+
     return NextResponse.json(data);
 
   } catch (error) {
+
+    console.log("CASHFREE ERROR:", error);
 
     return NextResponse.json({
       success: false,
