@@ -31,14 +31,14 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* LOAD CART + PREPAID COUNT */
+  /* ================= LOAD DATA ================= */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth,async(u)=>{
       if(!u) return;
 
       setUser(u);
 
-      // CART
+      // 🛒 CART LOAD
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -50,7 +50,7 @@ export default function CheckoutPage(){
 
       setItems(data);
 
-      // PREPAID COUNT
+      // 💳 PREPAID COUNT
       const orderSnap = await getDocs(collection(db,"orders"));
 
       let count = 0;
@@ -74,68 +74,99 @@ export default function CheckoutPage(){
     return ()=>unsub();
   },[]);
 
-  /* TOTAL */
+  /* ================= TOTAL ================= */
   const total = items.reduce(
     (sum,i)=> sum + (i.price * (i.quantity || 1)),
     0
   );
 
-  /* PAYMENT */
+  /* ================= VALIDATION ================= */
+  const validate = ()=>{
+
+    if(!customer.firstName) return alert("Enter First Name");
+    if(!customer.address) return alert("Enter Address");
+    if(!customer.phone || customer.phone.length !== 10)
+      return alert("Enter valid phone");
+
+    return true;
+  };
+
+  /* ================= ONLINE PAYMENT ================= */
   const placeOrder = async()=>{
+
+    if(!validate()) return;
 
     if(items.length === 0){
       alert("Cart empty");
       return;
     }
 
-    setLoading(true);
+    try{
 
-    // 🔥 CREATE ORDER
-    const orderRef = await addDoc(
-      collection(db,"orders"),
-      {
-        userId:user.uid,
-        items,
-        total,
-        customer,
+      setLoading(true);
 
-        paymentMethod:"online",
-        paymentStatus:"pending",
+      // 📝 ORDER CREATE
+      const orderRef = await addDoc(
+        collection(db,"orders"),
+        {
+          userId:user.uid,
+          items,
+          total,
+          customer,
 
-        status:"pending", // 🔥 IMPORTANT
+          paymentMethod:"online",
+          paymentStatus:"pending",
+          status:"pending",
 
-        createdAt:serverTimestamp()
+          createdAt:serverTimestamp()
+        }
+      );
+
+      // 💳 CALL API
+      const res = await fetch("/api/cashfree/create-order",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          orderId:orderRef.id,
+          amount:total,
+          customer
+        })
+      });
+
+      const data = await res.json();
+
+      console.log("PAYMENT RESPONSE:", data);
+
+      // ❌ ERROR HANDLE
+      if(!data.payment_session_id){
+        alert("❌ Payment failed. Try again.");
+        setLoading(false);
+        return;
       }
-    );
 
-    // 🔥 PAYMENT API
-    const res = await fetch("/api/cashfree/create-order",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        orderId:orderRef.id,
-        amount:total,
-        customer
-      })
-    });
+      // 🔥 SANDBOX MODE USE
+      const cashfree = await load({
+        mode:"sandbox"
+      });
 
-    const data = await res.json();
+      await cashfree.checkout({
+        paymentSessionId:data.payment_session_id,
+        redirectTarget:"_self"
+      });
 
-    const cashfree = await load({ mode:"production" });
-
-    await cashfree.checkout({
-      paymentSessionId:data.payment_session_id,
-      redirectTarget:"_self"
-    });
+    }catch(err){
+      console.log(err);
+      alert("❌ Server error");
+    }
 
     setLoading(false);
   };
 
-  /* COD */
+  /* ================= COD ================= */
   const handleCOD = async()=>{
 
     if(prepaidCount < 2){
-      alert("Complete 2 prepaid orders first");
+      alert("⚠️ Complete 2 prepaid orders first");
       return;
     }
 
@@ -147,14 +178,15 @@ export default function CheckoutPage(){
 
       paymentMethod:"cod",
       paymentStatus:"pending",
-
       status:"pending",
 
       createdAt:serverTimestamp()
     });
 
-    alert("COD Order Placed");
+    alert("✅ COD Order Placed");
   };
+
+  /* ================= UI ================= */
 
   return(
 
@@ -168,6 +200,7 @@ export default function CheckoutPage(){
         Total : ₹{total}
       </div>
 
+      {/* PAY BUTTON */}
       <button
         onClick={placeOrder}
         className="bg-green-600 text-white px-6 py-3 rounded w-full mb-3"
@@ -175,6 +208,7 @@ export default function CheckoutPage(){
         {loading ? "Processing..." : `Pay ₹${total}`}
       </button>
 
+      {/* COD */}
       <button
         onClick={handleCOD}
         disabled={prepaidCount < 2}
@@ -190,6 +224,5 @@ export default function CheckoutPage(){
       </button>
 
     </div>
-
   );
 }
