@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -13,7 +13,6 @@ import { getTextColor } from "@/lib/utils";
 export default function ProductPage() {
 
   const params = useParams();
-  const router = useRouter();
   const id = typeof params?.id === "string" ? params.id : "";
 
   const { addToCart } = useCart();
@@ -26,6 +25,11 @@ export default function ProductPage() {
   const [theme, setTheme] = useState<any>({
     button: "#22c55e"
   });
+
+  // 🔥 VARIATION STATE
+  const [selectedColor, setSelectedColor] = useState("");
+  const [selectedSize, setSelectedSize] = useState("");
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
 
   // 🔥 FETCH PRODUCT
   useEffect(() => {
@@ -80,7 +84,7 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  // 🔥 THEME LOAD
+  // 🔥 THEME
   useEffect(() => {
     async function loadThemeData() {
       const t = await getTheme();
@@ -89,20 +93,52 @@ export default function ProductPage() {
     loadThemeData();
   }, []);
 
+  // 🔥 DEFAULT VARIANT
+  useEffect(() => {
+    if (product?.variations?.length) {
+      const first = product.variations[0];
+      setSelectedColor(first.color);
+      setSelectedSize(first.size);
+      setSelectedVariant(first);
+    }
+  }, [product]);
+
+  // 🔥 UPDATE VARIANT
+  useEffect(() => {
+    if (!product?.variations) return;
+
+    const found = product.variations.find(
+      (v: any) =>
+        v.color === selectedColor && v.size === selectedSize
+    );
+
+    if (found) setSelectedVariant(found);
+  }, [selectedColor, selectedSize, product]);
+
   if (loading) return <div className="p-5">Loading...</div>;
   if (!product) return <div className="p-5">Product not found</div>;
 
   const finalPrice = getFinalPrice(product);
 
-  // ✅ IMAGES SAFE
-  const images = [
-    product?.image,
-    product?.frontImage,
-    product?.backImage,
-    product?.sideImage
-  ].filter((img) => typeof img === "string" && img !== "");
+  // 🔥 IMAGE SOURCE
+  const images = selectedVariant?.images?.length
+    ? selectedVariant.images
+    : [
+        product?.image,
+        product?.frontImage,
+        product?.backImage,
+        product?.sideImage
+      ].filter((img) => img);
 
   const finalImages = images.length ? images : ["/no-image.png"];
+
+  // 🔥 COLORS
+  const colors = [...new Set(product?.variations?.map((v:any)=>v.color))];
+
+  // 🔥 SIZES
+  const sizes = product?.variations?.filter(
+    (v:any)=>v.color===selectedColor
+  );
 
   // 👉 SWIPE
   const handleSwipe = (e:any) => {
@@ -162,28 +198,6 @@ export default function ProductPage() {
 
       <div className="p-4">
 
-        {/* 🔥 THUMBNAILS */}
-        {finalImages.length > 1 && (
-          <div className="flex gap-3 mt-3 overflow-x-auto">
-            {finalImages.map((img:any,i:number)=>(
-              <div
-                key={i}
-                onClick={()=>setActiveImage(i)}
-                className={`p-[2px] rounded-xl cursor-pointer ${
-                  activeImage===i
-                    ? "border-2 border-green-500 scale-105"
-                    : "border border-gray-300"
-                }`}
-              >
-                <img
-                  src={img}
-                  className="w-16 h-16 object-cover rounded"
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* NAME */}
         <h1 className="text-2xl font-bold mt-4">
           {product.name}
@@ -192,43 +206,64 @@ export default function ProductPage() {
         {/* PRICE */}
         <div className="flex gap-3 items-center mt-2">
           <span className="text-2xl font-bold">
-            ₹{finalPrice}
+            ₹{selectedVariant?.price || finalPrice}
           </span>
-
-          {product.discount > 0 && (
-            <>
-              <span className="line-through text-gray-400">
-                ₹{product.sellPrice}
-              </span>
-              <span className="text-red-500 text-sm font-bold">
-                {product.discount}% OFF
-              </span>
-            </>
-          )}
         </div>
 
         {/* STOCK */}
         <p className="mt-2 text-green-600 font-semibold">
-          In Stock ({product.stock})
+          In Stock ({selectedVariant?.stock ?? product.stock})
         </p>
 
-        {/* 🔥 BUTTON */}
-        <div className="mt-6">
-          <button
-            onClick={() => router.push(`/product/${product.id}/variant`)}
-            style={{
-              background: theme.button,
-              color: getTextColor(theme.button)
-            }}
-            className="w-full py-3 rounded-xl"
-          >
-            Select Options
-          </button>
+        {/* 🔥 COLOR */}
+        <div className="mt-4">
+          <h3 className="font-semibold mb-2">Color</h3>
+          <div className="flex gap-3">
+            {colors.map((color:any,i:number)=>(
+              <div
+                key={i}
+                onClick={()=>setSelectedColor(color)}
+                className={`w-8 h-8 rounded-full border-2 ${
+                  selectedColor === color ? "border-black" : "border-gray-300"
+                }`}
+                style={{background:color}}
+              />
+            ))}
+          </div>
         </div>
+
+        {/* 🔥 SIZE */}
+        <div className="mt-4">
+          <h3 className="font-semibold mb-2">Size</h3>
+          <div className="flex gap-3">
+            {sizes.map((v:any,i:number)=>(
+              <div
+                key={i}
+                onClick={()=>setSelectedSize(v.size)}
+                className={`px-4 py-2 border rounded ${
+                  selectedSize === v.size ? "border-black" : "border-gray-300"
+                }`}
+              >
+                {v.size}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 🔥 BUY BUTTON */}
+        <button
+          style={{
+            background: theme.button,
+            color: getTextColor(theme.button)
+          }}
+          className="w-full py-3 rounded-xl mt-6"
+        >
+          Buy Now
+        </button>
 
       </div>
 
-      {/* 🔥 FULLSCREEN */}
+      {/* FULLSCREEN */}
       {fullscreen && (
         <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
           <img
@@ -243,7 +278,6 @@ export default function ProductPage() {
           </button>
         </div>
       )}
-
     </div>
   );
 }
