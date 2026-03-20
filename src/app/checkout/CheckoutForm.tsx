@@ -24,7 +24,7 @@ export default function CheckoutPage(){
   const [prepaidCount,setPrepaidCount] = useState(0);
 
   const [theme, setTheme] = useState<any>({
-    button: "#16a34a"
+    button: "#4f46e5"
   });
 
   const [customer,setCustomer] = useState({
@@ -38,68 +38,42 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* =====================
-  LOAD USER + CART
-  ===================== */
-
+  /* LOAD USER + CART */
   useEffect(()=>{
-
     const unsub = onAuthStateChanged(auth,async(u)=>{
-
       if(!u) return;
-
       setUser(u);
 
-      try{
+      const snap = await getDocs(
+        collection(db,"carts",u.uid,"items")
+      );
 
-        // 🛒 CART
-        const snap = await getDocs(
-          collection(db,"carts",u.uid,"items")
-        );
+      const cartData:any[] = [];
+      snap.forEach(doc=>{
+        cartData.push({ id:doc.id, ...doc.data() });
+      });
 
-        const cartData:any[] = [];
+      setItems(cartData);
 
-        snap.forEach(doc=>{
-          cartData.push({
-            id:doc.id,
-            ...doc.data()
-          });
-        });
+      // prepaid count
+      const orderSnap = await getDocs(collection(db,"orders"));
+      let count = 0;
 
-        setItems(cartData);
+      orderSnap.forEach(doc=>{
+        const d:any = doc.data();
+        if(d.userId === u.uid && d.paymentMethod === "online"){
+          count++;
+        }
+      });
 
-        // 💳 PREPAID COUNT
-        const orderSnap = await getDocs(collection(db,"orders"));
-
-        let count = 0;
-
-        orderSnap.forEach(doc=>{
-          const d:any = doc.data();
-
-          if(
-            d.userId === u.uid &&
-            d.paymentMethod === "online"
-          ){
-            count++;
-          }
-        });
-
-        setPrepaidCount(count);
-
-      }catch(err){
-        console.log(err);
-      }
+      setPrepaidCount(count);
 
     });
 
     return ()=>unsub();
-
   },[]);
 
-  /* =====================
-  THEME
-  ===================== */
-
+  /* THEME */
   useEffect(()=>{
     async function loadThemeData(){
       const t = await getTheme();
@@ -108,270 +82,223 @@ export default function CheckoutPage(){
     loadThemeData();
   },[]);
 
-  /* =====================
-  TOTAL
-  ===================== */
-
+  /* TOTAL */
   const total = items.reduce(
     (sum,i)=> sum + (Number(i.price || 0) * Number(i.quantity || 1)),
     0
   );
 
-  /* =====================
-  VALIDATION
-  ===================== */
-
+  /* VALIDATION */
   const validateCustomer = ()=>{
-
     if(!customer.firstName) return alert("Enter First Name");
     if(!customer.address) return alert("Enter Address");
     if(!customer.city) return alert("Enter City");
     if(!customer.state) return alert("Enter State");
     if(!customer.zip) return alert("Enter Pincode");
-
-    if(!customer.phone || customer.phone.length !== 10){
-      return alert("Enter valid phone number");
-    }
-
+    if(!customer.phone || customer.phone.length !== 10)
+      return alert("Enter valid phone");
     if(!customer.email) return alert("Enter Email");
-
     return true;
   };
 
-  /* =====================
-  ONLINE PAYMENT
-  ===================== */
-
+  /* ONLINE PAYMENT */
   const placeOrder = async()=>{
-
     if(!validateCustomer()) return;
-
-    if(items.length === 0){
-      alert("Cart empty");
-      return;
-    }
+    if(items.length === 0) return alert("Cart empty");
 
     setLoading(true);
 
-    try{
+    const orderRef = await addDoc(collection(db,"orders"),{
+      userId:user.uid,
+      items,
+      total,
+      customer,
+      paymentMethod:"online",
+      status:"pending",
+      createdAt:serverTimestamp()
+    });
 
-      const orderRef = await addDoc(
-        collection(db,"orders"),
-        {
-          userId:user.uid,
-          items,
-          total,
-          customer,
-          paymentMethod:"online",
-          status:"pending",
-          createdAt:serverTimestamp()
-        }
-      );
+    const res = await fetch("/api/cashfree/create-order",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        orderId:orderRef.id,
+        amount:total
+      })
+    });
 
-      const res = await fetch("/api/cashfree/create-order",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
-          orderId:orderRef.id,
-          amount:total,
-          items,
-          customer
-        })
-      });
+    const data = await res.json();
 
-      const data = await res.json();
+    const cashfree = await load({ mode:"production" });
 
-      if(!data.payment_session_id){
-        setLoading(false);
-        alert("Payment failed");
-        return;
-      }
+    await cashfree.checkout({
+      paymentSessionId:data.payment_session_id,
+      redirectTarget:"_self"
+    });
 
-      const cashfree = await load({ mode:"production" });
-
-      await cashfree.checkout({
-        paymentSessionId:data.payment_session_id,
-        redirectTarget:"_self"
-      });
-
-      setLoading(false);
-
-    }catch(err){
-      console.log(err);
-      setLoading(false);
-      alert("Server error");
-    }
-
+    setLoading(false);
   };
 
-  /* =====================
-  COD FUNCTION
-  ===================== */
-
+  /* COD */
   const handleCOD = async()=>{
-
     if(prepaidCount < 2){
-      alert("⚠️ First complete 2 prepaid orders to unlock COD");
+      alert("Complete 2 prepaid orders to unlock COD");
       return;
     }
 
     if(!validateCustomer()) return;
 
-    if(items.length === 0){
-      alert("Cart empty");
-      return;
-    }
+    await addDoc(collection(db,"orders"),{
+      userId:user.uid,
+      items,
+      total,
+      customer,
+      paymentMethod:"cod",
+      status:"pending",
+      createdAt:serverTimestamp()
+    });
 
-    await addDoc(
-      collection(db,"orders"),
-      {
-        userId:user.uid,
-        items,
-        total,
-        customer,
-        paymentMethod:"cod",
-        status:"pending",
-        createdAt:serverTimestamp()
-      }
-    );
-
-    // 🧹 CLEAR CART
     for(const item of items){
-      await deleteDoc(
-        doc(db,"carts",user.uid,"items",item.id)
-      );
+      await deleteDoc(doc(db,"carts",user.uid,"items",item.id));
     }
 
-    alert("✅ COD Order Placed");
-
+    alert("COD Order placed");
   };
-
-  /* =====================
-  UI
-  ===================== */
 
   return(
 
-    <div className="p-6 max-w-xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
 
-      <h1 className="text-2xl font-bold mb-6">
-        Checkout
-      </h1>
+      <div className="max-w-xl mx-auto">
 
-      {/* PRODUCTS */}
+        <h1 className="text-3xl font-bold mb-6 text-center">
+          Checkout
+        </h1>
 
-      <div className="space-y-4 mb-6">
+        {/* CART CARD */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 space-y-4">
 
-        {items.map(item=>(
+          {items.map(item=>(
+            <div key={item.id} className="flex gap-4">
 
-          <div
-            key={item.id}
-            className="bg-white p-4 rounded-xl shadow flex gap-4"
-          >
+              <img
+                src={item.image}
+                className="w-20 h-20 rounded-xl object-cover"
+              />
 
-            <img
-              src={item.image}
-              className="w-20 h-20 object-cover rounded"
-            />
+              <div className="flex-1">
 
-            <div className="flex-1">
+                <p className="font-semibold">
+                  {item.name}
+                </p>
 
-              <p className="font-semibold">
-                {item.name}
-              </p>
+                <p className="text-indigo-600 font-bold">
+                  ₹{item.price}
+                </p>
 
-              <p className="text-green-600 font-bold">
-                ₹{item.price}
-              </p>
+                <p className="text-sm text-gray-500">
+                  Qty: {item.quantity}
+                </p>
 
-              <p className="text-sm text-gray-500">
-                Qty : {item.quantity}
-              </p>
+              </div>
 
             </div>
+          ))}
 
+        </div>
+
+        {/* TOTAL */}
+        <div className="bg-white rounded-xl shadow p-4 mb-6 flex justify-between font-bold text-lg">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </div>
+
+        {/* FORM CARD */}
+        <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
+
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="First Name"
+              className="input-premium"
+              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+            />
+            <input placeholder="Last Name"
+              className="input-premium"
+              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+            />
           </div>
 
-        ))}
+          <textarea placeholder="Full Address"
+            className="input-premium"
+            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="City"
+              className="input-premium"
+              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+            />
+            <input placeholder="State"
+              className="input-premium"
+              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+            />
+          </div>
+
+          <input placeholder="Pin Code"
+            className="input-premium"
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          />
+
+          <input placeholder="Phone"
+            className="input-premium"
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          />
+
+          <input placeholder="Email"
+            className="input-premium"
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          />
+
+          {/* BUTTONS */}
+
+          <button
+            onClick={placeOrder}
+            className="w-full py-3 rounded-xl text-white font-semibold shadow-md transition hover:scale-[1.02]"
+            style={{ background: theme.button }}
+          >
+            {loading ? "Processing..." : `Pay ₹${total}`}
+          </button>
+
+          <button
+            onClick={handleCOD}
+            className="w-full py-3 rounded-xl border font-semibold hover:bg-gray-50"
+          >
+            {prepaidCount < 2
+              ? `COD Locked (${prepaidCount}/2)`
+              : "Cash on Delivery"}
+          </button>
+
+        </div>
 
       </div>
 
-      {/* TOTAL */}
+      {/* INPUT STYLE */}
+      <style jsx>{`
+        .input-premium{
+          width:100%;
+          padding:12px;
+          border-radius:12px;
+          border:1px solid #e5e7eb;
+          outline:none;
+          transition:0.2s;
+        }
 
-      <div className="text-xl font-bold mb-6">
-        Total : ₹{total}
-      </div>
-
-      {/* CUSTOMER FORM */}
-
-      <div className="space-y-4">
-
-        <input placeholder="First Name" className="input"
-          value={customer.firstName}
-          onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-        />
-
-        <input placeholder="Last Name" className="input"
-          value={customer.lastName}
-          onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-        />
-
-        <textarea placeholder="Full Address" className="input"
-          value={customer.address}
-          onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-        />
-
-        <input placeholder="City" className="input"
-          value={customer.city}
-          onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-        />
-
-        <input placeholder="State" className="input"
-          value={customer.state}
-          onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-        />
-
-        <input placeholder="Pin Code" className="input"
-          value={customer.zip}
-          onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
-        />
-
-        <input placeholder="Phone Number" className="input"
-          value={customer.phone}
-          onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-        />
-
-        <input placeholder="Email Address" className="input"
-          value={customer.email}
-          onChange={(e)=>setCustomer({...customer,email:e.target.value})}
-        />
-
-        {/* ONLINE PAYMENT */}
-
-        <button
-          onClick={placeOrder}
-          style={{ background: theme.button }}
-          className="text-white px-6 py-3 rounded w-full"
-        >
-          {loading ? "Processing..." : `Pay ₹${total}`}
-        </button>
-
-        {/* COD BUTTON */}
-
-        <button
-          onClick={handleCOD}
-          className="w-full border border-black py-3 rounded"
-        >
-          {prepaidCount < 2
-            ? `COD Locked (${prepaidCount}/2 prepaid done)`
-            : "Cash on Delivery"
-          }
-        </button>
-
-      </div>
+        .input-premium:focus{
+          border-color:#6366f1;
+          box-shadow:0 0 0 2px rgba(99,102,241,0.2);
+        }
+      `}</style>
 
     </div>
 
   );
-
 }
