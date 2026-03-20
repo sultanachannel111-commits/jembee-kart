@@ -24,10 +24,15 @@ export default function ProductPage() {
   const [adding, setAdding] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
 
-  const [theme, setTheme] = useState<any>({
-    button: "#ec4899"
-  });
+  const [selectedColor, setSelectedColor] = useState<any>(null);
+  const [selectedSize, setSelectedSize] = useState<any>(null);
 
+  const [zoom, setZoom] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const [theme, setTheme] = useState<any>({ button: "#ec4899" });
+
+  // 🔥 FETCH
   useEffect(() => {
     if (!id) return;
 
@@ -46,7 +51,6 @@ export default function ProductPage() {
         };
 
         const offerSnap = await getDocs(collection(db,"offers"));
-
         let discount = 0;
 
         offerSnap.forEach((doc)=>{
@@ -54,17 +58,13 @@ export default function ProductPage() {
 
           if(!offer?.active) return;
 
-          if(
-            offer.type === "product" &&
-            offer.productId === id
-          ){
+          if(offer.type === "product" && offer.productId === id){
             discount = offer.discount;
           }
 
           if(
             offer.type === "category" &&
-            offer.category?.toLowerCase?.() ===
-            data.category?.toLowerCase?.()
+            offer.category?.toLowerCase?.() === data.category?.toLowerCase?.()
           ){
             discount = offer.discount;
           }
@@ -76,7 +76,7 @@ export default function ProductPage() {
         setLoading(false);
 
       } catch (err) {
-        console.log("ERROR:", err);
+        console.log(err);
         setLoading(false);
       }
     };
@@ -93,28 +93,36 @@ export default function ProductPage() {
     loadThemeData();
   }, []);
 
-  if(loading){
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-  }
-
-  if(!product){
-    return <div className="min-h-screen flex items-center justify-center">Product not found</div>
-  }
+  if(loading) return <div className="p-5">Loading...</div>;
+  if(!product) return <div className="p-5">Product not found</div>;
 
   const finalPrice = getFinalPrice(product);
 
-  // ✅ SAFE IMAGE ARRAY
-  const images = [
-    product?.image,
-    product?.frontImage,
-    product?.backImage,
-    product?.sideImage
-  ].filter(Boolean);
+  const variations = product?.variations || [];
+
+  const selectedVariation = variations.find(
+    (v:any) => v.color === selectedColor && v.size === selectedSize
+  );
+
+  // 🔥 IMAGE LOGIC
+  const images =
+    selectedVariation?.images?.length > 0
+      ? selectedVariation.images
+      : [
+          product?.image,
+          product?.frontImage,
+          product?.backImage,
+          product?.sideImage
+        ].filter(Boolean);
+
+  // reset image on change
+  useEffect(() => {
+    setActiveImage(0);
+  }, [selectedColor, selectedSize]);
 
   const outOfStock = !product?.stock || product.stock <= 0;
 
   const handleAddToCart = async ()=>{
-
     if(outOfStock) return;
 
     setAdding(true);
@@ -122,36 +130,124 @@ export default function ProductPage() {
     await addToCart({
       ...product,
       quantity,
+      selectedColor,
+      selectedSize,
       image: images[0] || ""
     });
 
     setAdding(false);
-
     router.push("/cart");
   };
 
-  return(
+  // 🔥 SWIPE
+  const handleSwipe = (e:any) => {
+    const startX = e.touches[0].clientX;
 
+    const end = (ev:any) => {
+      const endX = ev.changedTouches[0].clientX;
+
+      if (startX - endX > 50)
+        setActiveImage((p)=>Math.min(p+1, images.length-1));
+
+      if (endX - startX > 50)
+        setActiveImage((p)=>Math.max(p-1, 0));
+
+      window.removeEventListener("touchend", end);
+    };
+
+    window.addEventListener("touchend", end);
+  };
+
+  return(
     <div className="min-h-screen pt-[96px] p-4">
 
-      {/* IMAGE */}
-      <img
-        src={images[activeImage] || "/no-image.png"}
-        className="w-full rounded-xl"
-      />
-
-      {/* THUMBNAILS */}
-      {images.length > 1 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto">
+      {/* 🔥 SLIDER */}
+      <div
+        className="w-full -mx-4 overflow-hidden relative"
+        onTouchStart={handleSwipe}
+      >
+        <div
+          className="flex transition-transform duration-300"
+          style={{ transform: `translateX(-${activeImage * 100}%)` }}
+        >
           {images.map((img:any, i:number)=>(
             <img
               key={i}
               src={img}
-              onClick={()=>setActiveImage(i)}
-              className={`w-16 h-16 object-cover rounded border cursor-pointer
-              ${activeImage === i ? "border-green-500" : "border-gray-300"}`}
+              onClick={()=>setFullscreen(true)}
+              onDoubleClick={()=>setZoom(!zoom)}
+              className={`w-full h-[320px] object-cover flex-shrink-0 ${
+                zoom ? "scale-150" : ""
+              }`}
             />
           ))}
+        </div>
+
+        {/* DOTS */}
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
+          {images.map((_:any,i:number)=>(
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full ${
+                activeImage===i ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 🔥 THUMBNAILS */}
+      {images.length > 1 && (
+        <div className="flex gap-3 mt-3 overflow-x-auto">
+          {images.map((img:any,i:number)=>(
+            <div
+              key={i}
+              onClick={()=>setActiveImage(i)}
+              className={`p-[2px] rounded-lg cursor-pointer
+              ${activeImage===i
+                ? "border-2 border-green-500 scale-105"
+                : "border border-gray-300"}`}
+            >
+              <img src={img} className="w-16 h-16 object-cover rounded"/>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 🎨 COLOR */}
+      {variations.length > 0 && (
+        <div className="mt-4">
+          <p className="font-semibold mb-2">Color</p>
+          <div className="flex gap-2">
+            {[...new Set(variations.map((v:any)=>v.color))].map((c:any)=>(
+              <div
+                key={c}
+                onClick={()=>setSelectedColor(c)}
+                className={`w-8 h-8 rounded-full border cursor-pointer
+                ${selectedColor===c ? "scale-110 border-black" : ""}`}
+                style={{background:c}}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📏 SIZE */}
+      {variations.length > 0 && (
+        <div className="mt-4">
+          <p className="font-semibold mb-2">Size</p>
+          <div className="flex gap-2">
+            {[...new Set(variations.map((v:any)=>v.size))].map((s:any)=>(
+              <button
+                key={s}
+                onClick={()=>setSelectedSize(s)}
+                className={`px-3 py-1 border rounded
+                ${selectedSize===s ? "bg-black text-white" : ""}`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -161,10 +257,8 @@ export default function ProductPage() {
       </h1>
 
       {/* PRICE */}
-      <div className="flex gap-3 items-center mt-2">
-        <span className="text-2xl font-bold">
-          ₹{finalPrice}
-        </span>
+      <div className="mt-2 text-2xl font-bold">
+        ₹{selectedVariation?.price || finalPrice}
       </div>
 
       {/* STOCK */}
@@ -179,13 +273,6 @@ export default function ProductPage() {
           <span className="text-lg font-bold">{quantity}</span>
           <button onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))} className="bg-gray-200 px-4 py-2 rounded">+</button>
         </div>
-      )}
-
-      {/* DESCRIPTION */}
-      {product?.description && (
-        <p className="mt-6 text-gray-600">
-          {product.description}
-        </p>
       )}
 
       {/* BUTTONS */}
@@ -216,8 +303,19 @@ export default function ProductPage() {
 
       </div>
 
+      {/* 🔥 FULLSCREEN */}
+      {fullscreen && (
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+          <img src={images[activeImage]} className="w-full object-contain"/>
+          <button
+            onClick={()=>setFullscreen(false)}
+            className="absolute top-4 right-4 text-white text-xl"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
     </div>
-
-  )
-
+  );
 }
