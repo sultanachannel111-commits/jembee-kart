@@ -9,172 +9,250 @@ import {
   getDocs
 } from "firebase/firestore";
 
+import { Package, PlusCircle } from "lucide-react";
+
 export default function AdminQikinkProducts() {
 
   const [name,setName] = useState("");
-  const [category,setCategory] = useState("");
-  const [categories,setCategories] = useState<any[]>([]);
+  const [qikinkId,setQikinkId] = useState("");
+  const [sku,setSku] = useState("");
+  const [printTypeId,setPrintTypeId] = useState("");
+
+  const [image,setImage] = useState("");
+  const [frontImage,setFrontImage] = useState("");
+  const [backImage,setBackImage] = useState("");
+  const [sideImage,setSideImage] = useState("");
+  const [modelImage,setModelImage] = useState("");
+
+  const [designLink,setDesignLink] = useState("");
+  const [mockupLink,setMockupLink] = useState("");
 
   const [basePrice,setBasePrice] = useState("");
   const [sellPrice,setSellPrice] = useState("");
 
-  // 🔥 VARIATION STATES (ADVANCED)
-  const [colorInputs,setColorInputs] = useState<any[]>([
-    { color:"#000000", image:"" }
+  const [description,setDescription] = useState("");
+  const [stock,setStock] = useState("");
+
+  const [category,setCategory] = useState("");
+  const [categories,setCategories] = useState<any[]>([]);
+
+  // 🔥 NEW VARIATIONS STATE
+  const [variations,setVariations] = useState<any[]>([
+    {
+      color: "",
+      size: "",
+      price: "",
+      stock: "",
+      image: ""
+    }
   ]);
 
-  const [sizes,setSizes] = useState("S,M,L");
-
   const profit =
-    Number(sellPrice || 0) - Number(basePrice || 0);
+  Number(sellPrice || 0) - Number(basePrice || 0);
 
   useEffect(()=>{
+
     loadCategories();
+
+    const main = localStorage.getItem("image_main");
+    const front = localStorage.getItem("image_front");
+    const back = localStorage.getItem("image_back");
+    const side = localStorage.getItem("image_side");
+    const model = localStorage.getItem("image_model");
+
+    if(main) setImage(main);
+    if(front) setFrontImage(front);
+    if(back) setBackImage(back);
+    if(side) setSideImage(side);
+    if(model) setModelImage(model);
+
   },[]);
 
   const loadCategories = async()=>{
-    const snap = await getDocs(collection(db,"qikinkCategories"));
-    const list = snap.docs.map(doc=>({
-      id:doc.id,
-      ...doc.data()
-    }));
-    setCategories(list);
+    try{
+      const snap = await getDocs(collection(db,"qikinkCategories"));
+      const list = snap.docs.map(doc=>({
+        id:doc.id,
+        ...doc.data()
+      }));
+      setCategories(list);
+    }catch(err){
+      console.log(err);
+    }
   };
 
-  // ➕ ADD COLOR
-  const addColor = ()=>{
-    setColorInputs([
-      ...colorInputs,
-      { color:"#000000", image:"" }
+  // 🔥 ADD VARIATION
+  const addVariation = ()=>{
+    setVariations([
+      ...variations,
+      { color:"", size:"", price:"", stock:"", image:"" }
     ]);
   };
 
-  // 🔄 UPDATE COLOR
-  const updateColor = (index:number,key:string,value:any)=>{
-    const updated = [...colorInputs];
-    updated[index][key] = value;
-    setColorInputs(updated);
+  // 🔥 UPDATE VARIATION
+  const updateVariation = (index:number, field:string, value:any)=>{
+    const updated = [...variations];
+    updated[index][field] = value;
+    setVariations(updated);
   };
 
-  // 🔥 SAVE PRODUCT
   const saveProduct = async()=>{
 
-    if(!name || !category){
-      alert("Fill required fields");
+    if(!name || !qikinkId || !category){
+      alert("Please fill required fields");
       return;
     }
 
-    const sizeList = sizes.split(",").map(s=>s.trim());
+    try{
 
-    let variations:any[] = [];
+      // ✅ CLEAN VARIATIONS
+      const finalVariations = variations.map(v=>({
+        color: v.color,
+        size: v.size,
+        price: Number(v.price || sellPrice),
+        stock: Number(v.stock || stock),
+        images: [v.image || image]
+      }));
 
-    colorInputs.forEach((c)=>{
-      sizeList.forEach((size)=>{
-        variations.push({
-          color: c.color,
-          size,
-          price:Number(sellPrice),
-          stock:10, // default
-          images:[c.image] // 🔥 color wise image
-        });
+      await addDoc(collection(db,"products"),{
+
+        name,
+        qikinkId,
+        sku,
+        printTypeId,
+        category,
+
+        image,
+        frontImage,
+        backImage,
+        sideImage,
+        modelImage,
+
+        designLink,
+        mockupLink,
+
+        basePrice:Number(basePrice),
+        sellPrice:Number(sellPrice),
+        profit,
+
+        description,
+        stock:Number(stock),
+
+        // 🔥 FIXED
+        variations: finalVariations,
+
+        supplier:"qikink",
+        createdAt:serverTimestamp()
+
       });
-    });
 
-    await addDoc(collection(db,"products"),{
-      name,
-      category,
-      basePrice:Number(basePrice),
-      sellPrice:Number(sellPrice),
-      profit,
-      variations,
-      createdAt:serverTimestamp()
-    });
+      alert("Product Added Successfully 🎉");
 
-    alert("🔥 Product Added with Advanced Variations");
+    }catch(err){
+      console.log(err);
+      alert("Error adding product");
+    }
+
   };
 
   return(
-    <div className="p-6">
 
-      <h1 className="text-2xl font-bold mb-6">
-        PRO Variation Product
-      </h1>
+    <div className="p-8 bg-gray-100 min-h-screen">
 
-      {/* BASIC */}
-      <input
-        placeholder="Product Name"
-        onChange={(e)=>setName(e.target.value)}
-        className="border p-3 w-full mb-3"
-      />
+      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8">
 
-      <select
-        onChange={(e)=>setCategory(e.target.value)}
-        className="border p-3 w-full mb-3"
-      >
-        <option>Select Category</option>
-        {categories.map((c:any)=>(
-          <option key={c.id}>{c.name}</option>
-        ))}
-      </select>
+        <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
+          <Package className="text-purple-600"/>
+          Add Qikink Product
+        </h1>
 
-      {/* PRICE */}
-      <input
-        placeholder="Base Price"
-        onChange={(e)=>setBasePrice(e.target.value)}
-        className="border p-3 w-full mb-3"
-      />
+        <div className="space-y-5">
 
-      <input
-        placeholder="Sell Price"
-        onChange={(e)=>setSellPrice(e.target.value)}
-        className="border p-3 w-full mb-3"
-      />
+          <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Product Name" className="border w-full p-3 rounded-lg"/>
 
-      {/* 🔥 COLORS */}
-      <h2 className="font-bold mt-4">Colors</h2>
+          <input value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} placeholder="Qikink Product ID" className="border w-full p-3 rounded-lg"/>
 
-      {colorInputs.map((c,index)=>(
-        <div key={index} className="flex gap-2 mb-2">
+          <input value={sku} onChange={(e)=>setSku(e.target.value)} placeholder="SKU" className="border w-full p-3 rounded-lg"/>
 
-          <input
-            type="color"
-            value={c.color}
-            onChange={(e)=>updateColor(index,"color",e.target.value)}
-          />
+          <input value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} placeholder="Print Type ID" className="border w-full p-3 rounded-lg"/>
 
-          <input
-            placeholder="Image URL"
-            value={c.image}
-            onChange={(e)=>updateColor(index,"image",e.target.value)}
-            className="border p-2 flex-1"
-          />
+          <select value={category} onChange={(e)=>setCategory(e.target.value)} className="border w-full p-3 rounded-lg">
+            <option value="">Select Category</option>
+            {categories.map((c:any)=>(
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+
+          {/* 🔥 VARIATION UI */}
+          <div className="mt-6">
+            <h2 className="font-bold text-lg">Variations</h2>
+
+            {variations.map((v,index)=>(
+              <div key={index} className="border p-4 rounded-xl mt-3 space-y-2">
+
+                <input
+                  placeholder="Color (#ff0000)"
+                  value={v.color}
+                  onChange={(e)=>updateVariation(index,"color",e.target.value)}
+                  className="border w-full p-2 rounded"
+                />
+
+                <input
+                  placeholder="Size (S, M, L)"
+                  value={v.size}
+                  onChange={(e)=>updateVariation(index,"size",e.target.value)}
+                  className="border w-full p-2 rounded"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={v.price}
+                  onChange={(e)=>updateVariation(index,"price",e.target.value)}
+                  className="border w-full p-2 rounded"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Stock"
+                  value={v.stock}
+                  onChange={(e)=>updateVariation(index,"stock",e.target.value)}
+                  className="border w-full p-2 rounded"
+                />
+
+                <input
+                  placeholder="Image URL"
+                  value={v.image}
+                  onChange={(e)=>updateVariation(index,"image",e.target.value)}
+                  className="border w-full p-2 rounded"
+                />
+
+              </div>
+            ))}
+
+            <button
+              onClick={addVariation}
+              className="mt-3 bg-black text-white px-4 py-2 rounded"
+            >
+              + Add Variant
+            </button>
+
+          </div>
+
+          <button
+            onClick={saveProduct}
+            className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl mt-6"
+          >
+            <PlusCircle size={20}/>
+            Add Product
+          </button>
 
         </div>
-      ))}
 
-      <button
-        onClick={addColor}
-        className="bg-black text-white px-4 py-2 mb-4"
-      >
-        + Add Color
-      </button>
-
-      {/* SIZES */}
-      <input
-        placeholder="Sizes (S,M,L,XL)"
-        value={sizes}
-        onChange={(e)=>setSizes(e.target.value)}
-        className="border p-3 w-full mb-4"
-      />
-
-      {/* SAVE */}
-      <button
-        onClick={saveProduct}
-        className="bg-green-600 text-white px-6 py-3 rounded"
-      >
-        Save Product
-      </button>
+      </div>
 
     </div>
+
   );
+
 }
