@@ -25,6 +25,7 @@ export default function ProductPage() {
   // 🔐 AUTH
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth,(u)=>{
+      console.log("USER:", u);
       setUser(u);
     });
     return ()=>unsub();
@@ -33,17 +34,22 @@ export default function ProductPage() {
   // 🔥 FETCH PRODUCT
   useEffect(()=>{
     const fetchProduct = async()=>{
-      const snap = await getDoc(doc(db,"products",id));
+      try {
+        const snap = await getDoc(doc(db,"products",id));
 
-      if(snap.exists()){
-        const data:any = { id:snap.id, ...snap.data() };
-        setProduct(data);
+        if(snap.exists()){
+          const data:any = { id:snap.id, ...snap.data() };
+          setProduct(data);
 
-        if(data?.variations?.length){
-          const firstVariant = data.variations[0];
-          setSelectedColor(0);
-          setSelectedSize(firstVariant?.sizes?.[0] || null);
+          if(data?.variations?.length){
+            const firstVariant = data.variations[0];
+            setSelectedColor(0);
+            setSelectedSize(firstVariant?.sizes?.[0] || null);
+          }
         }
+
+      } catch (err) {
+        console.log("FETCH ERROR:", err);
       }
 
       setLoading(false);
@@ -55,9 +61,9 @@ export default function ProductPage() {
   if(loading) return <div className="p-5">Loading...</div>;
   if(!product) return <div className="p-5">Product not found</div>;
 
-  const variant = product.variations?.[selectedColor];
+  const variant = product?.variations?.[selectedColor] || {};
 
-  // 🔥 IMAGE ARRAY
+  // 🔥 IMAGE ARRAY SAFE
   const images = [
     variant?.images?.main,
     variant?.images?.front,
@@ -66,72 +72,90 @@ export default function ProductPage() {
     variant?.images?.model
   ].filter(Boolean);
 
-  // 🔥 PRICE FIX
+  // 🔥 PRICE FIX (NO ZERO BUG)
   const price =
     Number(selectedSize?.price) ||
     Number(variant?.sellPrice) ||
     Number(variant?.basePrice) ||
+    Number(product?.price) ||
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
 
-  // 👉 ADD TO CART (LOGIN REDIRECT)
-  const handleAddToCart = async ()=>{
+  // 🛒 ADD TO CART
+  const handleAddToCart = async () => {
 
-    if(!user){
+    if (!user) {
       router.push(`/login?redirect=/product/${id}`);
       return;
     }
 
-    if(!selectedSize){
+    if (!selectedSize) {
       alert("Select size");
       return;
     }
 
-    await addDoc(
-      collection(db,"carts",user.uid,"items"),
-      {
-        productId: product.id,
-        name: product.name,
-        image: images[0],
-        size: selectedSize.size,
-        price,
-        quantity: 1,
-        createdAt: new Date()
-      }
-    );
+    try {
 
-    alert("Added to Cart 🛒");
+      await addDoc(
+        collection(db, "carts", user.uid, "items"),
+        {
+          productId: product.id,
+          name: product.name,
+          image: images?.[0] || product?.image || "",
+          size: selectedSize.size,
+          price: Number(price || 0),
+          quantity: 1,
+          createdAt: new Date()
+        }
+      );
+
+      alert("✅ Added to Cart");
+
+      // 🔥 REDIRECT
+      router.push("/cart");
+
+    } catch (err) {
+      console.log("CART ERROR:", err);
+      alert("❌ Cart error");
+    }
   };
 
-  // 👉 BUY NOW (LOGIN REDIRECT)
-  const handleBuyNow = async ()=>{
+  // ⚡ BUY NOW
+  const handleBuyNow = async () => {
 
-    if(!user){
+    if (!user) {
       router.push(`/login?redirect=/product/${id}`);
       return;
     }
 
-    if(!selectedSize){
+    if (!selectedSize) {
       alert("Select size");
       return;
     }
 
-    const docRef = await addDoc(
-      collection(db,"orders"),
-      {
-        userId: user.uid,
-        productId: product.id,
-        name: product.name,
-        image: images[0],
-        size: selectedSize.size,
-        price,
-        status: "pending",
-        createdAt: new Date()
-      }
-    );
+    try {
 
-    router.push(`/checkout?orderId=${docRef.id}`);
+      const orderRef = await addDoc(
+        collection(db, "orders"),
+        {
+          userId: user.uid,
+          productId: product.id,
+          name: product.name,
+          image: images?.[0] || "",
+          size: selectedSize.size,
+          price: Number(price || 0),
+          status: "pending",
+          createdAt: new Date()
+        }
+      );
+
+      router.push(`/checkout?orderId=${orderRef.id}`);
+
+    } catch (err) {
+      console.log("ORDER ERROR:", err);
+      alert("❌ Order error");
+    }
   };
 
   // 🔥 SLIDER SCROLL
@@ -172,7 +196,7 @@ export default function ProductPage() {
         ))}
       </div>
 
-      {/* 🔥 FULLSCREEN ZOOM */}
+      {/* 🔥 FULLSCREEN VIEW */}
       {showViewer && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           <button
@@ -193,15 +217,15 @@ export default function ProductPage() {
 
       <div className="p-4">
 
-        {/* 🔥 COLOR */}
+        {/* 🔥 COLOR SELECT */}
         <div className="flex gap-3 mt-3 overflow-x-auto">
-          {product.variations.map((v:any,i:number)=>(
+          {product?.variations?.map((v:any,i:number)=>(
             <img
               key={i}
-              src={v.images?.main}
+              src={v?.images?.main || ""}
               onClick={()=>{
                 setSelectedColor(i);
-                setSelectedSize(v.sizes?.[0]);
+                setSelectedSize(v?.sizes?.[0] || null);
                 setCurrentImage(0);
               }}
               className={`w-16 h-16 rounded-xl border ${
@@ -213,7 +237,7 @@ export default function ProductPage() {
 
         {/* NAME */}
         <h1 className="text-xl font-bold mt-4">
-          {product.name}
+          {product?.name}
         </h1>
 
         {/* PRICE */}
