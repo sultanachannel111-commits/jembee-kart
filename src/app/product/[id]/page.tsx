@@ -27,45 +27,51 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState<any>(null);
 
-  const [zoom, setZoom] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(false);
 
   const [theme, setTheme] = useState<any>({ button: "#ec4899" });
 
-  // 🔥 FETCH
+  // ✅ FETCH PRODUCT
   useEffect(() => {
     if (!id) return;
 
     const fetchProduct = async () => {
       try {
-        const snap = await getDoc(doc(db,"products",id));
+        const snap = await getDoc(doc(db, "products", id));
 
-        if(!snap.exists()){
+        if (!snap.exists()) {
           setLoading(false);
           return;
         }
 
-        const data:any = {
-          id:snap.id,
+        const data: any = {
+          id: snap.id,
           ...snap.data()
         };
 
-        const offerSnap = await getDocs(collection(db,"offers"));
+        // 🔥 SAFE VARIATION FIX
+        if (!Array.isArray(data.variations)) {
+          data.variations = [];
+        }
+
+        const offerSnap = await getDocs(collection(db, "offers"));
+
         let discount = 0;
 
-        offerSnap.forEach((doc)=>{
-          const offer:any = doc.data();
+        offerSnap.forEach((doc) => {
+          const offer: any = doc.data();
 
-          if(!offer?.active) return;
+          if (!offer?.active) return;
 
-          if(offer.type === "product" && offer.productId === id){
+          if (offer.type === "product" && offer.productId === id) {
             discount = offer.discount;
           }
 
-          if(
+          if (
             offer.type === "category" &&
             offer.category?.toLowerCase?.() === data.category?.toLowerCase?.()
-          ){
+          ) {
             discount = offer.discount;
           }
         });
@@ -76,14 +82,14 @@ export default function ProductPage() {
         setLoading(false);
 
       } catch (err) {
-        console.log(err);
+        console.log("ERROR:", err);
         setLoading(false);
       }
     };
 
     fetchProduct();
 
-  },[id]);
+  }, [id]);
 
   useEffect(() => {
     async function loadThemeData() {
@@ -93,37 +99,41 @@ export default function ProductPage() {
     loadThemeData();
   }, []);
 
-  if(loading) return <div className="p-5">Loading...</div>;
-  if(!product) return <div className="p-5">Product not found</div>;
+  if (loading) return <div className="p-5">Loading...</div>;
+  if (!product) return <div className="p-5">Product not found</div>;
 
   const finalPrice = getFinalPrice(product);
 
   const variations = product?.variations || [];
 
   const selectedVariation = variations.find(
-    (v:any) => v.color === selectedColor && v.size === selectedSize
+    (v: any) =>
+      v?.color === selectedColor &&
+      v?.size === selectedSize
   );
 
-  // 🔥 IMAGE LOGIC
-  const images =
-    selectedVariation?.images?.length > 0
-      ? selectedVariation.images
-      : [
-          product?.image,
-          product?.frontImage,
-          product?.backImage,
-          product?.sideImage
-        ].filter(Boolean);
+  // ✅ SAFE IMAGE ARRAY (NO CRASH)
+  const baseImages = [
+    product?.image,
+    product?.frontImage,
+    product?.backImage,
+    product?.sideImage
+  ].filter((img) => typeof img === "string" && img !== "");
 
-  // reset image on change
+  const images =
+    selectedVariation?.images && Array.isArray(selectedVariation.images)
+      ? selectedVariation.images
+      : baseImages;
+
+  // reset image
   useEffect(() => {
     setActiveImage(0);
   }, [selectedColor, selectedSize]);
 
   const outOfStock = !product?.stock || product.stock <= 0;
 
-  const handleAddToCart = async ()=>{
-    if(outOfStock) return;
+  const handleAddToCart = async () => {
+    if (outOfStock) return;
 
     setAdding(true);
 
@@ -139,18 +149,18 @@ export default function ProductPage() {
     router.push("/cart");
   };
 
-  // 🔥 SWIPE
-  const handleSwipe = (e:any) => {
+  // 🔥 SWIPE FIX
+  const handleSwipe = (e: any) => {
     const startX = e.touches[0].clientX;
 
-    const end = (ev:any) => {
+    const end = (ev: any) => {
       const endX = ev.changedTouches[0].clientX;
 
       if (startX - endX > 50)
-        setActiveImage((p)=>Math.min(p+1, images.length-1));
+        setActiveImage((p) => Math.min(p + 1, images.length - 1));
 
       if (endX - startX > 50)
-        setActiveImage((p)=>Math.max(p-1, 0));
+        setActiveImage((p) => Math.max(p - 1, 0));
 
       window.removeEventListener("touchend", end);
     };
@@ -158,7 +168,7 @@ export default function ProductPage() {
     window.addEventListener("touchend", end);
   };
 
-  return(
+  return (
     <div className="min-h-screen pt-[96px] p-4">
 
       {/* 🔥 SLIDER */}
@@ -170,12 +180,12 @@ export default function ProductPage() {
           className="flex transition-transform duration-300"
           style={{ transform: `translateX(-${activeImage * 100}%)` }}
         >
-          {images.map((img:any, i:number)=>(
+          {images.map((img: any, i: number) => (
             <img
               key={i}
               src={img}
-              onClick={()=>setFullscreen(true)}
-              onDoubleClick={()=>setZoom(!zoom)}
+              onClick={() => setFullscreen(true)}
+              onDoubleClick={() => setZoom(!zoom)}
               className={`w-full h-[320px] object-cover flex-shrink-0 ${
                 zoom ? "scale-150" : ""
               }`}
@@ -185,11 +195,11 @@ export default function ProductPage() {
 
         {/* DOTS */}
         <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-          {images.map((_:any,i:number)=>(
+          {images.map((_: any, i: number) => (
             <div
               key={i}
               className={`w-2 h-2 rounded-full ${
-                activeImage===i ? "bg-blue-600" : "bg-gray-300"
+                activeImage === i ? "bg-blue-600" : "bg-gray-300"
               }`}
             />
           ))}
@@ -199,16 +209,17 @@ export default function ProductPage() {
       {/* 🔥 THUMBNAILS */}
       {images.length > 1 && (
         <div className="flex gap-3 mt-3 overflow-x-auto">
-          {images.map((img:any,i:number)=>(
+          {images.map((img: any, i: number) => (
             <div
               key={i}
-              onClick={()=>setActiveImage(i)}
-              className={`p-[2px] rounded-lg cursor-pointer
-              ${activeImage===i
-                ? "border-2 border-green-500 scale-105"
-                : "border border-gray-300"}`}
+              onClick={() => setActiveImage(i)}
+              className={`p-[2px] rounded-lg cursor-pointer ${
+                activeImage === i
+                  ? "border-2 border-green-500"
+                  : "border border-gray-300"
+              }`}
             >
-              <img src={img} className="w-16 h-16 object-cover rounded"/>
+              <img src={img} className="w-16 h-16 object-cover rounded" />
             </div>
           ))}
         </div>
@@ -217,15 +228,16 @@ export default function ProductPage() {
       {/* 🎨 COLOR */}
       {variations.length > 0 && (
         <div className="mt-4">
-          <p className="font-semibold mb-2">Color</p>
+          <p>Color</p>
           <div className="flex gap-2">
-            {[...new Set(variations.map((v:any)=>v.color))].map((c:any)=>(
+            {[...new Set(variations.map((v: any) => v.color).filter(Boolean))].map((c: any) => (
               <div
                 key={c}
-                onClick={()=>setSelectedColor(c)}
-                className={`w-8 h-8 rounded-full border cursor-pointer
-                ${selectedColor===c ? "scale-110 border-black" : ""}`}
-                style={{background:c}}
+                onClick={() => setSelectedColor(c)}
+                className={`w-8 h-8 rounded-full border ${
+                  selectedColor === c ? "scale-110 border-black" : ""
+                }`}
+                style={{ background: c }}
               />
             ))}
           </div>
@@ -235,14 +247,15 @@ export default function ProductPage() {
       {/* 📏 SIZE */}
       {variations.length > 0 && (
         <div className="mt-4">
-          <p className="font-semibold mb-2">Size</p>
+          <p>Size</p>
           <div className="flex gap-2">
-            {[...new Set(variations.map((v:any)=>v.size))].map((s:any)=>(
+            {[...new Set(variations.map((v: any) => v.size).filter(Boolean))].map((s: any) => (
               <button
                 key={s}
-                onClick={()=>setSelectedSize(s)}
-                className={`px-3 py-1 border rounded
-                ${selectedSize===s ? "bg-black text-white" : ""}`}
+                onClick={() => setSelectedSize(s)}
+                className={`px-3 py-1 border ${
+                  selectedSize === s ? "bg-black text-white" : ""
+                }`}
               >
                 {s}
               </button>
@@ -252,63 +265,31 @@ export default function ProductPage() {
       )}
 
       {/* NAME */}
-      <h1 className="text-2xl font-bold mt-4">
-        {product?.name}
-      </h1>
+      <h1 className="text-2xl font-bold mt-4">{product?.name}</h1>
 
       {/* PRICE */}
-      <div className="mt-2 text-2xl font-bold">
+      <p className="text-2xl font-bold mt-2">
         ₹{selectedVariation?.price || finalPrice}
-      </div>
-
-      {/* STOCK */}
-      <p className="mt-2 text-green-600 font-semibold">
-        {outOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
       </p>
 
-      {/* QUANTITY */}
-      {!outOfStock && (
-        <div className="flex items-center gap-4 mt-4">
-          <button onClick={()=>setQuantity(q=>Math.max(1,q-1))} className="bg-gray-200 px-4 py-2 rounded">-</button>
-          <span className="text-lg font-bold">{quantity}</span>
-          <button onClick={()=>setQuantity(q=>Math.min(product.stock || 10,q+1))} className="bg-gray-200 px-4 py-2 rounded">+</button>
-        </div>
-      )}
-
-      {/* BUTTONS */}
-      <div className="flex gap-4 mt-8">
-
-        <button
-          disabled={outOfStock || adding}
-          onClick={handleAddToCart}
-          style={{
-            background: theme.button,
-            color: getTextColor(theme.button)
-          }}
-          className="px-6 py-3 rounded w-full"
-        >
-          {adding ? "Adding..." : "Add to Cart"}
-        </button>
-
-        <button
-          onClick={()=>router.push(`/checkout?productId=${product.id}`)}
-          style={{
-            background: theme.button,
-            color: getTextColor(theme.button)
-          }}
-          className="px-6 py-3 rounded w-full"
-        >
-          Buy Now
-        </button>
-
-      </div>
+      {/* BUTTON */}
+      <button
+        onClick={handleAddToCart}
+        className="mt-4 w-full py-3 rounded"
+        style={{
+          background: theme.button,
+          color: getTextColor(theme.button)
+        }}
+      >
+        Add to Cart
+      </button>
 
       {/* 🔥 FULLSCREEN */}
       {fullscreen && (
         <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <img src={images[activeImage]} className="w-full object-contain"/>
+          <img src={images[activeImage]} className="w-full object-contain" />
           <button
-            onClick={()=>setFullscreen(false)}
+            onClick={() => setFullscreen(false)}
             className="absolute top-4 right-4 text-white text-xl"
           >
             ✕
