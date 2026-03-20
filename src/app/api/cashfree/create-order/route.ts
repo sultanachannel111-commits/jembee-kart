@@ -6,7 +6,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const orderId = "order_" + Date.now();
+    const orderId = body.orderId; // ✅ SAME ID
 
     const response = await fetch("https://api.cashfree.com/pg/orders", {
       method: "POST",
@@ -26,7 +26,8 @@ export async function POST(req: Request) {
 
         customer_details: {
           customer_id: "cust_" + Date.now(),
-          customer_name: body.customer.firstName + " " + body.customer.lastName,
+          customer_name:
+            body.customer.firstName + " " + body.customer.lastName,
           customer_email: body.customer.email,
           customer_phone: body.customer.phone
         },
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
         order_meta: {
           return_url:
             process.env.NEXT_PUBLIC_SITE_URL +
-            "/order-success/" + orderId
+            "/success?order_id=" + orderId
         }
 
       })
