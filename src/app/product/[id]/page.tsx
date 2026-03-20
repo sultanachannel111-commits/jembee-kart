@@ -227,34 +227,16 @@ export default function ProductPage() {
           In Stock ({product.stock})
         </p>
 
-        {/* BUTTONS */}
-        <div className="flex gap-4 mt-6">
+        <div className="mt-6">
 
-          <button
-            onClick={handleAddToCart}
-            style={{
-              background: theme.button,
-              color: getTextColor(theme.button)
-            }}
-            className="w-full py-3 rounded-xl"
-          >
-            Add to Cart
-          </button>
+  <button
+    onClick={() => router.push(`/product/${product.id}/variant`)}
+    className="w-full py-3 rounded-xl bg-black text-white"
+  >
+    Select Options
+  </button>
 
-          <button
-            onClick={handleBuyNow}
-            style={{
-              background: theme.button,
-              color: getTextColor(theme.button)
-            }}
-            className="w-full py-3 rounded-xl"
-          >
-            Buy Now
-          </button>
-
-        </div>
-
-      </div>
+</div>
 
       {/* 🔥 FULLSCREEN */}
       {fullscreen && (
