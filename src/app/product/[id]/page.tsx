@@ -80,7 +80,7 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  // 🔥 THEME LOAD (ADMIN PANEL FIX)
+  // 🔥 THEME LOAD
   useEffect(() => {
     async function loadThemeData() {
       const t = await getTheme();
@@ -94,7 +94,7 @@ export default function ProductPage() {
 
   const finalPrice = getFinalPrice(product);
 
-  // ✅ IMAGES FIX
+  // ✅ IMAGES SAFE
   const images = [
     product?.image,
     product?.frontImage,
@@ -104,7 +104,7 @@ export default function ProductPage() {
 
   const finalImages = images.length ? images : ["/no-image.png"];
 
-  // 👉 SWIPE (SMOOTH)
+  // 👉 SWIPE
   const handleSwipe = (e:any) => {
     const startX = e.touches[0].clientX;
 
@@ -123,25 +123,10 @@ export default function ProductPage() {
     window.addEventListener("touchend", end);
   };
 
-  // 🛒 ADD TO CART
-  const handleAddToCart = async () => {
-    await addToCart({
-      ...product,
-      quantity: 1,
-      image: finalImages[activeImage]
-    });
-    router.push("/cart");
-  };
-
-  // ⚡ BUY NOW
-  const handleBuyNow = () => {
-    router.push(`/checkout?productId=${product.id}`);
-  };
-
   return (
-    <div className="min-h-screen pt-[96px] bg-white">
+    <div className="min-h-screen bg-white pt-[96px]">
 
-      {/* 🔥 FULL WIDTH SLIDER (FLIPKART STYLE) */}
+      {/* 🔥 IMAGE SLIDER */}
       <div
         className="w-full overflow-hidden relative"
         onTouchStart={handleSwipe}
@@ -227,16 +212,21 @@ export default function ProductPage() {
           In Stock ({product.stock})
         </p>
 
+        {/* 🔥 BUTTON */}
         <div className="mt-6">
+          <button
+            onClick={() => router.push(`/product/${product.id}/variant`)}
+            style={{
+              background: theme.button,
+              color: getTextColor(theme.button)
+            }}
+            className="w-full py-3 rounded-xl"
+          >
+            Select Options
+          </button>
+        </div>
 
-  <button
-    onClick={() => router.push(`/product/${product.id}/variant`)}
-    className="w-full py-3 rounded-xl bg-black text-white"
-  >
-    Select Options
-  </button>
-
-</div>
+      </div>
 
       {/* 🔥 FULLSCREEN */}
       {fullscreen && (
