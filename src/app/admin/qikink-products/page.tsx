@@ -27,7 +27,6 @@ export default function AdminQikinkProducts() {
   const [designLink,setDesignLink] = useState("");
   const [mockupLink,setMockupLink] = useState("");
 
-  // 🔥 VARIATIONS FULL
   const [variations,setVariations] = useState<any[]>([
     {
       color:"",
@@ -42,7 +41,7 @@ export default function AdminQikinkProducts() {
     }
   ]);
 
-  // CATEGORY LOAD
+  /* ================= LOAD CATEGORY ================= */
   useEffect(()=>{
     loadCategories();
   },[]);
@@ -55,7 +54,59 @@ export default function AdminQikinkProducts() {
     })));
   };
 
-  // 🔥 IMAGE COMPRESS
+  /* ================= QIKINK AUTO PASTE ================= */
+  const handleQikinkPaste = (text:string)=>{
+
+    try{
+
+      const data = JSON.parse(text);
+
+      console.log("Qikink Data:", data);
+
+      setName(data.name || "");
+      setDescription(data.description || "");
+      setQikinkId(data.id || "");
+      setSku(data.sku || "");
+
+      if(data.category){
+        setCategory(data.category);
+      }
+
+      if(data.variants){
+
+        const formatted = data.variants.map((v:any)=>({
+
+          color: v.color || "",
+
+          mainImage: v.images?.[0] || "",
+          frontImage: v.images?.[1] || "",
+          backImage: v.images?.[2] || "",
+          sideImage: v.images?.[3] || "",
+          modelImage: v.images?.[4] || "",
+
+          basePrice: v.base_price || 0,
+          sellPrice: (v.base_price || 0) + 200, // 🔥 margin auto
+
+          sizes: v.sizes?.map((s:any)=>({
+            size: s.size,
+            price: s.price || v.base_price,
+            stock: s.stock || 100
+          })) || []
+
+        }));
+
+        setVariations(formatted);
+      }
+
+      alert("✅ Qikink Data Imported");
+
+    }catch(err){
+      alert("❌ Invalid JSON");
+    }
+
+  };
+
+  /* ================= IMAGE COMPRESS ================= */
   const compressImage = (file:any):Promise<string>=>{
     return new Promise((resolve)=>{
       const reader = new FileReader();
@@ -92,7 +143,8 @@ export default function AdminQikinkProducts() {
     setVariations(updated);
   };
 
-  // ADD COLOR
+  /* ================= VARIATION ================= */
+
   const addColor = ()=>{
     setVariations([
       ...variations,
@@ -110,14 +162,12 @@ export default function AdminQikinkProducts() {
     ]);
   };
 
-  // ADD SIZE
   const addSize = (i:number)=>{
     const updated = [...variations];
     updated[i].sizes.push({ size:"", price:"", stock:"" });
     setVariations(updated);
   };
 
-  // UPDATE
   const updateColor = (i:number,field:string,value:any)=>{
     const updated = [...variations];
     updated[i][field] = value;
@@ -134,7 +184,8 @@ export default function AdminQikinkProducts() {
     setVariations(variations.filter((_,idx)=>idx!==i));
   };
 
-  // SAVE
+  /* ================= SAVE ================= */
+
   const saveProduct = async()=>{
 
     const finalVariations = variations.map(v=>({
@@ -179,6 +230,8 @@ export default function AdminQikinkProducts() {
     alert("🔥 Product Added Successfully");
   };
 
+  /* ================= UI ================= */
+
   return(
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
 
@@ -186,8 +239,15 @@ export default function AdminQikinkProducts() {
 
         <h1 className="text-3xl font-bold mb-6 flex gap-2">
           <Package className="text-blue-600"/>
-          Ultra Product Panel 🚀
+          Qikink Auto Product Panel 🚀
         </h1>
+
+        {/* 🔥 PASTE BOX */}
+        <textarea
+          placeholder="Paste Qikink JSON here..."
+          className="input"
+          onBlur={(e)=>handleQikinkPaste(e.target.value)}
+        />
 
         {/* BASIC */}
         <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
@@ -202,9 +262,6 @@ export default function AdminQikinkProducts() {
           ))}
         </select>
 
-        <input placeholder="Design Link" value={designLink} onChange={(e)=>setDesignLink(e.target.value)} className="input"/>
-        <input placeholder="Mockup Link" value={mockupLink} onChange={(e)=>setMockupLink(e.target.value)} className="input"/>
-
         <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
 
         {/* VARIANTS */}
@@ -214,26 +271,23 @@ export default function AdminQikinkProducts() {
           <div key={i} className="bg-gray-50 p-4 rounded-2xl mt-4 shadow">
 
             <input
-              placeholder="Color Name"
+              placeholder="Color"
               value={v.color}
               onChange={(e)=>updateColor(i,"color",e.target.value)}
               className="input"
             />
 
-            {/* IMAGES */}
             <div className="grid grid-cols-2 gap-2 mt-2">
               {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(
                 <input key={field} type="file" onChange={(e)=>handleImage(e,i,field)} className="input"/>
               ))}
             </div>
 
-            {/* PRICE */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <input placeholder="Base Price" value={v.basePrice} onChange={(e)=>updateColor(i,"basePrice",e.target.value)} className="input"/>
               <input placeholder="Sell Price" value={v.sellPrice} onChange={(e)=>updateColor(i,"sellPrice",e.target.value)} className="input"/>
             </div>
 
-            {/* SIZES */}
             {v.sizes.map((s:any,j:number)=>(
               <div key={j} className="grid grid-cols-3 gap-2 mt-2">
                 <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
@@ -269,7 +323,6 @@ export default function AdminQikinkProducts() {
 
       </div>
 
-      {/* 🔥 STYLES */}
       <style jsx>{`
         .input {
           border:1px solid #ddd;
