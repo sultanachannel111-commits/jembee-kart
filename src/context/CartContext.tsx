@@ -5,9 +5,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   doc,
   setDoc,
-  getDocs,
+  deleteDoc,
   collection,
-  deleteDoc
+  onSnapshot
 } from "firebase/firestore";
 
 import { db, auth } from "@/lib/firebase";
@@ -22,112 +22,132 @@ export function CartProvider({ children }: any) {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
 
-  /* AUTH WATCH */
+  /* ================= AUTH + REALTIME CART ================= */
 
   useEffect(() => {
 
-    const unsub = onAuthStateChanged(auth, (u) => {
+    let unsubscribeCart: any;
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
 
       setUser(u);
 
       if (u) {
-        loadCart(u.uid);
+
+        const cartRef = collection(db, "carts", u.uid, "items");
+
+        // 🔥 REALTIME LISTENER
+        unsubscribeCart = onSnapshot(cartRef, (snap) => {
+
+          const items = snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data()
+          }));
+
+          setCartItems(items);
+
+        });
+
+      } else {
+        setCartItems([]);
       }
 
     });
 
-    return () => unsub();
+    return () => {
+      unsubAuth();
+      if (unsubscribeCart) unsubscribeCart();
+    };
 
   }, []);
 
-  /* LOAD CART */
-
-  const loadCart = async (uid: string) => {
-
-    const snap = await getDocs(
-      collection(db, "cart", uid, "items")
-    );
-
-    const items = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data()
-    }));
-
-    setCartItems(items);
-
-  };
-
-  /* ADD TO CART */
+  /* ================= ADD TO CART ================= */
 
   const addToCart = async (product: any) => {
 
     if (!user) {
-      alert("Login required");
+      alert("Login required 🔐");
       return;
     }
 
-    const ref = doc(
-      db,
-      "cart",
-      user.uid,
-      "items",
-      product.id
-    );
+    try {
 
-    /* FINAL PRICE */
+      const ref = doc(
+        db,
+        "carts",
+        user.uid,
+        "items",
+        product.id
+      );
 
-    const finalPrice =
-      product.finalPrice ||
-      getFinalPrice(product) ||
-      product.sellPrice ||
-      product.price ||
-      0;
-
-    await setDoc(ref, {
-
-      productId: product.id,
-
-      name: product.name,
-
-      sellPrice:
+      // 🔥 FINAL PRICE CALCULATION
+      const finalPrice =
+        product.finalPrice ||
+        getFinalPrice(product) ||
         product.sellPrice ||
         product.price ||
-        0,
+        0;
 
-      discount:
-        product.discount ||
-        0,
+      await setDoc(ref, {
 
-      price: finalPrice,
+        productId: product.id,
+        name: product.name,
 
-      image:
-        product.image ||
-        product.imageUrl ||
-        "",
+        sellPrice:
+          product.sellPrice ||
+          product.price ||
+          0,
 
-      quantity: 1,
+        discount:
+          product.discount ||
+          0,
 
-      createdAt: new Date()
+        price: finalPrice,
 
-    });
+        image:
+          product.image ||
+          product.imageUrl ||
+          "",
 
-    loadCart(user.uid);
+        quantity: 1,
+
+        createdAt: new Date()
+
+      });
+
+      // ❌ NO NEED loadCart (realtime auto update)
+
+    } catch (err) {
+      console.log(err);
+      alert("Error adding to cart");
+    }
 
   };
 
-  /* REMOVE FROM CART */
+  /* ================= REMOVE ================= */
 
   const removeFromCart = async (id: string) => {
 
     if (!user) return;
 
-    await deleteDoc(
-      doc(db, "cart", user.uid, "items", id)
-    );
+    try {
 
-    loadCart(user.uid);
+      await deleteDoc(
+        doc(db, "carts", user.uid, "items", id)
+      );
+
+    } catch (err) {
+      console.log(err);
+    }
 
   };
+
+  /* ================= COUNT ================= */
+
+  const cartCount = cartItems.reduce(
+    (total, item) => total + (item.quantity || 1),
+    0
+  );
 
   return (
 
@@ -135,11 +155,8 @@ export function CartProvider({ children }: any) {
       value={{
 
         cartItems,
-
-        cartCount: cartItems.length,
-
+        cartCount,
         addToCart,
-
         removeFromCart
 
       }}
