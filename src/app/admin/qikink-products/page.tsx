@@ -26,6 +26,7 @@ export default function AdminQikinkProducts() {
   const [description,setDescription] = useState("");
   const [designLink,setDesignLink] = useState("");
   const [mockupLink,setMockupLink] = useState("");
+  const [importId,setImportId] = useState("");
 
   const [variations,setVariations] = useState<any[]>([
     {
@@ -53,9 +54,15 @@ export default function AdminQikinkProducts() {
       ...doc.data()
     })));
   };
+/* ================= QIKINK IMPORT ================= */
 
-  /* ================= QIKINK AUTO PASTE ================= */
-  const handleQikinkPaste = (text:string)=>{
+const handleImport = async () => {
+  // 👇 पूरा code paste करो
+};
+
+/* ================= QIKINK AUTO PASTE ================= */
+
+const handleQikinkPaste = (text:string)=>{
 
     try{
 
