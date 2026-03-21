@@ -54,88 +54,79 @@ export default function AdminQikinkProducts() {
       ...doc.data()
     })));
   };
-/* ================= QIKINK IMPORT ================= */
 
-/* ================= QIKINK IMPORT ================= */
+  /* ================= IMPORT ================= */
+  const handleImport = async () => {
 
-const handleImport = async () => {
-
-  if (!importId) {
-    alert("Enter Product ID");
-    return;
-  }
-
-  try {
-
-    const res = await fetch("/api/qikink/import", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        productId: importId
-      })
-    });
-
-    const data = await res.json();
-
-    console.log("IMPORT DATA:", data);
-
-    if (!data.success) {
-      alert("❌ Import failed");
+    if (!importId) {
+      alert("Enter Product ID");
       return;
     }
 
-    const p = data.product;
+    try {
 
-    setName(p.name || "");
-    setDescription(p.description || "");
-    setCategory(p.category || "");
-    setQikinkId(p.id || "");
+      const res = await fetch("/api/qikink/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          productId: importId
+        })
+      });
 
-    if (p.variations?.length) {
+      const data = await res.json();
 
-      const formatted = p.variations.map((v:any)=>({
+      if (!data.success) {
+        alert("❌ Import failed");
+        return;
+      }
 
-        color: v.color || "",
+      const p = data.product;
 
-        mainImage: v.images?.main || "",
-        frontImage: "",
-        backImage: "",
-        sideImage: "",
-        modelImage: "",
+      setName(p.name || "");
+      setDescription(p.description || "");
+      setCategory(p.category || "");
+      setQikinkId(p.id || "");
 
-        basePrice: v.basePrice || 0,
-        sellPrice: (v.basePrice || 0) + 200,
+      if (p.variations?.length) {
 
-        sizes: v.sizes?.map((s:any)=>({
-          size: s.size,
-          price: s.price,
-          stock: s.stock
-        })) || []
+        const formatted = p.variations.map((v:any)=>({
 
-      }));
+          color: v.color || "",
 
-      setVariations(formatted);
+          mainImage: v.images?.main || "",
+          frontImage: "",
+          backImage: "",
+          sideImage: "",
+          modelImage: "",
+
+          basePrice: v.basePrice || 0,
+          sellPrice: (v.basePrice || 0) + 200,
+
+          sizes: v.sizes?.map((s:any)=>({
+            size: s.size,
+            price: s.price,
+            stock: s.stock
+          })) || []
+
+        }));
+
+        setVariations(formatted);
+      }
+
+      alert("🔥 Product Imported");
+
+    } catch (err) {
+      console.log(err);
+      alert("❌ Error");
     }
+  };
 
-    alert("🔥 Product Imported Successfully");
-
-  } catch (err) {
-    console.log("IMPORT ERROR:", err);
-    alert("❌ Error importing product");
-  }
-};
-
-/* ================= QIKINK AUTO PASTE ================= */
-
-const handleQikinkPaste = (text:string)=>{
-
+  /* ================= AUTO PASTE ================= */
+  const handleQikinkPaste = (text:string)=>{
     try{
-
       const data = JSON.parse(text);
-
-      console.log("Qikink Data:", data);
 
       setName(data.name || "");
       setDescription(data.description || "");
@@ -147,124 +138,37 @@ const handleQikinkPaste = (text:string)=>{
       }
 
       if(data.variants){
-
         const formatted = data.variants.map((v:any)=>({
-
           color: v.color || "",
-
           mainImage: v.images?.[0] || "",
           frontImage: v.images?.[1] || "",
           backImage: v.images?.[2] || "",
           sideImage: v.images?.[3] || "",
           modelImage: v.images?.[4] || "",
-
           basePrice: v.base_price || 0,
-          sellPrice: (v.base_price || 0) + 200, // 🔥 margin auto
-
+          sellPrice: (v.base_price || 0) + 200,
           sizes: v.sizes?.map((s:any)=>({
             size: s.size,
             price: s.price || v.base_price,
             stock: s.stock || 100
           })) || []
-
         }));
 
         setVariations(formatted);
       }
 
-      alert("✅ Qikink Data Imported");
+      alert("✅ JSON Imported");
 
-    }catch(err){
+    }catch{
       alert("❌ Invalid JSON");
     }
-
-  };
-
-  /* ================= IMAGE COMPRESS ================= */
-  const compressImage = (file:any):Promise<string>=>{
-    return new Promise((resolve)=>{
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-
-      reader.onload = (e:any)=>{
-        const img = new Image();
-        img.src = e.target.result;
-
-        img.onload = ()=>{
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-
-          const maxWidth = 800;
-          const scale = maxWidth / img.width;
-
-          canvas.width = maxWidth;
-          canvas.height = img.height * scale;
-
-          ctx?.drawImage(img,0,0,canvas.width,canvas.height);
-
-          resolve(canvas.toDataURL("image/jpeg",0.6));
-        };
-      };
-    });
-  };
-
-  const handleImage = async(e:any,i:number,field:string)=>{
-    const file = e.target.files[0];
-    const compressed = await compressImage(file);
-
-    const updated = [...variations];
-    updated[i][field] = compressed;
-    setVariations(updated);
-  };
-
-  /* ================= VARIATION ================= */
-
-  const addColor = ()=>{
-    setVariations([
-      ...variations,
-      {
-        color:"",
-        mainImage:"",
-        frontImage:"",
-        backImage:"",
-        sideImage:"",
-        modelImage:"",
-        basePrice:"",
-        sellPrice:"",
-        sizes:[{ size:"", price:"", stock:"" }]
-      }
-    ]);
-  };
-
-  const addSize = (i:number)=>{
-    const updated = [...variations];
-    updated[i].sizes.push({ size:"", price:"", stock:"" });
-    setVariations(updated);
-  };
-
-  const updateColor = (i:number,field:string,value:any)=>{
-    const updated = [...variations];
-    updated[i][field] = value;
-    setVariations(updated);
-  };
-
-  const updateSize = (i:number,j:number,field:string,value:any)=>{
-    const updated = [...variations];
-    updated[i].sizes[j][field] = value;
-    setVariations(updated);
-  };
-
-  const removeColor = (i:number)=>{
-    setVariations(variations.filter((_,idx)=>idx!==i));
   };
 
   /* ================= SAVE ================= */
-
   const saveProduct = async()=>{
 
     const finalVariations = variations.map(v=>({
       color: v.color,
-
       images:{
         main: v.mainImage,
         front: v.frontImage,
@@ -272,10 +176,8 @@ const handleQikinkPaste = (text:string)=>{
         side: v.sideImage,
         model: v.modelImage
       },
-
       basePrice: Number(v.basePrice),
       sellPrice: Number(v.sellPrice),
-
       sizes: v.sizes.map((s:any)=>({
         size:s.size,
         price:Number(s.price),
@@ -284,151 +186,72 @@ const handleQikinkPaste = (text:string)=>{
     }));
 
     await addDoc(collection(db,"products"),{
-
       name,
       qikinkId,
       sku,
       printTypeId,
       category,
-
       designLink,
       mockupLink,
       description,
-
       variations: finalVariations,
-
       createdAt:serverTimestamp()
-
     });
 
-    alert("🔥 Product Added Successfully");
+    alert("🔥 Product Added");
   };
 
-  /* ================= UI ================= */
-
   return(
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
+    <div className="max-w-4xl mx-auto bg-white p-6 rounded-3xl shadow">
 
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-3xl shadow-2xl">
+      <h1 className="text-2xl font-bold mb-4 flex gap-2">
+        <Package/> Qikink Panel
+      </h1>
 
-        <h1 className="text-3xl font-bold mb-6 flex gap-2">
-          <Package className="text-blue-600"/>
-          Qikink Auto Product Panel 🚀
-        </h1>
+      <textarea
+        placeholder="Paste Qikink JSON..."
+        className="input"
+        onBlur={(e)=>handleQikinkPaste(e.target.value)}
+      />
 
-        {/* 🔥 PASTE BOX */}
-        <textarea
-          placeholder="Paste Qikink JSON here..."
-          className="input"
-          onBlur={(e)=>handleQikinkPaste(e.target.value)}
-        />
-        {/* 🔥 IMPORT BY ID */}
-<input
-  placeholder="Enter Qikink Product ID"
-  value={importId}
-  onChange={(e)=>setImportId(e.target.value)}
-  className="input"
-/>
+      <input
+        placeholder="Enter Product ID"
+        value={importId}
+        onChange={(e)=>setImportId(e.target.value)}
+        className="input"
+      />
 
-<button
-  onClick={handleImport}
-  className="btn-blue mt-2 w-full"
->
-  🚀 Import Product
-</button>
+      <button onClick={handleImport} className="btn-blue w-full mt-2">
+        🚀 Import Product
+      </button>
 
-        {/* BASIC */}
-        <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
-        <input placeholder="Qikink Product ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="input"/>
-        <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="input"/>
-        <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="input"/>
+      <input className="input" placeholder="Name" value={name} onChange={(e)=>setName(e.target.value)}/>
 
-        <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
-          <option value="">Select Category</option>
-          {categories.map((c:any)=>(
-            <option key={c.id}>{c.name}</option>
-          ))}
-        </select>
-
-        <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
-
-        {/* VARIANTS */}
-        <h2 className="text-xl font-bold mt-6">Variants</h2>
-
-        {variations.map((v,i)=>(
-          <div key={i} className="bg-gray-50 p-4 rounded-2xl mt-4 shadow">
-
-            <input
-              placeholder="Color"
-              value={v.color}
-              onChange={(e)=>updateColor(i,"color",e.target.value)}
-              className="input"
-            />
-
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(
-                <input key={field} type="file" onChange={(e)=>handleImage(e,i,field)} className="input"/>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <input placeholder="Base Price" value={v.basePrice} onChange={(e)=>updateColor(i,"basePrice",e.target.value)} className="input"/>
-              <input placeholder="Sell Price" value={v.sellPrice} onChange={(e)=>updateColor(i,"sellPrice",e.target.value)} className="input"/>
-            </div>
-
-            {v.sizes.map((s:any,j:number)=>(
-              <div key={j} className="grid grid-cols-3 gap-2 mt-2">
-                <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
-                  <option value="">Size</option>
-                  {SIZE_OPTIONS.map(size=>(
-                    <option key={size}>{size}</option>
-                  ))}
-                </select>
-
-                <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>
-                <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>
-              </div>
-            ))}
-
-            <button onClick={()=>addSize(i)} className="btn-black mt-2">
-              + Add Size
-            </button>
-
-            <button onClick={()=>removeColor(i)} className="text-red-500 mt-2 flex gap-1">
-              <Trash2 size={16}/> Remove
-            </button>
-
-          </div>
+      <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
+        <option value="">Select Category</option>
+        {categories.map((c:any)=>(
+          <option key={c.id}>{c.name}</option>
         ))}
+      </select>
 
-        <button onClick={addColor} className="btn-blue mt-4">
-          + Add Color Variant
-        </button>
+      <textarea className="input" placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)}/>
 
-        <button onClick={saveProduct} className="btn-blue w-full mt-6 flex justify-center gap-2">
-          <PlusCircle/> Add Product
-        </button>
-
-      </div>
+      <button onClick={saveProduct} className="btn-blue w-full mt-4">
+        <PlusCircle/> Add Product
+      </button>
 
       <style jsx>{`
         .input {
           border:1px solid #ddd;
-          padding:12px;
-          border-radius:12px;
+          padding:10px;
+          border-radius:10px;
           width:100%;
           margin-top:10px;
         }
         .btn-blue {
           background:#2563eb;
           color:white;
-          padding:12px;
-          border-radius:12px;
-        }
-        .btn-black {
-          background:black;
-          color:white;
-          padding:8px 12px;
+          padding:10px;
           border-radius:10px;
         }
       `}</style>
