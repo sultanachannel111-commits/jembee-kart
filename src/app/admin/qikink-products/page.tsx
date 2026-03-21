@@ -56,8 +56,75 @@ export default function AdminQikinkProducts() {
   };
 /* ================= QIKINK IMPORT ================= */
 
+/* ================= QIKINK IMPORT ================= */
+
 const handleImport = async () => {
-  // 👇 पूरा code paste करो
+
+  if (!importId) {
+    alert("Enter Product ID");
+    return;
+  }
+
+  try {
+
+    const res = await fetch("/api/qikink/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        productId: importId
+      })
+    });
+
+    const data = await res.json();
+
+    console.log("IMPORT DATA:", data);
+
+    if (!data.success) {
+      alert("❌ Import failed");
+      return;
+    }
+
+    const p = data.product;
+
+    setName(p.name || "");
+    setDescription(p.description || "");
+    setCategory(p.category || "");
+    setQikinkId(p.id || "");
+
+    if (p.variations?.length) {
+
+      const formatted = p.variations.map((v:any)=>({
+
+        color: v.color || "",
+
+        mainImage: v.images?.main || "",
+        frontImage: "",
+        backImage: "",
+        sideImage: "",
+        modelImage: "",
+
+        basePrice: v.basePrice || 0,
+        sellPrice: (v.basePrice || 0) + 200,
+
+        sizes: v.sizes?.map((s:any)=>({
+          size: s.size,
+          price: s.price,
+          stock: s.stock
+        })) || []
+
+      }));
+
+      setVariations(formatted);
+    }
+
+    alert("🔥 Product Imported Successfully");
+
+  } catch (err) {
+    console.log("IMPORT ERROR:", err);
+    alert("❌ Error importing product");
+  }
 };
 
 /* ================= QIKINK AUTO PASTE ================= */
