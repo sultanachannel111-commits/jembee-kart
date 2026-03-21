@@ -226,7 +226,6 @@ return(
         {/* IMAGES */}  
         <div className="grid grid-cols-2 gap-2 mt-2">  
           {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field)=>(
-  <div
     key={field}
     className={`relative border-2 rounded-xl p-2 mt-2 ${
       v[field]
@@ -249,7 +248,6 @@ return(
     )}
 
   </div>
-))}
 
         {/* PRICE */}  
         <div className="grid grid-cols-2 gap-2 mt-3">  
