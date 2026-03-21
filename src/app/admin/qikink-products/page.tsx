@@ -82,7 +82,11 @@ export default function AdminQikinkProducts() {
         return;
       }
 
-      const p = data.product;
+      const p =
+  data.product?.product ||
+  data.product ||
+  data.data ||
+  data;
       console.log("REAL PRODUCT:", p);
 
       setName(
