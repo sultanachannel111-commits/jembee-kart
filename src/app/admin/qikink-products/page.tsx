@@ -255,6 +255,20 @@ const handleQikinkPaste = (text:string)=>{
           className="input"
           onBlur={(e)=>handleQikinkPaste(e.target.value)}
         />
+        {/* 🔥 IMPORT BY ID */}
+<input
+  placeholder="Enter Qikink Product ID"
+  value={importId}
+  onChange={(e)=>setImportId(e.target.value)}
+  className="input"
+/>
+
+<button
+  onClick={handleImport}
+  className="btn-blue mt-2 w-full"
+>
+  🚀 Import Product
+</button>
 
         {/* BASIC */}
         <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
