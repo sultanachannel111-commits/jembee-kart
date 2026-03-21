@@ -225,10 +225,31 @@ return(
 
         {/* IMAGES */}  
         <div className="grid grid-cols-2 gap-2 mt-2">  
-          {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(  
-            <input key={field} type="file" onChange={(e)=>handleImage(e,i,field)} className="input"/>  
-          ))}  
-        </div>  
+          {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(
+  <div
+    key={field}
+    className={`relative border-2 rounded-xl p-2 mt-2 ${
+      v[field]
+        ? "border-green-500 bg-green-50"
+        : "border-gray-300"
+    }`}
+  >
+
+    <input
+      type="file"
+      onChange={(e)=>handleImage(e,i,field)}
+      className="w-full"
+    />
+
+    {/* ✅ GREEN TICK */}
+    {v[field] && (
+      <span className="absolute right-2 top-2 text-green-600 text-xl">
+        ✔️
+      </span>
+    )}
+
+  </div>
+))}  
 
         {/* PRICE */}  
         <div className="grid grid-cols-2 gap-2 mt-3">  
