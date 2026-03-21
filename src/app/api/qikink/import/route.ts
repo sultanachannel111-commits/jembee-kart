@@ -11,9 +11,9 @@ export async function POST(req: Request) {
       });
     }
 
-    /* 🔥 QIKINK API CALL (FIXED URL) */
+    /* 🔥 QIKINK API CALL (FIXED) */
     const res = await fetch(
-      `https://api.qikink.com/api/v1/products/${productId}`,
+      `https://api.qikink.com/api/v1/catalog/products/${productId}`,
       {
         method: "GET",
         headers: {
@@ -24,9 +24,9 @@ export async function POST(req: Request) {
 
     const data = await res.json();
 
-    console.log("🔥 QIKINK RAW:", data);
+    console.log("🔥 RAW DATA:", data);
 
-    /* 🔥 SAFE PRODUCT PICK (handle all cases) */
+    /* 🔥 PRODUCT PICK */
     const p =
       data?.product ||
       data?.data ||
@@ -34,12 +34,11 @@ export async function POST(req: Request) {
 
     console.log("🔥 FINAL PRODUCT:", p);
 
-    /* 🔥 FINAL FORMAT */
+    /* 🔥 SAFE FORMAT */
     const product = {
       name:
         p?.product_name ||
         p?.name ||
-        p?.title ||
         "",
 
       description:
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
     });
 
   } catch (err: any) {
-    console.log("❌ API ERROR:", err);
+    console.log("❌ ERROR:", err);
 
     return NextResponse.json({
       success: false,
