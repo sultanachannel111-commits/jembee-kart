@@ -9,36 +9,16 @@ import {
   getDocs
 } from "firebase/firestore";
 
-import { Package, PlusCircle, Trash2 } from "lucide-react";
-
-const SIZE_OPTIONS = ["S","M","L","XL","XXL"];
+import { Package, PlusCircle } from "lucide-react";
 
 export default function AdminQikinkProducts() {
 
   const [name,setName] = useState("");
   const [qikinkId,setQikinkId] = useState("");
-  const [sku,setSku] = useState("");
-  const [printTypeId,setPrintTypeId] = useState("");
-
   const [category,setCategory] = useState("");
   const [categories,setCategories] = useState<any[]>([]);
-
   const [description,setDescription] = useState("");
   const [importId,setImportId] = useState("");
-
-  const [variations,setVariations] = useState<any[]>([
-    {
-      color:"",
-      mainImage:"",
-      frontImage:"",
-      backImage:"",
-      sideImage:"",
-      modelImage:"",
-      basePrice:"",
-      sellPrice:"",
-      sizes:[{ size:"", price:"", stock:"" }]
-    }
-  ]);
 
   /* ================= LOAD CATEGORY ================= */
   useEffect(()=>{
@@ -53,7 +33,7 @@ export default function AdminQikinkProducts() {
     })));
   };
 
-  /* ================= QIKINK IMPORT ================= */
+  /* ================= IMPORT ================= */
   const handleImport = async () => {
 
     if (!importId) {
@@ -75,7 +55,7 @@ export default function AdminQikinkProducts() {
 
       const data = await res.json();
 
-      console.log("IMPORT DATA:", data);
+      console.log("FULL API RESPONSE:", data);
 
       if (!data.success) {
         alert("❌ Import failed");
@@ -84,41 +64,34 @@ export default function AdminQikinkProducts() {
 
       const p = data.product;
 
-      console.log("REAL PRODUCT:", p);
+      console.log("PRODUCT:", p);
 
-      // 🔥 FIXED FIELD MAPPING
-      setName(p.product_name || p.name || "");
-      setDescription(p.product_description || p.description || "");
-      setCategory(p.product_category || p.category || "");
-      setQikinkId(p.id || "");
+      // 🔥 SAFE MAPPING (हर case cover)
+      setName(
+        p.product_name ||
+        p.name ||
+        p.title ||
+        p.product?.name ||
+        ""
+      );
 
-      if (p.variants || p.variations) {
+      setDescription(
+        p.product_description ||
+        p.description ||
+        p.desc ||
+        p.product?.description ||
+        ""
+      );
 
-        const list = p.variants || p.variations;
+      setCategory(
+        p.product_category ||
+        p.category ||
+        p.type ||
+        p.product?.category ||
+        ""
+      );
 
-        const formatted = list.map((v:any)=>({
-
-          color: v.color || "",
-
-          mainImage: v.images?.main || v.images?.[0] || "",
-          frontImage: v.images?.[1] || "",
-          backImage: v.images?.[2] || "",
-          sideImage: v.images?.[3] || "",
-          modelImage: v.images?.[4] || "",
-
-          basePrice: v.base_price || v.basePrice || 0,
-          sellPrice: (v.base_price || v.basePrice || 0) + 200,
-
-          sizes: v.sizes?.map((s:any)=>({
-            size: s.size,
-            price: s.price,
-            stock: s.stock
-          })) || []
-
-        }));
-
-        setVariations(formatted);
-      }
+      setQikinkId(p.id || importId);
 
       alert("🔥 Product Imported Successfully");
 
@@ -131,36 +104,15 @@ export default function AdminQikinkProducts() {
   /* ================= SAVE ================= */
   const saveProduct = async()=>{
 
-    const finalVariations = variations.map(v=>({
-      color: v.color,
-      images:{
-        main: v.mainImage,
-        front: v.frontImage,
-        back: v.backImage,
-        side: v.sideImage,
-        model: v.modelImage
-      },
-      basePrice: Number(v.basePrice),
-      sellPrice: Number(v.sellPrice),
-      sizes: v.sizes.map((s:any)=>({
-        size:s.size,
-        price:Number(s.price),
-        stock:Number(s.stock)
-      }))
-    }));
-
     await addDoc(collection(db,"products"),{
       name,
       qikinkId,
-      sku,
-      printTypeId,
       category,
       description,
-      variations: finalVariations,
       createdAt:serverTimestamp()
     });
 
-    alert("🔥 Product Added Successfully");
+    alert("🔥 Product Saved");
   };
 
   /* ================= UI ================= */
@@ -168,10 +120,10 @@ export default function AdminQikinkProducts() {
   return(
     <div className="min-h-screen bg-gray-100 p-4">
 
-      <div className="max-w-4xl mx-auto bg-white p-5 rounded-2xl shadow">
+      <div className="max-w-3xl mx-auto bg-white p-5 rounded-2xl shadow">
 
         <h1 className="text-2xl font-bold mb-4 flex gap-2">
-          <Package/> Qikink Panel
+          <Package/> Qikink Panel 🚀
         </h1>
 
         {/* IMPORT */}
@@ -182,24 +134,37 @@ export default function AdminQikinkProducts() {
           className="input"
         />
 
-        <button onClick={handleImport} className="btn-blue">
+        <button onClick={handleImport} className="btn">
           🚀 Import Product
         </button>
 
-        {/* BASIC */}
-        <input placeholder="Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
+        {/* FORM */}
+        <input
+          placeholder="Product Name"
+          value={name}
+          onChange={(e)=>setName(e.target.value)}
+          className="input"
+        />
 
-        <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
+        <select
+          value={category}
+          onChange={(e)=>setCategory(e.target.value)}
+          className="input"
+        >
           <option value="">Select Category</option>
           {categories.map((c:any)=>(
             <option key={c.id}>{c.name}</option>
           ))}
         </select>
 
-        <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
+        <textarea
+          placeholder="Description"
+          value={description}
+          onChange={(e)=>setDescription(e.target.value)}
+          className="input"
+        />
 
-        {/* SAVE */}
-        <button onClick={saveProduct} className="btn-blue w-full mt-4">
+        <button onClick={saveProduct} className="btn">
           <PlusCircle/> Add Product
         </button>
 
@@ -207,19 +172,19 @@ export default function AdminQikinkProducts() {
 
       <style jsx>{`
         .input {
-          border:1px solid #ddd;
-          padding:10px;
-          border-radius:10px;
           width:100%;
+          border:1px solid #ddd;
+          padding:12px;
+          border-radius:10px;
           margin-top:10px;
         }
-        .btn-blue {
+        .btn {
+          width:100%;
           background:#2563eb;
           color:white;
           padding:12px;
           border-radius:10px;
           margin-top:10px;
-          width:100%;
         }
       `}</style>
 
