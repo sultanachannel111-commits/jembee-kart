@@ -82,11 +82,16 @@ export default function AdminQikinkProducts() {
         return;
       }
 
-      const p =
-  data.product?.product ||
-  data.product ||
-  data.data ||
-  data;
+// ✅ FINAL FIX
+const p = data.product;
+
+console.log("REAL PRODUCT:", p);
+alert(JSON.stringify(p, null, 2)); // 🔥 debug
+
+setName(p.name || "");
+setDescription(p.description || "");
+setCategory(p.category || "");
+setQikinkId(p.id || "");
       console.log("REAL PRODUCT:", p);
 
       setName(
