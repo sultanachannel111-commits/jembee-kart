@@ -11,7 +11,7 @@ import {
   doc
 } from "firebase/firestore";
 
-import { Package, PlusCircle, Trash2 } from "lucide-react";
+import { Package, PlusCircle, Trash2, Search } from "lucide-react";
 
 const SIZE_OPTIONS = ["S","M","L","XL","XXL"];
 
@@ -21,6 +21,8 @@ export default function AdminQikinkProducts() {
   const [editId,setEditId] = useState<string | null>(null);
 
   const [products,setProducts] = useState<any[]>([]);
+  const [search,setSearch] = useState("");
+
   const [categories,setCategories] = useState<any[]>([]);
 
   const [name,setName] = useState("");
@@ -41,13 +43,10 @@ export default function AdminQikinkProducts() {
       backImage:"",
       sideImage:"",
       modelImage:"",
-      basePrice:"",
-      sellPrice:"",
       sizes:[{ size:"", price:"", stock:"" }]
     }
   ]);
 
-  // LOAD DATA
   useEffect(()=>{
     loadCategories();
     loadProducts();
@@ -63,7 +62,7 @@ export default function AdminQikinkProducts() {
     setProducts(snap.docs.map(doc=>({ id:doc.id, ...doc.data() })));
   };
 
-  // IMAGE COMPRESS
+  // IMAGE
   const compressImage = (file:any):Promise<string>=>{
     return new Promise((resolve)=>{
       const reader = new FileReader();
@@ -113,8 +112,6 @@ export default function AdminQikinkProducts() {
         backImage:"",
         sideImage:"",
         modelImage:"",
-        basePrice:"",
-        sellPrice:"",
         sizes:[{ size:"", price:"", stock:"" }]
       }
     ]);
@@ -139,7 +136,7 @@ export default function AdminQikinkProducts() {
   };
 
   const removeColor = (i:number)=>{
-    if (!confirm("⚠️ Delete this variant?")) return;
+    if (!confirm("Delete this variant?")) return;
     setVariations(variations.filter((_,idx)=>idx!==i));
   };
 
@@ -163,35 +160,15 @@ export default function AdminQikinkProducts() {
       backImage:v.images?.back || "",
       sideImage:v.images?.side || "",
       modelImage:v.images?.model || "",
-      basePrice:v.basePrice,
-      sellPrice:v.sellPrice,
       sizes:v.sizes
     })));
   };
 
   // SAVE
   const saveProduct = async()=>{
-
-    if (!name || !qikinkId || !sku || !printTypeId || !category) {
-      alert("⚠️ Fill all required fields");
+    if (!name || !category) {
+      alert("Fill required fields");
       return;
-    }
-
-    for (let i=0;i<variations.length;i++){
-      const v = variations[i];
-
-      if (!v.color || !v.basePrice || !v.sellPrice) {
-        alert(`Variant ${i+1} incomplete`);
-        return;
-      }
-
-      for (let j=0;j<v.sizes.length;j++){
-        const s = v.sizes[j];
-        if (!s.size || !s.price || !s.stock) {
-          alert(`Size missing in Variant ${i+1}`);
-          return;
-        }
-      }
     }
 
     try{
@@ -206,8 +183,6 @@ export default function AdminQikinkProducts() {
           side:v.sideImage,
           model:v.modelImage
         },
-        basePrice:Number(v.basePrice),
-        sellPrice:Number(v.sellPrice),
         sizes:v.sizes.map((s:any)=>({
           size:s.size,
           price:Number(s.price),
@@ -221,8 +196,7 @@ export default function AdminQikinkProducts() {
           designLink,mockupLink,description,
           variations:finalVariations
         });
-        alert("✅ Product Updated");
-        setEditId(null);
+        alert("Updated");
       } else {
         await addDoc(collection(db,"products"),{
           name,qikinkId,sku,printTypeId,category,
@@ -230,133 +204,129 @@ export default function AdminQikinkProducts() {
           variations:finalVariations,
           createdAt:serverTimestamp()
         });
-        alert("🔥 Product Added");
+        alert("Added");
       }
 
       loadProducts();
 
     }catch(err){
-      console.error(err);
-      alert("❌ Error");
+      alert("Error");
     }finally{
       setLoading(false);
     }
   };
 
-  // BULK UPLOAD
-  const handleBulkUpload = async(e:any)=>{
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    try{
-      for (const p of data) {
-        await addDoc(collection(db,"products"),{
-          ...p,
-          createdAt:serverTimestamp()
-        });
-      }
-      alert("🔥 Bulk Upload Done");
-      loadProducts();
-    }catch(err){
-      alert("❌ Bulk Failed");
-    }
-  };
+  const filtered = products.filter(p =>
+    p.name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return(
-    <div className="p-6">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-black via-gray-900 to-black text-white">
 
-      <h1 className="text-2xl font-bold flex gap-2">
-        <Package/> Ultimate Admin Panel 🚀
-      </h1>
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 p-5 rounded-3xl shadow-xl">
 
-      {/* BASIC */}
-      <input placeholder="Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
-      <input placeholder="Qikink ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="input"/>
-      <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="input"/>
-      <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="input"/>
+        <h1 className="text-2xl font-bold flex gap-2 mb-4">
+          <Package/> Ultimate Admin Panel 🚀
+        </h1>
 
-      <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
-        <option value="">Category</option>
-        {categories.map((c:any)=>(<option key={c.id}>{c.name}</option>))}
-      </select>
+        <input placeholder="Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>
+        <input placeholder="Qikink ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="input"/>
+        <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="input"/>
+        <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="input"/>
 
-      <input placeholder="Design Link" value={designLink} onChange={(e)=>setDesignLink(e.target.value)} className="input"/>
-      <input placeholder="Mockup Link" value={mockupLink} onChange={(e)=>setMockupLink(e.target.value)} className="input"/>
-      <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
+        <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">
+          <option value="">Category</option>
+          {categories.map((c:any)=>(<option key={c.id}>{c.name}</option>))}
+        </select>
 
-      {/* VARIANTS */}
-      {variations.map((v,i)=>(
-        <div key={i} className="border p-3 mt-3 rounded-xl">
+        <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
 
-          <input placeholder="Color" value={v.color} onChange={(e)=>updateColor(i,"color",e.target.value)} className="input"/>
+        {/* VARIANTS */}
+        {variations.map((v,i)=>(
+          <div key={i} className="bg-white/5 p-3 rounded-xl mt-4">
 
-          <div className="grid grid-cols-2 gap-2">
-            {["mainImage","frontImage","backImage","sideImage","modelImage"].map(field=>(
-              <div key={field}>
-                <input type="file" onChange={(e)=>handleImage(e,i,field)} />
-                {v[field] && <img src={v[field]} className="h-20 mt-1"/>}
+            <input placeholder="Color" value={v.color} onChange={(e)=>updateColor(i,"color",e.target.value)} className="input"/>
+
+            <div className="grid grid-cols-2 gap-2">
+              {["mainImage","frontImage","backImage","sideImage","modelImage"].map(field=>(
+                <div key={field}>
+                  <input type="file" onChange={(e)=>handleImage(e,i,field)} />
+                  {v[field] && <img src={v[field]} className="h-20 mt-1 rounded"/>}
+                </div>
+              ))}
+            </div>
+
+            {v.sizes.map((s:any,j:number)=>(
+              <div key={j} className="grid grid-cols-4 gap-2 mt-2">
+                <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
+                  <option value="">Size</option>
+                  {SIZE_OPTIONS.map(size=>(<option key={size}>{size}</option>))}
+                </select>
+
+                <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>
+                <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>
               </div>
             ))}
+
+            <button onClick={()=>addSize(i)} className="btn-premium mt-2">+ Size</button>
+
+            <button onClick={()=>removeColor(i)} className="text-red-400 mt-2 flex gap-1">
+              <Trash2 size={16}/> Remove
+            </button>
+
           </div>
+        ))}
 
-          <input placeholder="Base Price" value={v.basePrice} onChange={(e)=>updateColor(i,"basePrice",e.target.value)} className="input"/>
-          <input placeholder="Sell Price" value={v.sellPrice} onChange={(e)=>updateColor(i,"sellPrice",e.target.value)} className="input"/>
+        <button onClick={addColor} className="btn-premium mt-4">
+          + Add Variant
+        </button>
 
-          {v.sizes.map((s:any,j:number)=>(
-            <div key={j} className="grid grid-cols-3 gap-2">
-              <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
-                <option value="">Size</option>
-                {SIZE_OPTIONS.map(size=>(<option key={size}>{size}</option>))}
-              </select>
-              <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>
-              <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>
-            </div>
-          ))}
+        <button onClick={saveProduct} disabled={loading} className="btn-main mt-4 w-full">
+          {loading ? "Saving..." : "Save Product"}
+        </button>
 
-          <button onClick={()=>addSize(i)}>+ Size</button>
-          <button onClick={()=>removeColor(i)} className="text-red-500 flex gap-1">
-            <Trash2 size={16}/> Remove
-          </button>
+      </div>
 
+      {/* SEARCH */}
+      <div className="mt-6 backdrop-blur-xl bg-white/10 p-4 rounded-2xl">
+        <div className="flex items-center gap-2">
+          <Search/>
+          <input placeholder="Search product..." value={search} onChange={(e)=>setSearch(e.target.value)} className="input"/>
         </div>
-      ))}
 
-      <button onClick={addColor}>+ Variant</button>
-
-      <button onClick={saveProduct} disabled={loading} className="btn-blue mt-4">
-        {loading ? "Saving..." : "Save Product"}
-      </button>
-
-      {/* BULK */}
-      <input type="file" accept=".json" onChange={handleBulkUpload} className="input mt-6"/>
-
-      {/* EDIT LIST */}
-      <h2 className="mt-10 font-bold">Products</h2>
-      {products.map((p:any)=>(
-        <div key={p.id} className="flex justify-between border p-2 mt-2">
-          <span>{p.name}</span>
-          <button onClick={()=>handleEdit(p)} className="bg-yellow-500 text-white px-2 rounded">
-            Edit
-          </button>
-        </div>
-      ))}
+        {filtered.map((p:any)=>(
+          <div key={p.id} className="flex justify-between mt-2 bg-white/5 p-2 rounded">
+            <span>{p.name}</span>
+            <button onClick={()=>handleEdit(p)} className="btn-yellow">Edit</button>
+          </div>
+        ))}
+      </div>
 
       <style jsx>{`
         .input{
-          border:1px solid #ddd;
-          padding:10px;
-          border-radius:10px;
-          margin-top:10px;
           width:100%;
-        }
-        .btn-blue{
-          background:#2563eb;
-          color:white;
           padding:10px;
+          border-radius:12px;
+          background:rgba(255,255,255,0.1);
+          border:1px solid rgba(255,255,255,0.2);
+          margin-top:10px;
+          color:white;
+        }
+        .btn-main{
+          background:linear-gradient(45deg,#3b82f6,#9333ea);
+          padding:12px;
+          border-radius:12px;
+        }
+        .btn-premium{
+          background:linear-gradient(45deg,#00f5a0,#00d9f5);
+          padding:8px 12px;
           border-radius:10px;
+        }
+        .btn-yellow{
+          background:#facc15;
+          color:black;
+          padding:4px 10px;
+          border-radius:8px;
         }
       `}</style>
 
