@@ -11,7 +11,7 @@ import {
   doc
 } from "firebase/firestore";
 
-import { Package, PlusCircle, Trash2, Search } from "lucide-react";
+import { Package, Trash2, Search } from "lucide-react";
 
 const SIZE_OPTIONS = ["S","M","L","XL","XXL"];
 
@@ -43,7 +43,7 @@ export default function AdminQikinkProducts() {
       backImage:"",
       sideImage:"",
       modelImage:"",
-      sizes:[{ size:"", price:"", stock:"" }]
+      sizes:[{ size:"", sellPrice:"", basePrice:"", stock:"" }]
     }
   ]);
 
@@ -112,14 +112,14 @@ export default function AdminQikinkProducts() {
         backImage:"",
         sideImage:"",
         modelImage:"",
-        sizes:[{ size:"", price:"", stock:"" }]
+        sizes:[{ size:"", sellPrice:"", basePrice:"", stock:"" }]
       }
     ]);
   };
 
   const addSize = (i:number)=>{
     const updated = [...variations];
-    updated[i].sizes.push({ size:"", price:"", stock:"" });
+    updated[i].sizes.push({ size:"", sellPrice:"", basePrice:"", stock:"" });
     setVariations(updated);
   };
 
@@ -160,7 +160,12 @@ export default function AdminQikinkProducts() {
       backImage:v.images?.back || "",
       sideImage:v.images?.side || "",
       modelImage:v.images?.model || "",
-      sizes:v.sizes
+      sizes:v.sizes.map((s:any)=>({
+        size:s.size,
+        sellPrice:s.sellPrice || "",
+        basePrice:s.basePrice || "",
+        stock:s.stock
+      }))
     })));
   };
 
@@ -185,7 +190,8 @@ export default function AdminQikinkProducts() {
         },
         sizes:v.sizes.map((s:any)=>({
           size:s.size,
-          price:Number(s.price),
+          sellPrice:Number(s.sellPrice),
+          basePrice:Number(s.basePrice),
           stock:Number(s.stock)
         }))
       }));
@@ -196,7 +202,7 @@ export default function AdminQikinkProducts() {
           designLink,mockupLink,description,
           variations:finalVariations
         });
-        alert("Updated");
+        alert("✅ Updated");
       } else {
         await addDoc(collection(db,"products"),{
           name,qikinkId,sku,printTypeId,category,
@@ -204,13 +210,13 @@ export default function AdminQikinkProducts() {
           variations:finalVariations,
           createdAt:serverTimestamp()
         });
-        alert("Added");
+        alert("🔥 Added");
       }
 
       loadProducts();
 
     }catch(err){
-      alert("Error");
+      alert("❌ Error");
     }finally{
       setLoading(false);
     }
@@ -223,7 +229,7 @@ export default function AdminQikinkProducts() {
   return(
     <div className="min-h-screen p-4 bg-gradient-to-br from-black via-gray-900 to-black text-white">
 
-      <div className="backdrop-blur-xl bg-white/10 border border-white/20 p-5 rounded-3xl shadow-xl">
+      <div className="glass">
 
         <h1 className="text-2xl font-bold flex gap-2 mb-4">
           <Package/> Ultimate Admin Panel 🚀
@@ -241,9 +247,8 @@ export default function AdminQikinkProducts() {
 
         <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>
 
-        {/* VARIANTS */}
         {variations.map((v,i)=>(
-          <div key={i} className="bg-white/5 p-3 rounded-xl mt-4">
+          <div key={i} className="variant">
 
             <input placeholder="Color" value={v.color} onChange={(e)=>updateColor(i,"color",e.target.value)} className="input"/>
 
@@ -251,20 +256,23 @@ export default function AdminQikinkProducts() {
               {["mainImage","frontImage","backImage","sideImage","modelImage"].map(field=>(
                 <div key={field}>
                   <input type="file" onChange={(e)=>handleImage(e,i,field)} />
-                  {v[field] && <img src={v[field]} className="h-20 mt-1 rounded"/>}
+                  {v[field] && <img src={v[field]} className="preview"/>}
                 </div>
               ))}
             </div>
 
             {v.sizes.map((s:any,j:number)=>(
               <div key={j} className="grid grid-cols-4 gap-2 mt-2">
+
                 <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">
                   <option value="">Size</option>
                   {SIZE_OPTIONS.map(size=>(<option key={size}>{size}</option>))}
                 </select>
 
-                <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>
+                <input placeholder="Sell Price" value={s.sellPrice} onChange={(e)=>updateSize(i,j,"sellPrice",e.target.value)} className="input"/>
+                <input placeholder="Base Price" value={s.basePrice} onChange={(e)=>updateSize(i,j,"basePrice",e.target.value)} className="input"/>
                 <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>
+
               </div>
             ))}
 
@@ -288,8 +296,8 @@ export default function AdminQikinkProducts() {
       </div>
 
       {/* SEARCH */}
-      <div className="mt-6 backdrop-blur-xl bg-white/10 p-4 rounded-2xl">
-        <div className="flex items-center gap-2">
+      <div className="glass mt-6">
+        <div className="flex gap-2 items-center">
           <Search/>
           <input placeholder="Search product..." value={search} onChange={(e)=>setSearch(e.target.value)} className="input"/>
         </div>
@@ -303,14 +311,32 @@ export default function AdminQikinkProducts() {
       </div>
 
       <style jsx>{`
+        .glass{
+          backdrop-filter: blur(20px);
+          background: rgba(255,255,255,0.08);
+          border:1px solid rgba(255,255,255,0.2);
+          padding:20px;
+          border-radius:20px;
+        }
+        .variant{
+          background: rgba(255,255,255,0.05);
+          padding:15px;
+          border-radius:15px;
+          margin-top:15px;
+        }
         .input{
           width:100%;
           padding:10px;
-          border-radius:12px;
+          border-radius:10px;
           background:rgba(255,255,255,0.1);
           border:1px solid rgba(255,255,255,0.2);
           margin-top:10px;
           color:white;
+        }
+        .preview{
+          height:80px;
+          margin-top:5px;
+          border-radius:8px;
         }
         .btn-main{
           background:linear-gradient(45deg,#3b82f6,#9333ea);
