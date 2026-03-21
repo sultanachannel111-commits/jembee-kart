@@ -3,191 +3,299 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import {
-  addDoc,
-  collection,
-  serverTimestamp,
-  getDocs
+addDoc,
+collection,
+serverTimestamp,
+getDocs
 } from "firebase/firestore";
 
-import { Package, PlusCircle } from "lucide-react";
+import { Package, PlusCircle, Trash2 } from "lucide-react";
+
+const SIZE_OPTIONS = ["S","M","L","XL","XXL"];
 
 export default function AdminQikinkProducts() {
 
-  const [name,setName] = useState("");
-  const [qikinkId,setQikinkId] = useState("");
-  const [category,setCategory] = useState("");
-  const [categories,setCategories] = useState<any[]>([]);
-  const [description,setDescription] = useState("");
-  const [importId,setImportId] = useState("");
+const [name,setName] = useState("");
+const [qikinkId,setQikinkId] = useState("");
+const [sku,setSku] = useState("");
+const [printTypeId,setPrintTypeId] = useState("");
 
-  /* ================= LOAD CATEGORY ================= */
-  useEffect(()=>{
-    loadCategories();
-  },[]);
+const [category,setCategory] = useState("");
+const [categories,setCategories] = useState<any[]>([]);
 
-  const loadCategories = async()=>{
-    const snap = await getDocs(collection(db,"qikinkCategories"));
-    setCategories(snap.docs.map(doc=>({
-      id:doc.id,
-      ...doc.data()
-    })));
-  };
+const [description,setDescription] = useState("");
+const [designLink,setDesignLink] = useState("");
+const [mockupLink,setMockupLink] = useState("");
 
-  /* ================= IMPORT ================= */
-  const handleImport = async () => {
+// 🔥 VARIATIONS FULL
+const [variations,setVariations] = useState<any[]>([
+{
+color:"",
+mainImage:"",
+frontImage:"",
+backImage:"",
+sideImage:"",
+modelImage:"",
+basePrice:"",
+sellPrice:"",
+sizes:[{ size:"", price:"", stock:"" }]
+}
+]);
 
-    if (!importId) {
-      alert("Enter Product ID");
-      return;
-    }
+// CATEGORY LOAD
+useEffect(()=>{
+loadCategories();
+},[]);
 
-    try {
+const loadCategories = async()=>{
+const snap = await getDocs(collection(db,"qikinkCategories"));
+setCategories(snap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+})));
+};
 
-      const res = await fetch("/api/qikink/import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          productId: importId
-        })
-      });
+// 🔥 IMAGE COMPRESS
+const compressImage = (file:any):Promise<string>=>{
+return new Promise((resolve)=>{
+const reader = new FileReader();
+reader.readAsDataURL(file);
 
-      const data = await res.json();
+reader.onload = (e:any)=>{  
+    const img = new Image();  
+    img.src = e.target.result;  
 
-      console.log("FULL API RESPONSE:", data);
+    img.onload = ()=>{  
+      const canvas = document.createElement("canvas");  
+      const ctx = canvas.getContext("2d");  
 
-      if (!data.success) {
-        alert("❌ Import failed");
-        return;
-      }
+      const maxWidth = 800;  
+      const scale = maxWidth / img.width;  
 
-      const p = data.product;
+      canvas.width = maxWidth;  
+      canvas.height = img.height * scale;  
 
-      console.log("PRODUCT:", p);
+      ctx?.drawImage(img,0,0,canvas.width,canvas.height);  
 
-      // 🔥 SAFE MAPPING (हर case cover)
-      setName(
-        p.product_name ||
-        p.name ||
-        p.title ||
-        p.product?.name ||
-        ""
-      );
+      resolve(canvas.toDataURL("image/jpeg",0.6));  
+    };  
+  };  
+});
 
-      setDescription(
-        p.product_description ||
-        p.description ||
-        p.desc ||
-        p.product?.description ||
-        ""
-      );
+};
 
-      setCategory(
-        p.product_category ||
-        p.category ||
-        p.type ||
-        p.product?.category ||
-        ""
-      );
+const handleImage = async(e:any,i:number,field:string)=>{
+const file = e.target.files[0];
+const compressed = await compressImage(file);
 
-      setQikinkId(p.id || importId);
+const updated = [...variations];  
+updated[i][field] = compressed;  
+setVariations(updated);
 
-      alert("🔥 Product Imported Successfully");
+};
 
-    } catch (err) {
-      console.log("IMPORT ERROR:", err);
-      alert("❌ Error importing product");
-    }
-  };
+// ADD COLOR
+const addColor = ()=>{
+setVariations([
+...variations,
+{
+color:"",
+mainImage:"",
+frontImage:"",
+backImage:"",
+sideImage:"",
+modelImage:"",
+basePrice:"",
+sellPrice:"",
+sizes:[{ size:"", price:"", stock:"" }]
+}
+]);
+};
 
-  /* ================= SAVE ================= */
-  const saveProduct = async()=>{
+// ADD SIZE
+const addSize = (i:number)=>{
+const updated = [...variations];
+updated[i].sizes.push({ size:"", price:"", stock:"" });
+setVariations(updated);
+};
 
-    await addDoc(collection(db,"products"),{
-      name,
-      qikinkId,
-      category,
-      description,
-      createdAt:serverTimestamp()
-    });
+// UPDATE
+const updateColor = (i:number,field:string,value:any)=>{
+const updated = [...variations];
+updated[i][field] = value;
+setVariations(updated);
+};
 
-    alert("🔥 Product Saved");
-  };
+const updateSize = (i:number,j:number,field:string,value:any)=>{
+const updated = [...variations];
+updated[i].sizes[j][field] = value;
+setVariations(updated);
+};
 
-  /* ================= UI ================= */
+const removeColor = (i:number)=>{
+setVariations(variations.filter((_,idx)=>idx!==i));
+};
 
-  return(
-    <div className="min-h-screen bg-gray-100 p-4">
+// SAVE
+const saveProduct = async()=>{
 
-      <div className="max-w-3xl mx-auto bg-white p-5 rounded-2xl shadow">
+const finalVariations = variations.map(v=>({  
+  color: v.color,  
 
-        <h1 className="text-2xl font-bold mb-4 flex gap-2">
-          <Package/> Qikink Panel 🚀
-        </h1>
+  images:{  
+    main: v.mainImage,  
+    front: v.frontImage,  
+    back: v.backImage,  
+    side: v.sideImage,  
+    model: v.modelImage  
+  },  
 
-        {/* IMPORT */}
-        <input
-          placeholder="Enter Product ID"
-          value={importId}
-          onChange={(e)=>setImportId(e.target.value)}
-          className="input"
-        />
+  basePrice: Number(v.basePrice),  
+  sellPrice: Number(v.sellPrice),  
 
-        <button onClick={handleImport} className="btn">
-          🚀 Import Product
-        </button>
+  sizes: v.sizes.map((s:any)=>({  
+    size:s.size,  
+    price:Number(s.price),  
+    stock:Number(s.stock)  
+  }))  
+}));  
 
-        {/* FORM */}
-        <input
-          placeholder="Product Name"
-          value={name}
-          onChange={(e)=>setName(e.target.value)}
-          className="input"
-        />
+await addDoc(collection(db,"products"),{  
 
-        <select
-          value={category}
-          onChange={(e)=>setCategory(e.target.value)}
-          className="input"
-        >
-          <option value="">Select Category</option>
-          {categories.map((c:any)=>(
-            <option key={c.id}>{c.name}</option>
-          ))}
-        </select>
+  name,  
+  qikinkId,  
+  sku,  
+  printTypeId,  
+  category,  
 
-        <textarea
-          placeholder="Description"
-          value={description}
-          onChange={(e)=>setDescription(e.target.value)}
-          className="input"
-        />
+  designLink,  
+  mockupLink,  
+  description,  
 
-        <button onClick={saveProduct} className="btn">
-          <PlusCircle/> Add Product
-        </button>
+  variations: finalVariations,  
 
-      </div>
+  createdAt:serverTimestamp()  
 
-      <style jsx>{`
-        .input {
-          width:100%;
-          border:1px solid #ddd;
-          padding:12px;
-          border-radius:10px;
-          margin-top:10px;
-        }
-        .btn {
-          width:100%;
-          background:#2563eb;
-          color:white;
-          padding:12px;
-          border-radius:10px;
-          margin-top:10px;
-        }
-      `}</style>
+});  
 
-    </div>
-  );
+alert("🔥 Product Added Successfully");
+
+};
+
+return(
+<div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
+
+<div className="max-w-4xl mx-auto bg-white p-6 rounded-3xl shadow-2xl">  
+
+    <h1 className="text-3xl font-bold mb-6 flex gap-2">  
+      <Package className="text-blue-600"/>  
+      Ultra Product Panel 🚀  
+    </h1>  
+
+    {/* BASIC */}  
+    <input placeholder="Product Name" value={name} onChange={(e)=>setName(e.target.value)} className="input"/>  
+    <input placeholder="Qikink Product ID" value={qikinkId} onChange={(e)=>setQikinkId(e.target.value)} className="input"/>  
+    <input placeholder="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} className="input"/>  
+    <input placeholder="Print Type ID" value={printTypeId} onChange={(e)=>setPrintTypeId(e.target.value)} className="input"/>  
+
+    <select value={category} onChange={(e)=>setCategory(e.target.value)} className="input">  
+      <option value="">Select Category</option>  
+      {categories.map((c:any)=>(  
+        <option key={c.id}>{c.name}</option>  
+      ))}  
+    </select>  
+
+    <input placeholder="Design Link" value={designLink} onChange={(e)=>setDesignLink(e.target.value)} className="input"/>  
+    <input placeholder="Mockup Link" value={mockupLink} onChange={(e)=>setMockupLink(e.target.value)} className="input"/>  
+
+    <textarea placeholder="Description" value={description} onChange={(e)=>setDescription(e.target.value)} className="input"/>  
+
+    {/* VARIANTS */}  
+    <h2 className="text-xl font-bold mt-6">Variants</h2>  
+
+    {variations.map((v,i)=>(  
+      <div key={i} className="bg-gray-50 p-4 rounded-2xl mt-4 shadow">  
+
+        <input  
+          placeholder="Color Name"  
+          value={v.color}  
+          onChange={(e)=>updateColor(i,"color",e.target.value)}  
+          className="input"  
+        />  
+
+        {/* IMAGES */}  
+        <div className="grid grid-cols-2 gap-2 mt-2">  
+          {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(  
+            <input key={field} type="file" onChange={(e)=>handleImage(e,i,field)} className="input"/>  
+          ))}  
+        </div>  
+
+        {/* PRICE */}  
+        <div className="grid grid-cols-2 gap-2 mt-3">  
+          <input placeholder="Base Price" value={v.basePrice} onChange={(e)=>updateColor(i,"basePrice",e.target.value)} className="input"/>  
+          <input placeholder="Sell Price" value={v.sellPrice} onChange={(e)=>updateColor(i,"sellPrice",e.target.value)} className="input"/>  
+        </div>  
+
+        {/* SIZES */}  
+        {v.sizes.map((s:any,j:number)=>(  
+          <div key={j} className="grid grid-cols-3 gap-2 mt-2">  
+            <select value={s.size} onChange={(e)=>updateSize(i,j,"size",e.target.value)} className="input">  
+              <option value="">Size</option>  
+              {SIZE_OPTIONS.map(size=>(  
+                <option key={size}>{size}</option>  
+              ))}  
+            </select>  
+
+            <input placeholder="Price" value={s.price} onChange={(e)=>updateSize(i,j,"price",e.target.value)} className="input"/>  
+            <input placeholder="Stock" value={s.stock} onChange={(e)=>updateSize(i,j,"stock",e.target.value)} className="input"/>  
+          </div>  
+        ))}  
+
+        <button onClick={()=>addSize(i)} className="btn-black mt-2">  
+          + Add Size  
+        </button>  
+
+        <button onClick={()=>removeColor(i)} className="text-red-500 mt-2 flex gap-1">  
+          <Trash2 size={16}/> Remove  
+        </button>  
+
+      </div>  
+    ))}  
+
+    <button onClick={addColor} className="btn-blue mt-4">  
+      + Add Color Variant  
+    </button>  
+
+    <button onClick={saveProduct} className="btn-blue w-full mt-6 flex justify-center gap-2">  
+      <PlusCircle/> Add Product  
+    </button>  
+
+  </div>  
+
+  {/* 🔥 STYLES */}  
+  <style jsx>{`  
+    .input {  
+      border:1px solid #ddd;  
+      padding:12px;  
+      border-radius:12px;  
+      width:100%;  
+      margin-top:10px;  
+    }  
+    .btn-blue {  
+      background:#2563eb;  
+      color:white;  
+      padding:12px;  
+      border-radius:12px;  
+    }  
+    .btn-black {  
+      background:black;  
+      color:white;  
+      padding:8px 12px;  
+      border-radius:10px;  
+    }  
+  `}</style>  
+
+</div>
+
+);
 }
