@@ -85,9 +85,26 @@ export default function AdminQikinkProducts() {
       const p = data.product;
       console.log("REAL PRODUCT:", p);
 
-      setName(p.product_name || p.name || "");
-setDescription(p.product_description || p.description || "");
-setCategory(p.product_category || p.category || "");
+      setName(
+  p.product_name ||
+  p.name ||
+  p.product?.name ||
+  ""
+);
+
+setDescription(
+  p.product_description ||
+  p.description ||
+  p.product?.description ||
+  ""
+);
+
+setCategory(
+  p.product_category ||
+  p.category ||
+  p.product?.category ||
+  ""
+);
       setQikinkId(p.id || "");
 
       if (p.variations?.length) {
