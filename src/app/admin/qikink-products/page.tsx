@@ -225,7 +225,7 @@ return(
 
         {/* IMAGES */}  
         <div className="grid grid-cols-2 gap-2 mt-2">  
-          {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field:any)=>(
+          {["mainImage","frontImage","backImage","sideImage","modelImage"].map((field)=>(
   <div
     key={field}
     className={`relative border-2 rounded-xl p-2 mt-2 ${
@@ -244,13 +244,12 @@ return(
     {/* ✅ GREEN TICK */}
     {v[field] && (
       <span className="absolute right-2 top-2 text-green-600 text-xl">
-        ✔️
+        ✔
       </span>
     )}
 
-  ))}
-
-</div>  
+  </div>
+))}
 
         {/* PRICE */}  
         <div className="grid grid-cols-2 gap-2 mt-3">  
