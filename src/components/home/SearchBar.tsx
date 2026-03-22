@@ -6,19 +6,17 @@ import { useState, useEffect } from "react";
 type Props = {
   search: string;
   setSearch: (value: string) => void;
-  startVoice: () => void;
 };
 
 export default function SearchBar({
   search,
-  setSearch,
-  startVoice
+  setSearch
 }: Props) {
 
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
-  const [showCameraMsg, setShowCameraMsg] = useState(false); // 🔥 popup state
+  const [showCameraMsg, setShowCameraMsg] = useState(false);
 
   // 🔥 Suggestions
   const demoSuggestions = [
@@ -44,14 +42,36 @@ export default function SearchBar({
     setSuggestions(filtered.slice(0, 5));
   }, [search]);
 
-  // 🎤 Voice
+  // 🎤 REAL VOICE FUNCTION
   const handleVoice = () => {
-    setListening(true);
-    startVoice();
 
-    setTimeout(() => {
+    if (!("webkitSpeechRecognition" in window)) {
+      alert("Voice search not supported 😢");
+      return;
+    }
+
+    const recognition = new (window as any).webkitSpeechRecognition();
+
+    recognition.lang = "en-IN"; // Hindi + English
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    setListening(true);
+    recognition.start();
+
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript;
+      setSearch(text); // 🔥 AUTO TYPE
       setListening(false);
-    }, 3000);
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
   };
 
   return (
@@ -63,10 +83,8 @@ export default function SearchBar({
         <div className={`bg-white border rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm transition 
         ${focused ? "ring-2 ring-green-500" : "border-gray-300"}`}>
 
-          {/* 🔍 */}
           <Search size={18} className="text-gray-500" />
 
-          {/* INPUT */}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -116,7 +134,18 @@ export default function SearchBar({
 
       </div>
 
-      {/* 🔥 CAMERA POPUP (NO LINK ISSUE) */}
+      {/* 🎤 LISTENING POPUP */}
+      {listening && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
+          <div className="bg-white rounded-xl p-6 text-center shadow-xl">
+            <div className="text-4xl animate-pulse">🎤</div>
+            <p className="mt-2 font-semibold">Listening...</p>
+            <p className="text-sm text-gray-500">Speak now</p>
+          </div>
+        </div>
+      )}
+
+      {/* 📷 CAMERA POPUP */}
       {showCameraMsg && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
 
