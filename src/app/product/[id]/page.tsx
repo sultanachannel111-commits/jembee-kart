@@ -57,7 +57,7 @@ export default function ProductPage() {
     if(id) fetchProduct();
   },[id]);
 
-  // 🔥 SIMILAR PRODUCTS
+  // 🔥 SIMILAR
   const fetchSimilar = async (category:string)=>{
     const snap = await getDocs(collection(db,"products"));
 
@@ -74,7 +74,6 @@ export default function ProductPage() {
 
   const variant = product?.variations?.[selectedColor] || {};
 
-  // 🔥 IMAGES
   const images = [
     variant?.images?.main,
     variant?.images?.front,
@@ -83,7 +82,7 @@ export default function ProductPage() {
     variant?.images?.model
   ].filter(Boolean);
 
-  // 🔥 FINAL PRICE FIX
+  // 🔥 PRICE FIX
   const price =
     Number(selectedSize?.sellPrice) ||
     Number(selectedSize?.price) ||
@@ -94,9 +93,8 @@ export default function ProductPage() {
 
   const stock = Number(selectedSize?.stock) || 0;
 
-  // 🛒 ADD TO CART
+  // 🛒 CART
   const handleAddToCart = async () => {
-
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
@@ -106,7 +104,6 @@ export default function ProductPage() {
       image: images?.[0] || "",
       size: selectedSize.size,
       price: price,
-      sellPrice: price,
       quantity: 1
     });
 
@@ -114,9 +111,8 @@ export default function ProductPage() {
     router.push("/cart");
   };
 
-  // ⚡ BUY NOW
+  // ⚡ BUY
   const handleBuyNow = async () => {
-
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
@@ -141,26 +137,51 @@ export default function ProductPage() {
     });
   };
 
-  // 🔄 SLIDER
+  // 🔥 SLIDER FIX (one by one)
   const handleScroll = (e:any)=>{
-    const index = Math.round(e.target.scrollLeft / e.target.clientWidth);
+    const index = Math.round(
+      e.target.scrollLeft / e.target.clientWidth
+    );
     setCurrentImage(index);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white pb-28">
 
-      {/* IMAGE */}
-      <div onScroll={handleScroll} className="flex overflow-x-auto snap-x">
+      {/* IMAGE SLIDER */}
+      <div
+        onScroll={handleScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+      >
         {images.map((img:any,i:number)=>(
-          <img
-            key={i}
-            src={img}
-            onClick={()=>setShowViewer(true)}
-            className="w-full h-[320px] object-contain snap-center"
-          />
+          <div key={i} className="min-w-full snap-center">
+            <img
+              src={img}
+              onClick={()=>setShowViewer(true)}
+              className="w-full h-[320px] object-contain"
+            />
+          </div>
         ))}
       </div>
+
+      {/* 🔥 ZOOM VIEW */}
+      {showViewer && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          <button
+            onClick={()=>setShowViewer(false)}
+            className="text-white text-xl p-4"
+          >
+            ✕
+          </button>
+
+          <div className="flex-1 flex items-center justify-center">
+            <img
+              src={images[currentImage]}
+              className="max-w-full max-h-full"
+            />
+          </div>
+        </div>
+      )}
 
       {/* SHARE */}
       <button
@@ -201,7 +222,7 @@ export default function ProductPage() {
         {/* NAME */}
         <h1 className="text-xl font-bold mt-4">{product.name}</h1>
 
-        {/* PRICE */}
+        {/* MAIN PRICE */}
         <div className="mt-2 text-3xl font-bold text-green-600">
           ₹{price}
         </div>
@@ -227,12 +248,7 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* SELECTED SIZE PRICE */}
-        {selectedSize && (
-          <div className="mt-4 text-xl font-bold text-center">
-            ₹{selectedSize.sellPrice || selectedSize.price || 0}
-          </div>
-        )}
+        {/* ❌ SIZE PRICE REMOVED */}
 
         {/* DESCRIPTION */}
         <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
