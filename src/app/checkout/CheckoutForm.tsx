@@ -35,6 +35,9 @@ export default function CheckoutPage(){
     phone:"",
     email:""
   });
+  const refCode = typeof window !== "undefined"
+  ? localStorage.getItem("affiliate")
+  : null;
 
   /* LOAD CART + COD CHECK */
   useEffect(()=>{
