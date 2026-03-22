@@ -43,15 +43,26 @@ export default function HomePage() {
     "black tshirt","oversize tshirt","hoodie","anime tshirt","couple tshirt"
   ];
 
-  // 🔥 PRICE FIX FUNCTION
+  // 🔥 FINAL PRICE FIX FUNCTION
   const getPrice = (data:any)=>{
-    return (
-      data?.variations?.[0]?.sizes?.[0]?.price ||
-      data?.variations?.[0]?.basePrice ||
-      data?.sellPrice ||
-      data?.price ||
-      0
-    );
+
+    // 1. variation → size → sellPrice (MAIN)
+    if (data?.variations?.length) {
+      const v = data.variations[0];
+
+      if (v?.sizes?.length) {
+        const s = v.sizes[0];
+
+        if (s?.sellPrice && s.sellPrice > 0) return Number(s.sellPrice);
+        if (s?.price && s.price > 0) return Number(s.price);
+      }
+    }
+
+    // 2. fallback
+    if (data?.sellPrice && data.sellPrice > 0) return Number(data.sellPrice);
+    if (data?.price && data.price > 0) return Number(data.price);
+
+    return 0;
   };
 
   // 🔥 LOAD DATA
@@ -61,15 +72,18 @@ export default function HomePage() {
 
   const loadData = async()=>{
 
+    // CATEGORY
     const catSnap = await getDocs(collection(db,"qikinkCategories"));
     setCategories([
       { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
       ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
     ]);
 
+    // BANNERS
     const bannerSnap = await getDocs(collection(db,"banners"));
     setBanners(bannerSnap.docs.map(d=>({id:d.id,...d.data()})));
 
+    // PRODUCTS
     const productSnap = await getDocs(collection(db,"products"));
 
     const productsData = productSnap.docs.map(d=>{
@@ -78,18 +92,19 @@ export default function HomePage() {
       return {
         id:d.id,
         ...data,
-        price:getPrice(data)
+        price:getPrice(data)   // 🔥 FIXED
       };
     });
 
     setProducts(productsData);
 
-    // extra sections
+    // EXTRA SECTIONS
     setTrending(await getTrendingProducts());
     setClearance(await getClearanceProducts());
     setRecommended(await getRecommendedProducts());
     setLightning(await getLightningDeals());
 
+    // FESTIVAL
     const festSnap = await getDoc(doc(db,"settings","festival"));
     if(festSnap.exists()) setFestival(festSnap.data());
   };
@@ -160,7 +175,7 @@ className="px-3 py-1 bg-gray-100 rounded-full text-xs"
 </div>
 )}
 
-{/* 🔥 CATEGORY (PINK LINE FIX) */}
+{/* CATEGORY */}
 <div className="overflow-x-auto no-scrollbar">
 <CategoryList
 categories={categories}
@@ -177,8 +192,10 @@ setSelectedCategory={setSelectedCategory}
 <FestivalBanner festival={festival} timeLeft={timeLeft}/>
 )}
 
+{/* 🔥 MAIN PRODUCTS */}
 <ProductGrid products={filteredProducts}/>
 
+{/* 🔥 EXTRA SECTIONS */}
 <ProductGrid title="⚡ Lightning Deals" products={lightning}/>
 <ProductGrid title="🔥 Trending" products={trending}/>
 <ProductGrid title="⚡ Clearance" products={clearance}/>
