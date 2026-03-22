@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { doc, setDoc } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+
 import {
   doc,
   getDoc,
+  setDoc,
   addDoc,
   collection,
   getDocs
 } from "firebase/firestore";
+
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
