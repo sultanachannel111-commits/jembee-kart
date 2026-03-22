@@ -8,7 +8,9 @@ import {
   collection,
   getDocs,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  where
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,6 +20,8 @@ export default function CheckoutPage(){
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
+
+  const [codUnlocked,setCodUnlocked] = useState(false); // 🔥 NEW
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -30,13 +34,14 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* LOAD CART */
+  /* LOAD CART + COD CHECK */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth,async(u)=>{
       if(!u) return;
 
       setUser(u);
 
+      // CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -47,6 +52,19 @@ export default function CheckoutPage(){
       });
 
       setItems(data);
+
+      // 🔥 COD UNLOCK CHECK
+      const q = query(
+        collection(db,"orders"),
+        where("userId","==",u.uid),
+        where("paymentMethod","==","online") // prepaid
+      );
+
+      const orderSnap = await getDocs(q);
+
+      if(orderSnap.size >= 2){
+        setCodUnlocked(true);
+      }
 
     });
 
@@ -59,7 +77,7 @@ export default function CheckoutPage(){
     0
   );
 
-  /* PAYMENT */
+  /* PAYMENT (ONLINE) */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
@@ -76,7 +94,7 @@ export default function CheckoutPage(){
         items,
         total,
         customer,
-        paymentMethod:"online",
+        paymentMethod:"online", // 🔥 important
         paymentStatus:"pending",
         status:"pending",
         createdAt:serverTimestamp()
@@ -111,18 +129,42 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
+  /* 🔥 COD ORDER */
+  const placeCOD = async()=>{
+
+    if(!customer.firstName || !customer.phone){
+      alert("Fill details");
+      return;
+    }
+
+    setLoading(true);
+
+    await addDoc(collection(db,"orders"),{
+      userId:user.uid,
+      items,
+      total,
+      customer,
+      paymentMethod:"cod",
+      paymentStatus:"pending",
+      status:"placed",
+      createdAt:serverTimestamp()
+    });
+
+    alert("Order placed (COD) ✅");
+    setLoading(false);
+  };
+
   return(
 
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 p-4">
 
       <div className="max-w-xl mx-auto">
 
-        {/* HEADER */}
         <h1 className="text-3xl font-bold text-center mb-4">
           Checkout 🛍️
         </h1>
 
-        {/* CART SUMMARY */}
+        {/* CART */}
         <div className="bg-white rounded-2xl shadow p-4 mb-4">
 
           <h2 className="font-semibold mb-3">Order Summary</h2>
@@ -147,64 +189,53 @@ export default function CheckoutPage(){
           <h2 className="font-semibold">Delivery Details</h2>
 
           <div className="grid grid-cols-2 gap-3">
-            <input
-              placeholder="First Name"
-              className="p-3 rounded-xl border focus:ring-2 focus:ring-green-400 outline-none"
-              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-            />
-
-            <input
-              placeholder="Last Name"
-              className="p-3 rounded-xl border focus:ring-2 focus:ring-green-400 outline-none"
-              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-            />
+            <input placeholder="First Name" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}/>
+            <input placeholder="Last Name" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}/>
           </div>
 
-          <textarea
-            placeholder="Full Address"
-            className="p-3 rounded-xl border w-full focus:ring-2 focus:ring-green-400 outline-none"
-            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-          />
+          <textarea placeholder="Full Address"
+            className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,address:e.target.value})}/>
 
           <div className="grid grid-cols-2 gap-3">
-            <input
-              placeholder="City"
-              className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-            />
-
-            <input
-              placeholder="State"
-              className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-            />
+            <input placeholder="City" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,city:e.target.value})}/>
+            <input placeholder="State" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,state:e.target.value})}/>
           </div>
 
-          <input
-            placeholder="Pin Code"
-            className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
-          />
+          <input placeholder="Pin Code" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}/>
 
-          <input
-            placeholder="Phone Number"
-            className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-          />
+          <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}/>
 
-          <input
-            placeholder="Email"
-            className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
-          />
+          <input placeholder="Email" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}/>
 
-          {/* PAY BUTTON */}
+          {/* PAY */}
           <button
             onClick={placeOrder}
-            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg active:scale-95 transition"
+            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600"
           >
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
+
+          {/* 🔥 COD BUTTON */}
+          {codUnlocked ? (
+            <button
+              onClick={placeCOD}
+              className="w-full py-3 rounded-xl bg-black text-white font-semibold"
+            >
+              Cash on Delivery
+            </button>
+          ) : (
+            <div className="text-sm text-red-500 text-center">
+              COD unlock after 2 prepaid orders
+            </div>
+          )}
 
         </div>
 
