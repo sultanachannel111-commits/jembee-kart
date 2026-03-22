@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import ReviewSection from "@/components/product/ReviewSection";
 
 export default function ProductPage() {
 
