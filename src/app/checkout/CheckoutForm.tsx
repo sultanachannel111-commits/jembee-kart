@@ -139,6 +139,15 @@ export default function CheckoutPage(){
 
   /* 🔥 COD ORDER */
   const placeCOD = async()=>{
+    let sellerId = null;
+
+if (refCode) {
+  const snap = await getDoc(doc(db, "affiliateLinks", refCode));
+
+  if (snap.exists()) {
+    sellerId = snap.data().sellerId;
+  }
+}
 
     // 🔒 DOUBLE SECURITY
     if(!codUnlocked){
@@ -150,19 +159,58 @@ export default function CheckoutPage(){
       alert("Please fill details");
       return;
     }
+    let sellerId = null;
+
+if (refCode) {
+  const snap = await getDoc(doc(db, "affiliateLinks", refCode));
+
+  if (snap.exists()) {
+    sellerId = snap.data().sellerId;
+  }
+}
+    const firstItem = items?.[0] || {};
+if (!firstItem?.id) {
+  alert("Cart empty ❌");
+  return;
+}
+const sellPrice =
+  firstItem?.variations?.[0]?.sizes?.[0]?.sellPrice || 0;
+
+const basePrice =
+  firstItem?.variations?.[0]?.sizes?.[0]?.basePrice || 0;
+
+const profit = sellPrice - basePrice;
+
+const commission = Math.round(profit * 0.5);
 
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-      userId:user.uid,
-      items,
-      total,
-      customer,
-      paymentMethod:"cod",
-      paymentStatus:"pending",
-      status:"placed",
-      createdAt:serverTimestamp()
-    });
+
+  userId: user.uid,
+
+  productId: firstItem?.id,
+
+  // 🔥 affiliate data
+  sellerId: sellerId || null,
+  affiliateCode: refCode || null,
+
+  // 🔥 pricing
+  sellPrice,
+  basePrice,
+  commission,
+
+  items,
+  total,
+  customer,
+
+  paymentMethod:"cod",
+  paymentStatus:"pending",
+  status:"placed",
+
+  createdAt:serverTimestamp()
+
+});
 
     alert("Order placed (COD) ✅");
     setLoading(false);
