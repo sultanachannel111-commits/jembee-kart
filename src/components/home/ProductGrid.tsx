@@ -88,10 +88,13 @@ export default function ProductGrid({ products, title }: Props) {
 
           // Image fallback system
           const image =
-            product.image ||
-            product.imageUrl ||
-            product.frontImage ||
-            "https://picsum.photos/400";
+  product.images?.[0] ||
+  product.gallery?.[0] ||
+  product.variations?.[0]?.images?.[0] ||
+  product.image ||
+  product.imageUrl ||
+  product.frontImage ||
+  "https://picsum.photos/400";
 
           return (
 
