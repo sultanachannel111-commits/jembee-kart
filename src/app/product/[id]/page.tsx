@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { doc, setDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import {
   doc,
   getDoc,
@@ -18,6 +20,8 @@ export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const searchParams = useSearchParams();
+const ref = searchParams.get("ref");
 
   const [product,setProduct] = useState<any>(null);
   const [loading,setLoading] = useState(true);
@@ -57,6 +61,42 @@ export default function ProductPage() {
 
     if(id) fetchProduct();
   },[id]);
+  // 🔥 AFFILIATE TRACKING
+useEffect(() => {
+
+  const saveAffiliate = async () => {
+
+    if (!ref) return;
+
+    // 🔥 localStorage save
+    localStorage.setItem("affiliate", ref);
+
+    const user = auth.currentUser;
+
+    if (!user) return;
+
+    try {
+
+      await setDoc(
+        doc(db, "userAffiliate", user.uid),
+        {
+          refCode: ref,
+          updatedAt: new Date()
+        },
+        { merge: true }
+      );
+
+      console.log("🔥 Affiliate saved:", ref);
+
+    } catch (err) {
+      console.log(err);
+    }
+
+  };
+
+  saveAffiliate();
+
+}, [ref]);
 
   // 🔥 SIMILAR
   const fetchSimilar = async (category:string)=>{
