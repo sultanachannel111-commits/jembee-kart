@@ -10,7 +10,9 @@ import {
   addDoc,
   serverTimestamp,
   query,
-  where
+  where,
+  doc,
+  getDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
