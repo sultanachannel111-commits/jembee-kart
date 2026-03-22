@@ -21,7 +21,7 @@ export default function CheckoutPage(){
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
 
-  const [codUnlocked,setCodUnlocked] = useState(false); // 🔥 NEW
+  const [codUnlocked,setCodUnlocked] = useState(false); // 🔥 COD STATE
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -41,7 +41,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // CART
+      // 🛒 CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -54,15 +54,18 @@ export default function CheckoutPage(){
       setItems(data);
 
       // 🔥 COD UNLOCK CHECK
-      const q = query(
-        collection(db,"orders"),
-        where("userId","==",u.uid),
-        where("paymentMethod","==","online") // prepaid
+      const orderSnap = await getDocs(
+        query(
+          collection(db,"orders"),
+          where("userId","==",u.uid)
+        )
       );
 
-      const orderSnap = await getDocs(q);
+      const paidOrders = orderSnap.docs.filter(
+        (doc:any)=> doc.data().paymentStatus === "success"
+      );
 
-      if(orderSnap.size >= 2){
+      if(paidOrders.length >= 2){
         setCodUnlocked(true);
       }
 
@@ -77,7 +80,7 @@ export default function CheckoutPage(){
     0
   );
 
-  /* PAYMENT (ONLINE) */
+  /* ONLINE PAYMENT */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
@@ -94,7 +97,7 @@ export default function CheckoutPage(){
         items,
         total,
         customer,
-        paymentMethod:"online", // 🔥 important
+        paymentMethod:"online",
         paymentStatus:"pending",
         status:"pending",
         createdAt:serverTimestamp()
@@ -132,8 +135,14 @@ export default function CheckoutPage(){
   /* 🔥 COD ORDER */
   const placeCOD = async()=>{
 
+    // 🔒 DOUBLE SECURITY
+    if(!codUnlocked){
+      alert("COD locked ❌ Complete 2 prepaid orders first");
+      return;
+    }
+
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Please fill details");
       return;
     }
 
@@ -160,11 +169,12 @@ export default function CheckoutPage(){
 
       <div className="max-w-xl mx-auto">
 
+        {/* HEADER */}
         <h1 className="text-3xl font-bold text-center mb-4">
           Checkout 🛍️
         </h1>
 
-        {/* CART */}
+        {/* CART SUMMARY */}
         <div className="bg-white rounded-2xl shadow p-4 mb-4">
 
           <h2 className="font-semibold mb-3">Order Summary</h2>
@@ -190,52 +200,60 @@ export default function CheckoutPage(){
 
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="First Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}/>
+              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+            />
             <input placeholder="Last Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}/>
+              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+            />
           </div>
 
-          <textarea placeholder="Full Address"
-            className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,address:e.target.value})}/>
+          <textarea placeholder="Full Address" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="City" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,city:e.target.value})}/>
+              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+            />
             <input placeholder="State" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,state:e.target.value})}/>
+              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+            />
           </div>
 
           <input placeholder="Pin Code" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}/>
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          />
 
           <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}/>
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          />
 
           <input placeholder="Email" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,email:e.target.value})}/>
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          />
 
-          {/* PAY */}
+          {/* PAY BUTTON */}
           <button
             onClick={placeOrder}
-            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600"
+            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg"
           >
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
-          {/* 🔥 COD BUTTON */}
-          {codUnlocked ? (
-            <button
-              onClick={placeCOD}
-              className="w-full py-3 rounded-xl bg-black text-white font-semibold"
-            >
-              Cash on Delivery
-            </button>
-          ) : (
-            <div className="text-sm text-red-500 text-center">
-              COD unlock after 2 prepaid orders
-            </div>
-          )}
+          {/* COD BUTTON */}
+          <button
+            onClick={placeCOD}
+            disabled={!codUnlocked}
+            className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
+              codUnlocked
+                ? "bg-black"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {codUnlocked
+              ? "Cash on Delivery"
+              : "COD Locked (2 prepaid orders required)"}
+          </button>
 
         </div>
 
