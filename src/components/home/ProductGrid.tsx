@@ -4,12 +4,62 @@ import Link from "next/link";
 import { Heart, Star, Flame } from "lucide-react";
 import { getFinalPrice } from "@/lib/priceCalculator";
 
+import { useState } from "react";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
+
 type Props = {
   products: any[];
   title?: string;
 };
 
 export default function ProductGrid({ products, title }: Props) {
+
+  const [likedItems, setLikedItems] = useState<any>({}); // ❤️ NEW
+
+  // ❤️ TOGGLE FUNCTION (NEW)
+  const toggleWishlist = async (e:any, product:any) => {
+    e.preventDefault(); // 🔥 LINK CLICK STOP
+    e.stopPropagation();
+
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("Login first");
+      return;
+    }
+
+    const ref = doc(db, "wishlist", user.uid, "items", product.id);
+
+    try {
+
+      if (likedItems[product.id]) {
+
+        await deleteDoc(ref);
+
+        setLikedItems((prev:any)=>({
+          ...prev,
+          [product.id]: false
+        }));
+
+      } else {
+
+        await setDoc(ref,{
+          ...product,
+          createdAt: new Date()
+        });
+
+        setLikedItems((prev:any)=>({
+          ...prev,
+          [product.id]: true
+        }));
+
+      }
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   if (!products || products.length === 0) return null;
 
@@ -50,10 +100,15 @@ export default function ProductGrid({ products, title }: Props) {
               className="bg-white rounded-xl shadow p-3 relative"
             >
 
-              {/* Wishlist */}
+              {/* ❤️ FIXED HEART */}
               <Heart
                 size={18}
-                className="absolute top-2 right-2 text-gray-400"
+                onClick={(e)=>toggleWishlist(e, product)}
+                className={`absolute top-2 right-2 cursor-pointer ${
+                  likedItems[product.id]
+                    ? "text-red-500 fill-red-500"
+                    : "text-gray-400"
+                }`}
               />
 
               {/* Discount */}
