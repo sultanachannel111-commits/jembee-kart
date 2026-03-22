@@ -281,6 +281,9 @@ export default function ProductPage() {
         </div>
 
       </div>
+      {/* ⭐ REVIEWS ADD HERE */}
+<ReviewSection product={product} />
+
 
       {/* BUTTONS */}
       <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">
