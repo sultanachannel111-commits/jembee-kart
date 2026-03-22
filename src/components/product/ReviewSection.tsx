@@ -1,24 +1,51 @@
 "use client";
 
+import { useState } from "react";
 import { Star } from "lucide-react";
 import { getMixedReviews, getReviewStats } from "@/lib/reviewSystem";
 
 export default function ReviewSection({ product }: any) {
 
-  const reviews = getMixedReviews(product);
+  const initialReviews = getMixedReviews(product);
+
+  const [reviews, setReviews] = useState(initialReviews);
 
   if (!reviews.length) return null;
 
   // ✅ Stats calculate
   const { stats, average } = getReviewStats(reviews);
 
+  // 🔥 MOST HELPFUL SORT
+  const sortHelpful = () => {
+    const sorted = [...reviews].sort(
+      (a: any, b: any) => (b.likes || 0) - (a.likes || 0)
+    );
+    setReviews(sorted);
+  };
+
+  // ❤️ LIKE BUTTON
+  const handleLike = (index: number) => {
+    const updated = [...reviews];
+    updated[index].likes = (updated[index].likes || 0) + 1;
+    setReviews(updated);
+  };
+
   return (
     <div className="mt-6">
 
-      {/* ⭐ TITLE */}
-      <h2 className="font-bold text-lg mb-3">
-        ⭐ Customer Reviews
-      </h2>
+      {/* ⭐ TITLE + SORT */}
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-bold text-lg">
+          ⭐ Customer Reviews
+        </h2>
+
+        <button
+          onClick={sortHelpful}
+          className="text-xs bg-gray-100 px-3 py-1 rounded"
+        >
+          Most Helpful
+        </button>
+      </div>
 
       {/* ⭐ RATING SUMMARY */}
       <div className="bg-white p-4 rounded-xl shadow mb-4">
@@ -73,7 +100,7 @@ export default function ReviewSection({ product }: any) {
         {reviews.map((r: any, i: number) => (
 
           <div
-            key={i}
+            key={r.id || i}
             className="bg-white p-3 rounded-xl shadow-sm"
           >
 
@@ -107,8 +134,24 @@ export default function ReviewSection({ product }: any) {
               {r.comment}
             </p>
 
+            {/* 📸 IMAGE (REAL + FAKE BOTH) */}
+            {r.image && (
+              <img
+                src={r.image}
+                className="w-24 h-24 mt-2 rounded-lg object-cover"
+              />
+            )}
+
+            {/* ❤️ LIKE BUTTON */}
+            <button
+              onClick={() => handleLike(i)}
+              className="text-xs text-blue-600 mt-2"
+            >
+              👍 Helpful ({r.likes || 0})
+            </button>
+
             {/* Verified */}
-            <span className="text-[10px] text-green-600">
+            <span className="block text-[10px] text-green-600 mt-1">
               ✔ Verified buyer
             </span>
 
