@@ -1,30 +1,116 @@
-// ⭐ FAKE REVIEW GENERATOR
-export function generateFakeReviews(count = 3) {
+// ⭐ NAMES
+const names = [
+  "Amit","Rahul","Imran","Sohail","Vikash","Arjun","Rohit","Salman",
+  "Faizan","Nadeem","Asif","Sameer","Karan","Deepak","Ankit","Manish",
+  "Zaid","Shahid","Wasim","Irfan","Nitin","Yash","Abhishek","Adil",
+  "Tariq","Farhan","Ayaan","Rehan","Bilal","Junaid","Sandeep","Pankaj",
+  "Ajay","Raj","Suraj","Ramesh","Naresh","Kishan","Harsh","Prakash",
+  "Sunny","Monty","Lucky","Vicky","Sonu","Monu","Guddu","Chintu"
+];
 
-  const names = ["Rahul", "Amit", "Sohail", "Imran", "Vikash", "Arjun"];
-  const comments = [
-    "Very good quality 🔥",
-    "Worth the price 👍",
-    "Fabric is amazing 😍",
+// ⭐ COMMENTS
+const comments = {
+  5: [
+    "Amazing quality 🔥",
+    "Worth every rupee 💯",
     "Perfect fitting 👌",
-    "Highly recommended 💯",
-    "Nice product, fast delivery 🚀"
-  ];
+    "Loved it 😍",
+    "Highly recommended 💥"
+  ],
+  4: [
+    "Very good product 👍",
+    "Nice fabric 😊",
+    "Value for money 💰",
+    "Good quality 👌"
+  ],
+  3: [
+    "Average product 😐",
+    "Okay for price 👍",
+    "Not bad 🙂"
+  ],
+  2: [
+    "Quality could be better 😕",
+    "Not as expected 😐"
+  ],
+  1: [
+    "Bad experience 😞",
+    "Very poor quality ❌"
+  ]
+};
 
-  return Array.from({ length: count }).map(() => ({
-    name: names[Math.floor(Math.random() * names.length)],
-    rating: (Math.random() * 1 + 4).toFixed(1), // 4–5 rating
-    comment: comments[Math.floor(Math.random() * comments.length)],
-    fake: true
-  }));
+// ⭐ RANDOM PICK
+function getRandom(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ⭐ MAIN GENERATOR
+export function generateFakeReviews(productId: string) {
+
+  const seed = productId?.charCodeAt(0) || 10;
+
+  const total = (seed % 10) + 15; // 👉 15–25 reviews
+
+  let reviews: any[] = [];
+
+  for (let i = 1; i <= total; i++) {
+
+    let rating = 5;
+
+    // ⭐ LOGIC
+    if (i % 15 === 0) rating = 2;     // 15 me 1 → 2⭐
+    else if (i % 10 === 0) rating = 3; // 10 me 1 → 3⭐
+    else if (i % 5 === 0) rating = 4;  // thoda 4⭐ mix
+    else rating = 5;
+
+    reviews.push({
+      name: getRandom(names),
+      rating,
+      comment: getRandom(comments[rating]),
+      fake: true
+    });
+  }
+
+  return reviews;
 }
 
 
-// ⭐ MERGE REAL + FAKE REVIEWS
+// ⭐ MIX REAL + FAKE
 export function getMixedReviews(product: any) {
 
-  const realReviews = product.reviewsData || []; // firestore se
-  const fakeReviews = generateFakeReviews(3);
+  const real = product?.reviewsData || [];
+  const fake = generateFakeReviews(product?.id);
 
-  return [...realReviews, ...fakeReviews];
+  return [...real, ...fake];
+}
+
+
+// ⭐ ⭐ ⭐ PREMIUM STATS SYSTEM
+export function getReviewStats(reviews: any[]) {
+
+  let stats = {
+    total: reviews.length,
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0
+  };
+
+  let totalRating = 0;
+
+  reviews.forEach(r => {
+    const star = Math.round(r.rating);
+    stats[star as 1|2|3|4|5]++;
+
+    totalRating += star;
+  });
+
+  const average = stats.total
+    ? (totalRating / stats.total).toFixed(1)
+    : 0;
+
+  return {
+    stats,
+    average
+  };
 }
