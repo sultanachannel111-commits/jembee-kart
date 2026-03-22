@@ -15,11 +15,11 @@ type Props = {
 
 export default function ProductGrid({ products, title }: Props) {
 
-  const [likedItems, setLikedItems] = useState<any>({}); // ❤️ NEW
+  const [likedItems, setLikedItems] = useState<any>({});
 
-  // ❤️ TOGGLE FUNCTION (NEW)
-  const toggleWishlist = async (e:any, product:any) => {
-    e.preventDefault(); // 🔥 LINK CLICK STOP
+  // ❤️ TOGGLE WISHLIST
+  const toggleWishlist = async (e: any, product: any) => {
+    e.preventDefault();
     e.stopPropagation();
 
     const user = auth.currentUser;
@@ -32,28 +32,24 @@ export default function ProductGrid({ products, title }: Props) {
     const ref = doc(db, "wishlist", user.uid, "items", product.id);
 
     try {
-
       if (likedItems[product.id]) {
-
         await deleteDoc(ref);
 
-        setLikedItems((prev:any)=>({
+        setLikedItems((prev: any) => ({
           ...prev,
           [product.id]: false
         }));
 
       } else {
-
-        await setDoc(ref,{
+        await setDoc(ref, {
           ...product,
           createdAt: new Date()
         });
 
-        setLikedItems((prev:any)=>({
+        setLikedItems((prev: any) => ({
           ...prev,
           [product.id]: true
         }));
-
       }
 
     } catch (err) {
@@ -86,27 +82,27 @@ export default function ProductGrid({ products, title }: Props) {
 
           const totalSold = realSold + demoSold;
 
-          // Image fallback system
+          // ✅ FIXED IMAGE LOGIC
           const image =
-  product.images?.[0] ||
-  product.gallery?.[0] ||
-  product.variations?.[0]?.images?.[0] ||
-  product.image ||
-  product.imageUrl ||
-  product.frontImage ||
-  "https://picsum.photos/400";
+            product.images?.[0] ||
+            product.gallery?.[0] ||
+            product.variations?.[0]?.images?.[0] ||
+            product.variations?.[0]?.image ||
+            product.image ||
+            product.imageUrl ||
+            product.frontImage ||
+            "https://picsum.photos/400"; // ✅ correct
 
           return (
-
             <div
               key={product.id}
               className="bg-white rounded-xl shadow p-3 relative"
             >
 
-              {/* ❤️ FIXED HEART */}
+              {/* ❤️ Wishlist */}
               <Heart
                 size={18}
-                onClick={(e)=>toggleWishlist(e, product)}
+                onClick={(e) => toggleWishlist(e, product)}
                 className={`absolute top-2 right-2 cursor-pointer ${
                   likedItems[product.id]
                     ? "text-red-500 fill-red-500"
@@ -137,23 +133,15 @@ export default function ProductGrid({ products, title }: Props) {
 
               {/* Rating */}
               <div className="flex items-center gap-1 mt-1">
-
-                {[1,2,3,4,5].map((star)=>{
+                {[1, 2, 3, 4, 5].map((star) => {
 
                   const full = rating >= star;
                   const half = rating >= star - 0.5 && rating < star;
 
                   return (
+                    <div key={star} className="relative w-[14px] h-[14px]">
 
-                    <div
-                      key={star}
-                      className="relative w-[14px] h-[14px]"
-                    >
-
-                      <Star
-                        size={14}
-                        className="text-gray-300"
-                      />
+                      <Star size={14} className="text-gray-300" />
 
                       {full && (
                         <Star
@@ -172,9 +160,7 @@ export default function ProductGrid({ products, title }: Props) {
                       )}
 
                     </div>
-
                   );
-
                 })}
 
                 <span className="text-xs text-gray-600 ml-1">
@@ -184,21 +170,16 @@ export default function ProductGrid({ products, title }: Props) {
                 <span className="text-xs text-gray-400">
                   ({reviews})
                 </span>
-
               </div>
 
               {/* Sold */}
               <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
-
                 <Flame size={14} />
-
                 {totalSold} sold
-
               </div>
 
               {/* Price */}
               <div className="flex items-center gap-2 mt-1">
-
                 <span className="font-bold text-black">
                   ₹{finalPrice}
                 </span>
@@ -208,17 +189,14 @@ export default function ProductGrid({ products, title }: Props) {
                     ₹{product.originalPrice}
                   </span>
                 )}
-
               </div>
 
             </div>
-
           );
 
         })}
 
       </div>
-
     </div>
   );
 }
