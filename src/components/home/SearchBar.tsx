@@ -42,33 +42,50 @@ export default function SearchBar({
     setSuggestions(filtered.slice(0, 5));
   }, [search]);
 
-  // 🎤 REAL VOICE FUNCTION
+  // 🎤 REAL VOICE FUNCTION (UPGRADED)
   const handleVoice = () => {
 
-    if (!("webkitSpeechRecognition" in window)) {
-      alert("Voice search not supported 😢");
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Voice search not supported 😢 (Use Chrome)");
       return;
     }
 
-    const recognition = new (window as any).webkitSpeechRecognition();
+    const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-IN"; // Hindi + English
+    recognition.lang = "en-IN"; // Hindi + English mix
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // 🔥 live typing
 
     setListening(true);
-    recognition.start();
 
+    try {
+      recognition.start();
+    } catch (err) {
+      console.log("Already started");
+    }
+
+    // 🔥 LIVE RESULT (typing like Google)
     recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      setSearch(text); // 🔥 AUTO TYPE
+      let text = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        text += event.results[i][0].transcript;
+      }
+
+      setSearch(text.toLowerCase());
+    };
+
+    // 🔥 ERROR HANDLE
+    recognition.onerror = (event: any) => {
+      console.log("Voice error:", event.error);
       setListening(false);
     };
 
-    recognition.onerror = () => {
-      setListening(false);
-    };
-
+    // 🔥 END
     recognition.onend = () => {
       setListening(false);
     };
@@ -105,8 +122,10 @@ export default function SearchBar({
           <Mic
             size={20}
             onClick={handleVoice}
-            className={`cursor-pointer ${
-              listening ? "text-red-500 animate-pulse" : "text-gray-600"
+            className={`cursor-pointer transition ${
+              listening
+                ? "text-red-500 animate-pulse scale-110"
+                : "text-gray-600"
             }`}
           />
 
@@ -134,14 +153,32 @@ export default function SearchBar({
 
       </div>
 
-      {/* 🎤 LISTENING POPUP */}
+      {/* 🎤 LISTENING POPUP (PREMIUM) */}
       {listening && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
-          <div className="bg-white rounded-xl p-6 text-center shadow-xl">
-            <div className="text-4xl animate-pulse">🎤</div>
-            <p className="mt-2 font-semibold">Listening...</p>
-            <p className="text-sm text-gray-500">Speak now</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[999]">
+
+          <div className="bg-white rounded-2xl p-6 text-center shadow-2xl w-[85%] max-w-sm">
+
+            <div className="text-5xl animate-pulse">🎤</div>
+
+            <p className="mt-3 font-semibold text-lg">
+              Listening...
+            </p>
+
+            <p className="text-sm text-gray-500">
+              Speak your product name
+            </p>
+
+            {/* 🔥 cancel button */}
+            <button
+              onClick={() => setListening(false)}
+              className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg w-full"
+            >
+              Stop
+            </button>
+
           </div>
+
         </div>
       )}
 
