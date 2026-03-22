@@ -1,140 +1,137 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot
-} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-export default function SellerDashboard() {
-
+export default function SellerProductsPage() {
+  const [products, setProducts] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [totalEarning, setTotalEarning] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   // 🔐 AUTH
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
     });
-
     return () => unsub();
   }, []);
 
-  // 🔥 FETCH SELLER ORDERS
+  // 🔥 FETCH ALL PRODUCTS (IMPORTANT FIX)
   useEffect(() => {
+    const fetchProducts = async () => {
+      const snap = await getDocs(collection(db, "products"));
 
-    if (!user) return;
+      const data = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-    const q = query(
-      collection(db, "orders"),
-      where("sellerId", "==", user.uid)
-    );
+      setProducts(data);
+      setLoading(false);
+    };
 
-    const unsub = onSnapshot(q, (snap) => {
+    fetchProducts();
+  }, []);
 
-      let data: any[] = [];
-      let earning = 0;
+  // 🔗 SHARE FUNCTION
+  const handleShare = (id: string) => {
+    if (!user) return alert("Login first");
 
-      snap.forEach(doc => {
-        const d = doc.data();
+    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
 
-        data.push({ id: doc.id, ...d });
-
-        earning += d.commission || 0;
-      });
-
-      setOrders(data);
-      setTotalOrders(data.length);
-      setTotalEarning(earning);
+    navigator.share?.({
+      title: "Check this product",
+      url: link,
     });
+  };
 
-    return () => unsub();
+  // 📋 COPY LINK
+  const handleCopy = (id: string) => {
+    if (!user) return alert("Login first");
 
-  }, [user]);
+    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
 
-  if (!user) {
-    return <div className="p-5">Login required ❌</div>;
-  }
+    navigator.clipboard.writeText(link);
+    alert("Link copied ✅");
+  };
+
+  // 📲 WHATSAPP SHARE
+  const handleWhatsApp = (id: string) => {
+    if (!user) return alert("Login first");
+
+    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
+  };
+
+  if (loading) return <div className="p-5">Loading...</div>;
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">All Products</h1>
 
-      {/* 🔥 HEADER */}
-      <h1 className="text-2xl font-bold">
-        Seller Dashboard 💰
-      </h1>
+      <div className="grid grid-cols-2 gap-4">
+        {products.map((p: any) => {
+          const price =
+            p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            p?.price ||
+            0;
 
-      {/* 💰 STATS */}
-      <div className="grid grid-cols-2 gap-3">
+          const image =
+            p?.variations?.[0]?.images?.main ||
+            p?.image ||
+            "";
 
-        <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Total Earning</p>
-          <h2 className="text-xl font-bold text-green-600">
-            ₹{totalEarning}
-          </h2>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Total Orders</p>
-          <h2 className="text-xl font-bold">
-            {totalOrders}
-          </h2>
-        </div>
-
-      </div>
-
-      {/* 📦 ORDER LIST */}
-      <div className="bg-white p-4 rounded-xl shadow">
-
-        <h2 className="font-bold mb-3">
-          Orders History
-        </h2>
-
-        {orders.length === 0 && (
-          <p className="text-sm text-gray-500">
-            No orders yet
-          </p>
-        )}
-
-        <div className="space-y-3">
-
-          {orders.map((o) => (
-
+          return (
             <div
-              key={o.id}
-              className="border p-3 rounded-lg"
+              key={p.id}
+              className="bg-white p-3 rounded-xl shadow"
             >
+              {/* IMAGE */}
+              <img
+                src={image}
+                className="h-40 w-full object-cover rounded"
+              />
 
-              <p className="text-sm font-medium">
-                Product ID: {o.productId}
+              {/* NAME */}
+              <p className="text-sm mt-2 line-clamp-2">
+                {p.name}
               </p>
 
-              <p className="text-xs text-gray-500">
-                Sell: ₹{o.sellPrice} | Base: ₹{o.basePrice}
-              </p>
-
+              {/* PRICE */}
               <p className="text-green-600 font-bold">
-                Commission: ₹{o.commission}
+                ₹{price}
               </p>
 
-              <p className="text-xs text-gray-400">
-                Status: {o.status}
-              </p>
+              {/* BUTTONS */}
+              <div className="flex flex-col gap-2 mt-3">
+                <button
+                  onClick={() => handleShare(p.id)}
+                  className="bg-blue-600 text-white py-1 rounded"
+                >
+                  Share
+                </button>
 
+                <button
+                  onClick={() => handleWhatsApp(p.id)}
+                  className="bg-green-500 text-white py-1 rounded"
+                >
+                  WhatsApp
+                </button>
+
+                <button
+                  onClick={() => handleCopy(p.id)}
+                  className="border py-1 rounded"
+                >
+                  Copy Link
+                </button>
+              </div>
             </div>
-
-          ))}
-
-        </div>
-
+          );
+        })}
       </div>
-
     </div>
   );
 }
