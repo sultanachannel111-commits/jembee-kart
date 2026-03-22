@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Heart, Star, Flame } from "lucide-react";
 import { getFinalPrice } from "@/lib/priceCalculator";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
@@ -16,6 +16,25 @@ type Props = {
 export default function ProductGrid({ products, title }: Props) {
 
   const [likedItems, setLikedItems] = useState<any>({});
+  const [visibleCount, setVisibleCount] = useState(4); // 🔥 first 4 instant
+
+  // 🔥 धीरे धीरे बाकी products load
+  useEffect(() => {
+    if (!products) return;
+
+    let i = 4;
+
+    const interval = setInterval(() => {
+      i += 2; // हर बार 2 product add
+      setVisibleCount(i);
+
+      if (i >= products.length) {
+        clearInterval(interval);
+      }
+    }, 400); // ⚡ speed control
+
+    return () => clearInterval(interval);
+  }, [products]);
 
   // ❤️ TOGGLE WISHLIST
   const toggleWishlist = async (e: any, product: any) => {
@@ -70,7 +89,7 @@ export default function ProductGrid({ products, title }: Props) {
       {/* 🔥 Grid */}
       <div className="grid grid-cols-2 gap-4">
 
-        {products.map((product: any) => {
+        {products.slice(0, visibleCount).map((product: any, index:number) => {
 
           const finalPrice = getFinalPrice(product);
 
@@ -82,7 +101,6 @@ export default function ProductGrid({ products, title }: Props) {
 
           const totalSold = realSold + demoSold;
 
-          // ✅🔥 FIXED IMAGE (FIRESTORE STRUCTURE BASED)
           const image =
             product.variations?.[0]?.images?.main ||
             product.variations?.[0]?.images?.front ||
@@ -96,7 +114,10 @@ export default function ProductGrid({ products, title }: Props) {
           return (
             <div
               key={product.id}
-              className="bg-white rounded-xl shadow p-3 relative"
+              className={`bg-white rounded-xl shadow p-3 relative
+                transition-all duration-500
+                ${index >= 4 ? "opacity-0 animate-fadeIn" : "opacity-100"}
+              `}
             >
 
               {/* ❤️ Wishlist */}
@@ -123,6 +144,7 @@ export default function ProductGrid({ products, title }: Props) {
                   src={image || "/no-image.png"}
                   alt={product.name}
                   className="w-full h-40 object-cover rounded-lg"
+                  loading="lazy" // ⚡ performance boost
                 />
               </Link>
 
