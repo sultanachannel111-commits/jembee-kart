@@ -160,15 +160,7 @@ if (refCode) {
       alert("Please fill details");
       return;
     }
-    let sellerId = null;
 
-if (refCode) {
-  const snap = await getDoc(doc(db, "affiliateLinks", refCode));
-
-  if (snap.exists()) {
-    sellerId = snap.data().sellerId;
-  }
-}
     const firstItem = items?.[0] || {};
 if (!firstItem?.id) {
   alert("Cart empty ❌");
