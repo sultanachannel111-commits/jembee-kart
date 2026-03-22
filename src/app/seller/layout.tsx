@@ -166,7 +166,7 @@ className="mb-4 text-sm bg-gray-200 px-3 py-1 rounded"
 </Link>
 
 <Link href="/seller/products" className="flex gap-2">
-<Box size={18}/> My Products
+  <Box size={18}/> All Products
 </Link>
 
 <Link href="/seller/orders" className="flex gap-2">
