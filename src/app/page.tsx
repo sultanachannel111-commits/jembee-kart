@@ -16,7 +16,13 @@ import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  onSnapshot
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function HomePage() {
@@ -43,10 +49,9 @@ export default function HomePage() {
     "black tshirt","oversize tshirt","hoodie","anime tshirt","couple tshirt"
   ];
 
-  // 🔥 FINAL PRICE FIX FUNCTION
+  // 🔥 PRICE FIX FUNCTION
   const getPrice = (data:any)=>{
 
-    // 1. variation → size → sellPrice (MAIN)
     if (data?.variations?.length) {
       const v = data.variations[0];
 
@@ -58,7 +63,6 @@ export default function HomePage() {
       }
     }
 
-    // 2. fallback
     if (data?.sellPrice && data.sellPrice > 0) return Number(data.sellPrice);
     if (data?.price && data.price > 0) return Number(data.price);
 
@@ -72,18 +76,15 @@ export default function HomePage() {
 
   const loadData = async()=>{
 
-    // CATEGORY
     const catSnap = await getDocs(collection(db,"qikinkCategories"));
     setCategories([
       { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
       ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
     ]);
 
-    // BANNERS
     const bannerSnap = await getDocs(collection(db,"banners"));
     setBanners(bannerSnap.docs.map(d=>({id:d.id,...d.data()})));
 
-    // PRODUCTS
     const productSnap = await getDocs(collection(db,"products"));
 
     const productsData = productSnap.docs.map(d=>{
@@ -92,30 +93,32 @@ export default function HomePage() {
       return {
         id:d.id,
         ...data,
-        price:getPrice(data)   // 🔥 FIXED
+        price:getPrice(data)
       };
     });
 
     setProducts(productsData);
 
-    // EXTRA SECTIONS
     setTrending(await getTrendingProducts());
     setClearance(await getClearanceProducts());
     setRecommended(await getRecommendedProducts());
     setLightning(await getLightningDeals());
 
-    // FESTIVAL
     const festSnap = await getDoc(doc(db,"settings","festival"));
     if(festSnap.exists()) setFestival(festSnap.data());
   };
 
-  // 🔥 THEME
+  // 🔥 THEME REALTIME FIX
   useEffect(()=>{
-    const loadTheme = async()=>{
-      const snap = await getDoc(doc(db,"settings","theme"));
-      if(snap.exists()) setTheme(snap.data());
-    };
-    loadTheme();
+    const unsub = onSnapshot(doc(db,"settings","theme"),(snap)=>{
+      if(snap.exists()){
+        const data = snap.data();
+        console.log("THEME:", data); // debug
+        setTheme(data);
+      }
+    });
+
+    return ()=>unsub();
   },[]);
 
   // 🔥 SEARCH
@@ -144,9 +147,10 @@ export default function HomePage() {
 
 <div
   style={{
-    background: theme?.gradient
-      ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-      : "#ffffff"
+    background:
+      theme?.gradientFrom && theme?.gradientTo
+        ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
+        : theme?.background || "#ffffff"
   }}
   className="min-h-screen pb-[80px]"
 >
@@ -192,10 +196,9 @@ setSelectedCategory={setSelectedCategory}
 <FestivalBanner festival={festival} timeLeft={timeLeft}/>
 )}
 
-{/* 🔥 MAIN PRODUCTS */}
+{/* PRODUCTS */}
 <ProductGrid products={filteredProducts}/>
 
-{/* 🔥 EXTRA SECTIONS */}
 <ProductGrid title="⚡ Lightning Deals" products={lightning}/>
 <ProductGrid title="🔥 Trending" products={trending}/>
 <ProductGrid title="⚡ Clearance" products={clearance}/>
