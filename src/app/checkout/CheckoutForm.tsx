@@ -12,7 +12,8 @@ import {
   query,
   where,
   doc,
-  getDoc
+  getDoc,
+  setDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
