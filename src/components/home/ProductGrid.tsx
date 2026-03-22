@@ -62,12 +62,12 @@ export default function ProductGrid({ products, title }: Props) {
   return (
     <div className="mt-4">
 
-      {/* Section Title */}
+      {/* 🔥 Section Title */}
       {title && (
         <h2 className="text-lg font-bold mb-3">{title}</h2>
       )}
 
-      {/* Grid */}
+      {/* 🔥 Grid */}
       <div className="grid grid-cols-2 gap-4">
 
         {products.map((product: any) => {
@@ -82,16 +82,16 @@ export default function ProductGrid({ products, title }: Props) {
 
           const totalSold = realSold + demoSold;
 
-          // ✅ FIXED IMAGE LOGIC
+          // ✅🔥 FIXED IMAGE (FIRESTORE STRUCTURE BASED)
           const image =
-            product.images?.[0] ||
-            product.gallery?.[0] ||
-            product.variations?.[0]?.images?.[0] ||
-            product.variations?.[0]?.image ||
+            product.variations?.[0]?.images?.main ||
+            product.variations?.[0]?.images?.front ||
+            product.variations?.[0]?.images?.back ||
+            product.variations?.[0]?.images?.side ||
             product.image ||
             product.imageUrl ||
             product.frontImage ||
-            "https://picsum.photos/400"; // ✅ correct
+            "";
 
           return (
             <div
@@ -110,28 +110,28 @@ export default function ProductGrid({ products, title }: Props) {
                 }`}
               />
 
-              {/* Discount */}
+              {/* 🔥 Discount */}
               {product.discount && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
                   {product.discount}% OFF
                 </span>
               )}
 
-              {/* Product Image */}
+              {/* 🔥 Product Image */}
               <Link href={`/product/${product.id}`}>
                 <img
-                  src={image}
+                  src={image || "/no-image.png"}
                   alt={product.name}
                   className="w-full h-40 object-cover rounded-lg"
                 />
               </Link>
 
-              {/* Name */}
+              {/* 🔥 Name */}
               <div className="mt-2 text-sm truncate font-medium">
                 {product.name}
               </div>
 
-              {/* Rating */}
+              {/* ⭐ Rating */}
               <div className="flex items-center gap-1 mt-1">
                 {[1, 2, 3, 4, 5].map((star) => {
 
@@ -172,14 +172,15 @@ export default function ProductGrid({ products, title }: Props) {
                 </span>
               </div>
 
-              {/* Sold */}
+              {/* 🔥 Sold */}
               <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
                 <Flame size={14} />
                 {totalSold} sold
               </div>
 
-              {/* Price */}
+              {/* 💰 Price */}
               <div className="flex items-center gap-2 mt-1">
+
                 <span className="font-bold text-black">
                   ₹{finalPrice}
                 </span>
@@ -189,6 +190,7 @@ export default function ProductGrid({ products, title }: Props) {
                     ₹{product.originalPrice}
                   </span>
                 )}
+
               </div>
 
             </div>
@@ -197,6 +199,7 @@ export default function ProductGrid({ products, title }: Props) {
         })}
 
       </div>
+
     </div>
   );
 }
