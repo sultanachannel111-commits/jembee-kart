@@ -4,383 +4,276 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
-collection,
-getDocs,
-query,
-where,
-doc,
-setDoc,
-getDoc,
-writeBatch,
-increment,
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  setDoc,
+  getDoc,
+  writeBatch,
+  increment,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-const [user, setUser] = useState<any>(null);
-const [orders, setOrders] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
 
-const [name, setName] = useState("");
-const [phone, setPhone] = useState("");
-const [address, setAddress] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const [editingProfile, setEditingProfile] = useState(false);
-const [editingAddress, setEditingAddress] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
 
-const router = useRouter();
-const getProgress = (status:any) => {
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(false);
 
-switch(status?.toLowerCase()){
+  const [theme, setTheme] = useState<any>({
+    background: "#f8fafc",
+    button: "#6366f1"
+  });
 
-case "placed":
-return 25;
+  const router = useRouter();
 
-case "processing":
-return 50;
+  // 🔥 LOAD THEME
+  useEffect(() => {
+    const loadTheme = async () => {
+      const snap = await getDoc(doc(db, "settings", "theme"));
+      if (snap.exists()) setTheme(snap.data());
+    };
+    loadTheme();
+  }, []);
 
-case "shipped":
-return 75;
+  // 🔐 AUTH + DATA
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
 
-case "delivered":
-return 100;
+      if (!currentUser) {
+        router.push("/login");
+        return;
+      }
 
-case "cancelled":
-return 100;
+      setUser(currentUser);
 
-default:
-return 25;
+      // Orders
+      const q = query(
+        collection(db, "orders"),
+        where("userId", "==", currentUser.uid)
+      );
 
-}
+      const snapshot = await getDocs(q);
+      setOrders(snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })));
 
-};
-const getStatusMessage = (status:any)=>{
+      // Profile
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setName(data.name || "");
+        setPhone(data.phone || "");
+        setAddress(data.address || "");
+      }
 
-switch(status?.toLowerCase()){
+      setLoading(false);
+    });
 
-case "placed":
-return "📦 Order placed";
+    return () => unsubscribe();
+  }, [router]);
 
-case "processing":
-return "🖨 Product is being prepared";
+  // 🔴 CANCEL ORDER
+  const cancelOrder = async (orderId: string) => {
 
-case "shipped":
-return "🚚 Product shipped";
+    const orderRef = doc(db, "orders", orderId);
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) return;
 
-case "delivered":
-return "✅ Delivered";
+    const orderData = orderSnap.data();
 
-case "cancelled":
-return "❌ Order cancelled";
+    const batch = writeBatch(db);
 
-default:
-return "";
+    batch.update(orderRef, { status: "Cancelled" });
 
-}
+    for (const item of orderData.products || []) {
+      const productRef = doc(db, "products", item.productId);
+      batch.update(productRef, {
+        stock: increment(item.quantity),
+      });
+    }
 
-};
-useEffect(() => {
-const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-if (!currentUser) {
-router.push("/login");
-} else {
-setUser(currentUser);
+    await batch.commit();
 
-// Fetch Orders  
-    const q = query(  
-      collection(db, "orders"),  
-      where("userId", "==", currentUser.uid)  
-    );  
+    setOrders(prev =>
+      prev.map(o => o.id === orderId ? { ...o, status: "Cancelled" } : o)
+    );
 
-    const snapshot = await getDocs(q);  
-    const orderData = snapshot.docs.map((doc) => ({  
-      id: doc.id,  
-      ...doc.data(),  
-    }));  
+    alert("Cancelled ✅");
+  };
 
-    setOrders(orderData);  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/");
+  };
 
-    // Fetch Profile Data  
-    const userDoc = await getDoc(doc(db, "users", currentUser.uid));  
-    if (userDoc.exists()) {  
-      const data = userDoc.data();  
-      setName(data.name || currentUser.displayName || "");  
-      setPhone(data.phone || "");  
-      setAddress(data.address || "");  
-    }  
+  const saveProfile = async () => {
+    await setDoc(doc(db, "users", user.uid), { name, phone }, { merge: true });
+    setEditingProfile(false);
+  };
 
-    setLoading(false);  
-  }  
-});  
+  const saveAddress = async () => {
+    await setDoc(doc(db, "users", user.uid), { address }, { merge: true });
+    setEditingAddress(false);
+  };
 
-return () => unsubscribe();
+  if (loading) return <div className="p-5">Loading...</div>;
 
-}, [router]);
+  return (
+    <div
+      className="min-h-screen p-4"
+      style={{
+        background: `linear-gradient(135deg, ${theme.background}, #e0f2fe)`
+      }}
+    >
 
-const cancelOrder = async (orderId: string) => {
-try {
-const orderRef = doc(db, "orders", orderId);
-const orderSnap = await getDoc(orderRef);
+      {/* 🔥 PROFILE GLASS CARD */}
+      <div className="backdrop-blur-xl bg-white/30 border border-white/40 rounded-3xl p-6 shadow-2xl">
 
-if (!orderSnap.exists()) return;  
+        <div className="flex flex-col items-center">
 
-  const orderData = orderSnap.data();  
+          {/* AVATAR */}
+          <div
+            style={{ background: theme.button }}
+            className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg"
+          >
+            {user?.email?.charAt(0).toUpperCase()}
+          </div>
 
-  if (orderData.status === "Cancelled") {  
-    alert("Already Cancelled");  
-    return;  
-  }  
+          {/* INFO */}
+          {editingProfile ? (
+            <>
+              <input
+                className="w-full mt-4 p-3 rounded-xl bg-white/60 backdrop-blur border"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Name"
+              />
+              <input
+                className="w-full mt-2 p-3 rounded-xl bg-white/60 backdrop-blur border"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone"
+              />
+              <button
+                onClick={saveProfile}
+                style={{ background: theme.button }}
+                className="mt-3 text-white py-2 rounded-xl w-full shadow"
+              >
+                Save
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold mt-3">
+                {name || "Jembee User"}
+              </h2>
+              <p className="text-sm text-gray-700">{user.email}</p>
 
-  const batch = writeBatch(db);  
+              <button
+                onClick={() => setEditingProfile(true)}
+                className="mt-2 text-sm text-blue-600"
+              >
+                Edit Profile
+              </button>
+            </>
+          )}
 
-  batch.update(orderRef, { status: "Cancelled" });  
+          {/* STATS */}
+          <div className="mt-4 flex gap-6">
+            <div className="text-center">
+              <p className="text-xl font-bold">{orders.length}</p>
+              <p className="text-xs text-gray-500">Orders</p>
+            </div>
+          </div>
 
-  for (const item of orderData.products || []) {  
-    const productRef = doc(db, "products", item.productId);  
-    batch.update(productRef, {  
-      stock: increment(item.quantity),  
-    });  
-  }  
+          <button
+            onClick={handleLogout}
+            className="mt-4 text-red-500 font-semibold"
+          >
+            Logout
+          </button>
 
-  await batch.commit();  
+        </div>
+      </div>
 
-  setOrders((prev) =>  
-    prev.map((o) =>  
-      o.id === orderId ? { ...o, status: "Cancelled" } : o  
-    )  
-  );  
+      {/* 🔥 ADDRESS GLASS */}
+      <div className="mt-6 backdrop-blur-xl bg-white/30 border rounded-2xl p-4 shadow">
 
-  alert("Order Cancelled & Stock Restored ✅");  
-} catch (error) {  
-  console.error(error);  
-  alert("Cancel failed ❌");  
-}
+        <h3 className="font-bold mb-2">🏠 Address</h3>
 
-};
+        {editingAddress ? (
+          <>
+            <textarea
+              className="w-full p-3 rounded-xl bg-white/60"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+            <button
+              onClick={saveAddress}
+              className="mt-2 bg-green-500 text-white px-4 py-2 rounded-xl"
+            >
+              Save
+            </button>
+          </>
+        ) : (
+          <>
+            <p>{address || "No address added"}</p>
+            <button
+              onClick={() => setEditingAddress(true)}
+              className="text-sm text-blue-600 mt-2"
+            >
+              Edit
+            </button>
+          </>
+        )}
+      </div>
 
-const handleLogout = async () => {
-await signOut(auth);
-router.push("/");
-};
+      {/* 🔥 ORDERS GLASS */}
+      <div className="mt-6">
 
-const saveProfile = async () => {
-if (!user) return;
+        <h3 className="font-bold mb-3">📦 Orders</h3>
 
-await setDoc(  
-  doc(db, "users", user.uid),  
-  { name, phone },  
-  { merge: true }  
-);  
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="backdrop-blur-xl bg-white/30 border rounded-2xl p-4 mb-3 shadow"
+          >
+            <p className="text-sm font-semibold">
+              #{order.id.slice(0, 8)}
+            </p>
 
-setEditingProfile(false);
+            <p className="text-xs text-gray-600 mt-1">
+              {order.status}
+            </p>
 
-};
+            <p className="mt-1 font-bold">
+              ₹{order.totalAmount}
+            </p>
 
-const saveAddress = async () => {
-if (!user) return;
+            {order.status !== "Delivered" && (
+              <button
+                onClick={() => cancelOrder(order.id)}
+                className="text-red-500 text-xs mt-2"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        ))}
 
-await setDoc(  
-  doc(db, "users", user.uid),  
-  { address },  
-  { merge: true }  
-);  
+      </div>
 
-setEditingAddress(false);
-
-};
-
-if (loading) {
-return (
-<div className="min-h-screen flex items-center justify-center">
-Loading...
-</div>
-);
-}
-
-return (
-<div style={{ background: theme.background }} className="min-h-screen">
-
-{/* PROFILE CARD */}  
-  <div className="bg-white rounded-2xl shadow-lg p-6 text-center">  
-    <div className="flex justify-center">  
-        <div
-  style={{ background: theme.button }}
-  className="w-24 h-24 rounded-full flex items-center justify-center text-white"
->
-        {user?.email?.charAt(0).toUpperCase()}  
-      </div>  
-    </div>  
-
-    {editingProfile ? (  
-      <>  
-        <input  
-          className="w-full border rounded-lg p-2 mt-4"  
-          value={name}  
-          onChange={(e) => setName(e.target.value)}  
-          placeholder="Your Name"  
-        />  
-        <input  
-          className="w-full border rounded-lg p-2 mt-3"  
-          value={phone}  
-          onChange={(e) => setPhone(e.target.value)}  
-          placeholder="Phone Number"  
-        />  
-        <button  
-          onClick={saveProfile}  
-      style={{ background: theme.button }}
-className="mt-3 text-white px-4 py-2 rounded-lg w-full"
-        >  
-          Save Profile  
-        </button>  
-      </>  
-    ) : (  
-      <>  
-        <h2 className="text-xl font-bold mt-4">  
-          {name || "Jembee User"}  
-        </h2>  
-        <p className="text-gray-500 text-sm">{user?.email}</p>  
-        <p className="text-gray-600 text-sm mt-1">  
-          📱 {phone || "No phone added"}  
-        </p>  
-        <button  
-          onClick={() => setEditingProfile(true)}  
-           style={{ color: theme.button }}
-className="mt-2 text-sm font-semibold"
-        >  
-          Edit Profile  
-        </button>  
-      </>  
-    )}  
-
-    <div className="mt-4 flex justify-center">  
-      <div>  
-        <p className="font-bold text-lg">{orders.length}</p>  
-        <p className="text-gray-500 text-xs">Total Orders</p>  
-      </div>  
-    </div>  
-
-    <button  
-      onClick={handleLogout}  
-        style={{ background: theme.button }}
-className="mt-6 w-full text-white py-3 rounded-lg"
-    >  
-      🚪 Logout  
-    </button>  
-  </div>  
-
-  {/* ADDRESS */}  
-  <div className="mt-6 bg-white rounded-2xl shadow-lg p-4">  
-    <h3 className="font-bold mb-2">🏠 Delivery Address</h3>  
-
-    {editingAddress ? (  
-      <>  
-        <textarea  
-          className="w-full border rounded-lg p-2 text-sm"  
-          value={address}  
-          onChange={(e) => setAddress(e.target.value)}  
-          placeholder="Enter full address..."  
-        />  
-        <button  
-          onClick={saveAddress}  
-          className="mt-2 bg-green-500 text-white px-4 py-2 rounded-lg"  
-        >  
-          Save Address  
-        </button>  
-      </>  
-    ) : (  
-      <>  
-        <p className="text-sm text-gray-600">  
-          {address || "No address added yet."}  
-        </p>  
-        <button  
-          onClick={() => setEditingAddress(true)}  
-          className="mt-2 text-pink-600 text-sm font-semibold"  
-        >  
-          {address ? "Change Address" : "Add Address"}  
-        </button>  
-      </>  
-    )}  
-  </div>  
-
-  {/* MY ORDERS */}  
-  <div className="mt-6">  
-    <h3 className="text-lg font-bold mb-3">📦 My Orders</h3>  
-
-    {orders.length === 0 ? (  
-      <div className="bg-white rounded-xl p-4 shadow text-gray-500 text-sm">  
-        No orders yet.  
-      </div>  
-    ) : (  
-      orders.map((order) => (  
-        <div  
-          key={order.id}  
-          className="bg-white rounded-xl p-4 shadow mb-4"  
-        >  
-          <div className="flex justify-between items-center">  
-            <span className="font-semibold text-sm">  
-              Order ID: {order.id.slice(0, 8)}  
-            </span>  
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">  
-              {order.status || "Placed"}  
-            </span>
-          </div>  
-         <div className="text-xs text-gray-600 mt-1">
-
-{getStatusMessage(order.status)} 
-              </div>  {/* Progress Bar */}  
-          <div className="mt-3">  
-            <div className="w-full bg-gray-200 h-2 rounded-full">  
-              <div  
-                className={`h-2 rounded-full ${  
-                  order.status?.toLowerCase() === "cancelled"  
-                    ? "bg-red-500"  
-                    : order.status?.toLowerCase() === "delivered"  
-                    ? "bg-green-500"  
-                    : order.status?.toLowerCase() === "shipped"  
-                    ? "bg-yellow-500"  
-                    : order.status?.toLowerCase() === "processing"  
-                    ? "bg-blue-500"  
-                    : order.status?.toLowerCase() === "placed"  
-                    ? "bg-purple-500"  
-                    : "bg-gray-400"  
-                }`}  
-                style={{  
-                  width:  
-                    order.status?.toLowerCase() === "placed"  
-                      ? "25%"  
-                      : order.status?.toLowerCase() === "processing"  
-                      ? "50%"  
-                      : order.status?.toLowerCase() === "shipped"  
-                      ? "75%"  
-                      : order.status?.toLowerCase() === "delivered"  
-                      ? "100%"  
-                      : order.status?.toLowerCase() === "cancelled"  
-                      ? "100%"  
-                      : "25%",  
-                }}  
-              />  
-            </div>  
-          </div>  
-
-          <div className="text-sm text-gray-600 mt-2">  
-            ₹{order.totalAmount}  
-          </div>  
-
-          {order.status !== "Shipped" &&  
-            order.status !== "Delivered" &&  
-            order.status !== "Cancelled" && (  
-              <button  
-                onClick={() => cancelOrder(order.id)}  
-                className="mt-2 text-red-600 text-xs font-semibold"  
-              >  
-                Cancel Order  
-              </button>  
-            )}  
-        </div>  
-      ))  
-    )}  
-  </div>  
-</div>
-
-);
+    </div>
+  );
 }
