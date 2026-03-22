@@ -38,6 +38,15 @@ const comments = {
   ]
 };
 
+// ⭐ FAKE IMAGES (public folder)
+const fakeImages = [
+  "/reviews/review1.jpg",
+  "/reviews/review2.jpg",
+  "/reviews/review3.jpg",
+  "/reviews/review4.jpg",
+  "/reviews/review5.jpg"
+];
+
 // ⭐ RANDOM PICK
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -56,16 +65,20 @@ export function generateFakeReviews(productId: string) {
 
     let rating = 5;
 
-    // ⭐ LOGIC
+    // ⭐ LOGIC (Premium distribution)
     if (i % 15 === 0) rating = 2;     // 15 me 1 → 2⭐
     else if (i % 10 === 0) rating = 3; // 10 me 1 → 3⭐
     else if (i % 5 === 0) rating = 4;  // thoda 4⭐ mix
     else rating = 5;
 
     reviews.push({
+      id: `fake-${productId}-${i}`, // 🔥 unique id
       name: getRandom(names),
       rating,
       comment: getRandom(comments[rating]),
+      image: Math.random() > 0.5 ? getRandom(fakeImages) : "", // 🔥 fake image
+      likes: Math.floor(Math.random() * 20), // 🔥 random likes
+      createdAt: new Date(),
       fake: true
     });
   }
@@ -78,9 +91,22 @@ export function generateFakeReviews(productId: string) {
 export function getMixedReviews(product: any) {
 
   const real = product?.reviewsData || [];
+
+  // 🔥 ensure real reviews also safe
+  const realFormatted = real.map((r:any, i:number)=>({
+    id: r.id || `real-${i}`,
+    name: r.name || "User",
+    rating: r.rating || 5,
+    comment: r.comment || "",
+    image: r.image || "",
+    likes: r.likes || 0,
+    createdAt: r.createdAt || new Date(),
+    fake: false
+  }));
+
   const fake = generateFakeReviews(product?.id);
 
-  return [...real, ...fake];
+  return [...realFormatted, ...fake];
 }
 
 
@@ -99,15 +125,19 @@ export function getReviewStats(reviews: any[]) {
   let totalRating = 0;
 
   reviews.forEach(r => {
-    const star = Math.round(r.rating);
-    stats[star as 1|2|3|4|5]++;
 
-    totalRating += star;
+    const star = Math.round(Number(r.rating) || 0);
+
+    if (star >= 1 && star <= 5) {
+      stats[star as 1|2|3|4|5]++;
+      totalRating += star;
+    }
+
   });
 
   const average = stats.total
     ? (totalRating / stats.total).toFixed(1)
-    : 0;
+    : "0";
 
   return {
     stats,
