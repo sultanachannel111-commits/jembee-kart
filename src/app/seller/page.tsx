@@ -4,137 +4,134 @@ import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
   collection,
-  getDocs,
-  doc,
-  setDoc
+  query,
+  where,
+  onSnapshot
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
-// 🔥 RANDOM CODE GENERATOR
-const generateCode = () => {
-  return Math.random().toString(36).substring(2, 8);
-};
+export default function SellerDashboard() {
 
-export default function SellerPage() {
+  const [user, setUser] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [totalEarning, setTotalEarning] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // 🔥 LOAD PRODUCTS
+  // 🔐 AUTH
   useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
-
-    const snap = await getDocs(collection(db, "products"));
-
-    const data = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data()
-    }));
-
-    setProducts(data);
-    setLoading(false);
-  };
-
-  // 🔗 GENERATE LINK
-  const handleGenerateLink = async (product: any) => {
-
-    const user = auth.currentUser;
-
-    if (!user) {
-      alert("Login first");
-      return;
-    }
-
-    const code = generateCode();
-
-    await setDoc(doc(db, "affiliateLinks", code), {
-      productId: product.id,
-      sellerId: user.uid,
-      createdAt: new Date()
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
     });
 
-    const link = `${window.location.origin}/product/${product.id}?ref=${code}`;
+    return () => unsub();
+  }, []);
 
-    // 🔥 COPY LINK
-    navigator.clipboard.writeText(link);
+  // 🔥 FETCH SELLER ORDERS
+  useEffect(() => {
 
-    alert("✅ Link copied!\n\n" + link);
-  };
+    if (!user) return;
 
-  if (loading) {
-    return <div className="p-4">Loading...</div>;
+    const q = query(
+      collection(db, "orders"),
+      where("sellerId", "==", user.uid)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+
+      let data: any[] = [];
+      let earning = 0;
+
+      snap.forEach(doc => {
+        const d = doc.data();
+
+        data.push({ id: doc.id, ...d });
+
+        earning += d.commission || 0;
+      });
+
+      setOrders(data);
+      setTotalOrders(data.length);
+      setTotalEarning(earning);
+    });
+
+    return () => unsub();
+
+  }, [user]);
+
+  if (!user) {
+    return <div className="p-5">Login required ❌</div>;
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 space-y-4">
 
-      <h1 className="text-2xl font-bold mb-4">
-        Seller Panel 💰
+      {/* 🔥 HEADER */}
+      <h1 className="text-2xl font-bold">
+        Seller Dashboard 💰
       </h1>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* 💰 STATS */}
+      <div className="grid grid-cols-2 gap-3">
 
-        {products.map((product: any) => {
+        <div className="bg-white p-4 rounded-xl shadow">
+          <p className="text-sm text-gray-500">Total Earning</p>
+          <h2 className="text-xl font-bold text-green-600">
+            ₹{totalEarning}
+          </h2>
+        </div>
 
-          const image =
-            product?.variations?.[0]?.images?.main ||
-            product.image ||
-            "";
+        <div className="bg-white p-4 rounded-xl shadow">
+          <p className="text-sm text-gray-500">Total Orders</p>
+          <h2 className="text-xl font-bold">
+            {totalOrders}
+          </h2>
+        </div>
 
-          const sellPrice =
-            product?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            product.price ||
-            0;
+      </div>
 
-          const basePrice =
-            product?.variations?.[0]?.sizes?.[0]?.price ||
-            0;
+      {/* 📦 ORDER LIST */}
+      <div className="bg-white p-4 rounded-xl shadow">
 
-          return (
+        <h2 className="font-bold mb-3">
+          Orders History
+        </h2>
+
+        {orders.length === 0 && (
+          <p className="text-sm text-gray-500">
+            No orders yet
+          </p>
+        )}
+
+        <div className="space-y-3">
+
+          {orders.map((o) => (
+
             <div
-              key={product.id}
-              className="bg-white p-3 rounded-xl shadow"
+              key={o.id}
+              className="border p-3 rounded-lg"
             >
 
-              {/* IMAGE */}
-              <img
-                src={image}
-                className="w-full h-32 object-cover rounded"
-              />
-
-              {/* NAME */}
-              <p className="mt-2 text-sm font-semibold">
-                {product.name}
-              </p>
-
-              {/* PRICE */}
-              <p className="text-green-600 font-bold">
-                ₹{sellPrice}
+              <p className="text-sm font-medium">
+                Product ID: {o.productId}
               </p>
 
               <p className="text-xs text-gray-500">
-                Base: ₹{basePrice}
+                Sell: ₹{o.sellPrice} | Base: ₹{o.basePrice}
               </p>
 
-              {/* COMMISSION PREVIEW */}
-              <p className="text-xs text-blue-600 mt-1">
-                Commission: ₹{Math.round((sellPrice - basePrice) * 0.5)}
+              <p className="text-green-600 font-bold">
+                Commission: ₹{o.commission}
               </p>
 
-              {/* BUTTON */}
-              <button
-                onClick={() => handleGenerateLink(product)}
-                className="mt-3 w-full bg-black text-white py-2 rounded"
-              >
-                🔗 Generate Link
-              </button>
+              <p className="text-xs text-gray-400">
+                Status: {o.status}
+              </p>
 
             </div>
-          );
 
-        })}
+          ))}
+
+        </div>
 
       </div>
 
