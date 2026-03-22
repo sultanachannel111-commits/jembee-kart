@@ -2,238 +2,286 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, addDoc, collection } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  addDoc,
+  collection,
+  getDocs
+} from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function ProductPage() {
 
-const params = useParams();
-const router = useRouter();
-const id = params?.id as string;
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id as string;
 
-const [product,setProduct] = useState<any>(null);
-const [loading,setLoading] = useState(true);
-const [user,setUser] = useState<any>(null);
+  const [product,setProduct] = useState<any>(null);
+  const [loading,setLoading] = useState(true);
+  const [user,setUser] = useState<any>(null);
 
-const [selectedColor,setSelectedColor] = useState(0);
-const [selectedSize,setSelectedSize] = useState<any>(null);
+  const [selectedColor,setSelectedColor] = useState(0);
+  const [selectedSize,setSelectedSize] = useState<any>(null);
 
-const [currentImage,setCurrentImage] = useState(0);
-const [showViewer,setShowViewer] = useState(false);
+  const [currentImage,setCurrentImage] = useState(0);
+  const [showViewer,setShowViewer] = useState(false);
 
-// AUTH
-useEffect(()=>{
-const unsub = onAuthStateChanged(auth,(u)=>setUser(u));
-return ()=>unsub();
-},[]);
+  const [similar,setSimilar] = useState<any[]>([]);
 
-// FETCH
-useEffect(()=>{
-const fetchProduct = async()=>{
-const snap = await getDoc(doc(db,"products",id));
+  // 🔐 AUTH
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth,(u)=>setUser(u));
+    return ()=>unsub();
+  },[]);
 
-if(snap.exists()){
-const data:any = { id:snap.id, ...snap.data() };
-setProduct(data);
+  // 🔥 FETCH PRODUCT
+  useEffect(()=>{
+    const fetchProduct = async()=>{
+      const snap = await getDoc(doc(db,"products",id));
 
-const first = data?.variations?.[0];
-setSelectedSize(first?.sizes?.[0] || null);
-}
+      if(snap.exists()){
+        const data:any = { id:snap.id, ...snap.data() };
+        setProduct(data);
 
-setLoading(false);
-};
+        const first = data?.variations?.[0];
+        setSelectedSize(first?.sizes?.[0] || null);
 
-if(id) fetchProduct();
-},[id]);
+        fetchSimilar(data.category);
+      }
 
-if(loading) return <div className="p-5">Loading...</div>;
-if(!product) return <div className="p-5">Product not found</div>;
+      setLoading(false);
+    };
 
-const variant = product?.variations?.[selectedColor] || {};
+    if(id) fetchProduct();
+  },[id]);
 
-// IMAGES
-const images = [
-variant?.images?.main,
-variant?.images?.front,
-variant?.images?.back,
-variant?.images?.side,
-variant?.images?.model
-].filter(Boolean);
+  // 🔥 SIMILAR PRODUCTS
+  const fetchSimilar = async (category:string)=>{
+    const snap = await getDocs(collection(db,"products"));
 
-// 🔥 FINAL PRICE FIX
-const price =
-Number(selectedSize?.sellPrice) ||
-Number(selectedSize?.price) ||
-Number(variant?.sizes?.[0]?.sellPrice) ||
-Number(variant?.sizes?.[0]?.price) ||
-Number(product?.price) ||
-0;
+    const data = snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter((p:any)=>p.category === category && p.id !== id)
+      .slice(0,6);
 
-const stock = Number(selectedSize?.stock) || 0;
+    setSimilar(data);
+  };
 
-// ADD TO CART
-const handleAddToCart = async () => {
-if (!user) return router.push(`/login?redirect=/product/${id}`);
-if (!selectedSize) return alert("Select size");
+  if(loading) return <div className="p-5">Loading...</div>;
+  if(!product) return <div className="p-5">Product not found</div>;
 
-await addDoc(collection(db,"carts",user.uid,"items"),{
-productId: product.id,
-name: product.name,
-image: images?.[0] || "",
-size: selectedSize.size,
-price: price,
-sellPrice: price,
-quantity: 1
-});
+  const variant = product?.variations?.[selectedColor] || {};
 
-alert("Added to cart");
-router.push("/cart");
-};
+  // 🔥 IMAGES
+  const images = [
+    variant?.images?.main,
+    variant?.images?.front,
+    variant?.images?.back,
+    variant?.images?.side,
+    variant?.images?.model
+  ].filter(Boolean);
 
-// BUY NOW
-const handleBuyNow = async () => {
-if (!user) return router.push(`/login?redirect=/product/${id}`);
-if (!selectedSize) return alert("Select size");
+  // 🔥 FINAL PRICE FIX
+  const price =
+    Number(selectedSize?.sellPrice) ||
+    Number(selectedSize?.price) ||
+    Number(variant?.sizes?.[0]?.sellPrice) ||
+    Number(variant?.sizes?.[0]?.price) ||
+    Number(product?.price) ||
+    0;
 
-const orderRef = await addDoc(collection(db,"orders"),{
-userId: user.uid,
-productId: product.id,
-name: product.name,
-image: images?.[0] || "",
-size: selectedSize.size,
-price: price,
-status: "pending"
-});
+  const stock = Number(selectedSize?.stock) || 0;
 
-router.push(`/checkout?orderId=${orderRef.id}`);
-};
+  // 🛒 ADD TO CART
+  const handleAddToCart = async () => {
 
-// SHARE
-const handleShare = ()=>{
-navigator.share?.({
-title: product.name,
-url: window.location.href
-});
-};
+    if (!user) return router.push(`/login?redirect=/product/${id}`);
+    if (!selectedSize) return alert("Select size");
 
-// SCROLL
-const handleScroll = (e:any)=>{
-const scrollLeft = e.target.scrollLeft;
-const width = e.target.clientWidth;
-setCurrentImage(Math.round(scrollLeft / width));
-};
+    await addDoc(collection(db,"carts",user.uid,"items"),{
+      productId: product.id,
+      name: product.name,
+      image: images?.[0] || "",
+      size: selectedSize.size,
+      price: price,
+      sellPrice: price,
+      quantity: 1
+    });
 
-return (
-<div className="bg-gradient-to-br from-gray-100 to-white min-h-screen pb-28">
+    alert("Added to cart");
+    router.push("/cart");
+  };
 
-{/* IMAGE */}
-<div onScroll={handleScroll} className="flex overflow-x-auto snap-x">
-{images.map((img:any,i:number)=>(
-<img
-key={i}
-src={img}
-onClick={()=>setShowViewer(true)}
-className="w-full h-[320px] object-contain snap-center"
-/>
-))}
-</div>
+  // ⚡ BUY NOW
+  const handleBuyNow = async () => {
 
-{/* SHARE */}
-<button
-onClick={handleShare}
-className="absolute top-4 right-4 bg-white/80 backdrop-blur p-2 rounded-full shadow"
->
-🔗
-</button>
+    if (!user) return router.push(`/login?redirect=/product/${id}`);
+    if (!selectedSize) return alert("Select size");
 
-{/* DOTS */}
-<div className="flex justify-center gap-2 mt-2">
-{images.map((_,i)=>(
-<div key={i} className={`w-2 h-2 rounded-full ${
-currentImage===i ? "bg-blue-600" : "bg-gray-300"
-}`}/>
-))}
-</div>
+    const orderRef = await addDoc(collection(db,"orders"),{
+      userId: user.uid,
+      productId: product.id,
+      name: product.name,
+      image: images?.[0] || "",
+      size: selectedSize.size,
+      price: price,
+      status: "pending"
+    });
 
-<div className="p-4">
+    router.push(`/checkout?orderId=${orderRef.id}`);
+  };
 
-{/* NAME */}
-<h1 className="text-xl font-bold">{product.name}</h1>
+  // 🔗 SHARE
+  const handleShare = ()=>{
+    navigator.share?.({
+      title: product.name,
+      url: window.location.href
+    });
+  };
 
-{/* PRICE */}
-<div className="mt-2">
-<span className="text-3xl font-bold text-green-600">₹{price}</span>
-<span className="text-sm text-gray-500 ml-2">Best Price</span>
-</div>
+  // 🔄 SLIDER
+  const handleScroll = (e:any)=>{
+    const index = Math.round(e.target.scrollLeft / e.target.clientWidth);
+    setCurrentImage(index);
+  };
 
-{/* STOCK */}
-<p className={`mt-1 ${stock>0?"text-green-600":"text-red-500"}`}>
-{stock>0 ? `In Stock (${stock})` : "Out of Stock"}
-</p>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white pb-28">
 
-{/* SIZE */}
-<div className="mt-5">
-<h3 className="font-semibold mb-3">Select Size</h3>
+      {/* IMAGE */}
+      <div onScroll={handleScroll} className="flex overflow-x-auto snap-x">
+        {images.map((img:any,i:number)=>(
+          <img
+            key={i}
+            src={img}
+            onClick={()=>setShowViewer(true)}
+            className="w-full h-[320px] object-contain snap-center"
+          />
+        ))}
+      </div>
 
-<div className="grid grid-cols-3 gap-3">
+      {/* SHARE */}
+      <button
+        onClick={handleShare}
+        className="absolute top-4 right-4 bg-white p-2 rounded-full shadow"
+      >
+        🔗
+      </button>
 
-{variant?.sizes?.map((s:any,i:number)=>(
-<div
-key={i}
-onClick={()=>s.stock>0 && setSelectedSize(s)}
-className={`p-3 rounded-xl border text-center transition ${
-selectedSize?.size===s.size
-? "bg-blue-600 text-white"
-: "bg-white"
-}`}
->
+      {/* DOTS */}
+      <div className="flex justify-center gap-2 mt-2">
+        {images.map((_,i)=>(
+          <div key={i} className={`w-2 h-2 rounded-full ${
+            currentImage===i ? "bg-blue-600" : "bg-gray-300"
+          }`}/>
+        ))}
+      </div>
 
-{/* SIZE */}
-<div className="font-bold">{s.size}</div>
+      <div className="p-4">
 
-{/* PRICE */}
-<div className="text-sm mt-1">
-₹{s.sellPrice || s.price || 0}
-</div>
+        {/* COLOR */}
+        <div className="flex gap-3 overflow-x-auto">
+          {product?.variations?.map((v:any,i:number)=>(
+            <img
+              key={i}
+              src={v?.images?.main}
+              onClick={()=>{
+                setSelectedColor(i);
+                setSelectedSize(v?.sizes?.[0] || null);
+              }}
+              className={`w-16 h-16 rounded-xl border ${
+                selectedColor===i ? "border-blue-600" : ""
+              }`}
+            />
+          ))}
+        </div>
 
-{/* DESCRIPTION */}
-<div className="text-[10px] mt-1 text-gray-500">
-Premium Quality
-</div>
+        {/* NAME */}
+        <h1 className="text-xl font-bold mt-4">{product.name}</h1>
 
-</div>
-))}
+        {/* PRICE */}
+        <div className="mt-2 text-3xl font-bold text-green-600">
+          ₹{price}
+        </div>
 
-</div>
-</div>
+        {/* SIZE */}
+        <div className="mt-5">
+          <h3 className="font-semibold mb-3">Select Size</h3>
 
-{/* DESCRIPTION BOX */}
-<div className="mt-6 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
-{product.description || "Premium quality product with best fabric."}
-</div>
+          <div className="grid grid-cols-3 gap-3">
+            {variant?.sizes?.map((s:any,i:number)=>(
+              <div
+                key={i}
+                onClick={()=>setSelectedSize(s)}
+                className={`p-3 rounded-xl border text-center ${
+                  selectedSize?.size===s.size
+                    ? "bg-blue-600 text-white"
+                    : "bg-white"
+                }`}
+              >
+                {s.size}
+              </div>
+            ))}
+          </div>
+        </div>
 
-</div>
+        {/* SELECTED SIZE PRICE */}
+        {selectedSize && (
+          <div className="mt-4 text-xl font-bold text-center">
+            ₹{selectedSize.sellPrice || selectedSize.price || 0}
+          </div>
+        )}
 
-{/* BUTTONS */}
-<div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">
+        {/* DESCRIPTION */}
+        <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
+          {product.description || "Premium product"}
+        </div>
 
-<button
-onClick={handleAddToCart}
-className="w-1/2 py-3 rounded-xl border border-blue-600 text-blue-600 font-semibold"
->
-Add to Cart
-</button>
+        {/* SIMILAR */}
+        <div className="mt-6">
+          <h3 className="font-bold mb-3">You may also like</h3>
 
-<button
-onClick={handleBuyNow}
-className="w-1/2 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold"
->
-Buy Now
-</button>
+          <div className="flex gap-3 overflow-x-auto">
+            {similar.map((p:any)=>(
+              <div
+                key={p.id}
+                onClick={()=>router.push(`/product/${p.id}`)}
+                className="min-w-[140px] bg-white p-2 rounded-xl shadow"
+              >
+                <img
+                  src={p?.variations?.[0]?.images?.main}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <p className="text-sm">{p.name}</p>
+                <p className="text-green-600 font-bold">
+                  ₹{p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
 
-</div>
+      </div>
 
-</div>
-);
+      {/* BUTTONS */}
+      <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">
+        <button
+          onClick={handleAddToCart}
+          className="w-1/2 py-3 rounded-xl border border-blue-600 text-blue-600"
+        >
+          Add to Cart
+        </button>
+
+        <button
+          onClick={handleBuyNow}
+          className="w-1/2 py-3 rounded-xl bg-blue-600 text-white"
+        >
+          Buy Now
+        </button>
+      </div>
+
+    </div>
+  );
 }
