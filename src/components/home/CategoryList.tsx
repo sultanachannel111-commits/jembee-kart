@@ -30,8 +30,7 @@ export default function CategoryList({
 
         const isActive = selectedCategory === cat.name;
 
-        // 🔥 CATEGORY PRIORITY (CATEGORY > ADMIN > DEFAULT)
-
+        // 🔥 PRIORITY (CATEGORY > ADMIN > DEFAULT)
         const bgColor =
           cat.bgColor ||
           theme?.categoryColor ||
@@ -51,6 +50,11 @@ export default function CategoryList({
 
         const finalBg = gradientBg || bgColor;
 
+        // 🔥 INACTIVE BACKGROUND (FIXED)
+        const inactiveBg =
+          theme?.card ||
+          "rgba(255,255,255,0.6)";
+
         return (
           <div
             key={cat.id}
@@ -61,16 +65,20 @@ export default function CategoryList({
             {/* 🔥 BOX */}
             <div
               style={{
-                background: isActive ? finalBg : "#ffffff",
+                background: isActive ? finalBg : inactiveBg,
 
                 boxShadow: isActive
-                  ? `0 10px 30px ${bgColor}55`
-                  : "0 4px 10px rgba(0,0,0,0.05)"
+                  ? `0 12px 30px ${bgColor}66`
+                  : "0 4px 12px rgba(0,0,0,0.08)",
+
+                backdropFilter: "blur(10px)"
               }}
               className={`
                 w-20 h-20 rounded-2xl flex items-center justify-center
-                transition-all duration-300 border backdrop-blur-md
-                ${isActive ? "scale-110 border-transparent" : "border-gray-200"}
+                transition-all duration-300 border
+                ${isActive
+                  ? "scale-110 border-transparent"
+                  : "border-gray-200"}
               `}
             >
 
@@ -87,7 +95,11 @@ export default function CategoryList({
             {/* 🔥 TEXT */}
             <span
               style={{
-                color: isActive ? textColor : "#6b7280"
+                color: isActive
+                  ? textColor
+                  : theme?.mode === "dark"
+                    ? "#9ca3af"
+                    : "#6b7280"
               }}
               className={`
                 text-xs mt-2 text-center transition-all duration-300
