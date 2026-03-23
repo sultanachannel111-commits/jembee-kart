@@ -1,10 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 export default function CategoryList({
   categories,
   selectedCategory,
   setSelectedCategory
 }) {
+
+  const [theme, setTheme] = useState<any>({});
+
+  // 🔥 THEME LOAD (ADMIN CONTROL)
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "theme"), (snap) => {
+      if (snap.exists()) {
+        setTheme(snap.data());
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   return (
     <div className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar">
@@ -13,6 +30,13 @@ export default function CategoryList({
 
         const isActive = selectedCategory === cat.name;
 
+        // 🔥 FINAL COLORS (ADMIN + CATEGORY SUPPORT)
+        const bgColor =
+          cat.bgColor || theme?.categoryColor || "#22c55e";
+
+        const textColor =
+          cat.textColor || theme?.categoryTextColor || "#22c55e";
+
         return (
           <div
             key={cat.id}
@@ -20,15 +44,13 @@ export default function CategoryList({
             className="flex flex-col items-center cursor-pointer min-w-[90px] transition-all duration-300"
           >
 
-            {/* 🔥 FLIPKART STYLE BOX */}
+            {/* 🔥 BOX */}
             <div
               style={{
-                background: isActive
-                  ? cat.gradient || cat.bgColor || "#22c55e"
-                  : "#ffffff",
+                background: isActive ? bgColor : "#ffffff",
 
                 boxShadow: isActive
-                  ? `0 10px 30px ${cat.bgColor || "#22c55e"}55`
+                  ? `0 10px 30px ${bgColor}55`
                   : "0 4px 10px rgba(0,0,0,0.05)"
               }}
               className={`
@@ -38,7 +60,6 @@ export default function CategoryList({
               `}
             >
 
-              {/* 🔥 IMAGE */}
               {cat.image && (
                 <img
                   src={cat.image}
@@ -48,12 +69,10 @@ export default function CategoryList({
 
             </div>
 
-            {/* 📝 NAME */}
+            {/* 🔥 TEXT */}
             <span
               style={{
-                color: isActive
-                  ? cat.bgColor || "#22c55e"
-                  : "#6b7280"
+                color: isActive ? textColor : "#6b7280"
               }}
               className={`text-xs mt-2 text-center transition-all duration-300
               ${isActive ? "font-semibold scale-105" : ""}
@@ -62,11 +81,11 @@ export default function CategoryList({
               {cat.name}
             </span>
 
-            {/* 🔥 ACTIVE UNDERLINE */}
+            {/* 🔥 UNDERLINE */}
             {isActive && (
               <div
                 style={{
-                  background: cat.bgColor || "#22c55e"
+                  background: bgColor
                 }}
                 className="h-1 w-6 rounded-full mt-1"
               />
