@@ -30,12 +30,26 @@ export default function CategoryList({
 
         const isActive = selectedCategory === cat.name;
 
-        // 🔥 FINAL COLORS (ADMIN + CATEGORY SUPPORT)
+        // 🔥 CATEGORY PRIORITY (CATEGORY > ADMIN > DEFAULT)
+
         const bgColor =
-          cat.bgColor || theme?.categoryColor || "#22c55e";
+          cat.bgColor ||
+          theme?.categoryColor ||
+          "#22c55e";
 
         const textColor =
-          cat.textColor || theme?.categoryTextColor || "#22c55e";
+          cat.textColor ||
+          theme?.categoryTextColor ||
+          "#ffffff";
+
+        // 🔥 GRADIENT SUPPORT
+        const gradientBg =
+          cat.gradient ||
+          (theme?.categoryGradient
+            ? `linear-gradient(135deg, ${theme.categoryGradientFrom}, ${theme.categoryGradientTo})`
+            : null);
+
+        const finalBg = gradientBg || bgColor;
 
         return (
           <div
@@ -47,7 +61,7 @@ export default function CategoryList({
             {/* 🔥 BOX */}
             <div
               style={{
-                background: isActive ? bgColor : "#ffffff",
+                background: isActive ? finalBg : "#ffffff",
 
                 boxShadow: isActive
                   ? `0 10px 30px ${bgColor}55`
@@ -55,11 +69,12 @@ export default function CategoryList({
               }}
               className={`
                 w-20 h-20 rounded-2xl flex items-center justify-center
-                transition-all duration-300 border
+                transition-all duration-300 border backdrop-blur-md
                 ${isActive ? "scale-110 border-transparent" : "border-gray-200"}
               `}
             >
 
+              {/* 🔥 IMAGE */}
               {cat.image && (
                 <img
                   src={cat.image}
@@ -74,8 +89,9 @@ export default function CategoryList({
               style={{
                 color: isActive ? textColor : "#6b7280"
               }}
-              className={`text-xs mt-2 text-center transition-all duration-300
-              ${isActive ? "font-semibold scale-105" : ""}
+              className={`
+                text-xs mt-2 text-center transition-all duration-300
+                ${isActive ? "font-semibold scale-105" : ""}
               `}
             >
               {cat.name}
