@@ -17,48 +17,60 @@ export default function CategoryList({
           <div
             key={cat.id}
             onClick={() => setSelectedCategory(cat.name)}
-            className="flex flex-col items-center cursor-pointer min-w-[80px] transition-all duration-300"
+            className="flex flex-col items-center cursor-pointer min-w-[90px] transition-all duration-300"
           >
 
-            {/* 🔥 ICON BOX */}
+            {/* 🔥 FLIPKART STYLE BOX */}
             <div
               style={{
                 background: isActive
-                  ? cat.bgColor || "#22c55e"
-                  : "#f3f4f6",
+                  ? cat.gradient || cat.bgColor || "#22c55e"
+                  : "#ffffff",
 
                 boxShadow: isActive
-                  ? `0 8px 25px ${cat.bgColor || "#22c55e"}80`
-                  : "none"
+                  ? `0 10px 30px ${cat.bgColor || "#22c55e"}55`
+                  : "0 4px 10px rgba(0,0,0,0.05)"
               }}
-              className={`w-16 h-16 rounded-full flex items-center justify-center
-              transition-all duration-300
-              ${isActive ? "scale-110" : ""}
+              className={`
+                w-20 h-20 rounded-2xl flex items-center justify-center
+                transition-all duration-300 border
+                ${isActive ? "scale-110 border-transparent" : "border-gray-200"}
               `}
             >
 
+              {/* 🔥 IMAGE */}
               {cat.image && (
                 <img
                   src={cat.image}
-                  className="w-full h-full rounded-full object-cover"
+                  className="w-12 h-12 object-contain"
                 />
               )}
 
             </div>
 
-            {/* 📝 TEXT */}
+            {/* 📝 NAME */}
             <span
               style={{
                 color: isActive
                   ? cat.bgColor || "#22c55e"
                   : "#6b7280"
               }}
-              className={`text-xs mt-2 transition-all duration-300
-              ${isActive ? "scale-105 font-semibold" : ""}
+              className={`text-xs mt-2 text-center transition-all duration-300
+              ${isActive ? "font-semibold scale-105" : ""}
               `}
             >
               {cat.name}
             </span>
+
+            {/* 🔥 ACTIVE UNDERLINE */}
+            {isActive && (
+              <div
+                style={{
+                  background: cat.bgColor || "#22c55e"
+                }}
+                className="h-1 w-6 rounded-full mt-1"
+              />
+            )}
 
           </div>
         );
