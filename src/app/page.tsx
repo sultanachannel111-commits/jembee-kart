@@ -16,14 +16,6 @@ import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
 
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  onSnapshot
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function HomePage() {
 
@@ -44,94 +36,25 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
 
-  // 🔥 PRICE FIX
-  const getPrice = (data:any)=>{
-    if (data?.variations?.length) {
-      const v = data.variations[0];
-      if (v?.sizes?.length) {
-        const s = v.sizes[0];
-        if (s?.sellPrice) return Number(s.sellPrice);
-        if (s?.price) return Number(s.price);
-      }
-    }
-    return data?.price || 0;
-  };
-
-  // 🚀 LOAD CACHE FIRST (INSTANT OPEN)
+  // 🔥 LOAD DATA FROM API (GLOBAL CACHE)
   useEffect(()=>{
-    const cached = localStorage.getItem("HOME_CACHE");
-
-    if(cached){
-      const data = JSON.parse(cached);
-
-      setProducts(data.products || []);
-      setCategories(data.categories || []);
-      setBanners(data.banners || []);
-      setTheme(data.theme || {});
-    }
-
-    loadData(); // background fetch
-
+    loadData();
   },[]);
 
-  // 🔥 LOAD DATA FROM FIREBASE
   const loadData = async()=>{
     try{
 
-      const [
-        catSnap,
-        bannerSnap,
-        productSnap,
-        festSnap,
-        themeSnap
-      ] = await Promise.all([
-        getDocs(collection(db,"qikinkCategories")),
-        getDocs(collection(db,"banners")),
-        getDocs(collection(db,"products")),
-        getDoc(doc(db,"settings","festival")),
-        getDoc(doc(db,"settings","theme"))
-      ]);
+      const res = await fetch("/api/home");
+      const data = await res.json();
 
-      const categoryData = [
-        { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
-        ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
-      ];
+      setCategories(data.categories || []);
+      setBanners(data.banners || []);
+      setProducts(data.products || []);
+      setTheme(data.theme || {});
 
-      const bannerData = bannerSnap.docs.map(d=>({
-        id:d.id,
-        ...d.data()
-      }));
+      console.log("⚡ Loaded from global cache");
 
-      const productsData = productSnap.docs.map(d=>{
-        const data = d.data();
-        return {
-          id:d.id,
-          ...data,
-          price:getPrice(data)
-        };
-      });
-
-      const themeData = themeSnap.exists() ? themeSnap.data() : {};
-
-      // ✅ UPDATE UI
-      setCategories(categoryData);
-      setBanners(bannerData);
-      setProducts(productsData);
-      setTheme(themeData);
-
-      if(festSnap.exists()) setFestival(festSnap.data());
-
-      // 🔥 CACHE SAVE
-      localStorage.setItem("HOME_CACHE", JSON.stringify({
-        categories: categoryData,
-        banners: bannerData,
-        products: productsData,
-        theme: themeData
-      }));
-
-      console.log("✅ CACHE UPDATED");
-
-      // 🔥 OTHER DATA
+      // 🔥 services (same)
       setTrending(await getTrendingProducts());
       setClearance(await getClearanceProducts());
       setRecommended(await getRecommendedProducts());
@@ -141,26 +64,6 @@ export default function HomePage() {
       console.log("❌ ERROR:",err);
     }
   };
-
-  // 🔥 REALTIME THEME (AUTO UPDATE)
-  useEffect(()=>{
-    const unsub = onSnapshot(doc(db,"settings","theme"),(snap)=>{
-      if(snap.exists()){
-        const data = snap.data();
-        setTheme(data);
-
-        // 🔥 update cache theme
-        const cached = localStorage.getItem("HOME_CACHE");
-        if(cached){
-          const parsed = JSON.parse(cached);
-          parsed.theme = data;
-          localStorage.setItem("HOME_CACHE", JSON.stringify(parsed));
-        }
-      }
-    });
-
-    return ()=>unsub();
-  },[]);
 
   // 🔥 SEARCH
   const normalize = (text:string)=>
@@ -173,73 +76,71 @@ export default function HomePage() {
     return matchSearch && matchCategory;
   });
 
-  // 🔥 BACKGROUND STYLE
+  // 🔥 BACKGROUND
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
     : theme?.background || "#ffffff";
 
   return(
 
-<div
-  style={{ background: backgroundStyle }}
-  className="min-h-screen pb-[80px]"
->
+    <div
+      style={{ background: backgroundStyle }}
+      className="min-h-screen pb-[80px]"
+    >
 
-<Header theme={theme}/>
+      <Header theme={theme}/>
 
-<div className="pt-[80px] px-4 space-y-4">
+      <div className="pt-[80px] px-4 space-y-4">
 
-<SearchBar search={search} setSearch={setSearch}/>
+        <SearchBar search={search} setSearch={setSearch}/>
 
-{/* 🔥 TRENDING */}
-<div
-  style={{ background: theme?.card || "#fff" }}
-  className="rounded-xl shadow p-3"
->
-<p className="text-sm font-semibold mb-2">🔥 Trending</p>
+        {/* 🔥 TRENDING */}
+        <div
+          style={{ background: theme?.card || "#fff" }}
+          className="rounded-xl shadow p-3"
+        >
+          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
 
-<div className="flex flex-wrap gap-2">
-{["black tshirt","oversize tshirt","hoodie"].map(item=>(
-<button
-key={item}
-style={{ background: theme?.button || "#eee" }}
-className="px-3 py-1 rounded-full text-xs"
->
-{item}
-</button>
-))}
-</div>
+          <div className="flex flex-wrap gap-2">
+            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
+              <button
+                key={item}
+                style={{ background: theme?.button || "#eee" }}
+                className="px-3 py-1 rounded-full text-xs"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
 
-</div>
+        {/* CATEGORY */}
+        <div className="overflow-x-auto">
+          <CategoryList
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+          />
+        </div>
 
-{/* CATEGORY */}
-<div className="overflow-x-auto">
-<CategoryList
-categories={categories}
-selectedCategory={selectedCategory}
-setSelectedCategory={setSelectedCategory}
-/>
-</div>
+        <BannerSlider banners={banners} slide={slide}/>
 
-<BannerSlider banners={banners} slide={slide}/>
+        <FlashSale/>
 
-<FlashSale/>
+        {festival?.active && (
+          <FestivalBanner festival={festival} timeLeft={timeLeft}/>
+        )}
 
-{festival?.active && (
-<FestivalBanner festival={festival} timeLeft={timeLeft}/>
-)}
+        <ProductGrid products={filteredProducts}/>
+        <ProductGrid title="⚡ Lightning Deals" products={lightning}/>
+        <ProductGrid title="🔥 Trending" products={trending}/>
+        <ProductGrid title="⚡ Clearance" products={clearance}/>
+        <ProductGrid title="⭐ Recommended" products={recommended}/>
 
-<ProductGrid products={filteredProducts}/>
-<ProductGrid title="⚡ Lightning Deals" products={lightning}/>
-<ProductGrid title="🔥 Trending" products={trending}/>
-<ProductGrid title="⚡ Clearance" products={clearance}/>
-<ProductGrid title="⭐ Recommended" products={recommended}/>
+      </div>
 
-</div>
+      <BottomNav/>
 
-<BottomNav/>
-
-</div>
-
-);
+    </div>
+  );
 }
