@@ -57,51 +57,105 @@ export default function HomePage() {
     return data?.price || 0;
   };
 
-  // 🔥 LOAD DATA
+  // 🚀 LOAD CACHE FIRST (INSTANT OPEN)
   useEffect(()=>{
-    loadData();
+    const cached = localStorage.getItem("HOME_CACHE");
+
+    if(cached){
+      const data = JSON.parse(cached);
+
+      setProducts(data.products || []);
+      setCategories(data.categories || []);
+      setBanners(data.banners || []);
+      setTheme(data.theme || {});
+    }
+
+    loadData(); // background fetch
+
   },[]);
 
+  // 🔥 LOAD DATA FROM FIREBASE
   const loadData = async()=>{
+    try{
 
-    const catSnap = await getDocs(collection(db,"qikinkCategories"));
-    setCategories([
-      { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
-      ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
-    ]);
+      const [
+        catSnap,
+        bannerSnap,
+        productSnap,
+        festSnap,
+        themeSnap
+      ] = await Promise.all([
+        getDocs(collection(db,"qikinkCategories")),
+        getDocs(collection(db,"banners")),
+        getDocs(collection(db,"products")),
+        getDoc(doc(db,"settings","festival")),
+        getDoc(doc(db,"settings","theme"))
+      ]);
 
-    const bannerSnap = await getDocs(collection(db,"banners"));
-    setBanners(bannerSnap.docs.map(d=>({id:d.id,...d.data()})));
+      const categoryData = [
+        { id:"all",name:"All",image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"},
+        ...catSnap.docs.map(d=>({id:d.id,...d.data()}))
+      ];
 
-    const productSnap = await getDocs(collection(db,"products"));
-
-    const productsData = productSnap.docs.map(d=>{
-      const data = d.data();
-      return {
+      const bannerData = bannerSnap.docs.map(d=>({
         id:d.id,
-        ...data,
-        price:getPrice(data)
-      };
-    });
+        ...d.data()
+      }));
 
-    setProducts(productsData);
+      const productsData = productSnap.docs.map(d=>{
+        const data = d.data();
+        return {
+          id:d.id,
+          ...data,
+          price:getPrice(data)
+        };
+      });
 
-    setTrending(await getTrendingProducts());
-    setClearance(await getClearanceProducts());
-    setRecommended(await getRecommendedProducts());
-    setLightning(await getLightningDeals());
+      const themeData = themeSnap.exists() ? themeSnap.data() : {};
 
-    const festSnap = await getDoc(doc(db,"settings","festival"));
-    if(festSnap.exists()) setFestival(festSnap.data());
+      // ✅ UPDATE UI
+      setCategories(categoryData);
+      setBanners(bannerData);
+      setProducts(productsData);
+      setTheme(themeData);
+
+      if(festSnap.exists()) setFestival(festSnap.data());
+
+      // 🔥 CACHE SAVE
+      localStorage.setItem("HOME_CACHE", JSON.stringify({
+        categories: categoryData,
+        banners: bannerData,
+        products: productsData,
+        theme: themeData
+      }));
+
+      console.log("✅ CACHE UPDATED");
+
+      // 🔥 OTHER DATA
+      setTrending(await getTrendingProducts());
+      setClearance(await getClearanceProducts());
+      setRecommended(await getRecommendedProducts());
+      setLightning(await getLightningDeals());
+
+    }catch(err){
+      console.log("❌ ERROR:",err);
+    }
   };
 
-  // 🔥 REALTIME THEME (MAIN FIX)
+  // 🔥 REALTIME THEME (AUTO UPDATE)
   useEffect(()=>{
     const unsub = onSnapshot(doc(db,"settings","theme"),(snap)=>{
       if(snap.exists()){
         const data = snap.data();
-        console.log("🔥 THEME LOADED:", data);
         setTheme(data);
+
+        // 🔥 update cache theme
+        const cached = localStorage.getItem("HOME_CACHE");
+        if(cached){
+          const parsed = JSON.parse(cached);
+          parsed.theme = data;
+          localStorage.setItem("HOME_CACHE", JSON.stringify(parsed));
+        }
       }
     });
 
@@ -119,7 +173,7 @@ export default function HomePage() {
     return matchSearch && matchCategory;
   });
 
-  // 🔥 BACKGROUND STYLE (SMART)
+  // 🔥 BACKGROUND STYLE
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
     : theme?.background || "#ffffff";
