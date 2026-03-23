@@ -4,12 +4,21 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { getAuth } from "firebase/auth";
 
 export default function SellerProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
+  // 🔐 GET USER
+  useEffect(() => {
+    const auth = getAuth();
+    setUser(auth.currentUser);
+  }, []);
+
+  // 🔥 FETCH PRODUCTS
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -20,7 +29,7 @@ export default function SellerProductsPage() {
           ...doc.data(),
         }));
 
-        console.log("🔥 PRODUCTS:", data); // debug
+        console.log("🔥 PRODUCTS:", data);
 
         setProducts(data);
       } catch (err) {
@@ -48,34 +57,44 @@ export default function SellerProductsPage() {
               key={p.id}
               className="bg-white p-3 rounded-xl shadow"
             >
+              {/* IMAGE */}
               <img
                 src={p?.variations?.[0]?.images?.main}
                 className="h-32 w-full object-cover rounded"
               />
 
+              {/* NAME */}
               <p className="text-sm font-semibold mt-2">
                 {p.name}
               </p>
 
+              {/* PRICE */}
               <p className="text-green-600 font-bold">
                 ₹
                 {p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
               </p>
 
-              {/* 🔗 SHARE BUTTON */}
+              {/* 🔗 SHARE WITH REF */}
               <button
-                onClick={() =>
+                onClick={() => {
+                  if (!user) {
+                    alert("Login required ❌");
+                    return;
+                  }
+
+                  const link = `${window.location.origin}/product/${p.id}?ref=${user.uid}`;
+
                   navigator.share?.({
                     title: p.name,
-                    url: `${window.location.origin}/product/${p.id}`,
-                  })
-                }
+                    url: link,
+                  });
+                }}
                 className="mt-2 w-full bg-blue-600 text-white py-1 rounded"
               >
-                Share
+                Share & Earn 💰
               </button>
 
-              {/* 👉 VIEW */}
+              {/* 👀 VIEW */}
               <button
                 onClick={() => router.push(`/product/${p.id}`)}
                 className="mt-2 w-full border py-1 rounded"
