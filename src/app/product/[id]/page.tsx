@@ -137,21 +137,57 @@ useEffect(() => {
 
   // 🛒 CART
   const handleAddToCart = async () => {
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
 
-    await addDoc(collection(db,"carts",user.uid,"items"),{
-      productId: product.id,
-      name: product.name,
-      image: images?.[0] || "",
-      size: selectedSize.size,
-      price: price,
-      quantity: 1
-    });
+  if (!user) return router.push(`/login?redirect=/product/${id}`);
+  if (!selectedSize) return alert("Select size");
 
-    alert("Added to cart");
-    router.push("/cart");
-  };
+  // 🔥 REF CODE
+  const refCode =
+    typeof window !== "undefined"
+      ? localStorage.getItem("affiliate")
+      : null;
+
+  let sellerId = null;
+
+  if (refCode) {
+    try {
+      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
+      if (snap.exists()) {
+        sellerId = snap.data().sellerId;
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  const finalPrice =
+    Number(selectedSize?.sellPrice) ||
+    Number(selectedSize?.price) ||
+    Number(variant?.sizes?.[0]?.sellPrice) ||
+    Number(product?.price) ||
+    0;
+
+  await addDoc(collection(db,"carts",user.uid,"items"),{
+    productId: product.id,
+    name: product.name,
+    image: images?.[0] || "",
+    size: selectedSize.size,
+
+    // 💰 PRICE FIX
+    price: finalPrice,
+    sellPrice: finalPrice,
+    basePrice: Number(selectedSize?.basePrice) || 0,
+
+    quantity: 1,
+
+    // 🔥 AFFILIATE
+    affiliateCode: refCode,
+    sellerId: sellerId
+  });
+
+  alert("Added to cart");
+  router.push("/cart");
+};
 
   // ⚡ BUY
   const handleBuyNow = async () => {
