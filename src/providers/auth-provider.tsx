@@ -15,8 +15,7 @@ import { auth } from "@/lib/firebase";
 import {
   doc,
   setDoc,
-  onSnapshot,
-  getDoc
+  onSnapshot
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -29,6 +28,9 @@ import {
   ReactNode,
 } from "react";
 
+/* ================================
+   TYPES
+================================ */
 interface AuthContextType {
   user: User | null;
   role: string | null;
@@ -42,22 +44,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* 🔥 AUTO ROLE DECIDER */
+/* ================================
+   🔥 AUTO ROLE LOGIC
+================================ */
 const getAutoRole = (email: string | null) => {
   if (!email) return "customer";
 
-  if (email.includes("admin")) return "admin";
-  if (email.includes("seller")) return "seller";
+  const lower = email.toLowerCase();
+
+  if (lower.includes("admin")) return "admin";
+  if (lower.includes("seller")) return "seller";
 
   return "customer";
 };
 
+/* ================================
+   PROVIDER
+================================ */
 export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* ================================
+     🔥 AUTH + REALTIME ROLE
+  ================================= */
   useEffect(() => {
 
     let unsubscribeRole: any;
@@ -74,28 +86,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const docRef = doc(db, "users", currentUser.uid);
 
-      const snap = await getDoc(docRef);
+      // 🔥 AUTO ROLE (EMAIL BASED)
+      const autoRole = getAutoRole(currentUser.email);
 
-      /* 🔥 AUTO ROLE SET */
-      let autoRole = getAutoRole(currentUser.email);
+      console.log("📧 EMAIL:", currentUser.email);
+      console.log("⚡ AUTO ROLE:", autoRole);
 
-      if (!snap.exists()) {
-        await setDoc(docRef, {
-          role: autoRole,
-          email: currentUser.email || "",
-          createdAt: new Date()
-        });
-      }
+      // 🔥 FORCE UPDATE (NO OLD DATA ISSUE)
+      await setDoc(docRef, {
+        role: autoRole,
+        email: currentUser.email || "",
+        updatedAt: new Date()
+      }, { merge: true });
 
-      /* 🔥 REALTIME ROLE LISTENER */
+      // 🔥 REALTIME LISTENER
       unsubscribeRole = onSnapshot(docRef, (snap) => {
 
         const userRole = snap.data()?.role || autoRole;
 
+        console.log("🔥 FINAL ROLE:", userRole);
+
         setRole(userRole);
-
-        console.log("🔥 ROLE:", userRole);
-
         setLoading(false);
       });
 
@@ -108,22 +119,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, []);
 
-  /* 🔥 AUTO REDIRECT */
+  /* ================================
+     🚀 AUTO REDIRECT (INSTANT)
+  ================================= */
   useEffect(() => {
 
     if (!role) return;
 
+    console.log("➡️ REDIRECT ROLE:", role);
+
     if (role === "admin") {
-      window.location.href = "/admin";
+      window.location.replace("/admin");
     } 
     else if (role === "seller") {
-      window.location.href = "/seller";
+      window.location.replace("/seller");
     } 
     else {
-      window.location.href = "/";
+      window.location.replace("/");
     }
 
   }, [role]);
+
+  /* ================================
+     AUTH FUNCTIONS
+  ================================= */
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -165,7 +184,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* 🔥 HOOK */
+/* ================================
+   HOOK
+================================ */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
