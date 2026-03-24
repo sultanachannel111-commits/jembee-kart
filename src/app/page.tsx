@@ -8,6 +8,7 @@ import ProductGrid from "@/components/home/ProductGrid";
 import BottomNav from "@/components/home/BottomNav";
 import FestivalBanner from "@/components/home/FestivalBanner";
 import FlashSale from "@/components/home/FlashSale";
+import useTheme from "@/hooks/useTheme";
 
 import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
@@ -18,7 +19,7 @@ import { useEffect, useState } from "react";
 
 export default function HomePage() {
 
-  const [theme,setTheme] = useState<any>({});
+  const theme = useTheme();
   const [categories,setCategories] = useState<any[]>([]);
   const [banners,setBanners] = useState<any[]>([]);
   const [products,setProducts] = useState<any[]>([]);
@@ -46,7 +47,6 @@ export default function HomePage() {
     setCategories(data.categories || []);
     setBanners(data.banners || []);
     setProducts(data.products || []);
-    setTheme(data.theme || {});
 
     setTrending(await getTrendingProducts());
     setClearance(await getClearanceProducts());
