@@ -11,32 +11,33 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 type Props = {
   products: any[];
   title?: string;
+  theme?: any; // ✅ ADD
 };
 
-export default function ProductGrid({ products, title }: Props) {
+export default function ProductGrid({ products, title, theme }: Props) {
 
   const [likedItems, setLikedItems] = useState<any>({});
-  const [visibleCount, setVisibleCount] = useState(4); // 🔥 first 4 instant
+  const [visibleCount, setVisibleCount] = useState(4);
 
-  // 🔥 धीरे धीरे बाकी products load
+  // 🔥 LOAD ANIMATION
   useEffect(() => {
     if (!products) return;
 
     let i = 4;
 
     const interval = setInterval(() => {
-      i += 2; // हर बार 2 product add
+      i += 2;
       setVisibleCount(i);
 
       if (i >= products.length) {
         clearInterval(interval);
       }
-    }, 400); // ⚡ speed control
+    }, 400);
 
     return () => clearInterval(interval);
   }, [products]);
 
-  // ❤️ TOGGLE WISHLIST
+  // ❤️ WISHLIST
   const toggleWishlist = async (e: any, product: any) => {
     e.preventDefault();
     e.stopPropagation();
@@ -81,12 +82,17 @@ export default function ProductGrid({ products, title }: Props) {
   return (
     <div className="mt-4">
 
-      {/* 🔥 Section Title */}
+      {/* 🔥 TITLE */}
       {title && (
-        <h2 className="text-lg font-bold mb-3">{title}</h2>
+        <h2
+          style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+          className="text-lg font-bold mb-3"
+        >
+          {title}
+        </h2>
       )}
 
-      {/* 🔥 Grid */}
+      {/* 🔥 GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {products.slice(0, visibleCount).map((product: any, index:number) => {
@@ -114,7 +120,11 @@ export default function ProductGrid({ products, title }: Props) {
           return (
             <div
               key={product.id}
-              className={`bg-white rounded-xl shadow p-3 relative
+              style={{
+                background: theme?.cardBg || "#ffffff",   // ✅ ADD
+                color: theme?.cardText || "#000"          // ✅ ADD
+              }}
+              className={`rounded-xl shadow p-3 relative
                 transition-all duration-500
                 ${index >= 4 ? "opacity-0 animate-fadeIn" : "opacity-100"}
               `}
@@ -138,22 +148,25 @@ export default function ProductGrid({ products, title }: Props) {
                 </span>
               )}
 
-              {/* 🔥 Product Image */}
+              {/* 🔥 IMAGE */}
               <Link href={`/product/${product.id}`}>
                 <img
                   src={image || "/no-image.png"}
                   alt={product.name}
                   className="w-full h-40 object-cover rounded-lg"
-                  loading="lazy" // ⚡ performance boost
+                  loading="lazy"
                 />
               </Link>
 
-              {/* 🔥 Name */}
-              <div className="mt-2 text-sm truncate font-medium">
+              {/* 🔥 NAME */}
+              <div
+                style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+                className="mt-2 text-sm truncate font-medium"
+              >
                 {product.name}
               </div>
 
-              {/* ⭐ Rating */}
+              {/* ⭐ RATING */}
               <div className="flex items-center gap-1 mt-1">
                 {[1, 2, 3, 4, 5].map((star) => {
 
@@ -185,25 +198,31 @@ export default function ProductGrid({ products, title }: Props) {
                   );
                 })}
 
-                <span className="text-xs text-gray-600 ml-1">
+                <span className="text-xs ml-1">
                   {rating}
                 </span>
 
-                <span className="text-xs text-gray-400">
+                <span className="text-xs opacity-60">
                   ({reviews})
                 </span>
               </div>
 
-              {/* 🔥 Sold */}
-              <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
+              {/* 🔥 SOLD */}
+              <div
+                style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                className="flex items-center gap-1 text-xs mt-1"
+              >
                 <Flame size={14} />
                 {totalSold} sold
               </div>
 
-              {/* 💰 Price */}
+              {/* 💰 PRICE */}
               <div className="flex items-center gap-2 mt-1">
 
-                <span className="font-bold text-black">
+                <span
+                  style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                  className="font-bold"
+                >
                   ₹{finalPrice}
                 </span>
 
