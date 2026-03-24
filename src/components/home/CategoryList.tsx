@@ -108,7 +108,13 @@ export default function CategoryList({
             >
               {cat.name}
             </span>
-
+           {/* 🔥 UNDERLINE */}
+{isActive && (
+  <div
+    style={{ background: bgColor }}
+    className="h-1 w-6 rounded-full mt-1"
+  />
+)}
 
           </div>
         );
