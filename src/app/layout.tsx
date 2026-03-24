@@ -60,8 +60,6 @@ export default function RootLayout({
             {/* NAVBAR */}
             <Navbar />
 
-            {/* WHATSAPP */}
-            <WhatsAppButton />
 
           </CartProvider>
         </AuthProvider>
