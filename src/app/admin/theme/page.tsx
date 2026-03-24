@@ -6,24 +6,50 @@ import { getTheme, saveTheme } from "@/services/themeService";
 export default function ThemePage() {
 
   const [theme, setTheme] = useState<any>({
-    background: "#ffffff",
-    header: "#065f46",
-    button: "#10b981",
-    card: "#ffffff",
-    statusBar: "#000000",
+    // 🌈 BACKGROUND
+    background: "#0f172a",
+    gradient: true,
+    gradientFrom: "#0f172a",
+    gradientTo: "#020617",
 
-    // 🔥 CATEGORY COLORS
+    // 🔝 HEADER
+    header: "#020617",
+    headerText: "#ffffff",
+
+    // 🔍 SEARCH
+    searchBg: "#ffffff20",
+    searchText: "#ffffff",
+    searchIcon: "#ffffff",
+
+    // 🔥 TRENDING
+    trendingBg: "#ffffff10",
+    trendingText: "#ffffff",
+    trendingChipBg: "#10b981",
+    trendingChipText: "#000000",
+
+    // 🧩 CATEGORY
     categoryColor: "#10b981",
     categoryTextColor: "#ffffff",
-    categoryGradient: false,
-    categoryGradientFrom: "#10b981",
-    categoryGradientTo: "#065f46",
+    categoryGradient: true,
+    categoryGradientFrom: "#6366f1",
+    categoryGradientTo: "#ec4899",
 
-    gradient: false,
-    gradientFrom: "#ec4899",
-    gradientTo: "#8b5cf6",
+    // 🛍 PRODUCT
+    cardBg: "#ffffff10",
+    cardText: "#ffffff",
+    priceColor: "#10b981",
 
-    mode: "light"
+    // 🔘 BUTTON
+    button: "#6366f1",
+    buttonText: "#ffffff",
+
+    // 📱 BOTTOM NAV
+    bottomNavBg: "#020617",
+    bottomNavActive: "#10b981",
+
+    // 💬 FLOATING
+    fabBg: "#10b981",
+    fabGlow: "#10b981"
   });
 
   const [loading, setLoading] = useState(true);
@@ -40,7 +66,7 @@ export default function ThemePage() {
 
   /* 🔥 AUTO TEXT COLOR */
   function getTextColor(bg: string) {
-    if (!bg) return "#000";
+    if (!bg) return "#fff";
 
     const c = bg.replace("#", "");
     const rgb = parseInt(c, 16);
@@ -52,33 +78,42 @@ export default function ThemePage() {
     return brightness > 128 ? "#000000" : "#ffffff";
   }
 
-  /* 🔥 LUXURY PRESETS */
+  /* 🔥 PRESETS */
   function applyPreset(type: string) {
 
     if (type === "luxury") {
       setTheme({
         ...theme,
-        background: "#0f172a",
-        card: "#111827",
+        background: "#020617",
+        gradient: true,
+        gradientFrom: "#020617",
+        gradientTo: "#0f172a",
+
         header: "#020617",
         button: "#f59e0b",
-        categoryColor: "#f59e0b",
-        categoryTextColor: "#000000",
-        mode: "dark"
+
+        cardBg: "#ffffff10",
+        cardText: "#ffffff",
+
+        categoryGradient: true,
+        categoryGradientFrom: "#f59e0b",
+        categoryGradientTo: "#ef4444",
+
+        priceColor: "#f59e0b",
+        fabBg: "#f59e0b",
+        fabGlow: "#f59e0b"
       });
     }
 
-    if (type === "gradientLuxury") {
+    if (type === "glass") {
       setTheme({
         ...theme,
-        background: "#020617",
-        card: "#111827",
+        background: "#0f172a",
+        cardBg: "#ffffff10",
+        trendingBg: "#ffffff10",
+        searchBg: "#ffffff20",
         header: "#020617",
-        button: "#6366f1",
-        categoryGradient: true,
-        categoryGradientFrom: "#6366f1",
-        categoryGradientTo: "#ec4899",
-        categoryTextColor: "#ffffff"
+        button: "#6366f1"
       });
     }
 
@@ -88,8 +123,9 @@ export default function ThemePage() {
         background: "#ecfdf5",
         header: "#065f46",
         button: "#10b981",
-        categoryColor: "#10b981",
-        categoryTextColor: "#ffffff"
+        cardBg: "#ffffff",
+        cardText: "#000",
+        priceColor: "#10b981"
       });
     }
   }
@@ -97,104 +133,81 @@ export default function ThemePage() {
   /* SAVE */
   async function save() {
     await saveTheme(theme);
-    alert("Theme Saved 🔥");
+    alert("🔥 Theme Saved");
   }
 
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-6">
 
-      <h1 className="text-3xl font-bold">🔥 ULTRA THEME BUILDER</h1>
+      <h1 className="text-3xl font-bold">🔥 ULTRA GLASS THEME BUILDER</h1>
 
       {/* 🔥 PRESETS */}
       <div className="flex gap-3 flex-wrap">
-        <button onClick={() => applyPreset("luxury")} className="bg-black text-white px-4 py-2 rounded">
+        <button onClick={()=>applyPreset("luxury")} className="bg-black text-white px-4 py-2 rounded">
           Luxury
         </button>
 
-        <button onClick={() => applyPreset("gradientLuxury")} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded">
-          Gradient Luxury
+        <button onClick={()=>applyPreset("glass")} className="bg-white/20 text-black px-4 py-2 rounded">
+          Glass
         </button>
 
-        <button onClick={() => applyPreset("green")} className="bg-green-600 text-white px-4 py-2 rounded">
+        <button onClick={()=>applyPreset("green")} className="bg-green-600 text-white px-4 py-2 rounded">
           Green
         </button>
       </div>
 
-      {/* 🔥 CATEGORY SETTINGS */}
-      <div className="bg-white p-4 rounded shadow space-y-4">
+      {/* 🔥 ALL COLORS */}
+      <div className="grid md:grid-cols-2 gap-4">
 
-        <h2 className="font-bold text-lg">Category Design</h2>
+        {Object.keys(theme).map((key) => (
 
-        {/* Gradient toggle */}
-        <label>
-          <input
-            type="checkbox"
-            checked={theme.categoryGradient}
-            onChange={(e) =>
-              setTheme({ ...theme, categoryGradient: e.target.checked })
-            }
-          /> Enable Gradient
-        </label>
+          <div key={key} className="bg-white p-4 rounded shadow">
 
-        {theme.categoryGradient && (
-          <div className="flex gap-4">
-            <input
-              type="color"
-              value={theme.categoryGradientFrom}
-              onChange={(e) =>
-                setTheme({ ...theme, categoryGradientFrom: e.target.value })
-              }
-            />
+            <p className="mb-2 capitalize">{key}</p>
 
-            <input
-              type="color"
-              value={theme.categoryGradientTo}
-              onChange={(e) =>
-                setTheme({ ...theme, categoryGradientTo: e.target.value })
-              }
-            />
+            {typeof theme[key] === "boolean" ? (
+              <input
+                type="checkbox"
+                checked={theme[key]}
+                onChange={(e)=>setTheme({...theme,[key]:e.target.checked})}
+              />
+            ) : (
+              <>
+                <input
+                  type="color"
+                  value={theme[key]}
+                  onChange={(e)=>setTheme({...theme,[key]:e.target.value})}
+                />
+
+                <input
+                  type="text"
+                  value={theme[key]}
+                  onChange={(e)=>setTheme({...theme,[key]:e.target.value})}
+                  className="block mt-2 border px-2 py-1 w-full"
+                />
+              </>
+            )}
+
           </div>
-        )}
 
-        {/* Background */}
-        <div>
-          <p>Category Background</p>
-          <input
-            type="color"
-            value={theme.categoryColor}
-            onChange={(e) =>
-              setTheme({ ...theme, categoryColor: e.target.value })
-            }
-          />
-        </div>
-
-        {/* TEXT AUTO */}
-        <div>
-          <p>Category Text</p>
-          <input
-            type="color"
-            value={theme.categoryTextColor}
-            onChange={(e) =>
-              setTheme({ ...theme, categoryTextColor: e.target.value })
-            }
-          />
-
-          <button
-            onClick={() =>
-              setTheme({
-                ...theme,
-                categoryTextColor: getTextColor(theme.categoryColor)
-              })
-            }
-            className="ml-3 px-3 py-1 bg-gray-200 rounded"
-          >
-            Auto Text
-          </button>
-        </div>
+        ))}
 
       </div>
+
+      {/* 🔥 AUTO TEXT BUTTON */}
+      <button
+        onClick={() =>
+          setTheme({
+            ...theme,
+            categoryTextColor: getTextColor(theme.categoryColor)
+          })
+        }
+        className="px-4 py-2 bg-gray-200 rounded"
+      >
+        Auto Category Text
+      </button>
 
       {/* 🔥 SAVE */}
       <button
