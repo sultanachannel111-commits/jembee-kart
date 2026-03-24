@@ -24,7 +24,7 @@ export default function WhatsAppButton() {
     <>
       {/* 💬 Tooltip */}
       {showTooltip && (
-        <div className="fixed bottom-44 right-6 z-50 bg-black text-white text-xs px-3 py-2 rounded-lg shadow-lg transition-all duration-300">
+        <div className="fixed bottom-44 right-6 z-[9999] bg-black text-white text-xs px-3 py-2 rounded-lg shadow-lg">
           Chat with us 👋
           <div className="absolute bottom-[-6px] right-3 w-3 h-3 bg-black rotate-45"></div>
         </div>
@@ -37,14 +37,14 @@ export default function WhatsAppButton() {
         rel="noopener noreferrer"
         aria-label="Chat on WhatsApp"
         onClick={() => setShowTooltip(false)}
-        className="fixed bottom-28 right-4 z-50 flex items-center justify-center
+        className="fixed bottom-32 right-4 z-[9999]
+                   flex items-center justify-center
                    w-16 h-16 rounded-full bg-green-500
                    shadow-[0_10px_30px_rgba(34,197,94,0.7)]
-                   hover:scale-110 hover:shadow-[0_12px_35px_rgba(34,197,94,1)]
-                   active:scale-95
+                   hover:scale-110 active:scale-95
                    transition-all duration-300"
+        style={{ pointerEvents: "auto" }}
       >
-        {/* WhatsApp SVG */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 32 32"
