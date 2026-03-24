@@ -156,18 +156,6 @@ html {
 /*        SCROLLBAR STYLE       */
 /* ============================= */
 
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(236, 72, 153, 0.5);
-  border-radius: 10px;
-}
 
 /* ============================= */
 /*      ADMIN THEME CONTROL     */
