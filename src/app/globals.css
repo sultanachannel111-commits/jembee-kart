@@ -155,7 +155,10 @@ html {
 /* ============================= */
 /*        SCROLLBAR STYLE       */
 /* ============================= */
-
+/* 🔥 HIDE SCROLLBAR */
+::-webkit-scrollbar {
+  display: none;
+}
 
 /* ============================= */
 /*      ADMIN THEME CONTROL     */
