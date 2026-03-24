@@ -28,6 +28,8 @@ import {
   ReactNode,
 } from "react";
 
+import { useRouter } from "next/navigation";
+
 interface AuthContextType {
   user: User | null;
   role: string | null;
@@ -44,12 +46,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 
+  const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("customer");
   const [loading, setLoading] = useState(true);
 
-  // 🔥 REALTIME AUTH + ROLE SYSTEM
+  // 🔥 REALTIME AUTH + ROLE
   useEffect(() => {
 
     let unsubscribeRole: any;
@@ -66,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const docRef = doc(db, "users", currentUser.uid);
 
-      // 🔥 LIVE ROLE LISTENER
+      // 🔥 REALTIME ROLE LISTENER
       unsubscribeRole = onSnapshot(docRef, async (snap) => {
 
         let userRole = "customer";
@@ -85,10 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setRole(userRole);
+        setLoading(false);
 
         console.log("🔥 LIVE ROLE:", userRole);
 
-        setLoading(false);
       });
 
     });
@@ -100,24 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, []);
 
-  // 🔥 AUTO REDIRECT (LIVE)
+  // 🔥 AUTO REDIRECT (SAFE)
   useEffect(() => {
 
-    if (!role) return;
+    if (loading || !role) return;
 
-    if (role === "admin") {
-      window.location.href = "/admin";
+    const path = window.location.pathname;
+
+    if (role === "admin" && !path.startsWith("/admin")) {
+      router.replace("/admin");
     } 
-    else if (role === "seller") {
-      window.location.href = "/seller";
+    else if (role === "seller" && !path.startsWith("/seller")) {
+      router.replace("/seller");
     } 
-    else {
-      window.location.href = "/";
+    else if (role === "customer" && path !== "/") {
+      router.replace("/");
     }
 
-  }, [role]);
+  }, [role, loading]);
 
-  // 🔥 SAVE ROLE FOR NEW USER
+  // 🔥 SAVE ROLE (NEW USER)
   const saveRoleIfNewUser = async (uid: string) => {
     const docRef = doc(db, "users", uid);
 
@@ -160,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await signOut(auth);
     setRole(null);
+    router.replace("/login");
   };
 
   return (
