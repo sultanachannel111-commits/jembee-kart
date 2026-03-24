@@ -40,7 +40,7 @@ export default function CheckoutPage(){
       ? localStorage.getItem("affiliate")
       : null;
 
-  /* 🔥 LOAD CART + BUY NOW */
+  /* 🔥 LOAD CART + BUY NOW FIXED */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -48,33 +48,49 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // 🔥 BUY NOW CHECK
       const buyNow = localStorage.getItem("buy-now");
 
       if(buyNow){
         const parsed = JSON.parse(buyNow);
 
+        // ✅ FINAL PRICE FIX
+        const finalPrice =
+          Number(parsed.price) ||
+          parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+          parsed?.variations?.[0]?.sizes?.[0]?.price ||
+          0;
+
+        console.log("🔥 BUY NOW:", parsed);
+        console.log("🔥 FINAL PRICE:", finalPrice);
+
         setItems([{
           ...parsed,
           quantity: parsed.quantity || 1,
-          price: Number(parsed.price) || 0
+          price: Number(finalPrice)
         }]);
 
       } else {
-        // 🛒 CART
+        // 🛒 CART LOAD
         const snap = await getDocs(
           collection(db,"carts",u.uid,"items")
         );
 
         const data:any[] = [];
+
         snap.forEach(doc=>{
           const d = doc.data();
+
+          const finalPrice =
+            Number(d.price) ||
+            d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            d?.variations?.[0]?.sizes?.[0]?.price ||
+            0;
 
           data.push({
             id:doc.id,
             ...d,
             quantity: d.quantity || 1,
-            price: Number(d.price) || 0
+            price: Number(finalPrice)
           });
         });
 
@@ -163,6 +179,9 @@ export default function CheckoutPage(){
       redirectTarget:"_self"
     });
 
+    // ✅ BUY NOW CLEAR
+    localStorage.removeItem("buy-now");
+
     setLoading(false);
   };
 
@@ -232,7 +251,7 @@ export default function CheckoutPage(){
 
     alert("Order placed (COD) ✅");
 
-    // 🔥 CLEAR BUY NOW AFTER ORDER
+    // ✅ BUY NOW CLEAR
     localStorage.removeItem("buy-now");
 
     setLoading(false);
