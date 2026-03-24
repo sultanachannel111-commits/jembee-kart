@@ -10,10 +10,19 @@ import {
   limit
 } from "firebase/firestore";
 
+// 🔥 GLOBAL MEMORY CACHE (server level)
+let cache: any = null;
+let lastFetch = 0;
+
 export async function GET() {
   try {
 
-    // 🔥 PARALLEL FETCH (FAST)
+    // ⚡ 1. MEMORY CACHE (0ms response)
+    if (cache && Date.now() - lastFetch < 5000) {
+      return NextResponse.json(cache);
+    }
+
+    // ⚡ 2. PARALLEL FETCH
     const [
       catSnap,
       bannerSnap,
@@ -26,7 +35,6 @@ export async function GET() {
 
       getDocs(collection(db,"banners")),
 
-      // 🔥 LIMIT PRODUCTS (IMPORTANT)
       getDocs(query(collection(db,"products"), limit(30))),
 
       getDoc(doc(db,"settings","theme")),
@@ -34,7 +42,7 @@ export async function GET() {
       getDoc(doc(db,"settings","festival"))
     ]);
 
-    // ✅ CATEGORY
+    // 🔥 CATEGORY
     const categories = [
       {
         id:"all",
@@ -47,13 +55,13 @@ export async function GET() {
       }))
     ];
 
-    // ✅ BANNERS
+    // 🔥 BANNERS
     const banners = bannerSnap.docs.map(d => ({
       id:d.id,
       ...d.data()
     }));
 
-    // 🔥 PRICE FIX FUNCTION
+    // 🔥 PRICE FIX
     const getPrice = (data:any)=>{
       if (data?.variations?.length) {
         const v = data.variations[0];
@@ -66,7 +74,7 @@ export async function GET() {
       return data?.price || 0;
     };
 
-    // ✅ PRODUCTS
+    // 🔥 PRODUCTS
     const products = productSnap.docs.map(d => {
       const data = d.data();
       return {
@@ -76,13 +84,12 @@ export async function GET() {
       };
     });
 
-    // ✅ THEME
+    // 🔥 THEME
     const theme = themeSnap.exists() ? themeSnap.data() : {};
 
-    // ✅ FESTIVAL
+    // 🔥 FESTIVAL
     const festival = festSnap.exists() ? festSnap.data() : null;
 
-    // 🔥 FINAL RESPONSE
     const response = {
       categories,
       banners,
@@ -91,15 +98,20 @@ export async function GET() {
       festival
     };
 
+    // 💾 SAVE MEMORY CACHE
+    cache = response;
+    lastFetch = Date.now();
+
     return NextResponse.json(response, {
       headers: {
-        // 🔥 GLOBAL CACHE (MAIN MAGIC)
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"
+        // 🚀 CDN + EDGE CACHE
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300"
       }
     });
 
   } catch (err) {
     console.log("❌ API ERROR:", err);
+
     return NextResponse.json(
       { error: "Something went wrong" },
       { status: 500 }
