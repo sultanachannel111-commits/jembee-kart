@@ -24,7 +24,7 @@ export default function CategoryList({
   }, []);
 
   return (
-    className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar overflow-hidden"
+  <div className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar overflow-hidden">
 
       {categories.map((cat) => {
 
