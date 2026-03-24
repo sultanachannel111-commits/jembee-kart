@@ -24,7 +24,7 @@ export default function CategoryList({
   }, []);
 
   return (
-    <div className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar">
+    className="flex gap-4 overflow-x-auto py-3 px-2 no-scrollbar overflow-hidden"
 
       {categories.map((cat) => {
 
@@ -109,15 +109,6 @@ export default function CategoryList({
               {cat.name}
             </span>
 
-            {/* 🔥 UNDERLINE */}
-            {isActive && (
-              <div
-                style={{
-                  background: bgColor
-                }}
-                className="h-1 w-6 rounded-full mt-1"
-              />
-            )}
 
           </div>
         );
