@@ -10,16 +10,9 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-
 import { auth } from "@/lib/firebase";
-import {
-  doc,
-  setDoc,
-  onSnapshot
-} from "firebase/firestore";
-
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
 import {
   createContext,
   useContext,
@@ -28,13 +21,11 @@ import {
   ReactNode,
 } from "react";
 
-/* ================================
-   TYPES
-================================ */
 interface AuthContextType {
   user: User | null;
   role: string | null;
   loading: boolean;
+  setRoleType: (role: string) => void;
   loginWithGoogle: () => Promise<void>;
   registerWithEmail: (email: string, password: string) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
@@ -44,113 +35,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* ================================
-   🔥 AUTO ROLE LOGIC
-================================ */
-const getAutoRole = (email: string | null) => {
-  if (!email) return "customer";
-
-  const lower = email.toLowerCase();
-
-  if (lower.includes("admin")) return "admin";
-  if (lower.includes("seller")) return "seller";
-
-  return "customer";
-};
-
-/* ================================
-   PROVIDER
-================================ */
 export function AuthProvider({ children }: { children: ReactNode }) {
-
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>("customer");
   const [loading, setLoading] = useState(true);
 
-  /* ================================
-     🔥 AUTH + REALTIME ROLE
-  ================================= */
   useEffect(() => {
-
-    let unsubscribeRole: any;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
       setUser(currentUser);
 
-      if (!currentUser) {
+      if (currentUser) {
+        const docRef = doc(db, "users", currentUser.uid);
+        const snap = await getDoc(docRef);
+
+        if (snap.exists()) {
+          setRole(snap.data().role);
+        } else {
+          // अगर doc नहीं है तो default role save करो
+          await setDoc(docRef, { role: "customer" });
+          setRole("customer");
+        }
+      } else {
         setRole(null);
-        setLoading(false);
-        return;
       }
 
-      const docRef = doc(db, "users", currentUser.uid);
-
-      // 🔥 AUTO ROLE (EMAIL BASED)
-      const autoRole = getAutoRole(currentUser.email);
-
-      console.log("📧 EMAIL:", currentUser.email);
-      console.log("⚡ AUTO ROLE:", autoRole);
-
-      // 🔥 FORCE UPDATE (NO OLD DATA ISSUE)
-      await setDoc(docRef, {
-        role: autoRole,
-        email: currentUser.email || "",
-        updatedAt: new Date()
-      }, { merge: true });
-
-      // 🔥 REALTIME LISTENER
-      unsubscribeRole = onSnapshot(docRef, (snap) => {
-
-        const userRole = snap.data()?.role || autoRole;
-
-        console.log("🔥 FINAL ROLE:", userRole);
-
-        setRole(userRole);
-        setLoading(false);
-      });
-
+      setLoading(false);
     });
 
-    return () => {
-      if (unsubscribeRole) unsubscribeRole();
-      unsubscribeAuth();
-    };
-
+    return () => unsubscribe();
   }, []);
 
-  /* ================================
-     🚀 AUTO REDIRECT (INSTANT)
-  ================================= */
-  useEffect(() => {
+  const saveRoleIfNewUser = async (uid: string) => {
+    const docRef = doc(db, "users", uid);
+    const snap = await getDoc(docRef);
 
-    if (!role) return;
-
-    console.log("➡️ REDIRECT ROLE:", role);
-
-    if (role === "admin") {
-      window.location.replace("/admin");
-    } 
-    else if (role === "seller") {
-      window.location.replace("/seller");
-    } 
-    else {
-      window.location.replace("/");
+    if (!snap.exists()) {
+      await setDoc(docRef, { role: selectedRole });
+      setRole(selectedRole);
     }
-
-  }, [role]);
-
-  /* ================================
-     AUTH FUNCTIONS
-  ================================= */
+  };
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const registerWithEmail = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const loginWithEmail = async (email: string, password: string) => {
@@ -158,7 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginAsGuest = async () => {
-    await signInAnonymously(auth);
+    const result = await signInAnonymously(auth);
+    await saveRoleIfNewUser(result.user.uid);
   };
 
   const logout = async () => {
@@ -172,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         role,
         loading,
+        setRoleType: setSelectedRole,
         loginWithGoogle,
         registerWithEmail,
         loginWithEmail,
@@ -184,9 +121,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* ================================
-   HOOK
-================================ */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
