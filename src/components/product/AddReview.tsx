@@ -10,8 +10,14 @@ export default function AddReview({ productId }: any) {
 
   const [comment, setComment] = useState("");
   const [rating, setRating] = useState(5);
-  const [file, setFile] = useState<any>(null);
+  const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 📸 MULTIPLE IMAGE SELECT
+  const handleFileChange = (e: any) => {
+    const selected = Array.from(e.target.files);
+    setFiles(selected);
+  };
 
   const handleSubmit = async () => {
 
@@ -21,24 +27,25 @@ export default function AddReview({ productId }: any) {
     if (!comment) return alert("Write review");
 
     try {
-
       setLoading(true);
 
-      let imageUrl = "";
+      let imageUrls: string[] = [];
 
-      // 📸 COMPRESS + UPLOAD
-      if (file) {
+      // 📸 MULTIPLE UPLOAD
+      for (let file of files) {
 
         const compressed = await compressImage(file);
 
         const storageRef = ref(
           storage,
-          `reviews/${productId}/${Date.now()}`
+          `reviews/${productId}/${Date.now()}-${file.name}`
         );
 
         await uploadBytes(storageRef, compressed);
 
-        imageUrl = await getDownloadURL(storageRef);
+        const url = await getDownloadURL(storageRef);
+
+        imageUrls.push(url);
       }
 
       // 🔥 SAVE FIRESTORE
@@ -48,7 +55,7 @@ export default function AddReview({ productId }: any) {
           name: user.displayName || "User",
           rating,
           comment,
-          image: imageUrl,
+          images: imageUrls, // 🔥 ARRAY SAVE
           likes: 0,
           createdAt: new Date()
         }
@@ -57,7 +64,7 @@ export default function AddReview({ productId }: any) {
       alert("Review added ✅");
 
       setComment("");
-      setFile(null);
+      setFiles([]);
 
     } catch (err) {
       console.log(err);
@@ -78,14 +85,38 @@ export default function AddReview({ productId }: any) {
         className="w-full border p-2 rounded mb-2"
       />
 
-      {/* 📸 CAMERA */}
+      {/* ⭐ RATING */}
+      <select
+        value={rating}
+        onChange={(e)=>setRating(Number(e.target.value))}
+        className="mb-2 border p-2 rounded"
+      >
+        <option value={5}>⭐⭐⭐⭐⭐</option>
+        <option value={4}>⭐⭐⭐⭐</option>
+        <option value={3}>⭐⭐⭐</option>
+        <option value={2}>⭐⭐</option>
+        <option value={1}>⭐</option>
+      </select>
+
+      {/* 📸 MULTIPLE IMAGE INPUT */}
       <input
         type="file"
         accept="image/*"
-        capture="environment"
-        onChange={(e:any)=>setFile(e.target.files[0])}
+        multiple
+        onChange={handleFileChange}
         className="mb-2"
       />
+
+      {/* 🔥 PREVIEW */}
+      <div className="flex gap-2 overflow-x-auto mb-2">
+        {files.map((file, i) => (
+          <img
+            key={i}
+            src={URL.createObjectURL(file)}
+            className="w-20 h-20 object-cover rounded"
+          />
+        ))}
+      </div>
 
       <button
         onClick={handleSubmit}
