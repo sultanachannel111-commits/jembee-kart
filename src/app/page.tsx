@@ -20,14 +20,13 @@ import { useEffect, useState } from "react";
 export default function HomePage() {
 
   const theme = useTheme();
+
   const [categories,setCategories] = useState<any[]>([]);
   const [banners,setBanners] = useState<any[]>([]);
   const [products,setProducts] = useState<any[]>([]);
-
   const [festival,setFestival] = useState<any>(null);
-  const [slide,setSlide] = useState(0);
-  const [search,setSearch] = useState("");
 
+  const [search,setSearch] = useState("");
   const [selectedCategory,setSelectedCategory] = useState("All");
 
   const [trending,setTrending] = useState<any[]>([]);
@@ -35,26 +34,59 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
 
-  // 🔥 LOAD DATA
+  // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
   useEffect(()=>{
+
+    const saved = localStorage.getItem("home-cache");
+
+    if(saved){
+      const data = JSON.parse(saved);
+
+      setCategories(data.categories || []);
+      setBanners(data.banners || []);
+      setProducts(data.products || []);
+      setFestival(data.festival || null);
+    }
+
+    // 🌍 BACKGROUND FETCH
     loadData();
+
   },[]);
 
   const loadData = async()=>{
-    const res = await fetch("/api/home");
-    const data = await res.json();
+    try{
+      const res = await fetch("/api/home");
+      const data = await res.json();
 
-    setCategories(data.categories || []);
-    setBanners(data.banners || []);
-    setProducts(data.products || []);
+      setCategories(data.categories || []);
+      setBanners(data.banners || []);
+      setProducts(data.products || []);
+      setFestival(data.festival || null);
 
-    setTrending(await getTrendingProducts());
-    setClearance(await getClearanceProducts());
-    setRecommended(await getRecommendedProducts());
-    setLightning(await getLightningDeals());
+      // 💾 SAVE CACHE
+      localStorage.setItem("home-cache", JSON.stringify(data));
+
+      console.log("⚡ Fresh data loaded");
+
+      // 🔥 EXTRA SERVICES (parallel)
+      const [t,c,r,l] = await Promise.all([
+        getTrendingProducts(),
+        getClearanceProducts(),
+        getRecommendedProducts(),
+        getLightningDeals()
+      ]);
+
+      setTrending(t);
+      setClearance(c);
+      setRecommended(r);
+      setLightning(l);
+
+    }catch(err){
+      console.log("❌ LOAD ERROR",err);
+    }
   };
 
-  // 🔥 SEARCH
+  // 🔍 SEARCH
   const normalize = (text:string)=>
     text?.toLowerCase().replace(/\s|-/g,"");
 
@@ -65,15 +97,15 @@ export default function HomePage() {
     return matchSearch && matchCategory;
   });
 
-  // 🔥 BACKGROUND
+  // 🎨 BACKGROUND (NO FLASH)
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#f9fafb";
+    : theme?.background || "#0f172a"; // dark fallback (premium feel)
 
   return(
     <div
       style={{ background: backgroundStyle }}
-      className="min-h-screen pb-[80px]"
+      className="min-h-screen pb-[80px] transition-all duration-300"
     >
 
       {/* 🔥 HEADER */}
@@ -84,11 +116,11 @@ export default function HomePage() {
         {/* 🔍 SEARCH */}
         <div
           style={{
-            background: theme?.searchBg || "#fff",
-            color: theme?.searchText || "#000",
-            borderColor: theme?.searchBorder || "#ddd"
+            background: theme?.searchBg || "#ffffff10",
+            color: theme?.searchText || "#fff",
+            borderColor: theme?.searchBorder || "#ffffff20"
           }}
-          className="rounded-xl p-2 border"
+          className="rounded-xl p-2 border backdrop-blur-md"
         >
           <SearchBar search={search} setSearch={setSearch}/>
         </div>
@@ -96,10 +128,10 @@ export default function HomePage() {
         {/* 🔥 TRENDING */}
         <div
           style={{
-            background: theme?.trendingBg || theme?.card || "#fff",
-            color: theme?.trendingText || "#000"
+            background: theme?.trendingBg || "#ffffff10",
+            color: theme?.trendingText || "#fff"
           }}
-          className="rounded-xl shadow p-3"
+          className="rounded-xl shadow p-3 backdrop-blur-md"
         >
           <p className="text-sm font-semibold mb-2">🔥 Trending</p>
 
@@ -108,10 +140,10 @@ export default function HomePage() {
               <button
                 key={item}
                 style={{
-                  background: theme?.trendingChipBg || theme?.button || "#eee",
-                  color: theme?.trendingChipText || "#000"
+                  background: theme?.trendingChipBg || "#ffffff20",
+                  color: theme?.trendingChipText || "#fff"
                 }}
-                className="px-3 py-1 rounded-full text-xs"
+                className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
               >
                 {item}
               </button>
@@ -120,16 +152,14 @@ export default function HomePage() {
         </div>
 
         {/* CATEGORY */}
-        <div className="overflow-x-auto">
-          <CategoryList
-            categories={categories}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-          />
-        </div>
+        <CategoryList
+          categories={categories}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+        />
 
         {/* BANNER */}
-        <BannerSlider banners={banners} slide={slide}/>
+        <BannerSlider banners={banners}/>
 
         {/* FLASH */}
         <FlashSale/>
@@ -139,11 +169,7 @@ export default function HomePage() {
         )}
 
         {/* PRODUCTS */}
-        <ProductGrid
-          products={filteredProducts}
-          theme={theme}
-        />
-
+        <ProductGrid products={filteredProducts} theme={theme}/>
         <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
         <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
         <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
@@ -158,7 +184,7 @@ export default function HomePage() {
       <div
         style={{
           background: theme?.fabBg || "#22c55e",
-          boxShadow: `0 0 20px ${theme?.fabGlow || "#22c55e"}`
+          boxShadow: `0 0 25px ${theme?.fabGlow || "#22c55e"}`
         }}
         className="fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center text-white text-xl"
       >
