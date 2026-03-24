@@ -155,21 +155,43 @@ useEffect(() => {
 
   // ⚡ BUY
   const handleBuyNow = async () => {
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
 
-    const orderRef = await addDoc(collection(db,"orders"),{
-      userId: user.uid,
-      productId: product.id,
-      name: product.name,
-      image: images?.[0] || "",
-      size: selectedSize.size,
-      price: price,
-      status: "pending"
-    });
+  if (!user) return router.push(`/login?redirect=/product/${id}`);
+  if (!selectedSize) return alert("Select size");
 
-    router.push(`/checkout?orderId=${orderRef.id}`);
+  // 🔥 affiliate code (IMPORTANT)
+  const refCode =
+    typeof window !== "undefined"
+      ? localStorage.getItem("affiliate")
+      : null;
+
+  const item = {
+    id: product.id,
+    name: product.name,
+    image: images?.[0] || "",
+    size: selectedSize.size,
+    quantity: 1,
+
+    // 🔥 PRICE FIX
+    price:
+      Number(selectedSize?.sellPrice) ||
+      Number(selectedSize?.price) ||
+      Number(variant?.sizes?.[0]?.sellPrice) ||
+      Number(product?.price) ||
+      0,
+
+    variations: product.variations || [],
+
+    // 🔥 AFFILIATE ADD
+    affiliateCode: refCode || null
   };
+
+  console.log("🔥 BUY NOW SAVE:", item);
+
+  localStorage.setItem("buy-now", JSON.stringify(item));
+
+  router.push("/checkout");
+};
 
   // 🔗 SHARE
   const handleShare = ()=>{
