@@ -180,21 +180,6 @@ export default function HomePage() {
       {/* 🔥 BOTTOM NAV */}
       <BottomNav theme={theme}/>
 
-      {/* 🔥 FLOAT BUTTON */}
-<div
-  onClick={() => window.open("https://wa.me/917061369212", "_blank")}
-  style={{
-    background: theme?.fabBg || "#22c55e",
-    boxShadow: `0 0 25px ${theme?.fabGlow || "#22c55e"}`,
-    pointerEvents: "auto"
-  }}
-  className="fixed bottom-20 right-4 z-[9999]
-             w-14 h-14 rounded-full flex items-center justify-center
-             text-white text-xl cursor-pointer"
->
-  💬
-</div>
-
     </div>
   );
 }
