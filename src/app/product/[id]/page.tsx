@@ -36,7 +36,6 @@ export default function ProductPage() {
   const [pincode, setPincode] = useState("");
   const [pinStatus, setPinStatus] = useState("");
   // --- NEW FEATURES STATES ---
-  const [pincode, setPincode] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState({ hrs: 2, mins: 45, secs: 10 });
   const [zoomStyle, setZoomStyle] = useState({ display: "none", left: 0, top: 0, x: 0, y: 0 });
