@@ -134,6 +134,25 @@ useEffect(() => {
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
+  // 🚚 DELIVERY DATE
+const getDeliveryDate = () => {
+  const today = new Date();
+
+  const min = new Date(today);
+  min.setDate(today.getDate() + 3);
+
+  const max = new Date(today);
+  max.setDate(today.getDate() + 6);
+
+  const options: any = { weekday: "short", day: "numeric", month: "short" };
+
+  return {
+    min: min.toLocaleDateString("en-IN", options),
+    max: max.toLocaleDateString("en-IN", options)
+  };
+};
+
+const delivery = getDeliveryDate();
 
   // 🛒 CART
   const handleAddToCart = async () => {
@@ -354,6 +373,24 @@ useEffect(() => {
         <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
           {product.description || "Premium product"}
         </div>
+        {/* 🚚 DELIVERY DATE */}
+<div className="mt-4 mb-2 p-4 rounded-2xl 
+                bg-white/60 backdrop-blur 
+                border border-gray-200 shadow-sm">
+
+  <div className="flex items-center gap-2 text-sm text-gray-600">
+    🚚 <span className="font-medium">Delivery</span>
+  </div>
+
+  <p className="mt-1 text-xl font-bold bg-gradient-to-r from-black to-gray-600 bg-clip-text text-transparent">
+    {delivery.min} - {delivery.max}
+  </p>
+
+  <p className="text-xs text-green-600 mt-1">
+    ✔ Free Delivery • Cash on Delivery available
+  </p>
+
+</div>
 
         {/* SIMILAR */}
         <div className="mt-6">
