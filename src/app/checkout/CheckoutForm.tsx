@@ -17,11 +17,6 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 
-import {
-  sendCustomerWhatsApp,
-  sendSellerWhatsApp
-} from "@/lib/whatsapp";
-
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
@@ -45,6 +40,7 @@ export default function CheckoutPage(){
       ? localStorage.getItem("affiliate")
       : null;
 
+  /* 🔥 LOAD CART + BUY NOW FIXED */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -57,11 +53,15 @@ export default function CheckoutPage(){
       if(buyNow){
         const parsed = JSON.parse(buyNow);
 
+        // ✅ FINAL PRICE FIX
         const finalPrice =
           Number(parsed.price) ||
           parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ||
           parsed?.variations?.[0]?.sizes?.[0]?.price ||
           0;
+
+        console.log("🔥 BUY NOW:", parsed);
+        console.log("🔥 FINAL PRICE:", finalPrice);
 
         setItems([{
           ...parsed,
@@ -70,7 +70,7 @@ export default function CheckoutPage(){
         }]);
 
       } else {
-
+        // 🛒 CART LOAD
         const snap = await getDocs(
           collection(db,"carts",u.uid,"items")
         );
@@ -97,8 +97,12 @@ export default function CheckoutPage(){
         setItems(data);
       }
 
+      // 🔥 COD CHECK
       const orderSnap = await getDocs(
-        query(collection(db,"orders"), where("userId","==",u.uid))
+        query(
+          collection(db,"orders"),
+          where("userId","==",u.uid)
+        )
       );
 
       const paidOrders = orderSnap.docs.filter(
@@ -115,37 +119,13 @@ export default function CheckoutPage(){
 
   },[]);
 
+  /* 🔥 TOTAL SAFE */
   const total = items.reduce(
     (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
     0
   );
 
-  const sendWhatsApp = async () => {
-
-    let sellerPhone = "91XXXXXXXXXX";
-
-    if(refCode){
-      const snap = await getDoc(doc(db,"affiliateLinks",refCode));
-      if(snap.exists()){
-        const sellerId = snap.data().sellerId;
-
-        const sellerSnap = await getDoc(doc(db,"users",sellerId));
-        if(sellerSnap.exists()){
-          sellerPhone = sellerSnap.data().phone;
-        }
-      }
-    }
-
-    sendCustomerWhatsApp({ items, total, customer });
-
-    sendSellerWhatsApp({
-      items,
-      total,
-      customer,
-      sellerPhone
-    });
-  };
-
+  /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
@@ -153,18 +133,26 @@ export default function CheckoutPage(){
       return;
     }
 
+    if(total <= 0){
+      alert("Invalid amount ❌");
+      return;
+    }
+
     setLoading(true);
 
-    const orderRef = await addDoc(collection(db,"orders"),{
-      userId:user.uid,
-      items,
-      total,
-      customer,
-      paymentMethod:"online",
-      paymentStatus:"pending",
-      status:"pending",
-      createdAt:serverTimestamp()
-    });
+    const orderRef = await addDoc(
+      collection(db,"orders"),
+      {
+        userId:user.uid,
+        items,
+        total,
+        customer,
+        paymentMethod:"online",
+        paymentStatus:"pending",
+        status:"pending",
+        createdAt:serverTimestamp()
+      }
+    );
 
     const res = await fetch("/api/cashfree/create-order",{
       method:"POST",
@@ -191,17 +179,26 @@ export default function CheckoutPage(){
       redirectTarget:"_self"
     });
 
-    await sendWhatsApp();
-
+    // ✅ BUY NOW CLEAR
     localStorage.removeItem("buy-now");
 
     setLoading(false);
   };
 
+  /* 🔥 COD ORDER */
   const placeCOD = async()=>{
 
+    let sellerId = null;
+
+    if (refCode) {
+      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
+      if (snap.exists()) {
+        sellerId = snap.data().sellerId;
+      }
+    }
+
     if(!codUnlocked){
-      alert("COD locked ❌");
+      alert("COD locked ❌ Complete 2 prepaid orders first");
       return;
     }
 
@@ -210,23 +207,51 @@ export default function CheckoutPage(){
       return;
     }
 
+    if(items.length === 0){
+      alert("Cart empty ❌");
+      return;
+    }
+
+    const firstItem = items[0];
+
+    const sellPrice =
+      firstItem?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      firstItem?.price || 0;
+
+    const basePrice =
+      firstItem?.variations?.[0]?.sizes?.[0]?.basePrice || 0;
+
+    const profit = sellPrice - basePrice;
+    const commission = Math.max(0, Math.round(profit * 0.5));
+
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-      userId:user.uid,
+
+      userId: user.uid,
+      productId: firstItem?.id,
+
+      sellerId: sellerId || null,
+      affiliateCode: refCode || null,
+
+      sellPrice,
+      basePrice,
+      commission,
+
       items,
       total,
       customer,
+
       paymentMethod:"cod",
       paymentStatus:"pending",
       status:"placed",
+
       createdAt:serverTimestamp()
     });
 
-    await sendWhatsApp();
+    alert("Order placed (COD) ✅");
 
-    alert("Order placed ✅");
-
+    // ✅ BUY NOW CLEAR
     localStorage.removeItem("buy-now");
 
     setLoading(false);
@@ -234,16 +259,18 @@ export default function CheckoutPage(){
 
   return(
 
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 p-4">
 
       <div className="max-w-xl mx-auto">
 
-        <h1 className="text-3xl font-bold text-center mb-6">
+        <h1 className="text-3xl font-bold text-center mb-4">
           Checkout 🛍️
         </h1>
 
-        {/* GLASS SUMMARY */}
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 mb-4 shadow-lg">
+        {/* 🔥 SUMMARY */}
+        <div className="bg-white rounded-2xl shadow p-4 mb-4">
+
+          <h2 className="font-semibold mb-3">Order Summary</h2>
 
           {items.map(item=>(
             <div key={item.id} className="flex justify-between text-sm mb-2">
@@ -252,58 +279,73 @@ export default function CheckoutPage(){
             </div>
           ))}
 
-          <div className="flex justify-between font-bold mt-3 text-green-400">
+          <div className="border-t mt-3 pt-3 flex justify-between font-bold">
             <span>Total</span>
-            <span>₹{total}</span>
+            <span className="text-lg text-green-600">₹{total}</span>
           </div>
 
         </div>
 
-        {/* GLASS FORM */}
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-5 space-y-3 shadow-lg">
+        {/* 🔥 FORM */}
+        <div className="bg-white rounded-2xl shadow p-5 space-y-4">
 
-          {[
-            ["First Name","firstName"],
-            ["Last Name","lastName"],
-            ["City","city"],
-            ["State","state"],
-            ["Pin Code","zip"],
-            ["Phone","phone"],
-            ["Email","email"]
-          ].map(([label,key])=>(
-            <input
-              key={key}
-              placeholder={label}
-              className="w-full p-3 rounded-xl bg-white/10 border border-white/20 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-              onChange={(e)=>setCustomer({...customer,[key]:e.target.value})}
+          <h2 className="font-semibold">Delivery Details</h2>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="First Name" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
             />
-          ))}
+            <input placeholder="Last Name" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+            />
+          </div>
 
-          <textarea
-            placeholder="Address"
-            className="w-full p-3 rounded-xl bg-white/10 border border-white/20"
+          <textarea placeholder="Full Address" className="p-3 rounded-xl border w-full"
             onChange={(e)=>setCustomer({...customer,address:e.target.value})}
           />
 
-          {/* PAY */}
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="City" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+            />
+            <input placeholder="State" className="p-3 rounded-xl border"
+              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+            />
+          </div>
+
+          <input placeholder="Pin Code" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          />
+
+          <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          />
+
+          <input placeholder="Email" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          />
+
+          {/* 🔥 PAY */}
           <button
             onClick={placeOrder}
-            className="w-full py-3 rounded-xl font-semibold text-lg bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg hover:scale-105 transition"
+            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg"
           >
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
-          {/* COD */}
+          {/* 🔥 COD */}
           <button
             onClick={placeCOD}
             disabled={!codUnlocked}
-            className={`w-full py-3 rounded-xl font-semibold text-lg ${
+            className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
               codUnlocked
-                ? "bg-white text-black hover:scale-105"
-                : "bg-gray-500"
+                ? "bg-black"
+                : "bg-gray-400 cursor-not-allowed"
             }`}
           >
-            {codUnlocked ? "Cash on Delivery" : "COD Locked"}
+            {codUnlocked
+              ? "Cash on Delivery"
+              : "COD Locked (2 prepaid orders required)"}
           </button>
 
         </div>
