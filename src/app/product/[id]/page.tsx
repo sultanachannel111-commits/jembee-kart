@@ -35,9 +35,6 @@ const ref = searchParams.get("ref");
   const [showViewer,setShowViewer] = useState(false);
 
   const [similar,setSimilar] = useState<any[]>([]);
-  // 📍 PINCODE
-const [pincode, setPincode] = useState("");
-const [pinStatus, setPinStatus] = useState("");
 
   // 🔐 AUTH
   useEffect(()=>{
@@ -137,149 +134,42 @@ useEffect(() => {
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
-  // ⏳ TIMER AUTO
-const timerEnabled = product?.isTrending || stock <= 5;
-
-const [timeLeft, setTimeLeft] = useState(7200);
-
-useEffect(() => {
-  if (!timerEnabled) return;
-
-  const timer = setInterval(() => {
-    setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, [timerEnabled]);
-
-const formatTime = (sec:number) => {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return `${h}h ${m}m`;
-};
-  // 🚚 DELIVERY DATE
-const getDeliveryDate = () => {
-  const today = new Date();
-
-  const min = new Date(today);
-  min.setDate(today.getDate() + 3);
-
-  const max = new Date(today);
-  max.setDate(today.getDate() + 6);
-
-  const options: any = { weekday: "short", day: "numeric", month: "short" };
-
-  return {
-    min: min.toLocaleDateString("en-IN", options),
-    max: max.toLocaleDateString("en-IN", options)
-  };
-};
-
-const delivery = getDeliveryDate();
 
   // 🛒 CART
   const handleAddToCart = async () => {
-  // 📍 PINCODE CHECK
-const checkPincode = () => {
-  if (pincode.length !== 6) return alert("Invalid pincode");
+    if (!user) return router.push(`/login?redirect=/product/${id}`);
+    if (!selectedSize) return alert("Select size");
 
-  if (pincode.startsWith("8")) {
-    setPinStatus("fast");
-  } else {
-    setPinStatus("slow");
-  }
-};
+    await addDoc(collection(db,"carts",user.uid,"items"),{
+      productId: product.id,
+      name: product.name,
+      image: images?.[0] || "",
+      size: selectedSize.size,
+      price: price,
+      quantity: 1
+    });
 
-  if (!user) return router.push(`/login?redirect=/product/${id}`);
-  if (!selectedSize) return alert("Select size");
-
-  // 🔥 REF CODE
-  const refCode =
-    typeof window !== "undefined"
-      ? localStorage.getItem("affiliate")
-      : null;
-
-  let sellerId = null;
-
-  if (refCode) {
-    try {
-      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
-      if (snap.exists()) {
-        sellerId = snap.data().sellerId;
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  }
-
-  const finalPrice =
-    Number(selectedSize?.sellPrice) ||
-    Number(selectedSize?.price) ||
-    Number(variant?.sizes?.[0]?.sellPrice) ||
-    Number(product?.price) ||
-    0;
-
-  await addDoc(collection(db,"carts",user.uid,"items"),{
-    productId: product.id,
-    name: product.name,
-    image: images?.[0] || "",
-    size: selectedSize.size,
-
-    // 💰 PRICE FIX
-    price: finalPrice,
-    sellPrice: finalPrice,
-    basePrice: Number(selectedSize?.basePrice) || 0,
-
-    quantity: 1,
-
-    // 🔥 AFFILIATE
-    affiliateCode: refCode,
-    sellerId: sellerId
-  });
-
-  alert("Added to cart");
-  router.push("/cart");
-};
+    alert("Added to cart");
+    router.push("/cart");
+  };
 
   // ⚡ BUY
   const handleBuyNow = async () => {
+    if (!user) return router.push(`/login?redirect=/product/${id}`);
+    if (!selectedSize) return alert("Select size");
 
-  if (!user) return router.push(`/login?redirect=/product/${id}`);
-  if (!selectedSize) return alert("Select size");
+    const orderRef = await addDoc(collection(db,"orders"),{
+      userId: user.uid,
+      productId: product.id,
+      name: product.name,
+      image: images?.[0] || "",
+      size: selectedSize.size,
+      price: price,
+      status: "pending"
+    });
 
-  // 🔥 affiliate code (IMPORTANT)
-  const refCode =
-    typeof window !== "undefined"
-      ? localStorage.getItem("affiliate")
-      : null;
-
-  const item = {
-    id: product.id,
-    name: product.name,
-    image: images?.[0] || "",
-    size: selectedSize.size,
-    quantity: 1,
-
-    // 🔥 PRICE FIX
-    price:
-      Number(selectedSize?.sellPrice) ||
-      Number(selectedSize?.price) ||
-      Number(variant?.sizes?.[0]?.sellPrice) ||
-      Number(product?.price) ||
-      0,
-
-    variations: product.variations || [],
-
-    // 🔥 AFFILIATE ADD
-    affiliateCode: refCode || null
+    router.push(`/checkout?orderId=${orderRef.id}`);
   };
-
-  console.log("🔥 BUY NOW SAVE:", item);
-
-  localStorage.setItem("buy-now", JSON.stringify(item));
-
-  router.push("/checkout");
-};
 
   // 🔗 SHARE
   const handleShare = ()=>{
@@ -406,58 +296,6 @@ const checkPincode = () => {
         <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
           {product.description || "Premium product"}
         </div>
-        {/* 🚚 DELIVERY DATE */}
-<div className="mt-4 mb-2 p-4 rounded-2xl 
-                bg-white/60 backdrop-blur 
-                border border-gray-200 shadow-sm">
-
-  <div className="flex items-center gap-2 text-sm text-gray-600">
-    🚚 <span className="font-medium">Delivery</span>
-  </div>
-
-  <p className="mt-1 text-xl font-bold bg-gradient-to-r from-black to-gray-600 bg-clip-text text-transparent">
-    {delivery.min} - {delivery.max}
-  </p>
-
-  <p className="text-xs text-green-600 mt-1">
-    ✔ Free Delivery • Cash on Delivery available
-  </p>
-
-</div>
-        {/* 📍 PINCODE CHECK */}
-<div className="mt-3 bg-white p-4 rounded-xl shadow">
-
-  <p className="font-semibold mb-2">Check Delivery</p>
-
-  <div className="flex gap-2">
-    <input
-      value={pincode}
-      onChange={(e)=>setPincode(e.target.value)}
-      placeholder="Enter Pincode"
-      className="border p-2 rounded w-full"
-    />
-
-    <button
-      onClick={checkPincode}
-      className="bg-black text-white px-4 rounded"
-    >
-      Check
-    </button>
-  </div>
-
-  {pinStatus === "fast" && (
-    <p className="text-green-600 text-sm mt-2">
-      ⚡ Fast delivery available
-    </p>
-  )}
-
-  {pinStatus === "slow" && (
-    <p className="text-orange-500 text-sm mt-2">
-      🚚 Delivery may take longer
-    </p>
-  )}
-
-</div>
 
         {/* SIMILAR */}
         <div className="mt-6">
