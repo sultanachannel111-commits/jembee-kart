@@ -12,10 +12,16 @@ import {
   query,
   where,
   doc,
-  getDoc
+  getDoc,
+  updateDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
+
+import {
+  sendCustomerWhatsApp,
+  sendSellerWhatsApp
+} from "@/lib/whatsapp";
 
 export default function CheckoutPage(){
 
@@ -40,7 +46,7 @@ export default function CheckoutPage(){
       ? localStorage.getItem("affiliate")
       : null;
 
-  /* 🔥 LOAD CART + BUY NOW FIXED */
+  /* 🔥 LOAD CART */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -53,15 +59,11 @@ export default function CheckoutPage(){
       if(buyNow){
         const parsed = JSON.parse(buyNow);
 
-        // ✅ FINAL PRICE FIX
         const finalPrice =
           Number(parsed.price) ||
           parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ||
           parsed?.variations?.[0]?.sizes?.[0]?.price ||
           0;
-
-        console.log("🔥 BUY NOW:", parsed);
-        console.log("🔥 FINAL PRICE:", finalPrice);
 
         setItems([{
           ...parsed,
@@ -70,7 +72,7 @@ export default function CheckoutPage(){
         }]);
 
       } else {
-        // 🛒 CART LOAD
+
         const snap = await getDocs(
           collection(db,"carts",u.uid,"items")
         );
@@ -97,12 +99,9 @@ export default function CheckoutPage(){
         setItems(data);
       }
 
-      // 🔥 COD CHECK
+      // COD unlock
       const orderSnap = await getDocs(
-        query(
-          collection(db,"orders"),
-          where("userId","==",u.uid)
-        )
+        query(collection(db,"orders"), where("userId","==",u.uid))
       );
 
       const paidOrders = orderSnap.docs.filter(
@@ -119,11 +118,37 @@ export default function CheckoutPage(){
 
   },[]);
 
-  /* 🔥 TOTAL SAFE */
   const total = items.reduce(
     (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
     0
   );
+
+  /* 🔥 COMMON WHATSAPP FUNCTION */
+  const sendWhatsApp = async () => {
+
+    let sellerPhone = "919876543210"; // 👉 change this
+
+    if(refCode){
+      const snap = await getDoc(doc(db,"affiliateLinks",refCode));
+      if(snap.exists()){
+        const sellerId = snap.data().sellerId;
+
+        const sellerSnap = await getDoc(doc(db,"users",sellerId));
+        if(sellerSnap.exists()){
+          sellerPhone = sellerSnap.data().phone;
+        }
+      }
+    }
+
+    sendCustomerWhatsApp({ items, total, customer });
+
+    sendSellerWhatsApp({
+      items,
+      total,
+      customer,
+      sellerPhone
+    });
+  };
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
@@ -140,19 +165,16 @@ export default function CheckoutPage(){
 
     setLoading(true);
 
-    const orderRef = await addDoc(
-      collection(db,"orders"),
-      {
-        userId:user.uid,
-        items,
-        total,
-        customer,
-        paymentMethod:"online",
-        paymentStatus:"pending",
-        status:"pending",
-        createdAt:serverTimestamp()
-      }
-    );
+    const orderRef = await addDoc(collection(db,"orders"),{
+      userId:user.uid,
+      items,
+      total,
+      customer,
+      paymentMethod:"online",
+      paymentStatus:"pending",
+      status:"pending",
+      createdAt:serverTimestamp()
+    });
 
     const res = await fetch("/api/cashfree/create-order",{
       method:"POST",
@@ -179,7 +201,9 @@ export default function CheckoutPage(){
       redirectTarget:"_self"
     });
 
-    // ✅ BUY NOW CLEAR
+    // 🔥 WhatsApp trigger
+    await sendWhatsApp();
+
     localStorage.removeItem("buy-now");
 
     setLoading(false);
@@ -249,9 +273,11 @@ export default function CheckoutPage(){
       createdAt:serverTimestamp()
     });
 
+    // 🔥 WhatsApp trigger
+    await sendWhatsApp();
+
     alert("Order placed (COD) ✅");
 
-    // ✅ BUY NOW CLEAR
     localStorage.removeItem("buy-now");
 
     setLoading(false);
@@ -267,7 +293,7 @@ export default function CheckoutPage(){
           Checkout 🛍️
         </h1>
 
-        {/* 🔥 SUMMARY */}
+        {/* SUMMARY */}
         <div className="bg-white rounded-2xl shadow p-4 mb-4">
 
           <h2 className="font-semibold mb-3">Order Summary</h2>
@@ -286,66 +312,40 @@ export default function CheckoutPage(){
 
         </div>
 
-        {/* 🔥 FORM */}
+        {/* FORM */}
         <div className="bg-white rounded-2xl shadow p-5 space-y-4">
 
           <h2 className="font-semibold">Delivery Details</h2>
 
-          <div className="grid grid-cols-2 gap-3">
-            <input placeholder="First Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-            />
-            <input placeholder="Last Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-            />
-          </div>
-
-          <textarea placeholder="Full Address" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <input placeholder="City" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-            />
-            <input placeholder="State" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-            />
-          </div>
-
-          <input placeholder="Pin Code" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          <input placeholder="First Name" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
           />
 
           <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
             onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
           />
 
-          <input placeholder="Email" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          <textarea placeholder="Address" className="p-3 rounded-xl border w-full"
+            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
           />
 
-          {/* 🔥 PAY */}
+          {/* PAY */}
           <button
             onClick={placeOrder}
-            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg"
+            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-green-600"
           >
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
-          {/* 🔥 COD */}
+          {/* COD */}
           <button
             onClick={placeCOD}
             disabled={!codUnlocked}
             className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
-              codUnlocked
-                ? "bg-black"
-                : "bg-gray-400 cursor-not-allowed"
+              codUnlocked ? "bg-black" : "bg-gray-400"
             }`}
           >
-            {codUnlocked
-              ? "Cash on Delivery"
-              : "COD Locked (2 prepaid orders required)"}
+            {codUnlocked ? "Cash on Delivery" : "COD Locked"}
           </button>
 
         </div>
