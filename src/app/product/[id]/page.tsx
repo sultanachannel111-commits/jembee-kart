@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-
 import {
   doc,
   getDoc,
@@ -11,7 +10,6 @@ import {
   collection,
   getDocs
 } from "firebase/firestore";
-
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
@@ -40,14 +38,20 @@ export default function ProductPage() {
   const [pincode, setPincode] = useState("");
   const [pinStatus, setPinStatus] = useState("");
 
-  // ✅ PINCODE FUNCTION FIXED
-  const checkPincode = () => {
+  const checkPincode = async () => {
     if (pincode.length !== 6) return alert("Invalid pincode");
 
-    if (pincode.startsWith("8")) {
-      setPinStatus("fast");
-    } else {
-      setPinStatus("slow");
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await res.json();
+
+      if (data[0].Status === "Success") {
+        setPinStatus("fast");
+      } else {
+        setPinStatus("invalid");
+      }
+    } catch {
+      setPinStatus("invalid");
     }
   };
 
@@ -78,31 +82,20 @@ export default function ProductPage() {
     if(id) fetchProduct();
   },[id]);
 
-  // 🔥 AFFILIATE TRACKING
+  // 🔥 AFFILIATE
   useEffect(() => {
-    const saveAffiliate = async () => {
-      if (!ref) return;
+    if (!ref) return;
 
-      localStorage.setItem("affiliate", ref);
+    localStorage.setItem("affiliate", ref);
 
-      const user = auth.currentUser;
-      if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-      try {
-        await setDoc(
-          doc(db, "userAffiliate", user.uid),
-          {
-            refCode: ref,
-            updatedAt: new Date()
-          },
-          { merge: true }
-        );
-      } catch (err) {
-        console.log(err);
-      }
-    };
+    setDoc(doc(db,"userAffiliate",user.uid),{
+      refCode: ref,
+      updatedAt: new Date()
+    },{ merge:true });
 
-    saveAffiliate();
   }, [ref]);
 
   // 🔥 SIMILAR
@@ -130,12 +123,10 @@ export default function ProductPage() {
     variant?.images?.model
   ].filter(Boolean);
 
+  // 💰 PRICE
   const price =
     Number(selectedSize?.sellPrice) ||
-    Number(selectedSize?.price) ||
-    Number(variant?.sizes?.[0]?.sellPrice) ||
-    Number(product?.price) ||
-    0;
+    Number(product?.price) || 0;
 
   const stock = Number(selectedSize?.stock) || 0;
 
@@ -146,28 +137,28 @@ export default function ProductPage() {
   useEffect(() => {
     if (!timerEnabled) return;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+    const timer = setInterval(()=>{
+      setTimeLeft(prev => prev > 0 ? prev - 1 : 0);
+    },1000);
 
-    return () => clearInterval(timer);
-  }, [timerEnabled]);
+    return ()=>clearInterval(timer);
+  },[timerEnabled]);
 
-  const formatTime = (sec:number) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
+  const formatTime = (sec:number)=>{
+    const h = Math.floor(sec/3600);
+    const m = Math.floor((sec%3600)/60);
     return `${h}h ${m}m`;
   };
 
   // 🚚 DELIVERY
-  const getDeliveryDate = () => {
+  const getDeliveryDate = ()=>{
     const today = new Date();
 
     const min = new Date(today);
-    min.setDate(today.getDate() + 3);
+    min.setDate(today.getDate()+3);
 
     const max = new Date(today);
-    max.setDate(today.getDate() + 6);
+    max.setDate(today.getDate()+6);
 
     return {
       min: min.toLocaleDateString("en-IN"),
@@ -179,16 +170,20 @@ export default function ProductPage() {
 
   // 🛒 CART
   const handleAddToCart = async () => {
+
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
+
+    const refCode = localStorage.getItem("affiliate");
 
     await addDoc(collection(db,"carts",user.uid,"items"),{
       productId: product.id,
       name: product.name,
-      image: images?.[0] || "",
+      image: images[0],
       size: selectedSize.size,
       price: price,
-      quantity: 1
+      quantity: 1,
+      affiliateCode: refCode
     });
 
     alert("Added to cart");
@@ -197,14 +192,16 @@ export default function ProductPage() {
 
   // ⚡ BUY
   const handleBuyNow = async () => {
+
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
-    localStorage.setItem("buy-now", JSON.stringify({
+    localStorage.setItem("buy-now",JSON.stringify({
       id: product.id,
       name: product.name,
-      image: images?.[0],
-      price: price
+      image: images[0],
+      price: price,
+      size: selectedSize.size
     }));
 
     router.push("/checkout");
@@ -243,7 +240,7 @@ export default function ProductPage() {
 
         {/* TIMER */}
         {timerEnabled && (
-          <div className="mt-2 text-red-600">
+          <div className="text-red-600 mt-2">
             ⏳ Order within {formatTime(timeLeft)}
           </div>
         )}
@@ -264,7 +261,7 @@ export default function ProductPage() {
           <button onClick={checkPincode}>Check</button>
 
           {pinStatus === "fast" && <p>⚡ Fast delivery</p>}
-          {pinStatus === "slow" && <p>🚚 Slow delivery</p>}
+          {pinStatus === "invalid" && <p>❌ Not available</p>}
         </div>
 
       </div>
