@@ -36,6 +36,8 @@ export default function RootLayout({
         id="theme-body"
         className={`${inter.className} min-h-screen transition-colors duration-300`}
       >
+        {/* 🔥 ERROR TRACKER */}
+  <ErrorTracker />
 
         {/* 🔥 THEME */}
         <ThemeLoader />
