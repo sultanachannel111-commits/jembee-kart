@@ -45,7 +45,6 @@ export default function CheckoutPage(){
       ? localStorage.getItem("affiliate")
       : null;
 
-  /* 🔥 LOAD CART */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -98,7 +97,6 @@ export default function CheckoutPage(){
         setItems(data);
       }
 
-      // COD unlock
       const orderSnap = await getDocs(
         query(collection(db,"orders"), where("userId","==",u.uid))
       );
@@ -122,10 +120,9 @@ export default function CheckoutPage(){
     0
   );
 
-  /* 🔥 WHATSAPP */
   const sendWhatsApp = async () => {
 
-    let sellerPhone = "91XXXXXXXXXX"; // 👉 change
+    let sellerPhone = "91XXXXXXXXXX";
 
     if(refCode){
       const snap = await getDoc(doc(db,"affiliateLinks",refCode));
@@ -149,7 +146,6 @@ export default function CheckoutPage(){
     });
   };
 
-  /* 🔥 ONLINE */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
@@ -202,7 +198,6 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  /* 🔥 COD */
   const placeCOD = async()=>{
 
     if(!codUnlocked){
@@ -239,16 +234,16 @@ export default function CheckoutPage(){
 
   return(
 
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4 text-white">
 
       <div className="max-w-xl mx-auto">
 
-        <h1 className="text-2xl font-bold text-center mb-4">
+        <h1 className="text-3xl font-bold text-center mb-6">
           Checkout 🛍️
         </h1>
 
-        {/* SUMMARY */}
-        <div className="bg-white p-4 rounded-xl mb-4 shadow">
+        {/* GLASS SUMMARY */}
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 mb-4 shadow-lg">
 
           {items.map(item=>(
             <div key={item.id} className="flex justify-between text-sm mb-2">
@@ -257,64 +252,56 @@ export default function CheckoutPage(){
             </div>
           ))}
 
-          <div className="flex justify-between font-bold mt-2">
+          <div className="flex justify-between font-bold mt-3 text-green-400">
             <span>Total</span>
             <span>₹{total}</span>
           </div>
 
         </div>
 
-        {/* FORM */}
-        <div className="bg-white p-4 rounded-xl shadow space-y-3">
+        {/* GLASS FORM */}
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-5 space-y-3 shadow-lg">
 
-          <input placeholder="First Name"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-          />
+          {[
+            ["First Name","firstName"],
+            ["Last Name","lastName"],
+            ["City","city"],
+            ["State","state"],
+            ["Pin Code","zip"],
+            ["Phone","phone"],
+            ["Email","email"]
+          ].map(([label,key])=>(
+            <input
+              key={key}
+              placeholder={label}
+              className="w-full p-3 rounded-xl bg-white/10 border border-white/20 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+              onChange={(e)=>setCustomer({...customer,[key]:e.target.value})}
+            />
+          ))}
 
-          <input placeholder="Last Name"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-          />
-
-          <textarea placeholder="Address"
-            className="input"
+          <textarea
+            placeholder="Address"
+            className="w-full p-3 rounded-xl bg-white/10 border border-white/20"
             onChange={(e)=>setCustomer({...customer,address:e.target.value})}
           />
 
-          <input placeholder="City"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-          />
-
-          <input placeholder="State"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-          />
-
-          <input placeholder="Pin Code"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
-          />
-
-          <input placeholder="Phone"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-          />
-
-          <input placeholder="Email"
-            className="input"
-            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
-          />
-
-          <button onClick={placeOrder} className="btn-green">
+          {/* PAY */}
+          <button
+            onClick={placeOrder}
+            className="w-full py-3 rounded-xl font-semibold text-lg bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg hover:scale-105 transition"
+          >
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
+          {/* COD */}
           <button
             onClick={placeCOD}
             disabled={!codUnlocked}
-            className="btn-black"
+            className={`w-full py-3 rounded-xl font-semibold text-lg ${
+              codUnlocked
+                ? "bg-white text-black hover:scale-105"
+                : "bg-gray-500"
+            }`}
           >
             {codUnlocked ? "Cash on Delivery" : "COD Locked"}
           </button>
