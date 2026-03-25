@@ -15,22 +15,24 @@ export const compressImage = (file: File): Promise<File> => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      const MAX_WIDTH = 800;
+      const SIZE = 600; // 🔥 final size (same for all)
 
-      let width = img.width;
-      let height = img.height;
+      canvas.width = SIZE;
+      canvas.height = SIZE;
 
-      // 🔥 ONLY RESIZE IF BIG
-      if (width > MAX_WIDTH) {
-        const scale = MAX_WIDTH / width;
-        width = MAX_WIDTH;
-        height = height * scale;
-      }
+      const minSide = Math.min(img.width, img.height);
 
-      canvas.width = width;
-      canvas.height = height;
+      // 🔥 center crop
+      const sx = (img.width - minSide) / 2;
+      const sy = (img.height - minSide) / 2;
 
-      ctx?.drawImage(img, 0, 0, width, height);
+      ctx?.drawImage(
+        img,
+        sx, sy,           // source start (crop)
+        minSide, minSide, // source size
+        0, 0,             // destination
+        SIZE, SIZE        // final size
+      );
 
       canvas.toBlob(
         (blob) => {
@@ -43,7 +45,7 @@ export const compressImage = (file: File): Promise<File> => {
           resolve(compressedFile);
         },
         "image/jpeg",
-        0.7 // 🔥 compression quality
+        0.7
       );
     };
 
