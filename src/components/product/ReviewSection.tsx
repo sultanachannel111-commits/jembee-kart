@@ -13,6 +13,7 @@ export default function ReviewSection({ product }: any) {
 
   const { stats, average } = getReviewStats(reviews);
 
+  // 🔥 SORT
   const sortHelpful = () => {
     const sorted = [...reviews].sort(
       (a: any, b: any) => (b.likes || 0) - (a.likes || 0)
@@ -20,6 +21,7 @@ export default function ReviewSection({ product }: any) {
     setReviews(sorted);
   };
 
+  // ❤️ LIKE
   const handleLike = (index: number) => {
     const updated = [...reviews];
     updated[index].likes = (updated[index].likes || 0) + 1;
@@ -113,20 +115,11 @@ export default function ReviewSection({ product }: any) {
               {r.comment}
             </p>
 
-            {/* 📸 IMAGE SLIDER */}
-            {(r.images?.length > 0 || r.image) && (
+            {/* 📸 IMAGE (ONLY REAL REVIEWS) */}
+            {Array.isArray(r.images) && r.images.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
 
-                {/* OLD IMAGE */}
-                {r.image && (
-                  <img
-                    src={r.image}
-                    className="w-28 h-28 rounded-xl object-cover flex-shrink-0"
-                  />
-                )}
-
-                {/* MULTIPLE */}
-                {r.images?.map((img: string, index: number) => (
+                {r.images.map((img: string, index: number) => (
                   <img
                     key={index}
                     src={img}
