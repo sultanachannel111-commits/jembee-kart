@@ -8,7 +8,6 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/home/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ThemeLoader from "@/components/ThemeLoader";
-import ErrorTracker from "@/components/ErrorTracker";
 import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
@@ -36,9 +35,6 @@ export default function RootLayout({
         id="theme-body"
         className={`${inter.className} min-h-screen transition-colors duration-300`}
       >
-        {/* 🔥 ERROR TRACKER */}
-  <ErrorTracker />
-
         {/* 🔥 THEME */}
         <ThemeLoader />
 
