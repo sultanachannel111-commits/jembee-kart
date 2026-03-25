@@ -10,7 +10,7 @@ import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
 import ThemeLoader from "@/components/ThemeLoader";
 import WhatsAppButton from "@/components/WhatsAppButton";
-import Footer from "@/components/home/Footer"; // 👈 ADD
+import Footer from "@/components/home/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,20 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="default"
-        />
-
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
 
       <body
         id="theme-body"
-        className={`${inter.className} pb-16 min-h-screen transition-colors duration-300`}
+        className={`${inter.className} min-h-screen transition-colors duration-300`}
       >
 
         <ThemeLoader />
@@ -48,18 +41,22 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
 
-            {/* CONTENT */}
-            {children}
+            {/* 🔥 MAIN CONTENT (spacing fix) */}
+            <div className="pb-24">
+              {children}
+            </div>
 
-            {/* 👇 FOOTER */}
+            {/* FOOTER */}
             <Footer />
-
-            {/* TOAST */}
-            <Toaster position="top-center" />
 
             {/* NAVBAR */}
             <Navbar />
 
+            {/* ✅ WHATSAPP BUTTON (IMPORTANT) */}
+            <WhatsAppButton />
+
+            {/* TOAST */}
+            <Toaster position="top-center" />
 
           </CartProvider>
         </AuthProvider>
