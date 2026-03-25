@@ -33,7 +33,8 @@ export default function ProductPage() {
   const [currentImage, setCurrentImage] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
   const [similar, setSimilar] = useState<any[]>([]);
-
+  const [pincode, setPincode] = useState("");
+  const [pinStatus, setPinStatus] = useState("");
   // --- NEW FEATURES STATES ---
   const [pincode, setPincode] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
@@ -103,7 +104,7 @@ export default function ProductPage() {
   // 🟢 WHATSAPP TRIGGER
   const triggerWhatsApp = () => {
     const msg = `Hi, I'm interested in ${product.name} (Size: ${selectedSize?.size}). Price: ₹${price}. URL: ${window.location.href}`;
-    window.open(`https://wa.me/919999999999?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://wa.me/917061369212?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
