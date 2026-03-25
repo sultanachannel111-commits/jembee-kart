@@ -12,8 +12,7 @@ import {
   query,
   where,
   doc,
-  getDoc,
-  updateDoc
+  getDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -123,10 +122,10 @@ export default function CheckoutPage(){
     0
   );
 
-  /* 🔥 COMMON WHATSAPP FUNCTION */
+  /* 🔥 WHATSAPP */
   const sendWhatsApp = async () => {
 
-    let sellerPhone = "919876543210"; // 👉 change this
+    let sellerPhone = "91XXXXXXXXXX"; // 👉 change
 
     if(refCode){
       const snap = await getDoc(doc(db,"affiliateLinks",refCode));
@@ -150,16 +149,11 @@ export default function CheckoutPage(){
     });
   };
 
-  /* 🔥 ONLINE PAYMENT */
+  /* 🔥 ONLINE */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
       alert("Please fill details");
-      return;
-    }
-
-    if(total <= 0){
-      alert("Invalid amount ❌");
       return;
     }
 
@@ -201,7 +195,6 @@ export default function CheckoutPage(){
       redirectTarget:"_self"
     });
 
-    // 🔥 WhatsApp trigger
     await sendWhatsApp();
 
     localStorage.removeItem("buy-now");
@@ -209,20 +202,11 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  /* 🔥 COD ORDER */
+  /* 🔥 COD */
   const placeCOD = async()=>{
 
-    let sellerId = null;
-
-    if (refCode) {
-      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
-      if (snap.exists()) {
-        sellerId = snap.data().sellerId;
-      }
-    }
-
     if(!codUnlocked){
-      alert("COD locked ❌ Complete 2 prepaid orders first");
+      alert("COD locked ❌");
       return;
     }
 
@@ -231,52 +215,22 @@ export default function CheckoutPage(){
       return;
     }
 
-    if(items.length === 0){
-      alert("Cart empty ❌");
-      return;
-    }
-
-    const firstItem = items[0];
-
-    const sellPrice =
-      firstItem?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      firstItem?.price || 0;
-
-    const basePrice =
-      firstItem?.variations?.[0]?.sizes?.[0]?.basePrice || 0;
-
-    const profit = sellPrice - basePrice;
-    const commission = Math.max(0, Math.round(profit * 0.5));
-
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-
-      userId: user.uid,
-      productId: firstItem?.id,
-
-      sellerId: sellerId || null,
-      affiliateCode: refCode || null,
-
-      sellPrice,
-      basePrice,
-      commission,
-
+      userId:user.uid,
       items,
       total,
       customer,
-
       paymentMethod:"cod",
       paymentStatus:"pending",
       status:"placed",
-
       createdAt:serverTimestamp()
     });
 
-    // 🔥 WhatsApp trigger
     await sendWhatsApp();
 
-    alert("Order placed (COD) ✅");
+    alert("Order placed ✅");
 
     localStorage.removeItem("buy-now");
 
@@ -285,18 +239,16 @@ export default function CheckoutPage(){
 
   return(
 
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 p-4">
+    <div className="min-h-screen bg-gray-100 p-4">
 
       <div className="max-w-xl mx-auto">
 
-        <h1 className="text-3xl font-bold text-center mb-4">
+        <h1 className="text-2xl font-bold text-center mb-4">
           Checkout 🛍️
         </h1>
 
         {/* SUMMARY */}
-        <div className="bg-white rounded-2xl shadow p-4 mb-4">
-
-          <h2 className="font-semibold mb-3">Order Summary</h2>
+        <div className="bg-white p-4 rounded-xl mb-4 shadow">
 
           {items.map(item=>(
             <div key={item.id} className="flex justify-between text-sm mb-2">
@@ -305,45 +257,64 @@ export default function CheckoutPage(){
             </div>
           ))}
 
-          <div className="border-t mt-3 pt-3 flex justify-between font-bold">
+          <div className="flex justify-between font-bold mt-2">
             <span>Total</span>
-            <span className="text-lg text-green-600">₹{total}</span>
+            <span>₹{total}</span>
           </div>
 
         </div>
 
         {/* FORM */}
-        <div className="bg-white rounded-2xl shadow p-5 space-y-4">
+        <div className="bg-white p-4 rounded-xl shadow space-y-3">
 
-          <h2 className="font-semibold">Delivery Details</h2>
-
-          <input placeholder="First Name" className="p-3 rounded-xl border w-full"
+          <input placeholder="First Name"
+            className="input"
             onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
           />
 
-          <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          <input placeholder="Last Name"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
           />
 
-          <textarea placeholder="Address" className="p-3 rounded-xl border w-full"
+          <textarea placeholder="Address"
+            className="input"
             onChange={(e)=>setCustomer({...customer,address:e.target.value})}
           />
 
-          {/* PAY */}
-          <button
-            onClick={placeOrder}
-            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-green-600"
-          >
+          <input placeholder="City"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+          />
+
+          <input placeholder="State"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+          />
+
+          <input placeholder="Pin Code"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+          />
+
+          <input placeholder="Phone"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+          />
+
+          <input placeholder="Email"
+            className="input"
+            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+          />
+
+          <button onClick={placeOrder} className="btn-green">
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
-          {/* COD */}
           <button
             onClick={placeCOD}
             disabled={!codUnlocked}
-            className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
-              codUnlocked ? "bg-black" : "bg-gray-400"
-            }`}
+            className="btn-black"
           >
             {codUnlocked ? "Cash on Delivery" : "COD Locked"}
           </button>
