@@ -8,32 +8,51 @@ export default function ErrorTracker() {
 
   useEffect(() => {
 
-    // 🔴 JS ERROR
-    window.onerror = async (msg, url, line, col, error) => {
+    let lastError = "";
+
+    const saveError = async (data:any) => {
       try {
+        // ❌ duplicate avoid
+        if (lastError === data.message) return;
+        lastError = data.message;
+
         await addDoc(collection(db, "errors"), {
-          message: msg,
-          file: url,
-          line,
-          column: col,
-          stack: error?.stack || "",
+          ...data,
           page: window.location.href,
           time: new Date()
         });
-      } catch {}
+      } catch (err) {
+        console.log("Save error failed", err);
+      }
+    };
+
+    // 🔴 JS ERROR
+    const handleError = (msg:any, url:any, line:any, col:any, error:any) => {
+      saveError({
+        message: error?.message || msg || "JS Error",
+        file: url,
+        line,
+        column: col,
+        stack: error?.stack || ""
+      });
     };
 
     // 🔴 PROMISE ERROR
-    window.addEventListener("unhandledrejection", async (event) => {
-      try {
-        await addDoc(collection(db, "errors"), {
-          message: event.reason?.message || "Promise Error",
-          stack: event.reason?.stack || "",
-          page: window.location.href,
-          time: new Date()
-        });
-      } catch {}
-    });
+    const handlePromise = (event:any) => {
+      saveError({
+        message: event.reason?.message || "Promise Error",
+        stack: event.reason?.stack || ""
+      });
+    };
+
+    window.onerror = handleError;
+    window.addEventListener("unhandledrejection", handlePromise);
+
+    // ✅ CLEANUP
+    return () => {
+      window.onerror = null;
+      window.removeEventListener("unhandledrejection", handlePromise);
+    };
 
   }, []);
 
