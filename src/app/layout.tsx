@@ -5,12 +5,12 @@ import { Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/home/Footer";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import ThemeLoader from "@/components/ThemeLoader";
 import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
-import ThemeLoader from "@/components/ThemeLoader";
-import WhatsAppButton from "@/components/WhatsAppButton";
-import Footer from "@/components/home/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,26 +36,27 @@ export default function RootLayout({
         className={`${inter.className} min-h-screen transition-colors duration-300`}
       >
 
+        {/* 🔥 THEME */}
         <ThemeLoader />
 
         <AuthProvider>
           <CartProvider>
 
-            {/* 🔥 MAIN CONTENT (spacing fix) */}
+            {/* 🔥 MAIN CONTENT */}
             <div className="pb-24">
               {children}
             </div>
 
-            {/* FOOTER */}
+            {/* 🔥 FOOTER */}
             <Footer />
 
-            {/* NAVBAR */}
+            {/* 🔥 NAVBAR */}
             <Navbar />
 
-            {/* ✅ WHATSAPP BUTTON (IMPORTANT) */}
+            {/* 🔥 WHATSAPP BUTTON */}
             <WhatsAppButton />
 
-            {/* TOAST */}
+            {/* 🔥 TOAST */}
             <Toaster position="top-center" />
 
           </CartProvider>
