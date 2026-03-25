@@ -9,7 +9,7 @@ const names = [
 ];
 
 // ⭐ COMMENTS
-const comments = {
+const comments:any = {
   5: [
     "Amazing quality 🔥",
     "Worth every rupee 💯",
@@ -38,26 +38,16 @@ const comments = {
   ]
 };
 
-// ⭐ FAKE IMAGES (public folder)
-const fakeImages = [
-  "/reviews/review1.jpg",
-  "/reviews/review2.jpg",
-  "/reviews/review3.jpg",
-  "/reviews/review4.jpg",
-  "/reviews/review5.jpg"
-];
-
 // ⭐ RANDOM PICK
 function getRandom(arr: string[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// ⭐ MAIN GENERATOR
+// ⭐ FAKE REVIEWS (❌ NO IMAGE)
 export function generateFakeReviews(productId: string) {
 
   const seed = productId?.charCodeAt(0) || 10;
-
-  const total = (seed % 10) + 15; // 👉 15–25 reviews
+  const total = (seed % 10) + 15;
 
   let reviews: any[] = [];
 
@@ -65,19 +55,21 @@ export function generateFakeReviews(productId: string) {
 
     let rating = 5;
 
-    // ⭐ LOGIC (Premium distribution)
-    if (i % 15 === 0) rating = 2;     // 15 me 1 → 2⭐
-    else if (i % 10 === 0) rating = 3; // 10 me 1 → 3⭐
-    else if (i % 5 === 0) rating = 4;  // thoda 4⭐ mix
+    if (i % 15 === 0) rating = 2;
+    else if (i % 10 === 0) rating = 3;
+    else if (i % 5 === 0) rating = 4;
     else rating = 5;
 
     reviews.push({
-      id: `fake-${productId}-${i}`, // 🔥 unique id
+      id: `fake-${productId}-${i}`,
       name: getRandom(names),
       rating,
       comment: getRandom(comments[rating]),
-      image: Math.random() > 0.5 ? getRandom(fakeImages) : "", // 🔥 fake image
-      likes: Math.floor(Math.random() * 20), // 🔥 random likes
+
+      // ❌ IMAGE REMOVED
+      images: [],
+
+      likes: Math.floor(Math.random() * 20),
       createdAt: new Date(),
       fake: true
     });
@@ -86,19 +78,20 @@ export function generateFakeReviews(productId: string) {
   return reviews;
 }
 
-
 // ⭐ MIX REAL + FAKE
 export function getMixedReviews(product: any) {
 
   const real = product?.reviewsData || [];
 
-  // 🔥 ensure real reviews also safe
   const realFormatted = real.map((r:any, i:number)=>({
     id: r.id || `real-${i}`,
     name: r.name || "User",
     rating: r.rating || 5,
     comment: r.comment || "",
-    image: r.image || "",
+
+    // ✅ ONLY REAL IMAGES
+    images: r.images || [],
+
     likes: r.likes || 0,
     createdAt: r.createdAt || new Date(),
     fake: false
@@ -109,11 +102,10 @@ export function getMixedReviews(product: any) {
   return [...realFormatted, ...fake];
 }
 
-
-// ⭐ ⭐ ⭐ PREMIUM STATS SYSTEM
+// ⭐ STATS
 export function getReviewStats(reviews: any[]) {
 
-  let stats = {
+  let stats:any = {
     total: reviews.length,
     5: 0,
     4: 0,
@@ -125,22 +117,17 @@ export function getReviewStats(reviews: any[]) {
   let totalRating = 0;
 
   reviews.forEach(r => {
-
     const star = Math.round(Number(r.rating) || 0);
 
     if (star >= 1 && star <= 5) {
-      stats[star as 1|2|3|4|5]++;
+      stats[star]++;
       totalRating += star;
     }
-
   });
 
   const average = stats.total
     ? (totalRating / stats.total).toFixed(1)
     : "0";
 
-  return {
-    stats,
-    average
-  };
+  return { stats, average };
 }
