@@ -35,6 +35,9 @@ const ref = searchParams.get("ref");
   const [showViewer,setShowViewer] = useState(false);
 
   const [similar,setSimilar] = useState<any[]>([]);
+  // 📍 PINCODE
+const [pincode, setPincode] = useState("");
+const [pinStatus, setPinStatus] = useState("");
 
   // 🔐 AUTH
   useEffect(()=>{
@@ -134,6 +137,26 @@ useEffect(() => {
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
+  // ⏳ TIMER AUTO
+const timerEnabled = product?.isTrending || stock <= 5;
+
+const [timeLeft, setTimeLeft] = useState(7200);
+
+useEffect(() => {
+  if (!timerEnabled) return;
+
+  const timer = setInterval(() => {
+    setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, [timerEnabled]);
+
+const formatTime = (sec:number) => {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return `${h}h ${m}m`;
+};
   // 🚚 DELIVERY DATE
 const getDeliveryDate = () => {
   const today = new Date();
@@ -156,6 +179,16 @@ const delivery = getDeliveryDate();
 
   // 🛒 CART
   const handleAddToCart = async () => {
+  // 📍 PINCODE CHECK
+const checkPincode = () => {
+  if (pincode.length !== 6) return alert("Invalid pincode");
+
+  if (pincode.startsWith("8")) {
+    setPinStatus("fast");
+  } else {
+    setPinStatus("slow");
+  }
+};
 
   if (!user) return router.push(`/login?redirect=/product/${id}`);
   if (!selectedSize) return alert("Select size");
@@ -389,6 +422,40 @@ const delivery = getDeliveryDate();
   <p className="text-xs text-green-600 mt-1">
     ✔ Free Delivery • Cash on Delivery available
   </p>
+
+</div>
+        {/* 📍 PINCODE CHECK */}
+<div className="mt-3 bg-white p-4 rounded-xl shadow">
+
+  <p className="font-semibold mb-2">Check Delivery</p>
+
+  <div className="flex gap-2">
+    <input
+      value={pincode}
+      onChange={(e)=>setPincode(e.target.value)}
+      placeholder="Enter Pincode"
+      className="border p-2 rounded w-full"
+    />
+
+    <button
+      onClick={checkPincode}
+      className="bg-black text-white px-4 rounded"
+    >
+      Check
+    </button>
+  </div>
+
+  {pinStatus === "fast" && (
+    <p className="text-green-600 text-sm mt-2">
+      ⚡ Fast delivery available
+    </p>
+  )}
+
+  {pinStatus === "slow" && (
+    <p className="text-orange-500 text-sm mt-2">
+      🚚 Delivery may take longer
+    </p>
+  )}
 
 </div>
 
