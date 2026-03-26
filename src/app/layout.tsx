@@ -56,9 +56,6 @@ export default function RootLayout({
             {/* 🔥 WHATSAPP BUTTON */}
             <WhatsAppButton />
 
-            {/* 🔥 TOAST */}
-            <Toaster position="top-center" />
-
           </CartProvider>
         </AuthProvider>
 
