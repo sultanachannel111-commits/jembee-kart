@@ -9,7 +9,7 @@ import {
   setDoc,
   addDoc,
   collection,
-  getDocs
+  getDocs,
 } from "firebase/firestore";
 
 import { db, auth } from "@/lib/firebase";
@@ -17,38 +17,42 @@ import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
 
 export default function ProductPage() {
-
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
   const searchParams = useSearchParams();
-const ref = searchParams.get("ref");
+  const ref = searchParams.get("ref");
 
-  const [product,setProduct] = useState<any>(null);
-  const [loading,setLoading] = useState(true);
-  const [user,setUser] = useState<any>(null);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
-  const [selectedColor,setSelectedColor] = useState(0);
-  const [selectedSize,setSelectedSize] = useState<any>(null);
+  const [selectedColor, setSelectedColor] = useState(0);
+  const [selectedSize, setSelectedSize] = useState(null);
 
-  const [currentImage,setCurrentImage] = useState(0);
-  const [showViewer,setShowViewer] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+  const [showViewer, setShowViewer] = useState(false);
 
-  const [similar,setSimilar] = useState<any[]>([]);
+  const [similar, setSimilar] = useState<any[]>([]);
+
+  // 🔥 NEW STATES
+  const [pincode, setPincode] = useState("");
+  const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
+  const [checkingPin, setCheckingPin] = useState(false);
 
   // 🔐 AUTH
-  useEffect(()=>{
-    const unsub = onAuthStateChanged(auth,(u)=>setUser(u));
-    return ()=>unsub();
-  },[]);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   // 🔥 FETCH PRODUCT
-  useEffect(()=>{
-    const fetchProduct = async()=>{
-      const snap = await getDoc(doc(db,"products",id));
+  useEffect(() => {
+    const fetchProduct = async () => {
+      const snap = await getDoc(doc(db, "products", id));
 
-      if(snap.exists()){
-        const data:any = { id:snap.id, ...snap.data() };
+      if (snap.exists()) {
+        const data: any = { id: snap.id, ...snap.data() };
         setProduct(data);
 
         const first = data?.variations?.[0];
@@ -60,59 +64,87 @@ const ref = searchParams.get("ref");
       setLoading(false);
     };
 
-    if(id) fetchProduct();
-  },[id]);
-  // 🔥 AFFILIATE TRACKING
-useEffect(() => {
+    if (id) fetchProduct();
+  }, [id]);
 
-  const saveAffiliate = async () => {
+  // 🔥 AFFILIATE FIXED
+  useEffect(() => {
+    const saveAffiliate = async () => {
+      if (!ref) return;
 
-    if (!ref) return;
+      try {
+        localStorage.setItem("affiliate", ref);
 
-    // 🔥 localStorage save
-    localStorage.setItem("affiliate", ref);
+        const user = auth.currentUser;
+        if (user) {
+          await setDoc(
+            doc(db, "userAffiliate", user.uid),
+            {
+              refCode: ref,
+              updatedAt: new Date(),
+            },
+            { merge: true }
+          );
+        }
 
-    const user = auth.currentUser;
+        console.log("✅ Affiliate saved:", ref);
+      } catch (err) {
+        console.log(err);
+      }
+    };
 
-    if (!user) return;
-
-    try {
-
-      await setDoc(
-        doc(db, "userAffiliate", user.uid),
-        {
-          refCode: ref,
-          updatedAt: new Date()
-        },
-        { merge: true }
-      );
-
-      console.log("🔥 Affiliate saved:", ref);
-
-    } catch (err) {
-      console.log(err);
-    }
-
-  };
-
-  saveAffiliate();
-
-}, [ref]);
+    saveAffiliate();
+  }, [ref]);
 
   // 🔥 SIMILAR
-  const fetchSimilar = async (category:string)=>{
-    const snap = await getDocs(collection(db,"products"));
+  const fetchSimilar = async (category: string) => {
+    const snap = await getDocs(collection(db, "products"));
 
     const data = snap.docs
-      .map(d=>({id:d.id,...d.data()}))
-      .filter((p:any)=>p.category === category && p.id !== id)
-      .slice(0,6);
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((p: any) => p.category === category && p.id !== id)
+      .slice(0, 6);
 
     setSimilar(data);
   };
 
-  if(loading) return <div className="p-5">Loading...</div>;
-  if(!product) return <div className="p-5">Product not found</div>;
+  // 🚚 PINCODE CHECK
+  const checkPincode = async () => {
+    if (!pincode || pincode.length !== 6) {
+      return alert("Please enter a valid 6-digit PIN code");
+    }
+
+    setCheckingPin(true);
+
+    try {
+      const res = await fetch(
+        `https://api.postalpincode.in/pincode/${pincode}`
+      );
+      const data = await res.json();
+
+      if (data[0].Status === "Success") {
+        const postOffice = data[0].PostOffice[0];
+
+        setDeliveryInfo({
+          place: postOffice.District,
+          state: postOffice.State,
+          deliveryDays: Math.floor(Math.random() * 3) + 3,
+        });
+      } else {
+        setDeliveryInfo(null);
+        alert(
+          "🚫 We regret to inform you that delivery is currently unavailable for this PIN code. Please try a different location."
+        );
+      }
+    } catch (err) {
+      alert("Something went wrong. Please try again.");
+    }
+
+    setCheckingPin(false);
+  };
+
+  if (loading) return <>Loading...</>;
+  if (!product) return <>Product not found</>;
 
   const variant = product?.variations?.[selectedColor] || {};
 
@@ -121,10 +153,9 @@ useEffect(() => {
     variant?.images?.front,
     variant?.images?.back,
     variant?.images?.side,
-    variant?.images?.model
+    variant?.images?.model,
   ].filter(Boolean);
 
-  // 🔥 PRICE FIX
   const price =
     Number(selectedSize?.sellPrice) ||
     Number(selectedSize?.price) ||
@@ -134,19 +165,19 @@ useEffect(() => {
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
-  
+
   // 🛒 CART
   const handleAddToCart = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
-    await addDoc(collection(db,"carts",user.uid,"items"),{
+    await addDoc(collection(db, "carts", user.uid, "items"), {
       productId: product.id,
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
       price: price,
-      quantity: 1
+      quantity: 1,
     });
 
     alert("Added to cart");
@@ -158,29 +189,27 @@ useEffect(() => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
-    const orderRef = await addDoc(collection(db,"orders"),{
+    const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
       productId: product.id,
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
       price: price,
-      status: "pending"
+      status: "pending",
     });
 
     router.push(`/checkout?orderId=${orderRef.id}`);
   };
 
-  // 🔗 SHARE
-  const handleShare = ()=>{
+  const handleShare = () => {
     navigator.share?.({
       title: product.name,
-      url: window.location.href
+      url: window.location.href,
     });
   };
 
-  // 🔥 SLIDER FIX (one by one)
-  const handleScroll = (e:any)=>{
+  const handleScroll = (e: any) => {
     const index = Math.round(
       e.target.scrollLeft / e.target.clientWidth
     );
@@ -188,29 +217,28 @@ useEffect(() => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white pb-28">
-
+    <div>
       {/* IMAGE SLIDER */}
       <div
         onScroll={handleScroll}
         className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
       >
-        {images.map((img:any,i:number)=>(
+        {images.map((img: any, i: number) => (
           <div key={i} className="min-w-full snap-center">
             <img
               src={img}
-              onClick={()=>setShowViewer(true)}
+              onClick={() => setShowViewer(true)}
               className="w-full h-[320px] object-contain"
             />
           </div>
         ))}
       </div>
 
-      {/* 🔥 ZOOM VIEW */}
+      {/* ZOOM */}
       {showViewer && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           <button
-            onClick={()=>setShowViewer(false)}
+            onClick={() => setShowViewer(false)}
             className="text-white text-xl p-4"
           >
             ✕
@@ -235,38 +263,71 @@ useEffect(() => {
 
       {/* DOTS */}
       <div className="flex justify-center gap-2 mt-2">
-        {images.map((_,i)=>(
-          <div key={i} className={`w-2 h-2 rounded-full ${
-            currentImage===i ? "bg-blue-600" : "bg-gray-300"
-          }`}/>
+        {images.map((_, i) => (
+          <div
+            key={i}
+            className={`w-2 h-2 rounded-full ${
+              currentImage === i ? "bg-blue-600" : "bg-gray-300"
+            }`}
+          />
         ))}
       </div>
 
       <div className="p-4">
-
         {/* COLOR */}
         <div className="flex gap-3 overflow-x-auto">
-          {product?.variations?.map((v:any,i:number)=>(
+          {product?.variations?.map((v: any, i: number) => (
             <img
               key={i}
               src={v?.images?.main}
-              onClick={()=>{
+              onClick={() => {
                 setSelectedColor(i);
                 setSelectedSize(v?.sizes?.[0] || null);
               }}
               className={`w-16 h-16 rounded-xl border ${
-                selectedColor===i ? "border-blue-600" : ""
+                selectedColor === i ? "border-blue-600" : ""
               }`}
             />
           ))}
         </div>
 
-        {/* NAME */}
         <h1 className="text-xl font-bold mt-4">{product.name}</h1>
 
-        {/* MAIN PRICE */}
         <div className="mt-2 text-3xl font-bold text-green-600">
           ₹{price}
+        </div>
+
+        {/* ⭐ PREMIUM LINE */}
+        <div className="mt-2 text-sm text-gray-600 font-medium">
+          🚚 Fast Delivery | 🔒 Secure Payment | 💵 Cash on Delivery Available
+        </div>
+
+        {/* 🚚 PIN CHECK */}
+        <div className="mt-5 bg-white p-4 rounded-2xl shadow">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Enter PIN code"
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value)}
+              className="flex-1 border rounded-lg px-3 py-2"
+            />
+
+            <button
+              onClick={checkPincode}
+              className="bg-black text-white px-4 rounded-lg"
+            >
+              {checkingPin ? "Checking..." : "Check"}
+            </button>
+          </div>
+
+          {deliveryInfo && (
+            <div className="mt-3 text-green-600 font-medium text-sm">
+              Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
+              {deliveryInfo.deliveryDays} -{" "}
+              {deliveryInfo.deliveryDays + 2} days
+            </div>
+          )}
         </div>
 
         {/* SIZE */}
@@ -274,12 +335,12 @@ useEffect(() => {
           <h3 className="font-semibold mb-3">Select Size</h3>
 
           <div className="grid grid-cols-3 gap-3">
-            {variant?.sizes?.map((s:any,i:number)=>(
+            {variant?.sizes?.map((s: any, i: number) => (
               <div
                 key={i}
-                onClick={()=>setSelectedSize(s)}
+                onClick={() => setSelectedSize(s)}
                 className={`p-3 rounded-xl border text-center ${
-                  selectedSize?.size===s.size
+                  selectedSize?.size === s.size
                     ? "bg-blue-600 text-white"
                     : "bg-white"
                 }`}
@@ -289,8 +350,6 @@ useEffect(() => {
             ))}
           </div>
         </div>
-
-        {/* ❌ SIZE PRICE REMOVED */}
 
         {/* DESCRIPTION */}
         <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
@@ -302,10 +361,10 @@ useEffect(() => {
           <h3 className="font-bold mb-3">You may also like</h3>
 
           <div className="flex gap-3 overflow-x-auto">
-            {similar.map((p:any)=>(
+            {similar.map((p: any) => (
               <div
                 key={p.id}
-                onClick={()=>router.push(`/product/${p.id}`)}
+                onClick={() => router.push(`/product/${p.id}`)}
                 className="min-w-[140px] bg-white p-2 rounded-xl shadow"
               >
                 <img
@@ -314,17 +373,14 @@ useEffect(() => {
                 />
                 <p className="text-sm">{p.name}</p>
                 <p className="text-green-600 font-bold">
-                  ₹{p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
+                  ₹
+                  {p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
                 </p>
               </div>
             ))}
           </div>
         </div>
-
       </div>
-      {/* ⭐ REVIEWS ADD HERE */}
-<ReviewSection product={product} />
-
 
       {/* BUTTONS */}
       <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">
@@ -342,7 +398,6 @@ useEffect(() => {
           Buy Now
         </button>
       </div>
-
     </div>
   );
 }
