@@ -35,7 +35,7 @@ export default function ProductPage() {
 
   const [similar, setSimilar] = useState<any[]>([]);
 
-  // 🔥 PIN STATE
+  // 🔥 PIN STATES
   const [pincode, setPincode] = useState("");
   const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
   const [checkingPin, setCheckingPin] = useState(false);
@@ -87,7 +87,9 @@ export default function ProductPage() {
             { merge: true }
           );
         }
-      } catch {}
+      } catch (err) {
+        console.log(err);
+      }
     };
 
     saveAffiliate();
@@ -111,8 +113,7 @@ export default function ProductPage() {
     setDeliveryInfo(null);
 
     if (!pincode || pincode.length !== 6) {
-      setPinError("Please enter a valid 6-digit PIN code.");
-      return;
+      return setPinError("Please enter a valid 6-digit PIN code.");
     }
 
     setCheckingPin(true);
@@ -133,11 +134,13 @@ export default function ProductPage() {
         });
       } else {
         setPinError(
-          "Delivery is not available for this PIN code. Please try another location."
+          "Delivery is currently unavailable for this PIN code. Please try a different location."
         );
       }
-    } catch {
-      setPinError("Unable to verify PIN code. Please try again.");
+    } catch (err) {
+      setPinError(
+        "We couldn’t verify this PIN code right now. Please try again shortly."
+      );
     }
 
     setCheckingPin(false);
@@ -167,24 +170,25 @@ export default function ProductPage() {
   // 🛒 CART
   const handleAddToCart = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return;
+    if (!selectedSize) return alert("Select size");
 
     await addDoc(collection(db, "carts", user.uid, "items"), {
       productId: product.id,
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
-      price,
+      price: price,
       quantity: 1,
     });
 
+    alert("Added to cart");
     router.push("/cart");
   };
 
   // ⚡ BUY
   const handleBuyNow = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return;
+    if (!selectedSize) return alert("Select size");
 
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
@@ -192,7 +196,7 @@ export default function ProductPage() {
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
-      price,
+      price: price,
       status: "pending",
     });
 
@@ -206,71 +210,81 @@ export default function ProductPage() {
         <img
           key={i}
           src={img}
-          onClick={() => setShowViewer(true)}
           className="w-full h-[320px] object-contain"
         />
       ))}
 
-      {/* PIN */}
-      <div className="mt-5 bg-white p-4 rounded-2xl shadow">
-        <div className="flex gap-2">
-          <input
-            type="number"
-            placeholder="Enter PIN code"
-            value={pincode}
-            onChange={(e) => setPincode(e.target.value)}
-            className="flex-1 border rounded-lg px-3 py-2"
-          />
+      <div className="p-4">
+        <h1 className="text-xl font-bold">{product.name}</h1>
 
-          <button
-            onClick={checkPincode}
-            className="bg-black text-white px-4 rounded-lg"
-          >
-            {checkingPin ? "Checking..." : "Check"}
-          </button>
+        <div className="text-3xl font-bold text-green-600 mt-2">
+          ₹{price}
         </div>
 
-        {/* ✅ ERROR */}
-        {pinError && (
-          <p className="text-red-500 text-sm mt-2">{pinError}</p>
-        )}
+        {/* PIN */}
+        <div className="mt-5 bg-white p-4 rounded-2xl shadow">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Enter PIN code"
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value)}
+              className="flex-1 border rounded-lg px-3 py-2"
+            />
 
-        {/* ✅ SUCCESS */}
-        {deliveryInfo && (
-          <div className="mt-3 text-green-600 text-sm font-medium">
-            Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
-            {deliveryInfo.deliveryDays} - {deliveryInfo.deliveryDays + 2} days
-          </div>
-        )}
-      </div>
-
-      {/* ⭐ SIMILAR (ABOVE REVIEWS) */}
-      <div className="mt-6">
-        <h3 className="font-bold mb-3">You may also like</h3>
-
-        <div className="flex gap-3 overflow-x-auto">
-          {similar.map((p: any) => (
-            <div
-              key={p.id}
-              onClick={() => router.push(`/product/${p.id}`)}
-              className="min-w-[140px] bg-white p-2 rounded-xl shadow"
+            <button
+              onClick={checkPincode}
+              className="bg-black text-white px-4 rounded-lg"
             >
-              <img
-                src={p?.variations?.[0]?.images?.main}
-                className="h-32 w-full object-cover rounded"
-              />
-              <p className="text-sm">{p.name}</p>
-              <p className="text-green-600 font-bold">
-                ₹{p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
+              {checkingPin ? "Checking..." : "Check"}
+            </button>
+          </div>
 
-      {/* ⭐ REVIEWS */}
-      <div className="mt-6">
-        <ReviewSection productId={product.id} />
+          {/* ✅ ERROR */}
+          {pinError && (
+            <div className="mt-2 text-red-500 text-sm font-medium">
+              {pinError}
+            </div>
+          )}
+
+          {/* ✅ SUCCESS */}
+          {deliveryInfo && (
+            <div className="mt-3 text-green-600 text-sm font-medium">
+              Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
+              {deliveryInfo.deliveryDays} -{" "}
+              {deliveryInfo.deliveryDays + 2} days
+            </div>
+          )}
+        </div>
+
+        {/* 🔥 SIMILAR (MOVED ABOVE REVIEW) */}
+        <div className="mt-6">
+          <h3 className="font-bold mb-3">You may also like</h3>
+
+          <div className="flex gap-3 overflow-x-auto">
+            {similar.map((p: any) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/product/${p.id}`)}
+                className="min-w-[140px] bg-white p-2 rounded-xl shadow"
+              >
+                <img
+                  src={p?.variations?.[0]?.images?.main}
+                  className="h-32 w-full object-cover rounded"
+                />
+                <p className="text-sm">{p.name}</p>
+                <p className="text-green-600 font-bold">
+                  ₹{p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ⭐ REVIEWS */}
+        <div className="mt-6">
+          <ReviewSection productId={product.id} />
+        </div>
       </div>
 
       {/* BUTTONS */}
