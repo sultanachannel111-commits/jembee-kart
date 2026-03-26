@@ -8,7 +8,6 @@ export async function POST(req: Request) {
 
     const orderId = body.orderId;
 
-    // 🔥 SAFE DATA FIX
     const amount = Number(body.amount);
     const phone = String(body.customer.phone);
 
@@ -31,7 +30,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
 
         order_id: orderId,
-        order_amount: amount, // ✅ FIXED
+        order_amount: amount,
         order_currency: "INR",
 
         customer_details: {
@@ -40,13 +39,14 @@ export async function POST(req: Request) {
             (body.customer.firstName || "User") + " " +
             (body.customer.lastName || ""),
           customer_email: body.customer.email || "test@test.com",
-          customer_phone: phone // ✅ FIXED
+          customer_phone: phone
         },
 
         order_meta: {
+          // ✅ FINAL FIX
           return_url:
             process.env.NEXT_PUBLIC_SITE_URL +
-            "/order-success/" + orderId // ✅ FIXED
+            "/payment-success"
         }
 
       })
@@ -55,7 +55,6 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    // 🔥 DEBUG
     console.log("CASHFREE RESPONSE:", data);
 
     return NextResponse.json(data);
