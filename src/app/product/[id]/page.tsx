@@ -134,24 +134,7 @@ useEffect(() => {
     0;
 
   const stock = Number(selectedSize?.stock) || 0;
-  const [timeLeft, setTimeLeft] = useState(7200);
-
-useEffect(() => {
-  if (!product?.isTrending && stock > 5) return;
-
-  const timer = setInterval(() => {
-    setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, [product, stock]);
-
-const formatTime = (sec:number) => {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return `${h}h ${m}m`;
-};
-
+  
   // 🛒 CART
   const handleAddToCart = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
