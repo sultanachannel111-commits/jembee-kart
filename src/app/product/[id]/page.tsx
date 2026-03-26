@@ -67,7 +67,7 @@ export default function ProductPage() {
     if (id) fetchProduct();
   }, [id]);
 
-  // 🔥 AFFILIATE FIXED
+  // 🔥 AFFILIATE FIX
   useEffect(() => {
     const saveAffiliate = async () => {
       if (!ref) return;
@@ -111,7 +111,7 @@ export default function ProductPage() {
   // 🚚 PINCODE CHECK
   const checkPincode = async () => {
     if (!pincode || pincode.length !== 6) {
-      return alert("Please enter a valid 6-digit PIN code");
+      return alert("Please enter a valid 6-digit PIN code.");
     }
 
     setCheckingPin(true);
@@ -133,11 +133,11 @@ export default function ProductPage() {
       } else {
         setDeliveryInfo(null);
         alert(
-          "🚫 We regret to inform you that delivery is currently unavailable for this PIN code. Please try a different location."
+          "We’re sorry, but delivery is not available at this PIN code. Please enter a different location."
         );
       }
     } catch (err) {
-      alert("Something went wrong. Please try again.");
+      alert("Unable to verify PIN code at the moment. Please try again.");
     }
 
     setCheckingPin(false);
@@ -297,12 +297,12 @@ export default function ProductPage() {
           ₹{price}
         </div>
 
-        {/* ⭐ PREMIUM LINE */}
+        {/* ⭐ TRUST LINE */}
         <div className="mt-2 text-sm text-gray-600 font-medium">
           🚚 Fast Delivery | 🔒 Secure Payment | 💵 Cash on Delivery Available
         </div>
 
-        {/* 🚚 PIN CHECK */}
+        {/* 🚚 PIN */}
         <div className="mt-5 bg-white p-4 rounded-2xl shadow">
           <div className="flex gap-2">
             <input
@@ -322,7 +322,7 @@ export default function ProductPage() {
           </div>
 
           {deliveryInfo && (
-            <div className="mt-3 text-green-600 font-medium text-sm">
+            <div className="mt-3 text-green-600 text-sm font-medium">
               Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
               {deliveryInfo.deliveryDays} -{" "}
               {deliveryInfo.deliveryDays + 2} days
@@ -354,6 +354,11 @@ export default function ProductPage() {
         {/* DESCRIPTION */}
         <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
           {product.description || "Premium product"}
+        </div>
+
+        {/* ⭐ REVIEWS */}
+        <div className="mt-6">
+          <ReviewSection productId={product.id} />
         </div>
 
         {/* SIMILAR */}
