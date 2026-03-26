@@ -305,18 +305,24 @@ export default function ProductPage() {
 
       </div>
 
-      {/* BUTTONS */}
-      <div className="fixed bottom-0 w-full flex">
-        <button onClick={whatsapp} className="w-1/4 bg-green-500 text-white">
-          Chat
-        </button>
-        <button onClick={handleAddToCart} className="w-1/3 bg-gray-800 text-white">
-          Add to Cart
-        </button>
-        <button onClick={handleBuyNow} className="w-1/3 bg-blue-600 text-white">
-          Buy Now
-        </button>
-      </div>
+      {/* 🔥 PREMIUM BOTTOM BAR */}
+<div className="fixed bottom-0 left-0 w-full bg-white border-t px-3 py-3 flex gap-3 z-50">
+
+  <button
+    onClick={handleAddToCart}
+    className="flex-1 py-3 rounded-xl border-2 border-blue-600 text-blue-600 font-semibold bg-white active:scale-95"
+  >
+    Add to Cart
+  </button>
+
+  <button
+    onClick={handleBuyNow}
+    className="flex-1 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-700 shadow-lg active:scale-95"
+  >
+    Buy Now
+  </button>
+
+</div>
 
     </div>
   );
