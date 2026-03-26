@@ -15,6 +15,7 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
+import toast from "react-hot-toast";
 
 export default function ProductPage() {
   const params = useParams();
@@ -168,19 +169,6 @@ export default function ProductPage() {
 
   // 🛒 CART
   const handleAddToCart = async () => {
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
-
-    await addDoc(collection(db, "carts", user.uid, "items"), {
-      productId: product.id,
-      name: product.name,
-      image: images?.[0] || "",
-      size: selectedSize.size,
-      price: price,
-      quantity: 1,
-    });
-
-    const handleAddToCart = async () => {
   if (!user) return router.push(`/login?redirect=/product/${id}`);
   if (!selectedSize) return alert("Select size");
 
@@ -193,10 +181,6 @@ export default function ProductPage() {
     quantity: 1,
   });
 
-  // ❌ no alert
-  // ❌ no redirect
-
-  // ✅ Optional: console log
   console.log("✅ Added to cart");
 };
 
