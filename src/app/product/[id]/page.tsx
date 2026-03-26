@@ -184,23 +184,32 @@ export default function ProductPage() {
     router.push("/cart");
   };
 
-  // ⚡ BUY
-  const handleBuyNow = async () => {
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
+  // ⚡ BUY (FIXED)
+const handleBuyNow = async () => {
+  if (!user) return router.push(`/login?redirect=/product/${id}`);
+  if (!selectedSize) return alert("Select size");
 
-    const orderRef = await addDoc(collection(db, "orders"), {
-      userId: user.uid,
-      productId: product.id,
-      name: product.name,
-      image: images?.[0] || "",
-      size: selectedSize.size,
-      price: price,
-      status: "pending",
-    });
+  const buyNowData = {
+    id: product.id,
+    name: product.name,
+    image: images?.[0] || "",
+    quantity: 1,
 
-    router.push(`/checkout?orderId=${orderRef.id}`);
+    // ✅ FULL STRUCTURE (IMPORTANT)
+    variations: [
+      {
+        ...variant,
+        sizes: [selectedSize]
+      }
+    ]
   };
+
+  console.log("🔥 BUY NOW SAVE:", buyNowData);
+
+  localStorage.setItem("buy-now", JSON.stringify(buyNowData));
+
+  router.push("/checkout");
+};
 
   const handleShare = () => {
     navigator.share?.({
