@@ -4,24 +4,35 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import toast from "react-hot-toast";
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const [order, setOrder] = useState<any>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [progress, setProgress] = useState(0);
 
+  /* =========================
+     FETCH ORDER
+  ========================= */
   useEffect(() => {
     const fetchOrder = async () => {
       const snap = await getDoc(doc(db, "orders", id as string));
 
       if (snap.exists()) {
-        setOrder({ id: snap.id, ...snap.data() });
+        const data = { id: snap.id, ...snap.data() };
+
+        let total = 0;
+        data.items?.forEach((item: any) => {
+          total += Number(item.price) * Number(item.quantity);
+        });
+
+        setOrder({ ...data, total });
       }
     };
 
     fetchOrder();
   }, [id]);
-
-  if (!order) return <p className="p-4">Loading...</p>;
 
   /* =========================
      TRACKING STEPS
@@ -34,41 +45,70 @@ export default function OrderDetailsPage() {
     "Delivered",
   ];
 
-  const currentStep = steps.indexOf(order.status || "Pending");
+  /* =========================
+     FAKE LIVE TRACKING
+  ========================= */
+  useEffect(() => {
+    if (!order) return;
+
+    let stepIndex = 0;
+
+    const interval = setInterval(() => {
+      stepIndex++;
+
+      if (stepIndex >= steps.length) {
+        clearInterval(interval);
+        return;
+      }
+
+      setCurrentStep(stepIndex);
+      setProgress((stepIndex / (steps.length - 1)) * 100);
+
+      // 🔔 Notification
+      toast.success(`Order ${steps[stepIndex]} 🚚`);
+
+    }, 5000); // every 5 sec
+
+    return () => clearInterval(interval);
+  }, [order]);
+
+  if (!order) return <p className="p-4">Loading...</p>;
 
   /* =========================
-     GOOGLE MAP LINK
+     WHATSAPP
   ========================= */
-  const mapUrl = `https://www.google.com/maps?q=${order.customer?.city}`;
-
-  /* =========================
-     WHATSAPP MESSAGE
-  ========================= */
-  const whatsappMessage = `Hello, I want update for my order ${order.id}.
-Tracking ID: ${order.trackingId || "Not available"}`;
-
   const whatsappLink = `https://wa.me/917061369212?text=${encodeURIComponent(
-    whatsappMessage
+    `Order Update Needed\nOrder ID: ${order.id}`
   )}`;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow p-5">
 
-        {/* TITLE */}
-        <h1 className="text-xl font-bold">Order Details</h1>
+        {/* 🔔 NOTIFICATION BELL */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-bold">Order Details</h1>
 
-        {/* TOTAL */}
+          <button
+            onClick={() => toast.success("No new notifications 🔔")}
+            className="text-xl"
+          >
+            🔔
+          </button>
+        </div>
+
+        {/* PRICE */}
         <div className="mt-2 text-green-600 font-bold text-lg">
           ₹{order.total}
         </div>
 
-        {/* =========================
-           ITEMS
-        ========================= */}
-        <div className="mt-4">
+        {/* ITEMS */}
+        <div className="mt-4 space-y-2">
           {order.items?.map((item: any, i: number) => (
-            <div key={i} className="flex justify-between">
+            <div
+              key={i}
+              className="flex justify-between bg-gray-50 p-2 rounded-lg"
+            >
               <span>{item.name} × {item.quantity}</span>
               <span>₹{item.price}</span>
             </div>
@@ -76,76 +116,78 @@ Tracking ID: ${order.trackingId || "Not available"}`;
         </div>
 
         {/* =========================
-           TRACKING TIMELINE
+           TRACKING BAR + TRUCK
         ========================= */}
-        <div className="mt-6">
-          <h2 className="font-semibold mb-4">Tracking</h2>
+        <div className="mt-8">
 
-          <div className="flex justify-between">
+          <div className="relative">
 
-            {steps.map((step, index) => (
-              <div key={index} className="flex flex-col items-center">
+            {/* LINE */}
+            <div className="w-full h-2 bg-gray-300 rounded-full" />
 
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                    index <= currentStep
-                      ? "bg-green-500"
-                      : "bg-gray-300"
-                  }`}
-                >
-                  {index + 1}
-                </div>
+            {/* PROGRESS */}
+            <div
+              className="h-2 bg-green-500 rounded-full absolute top-0"
+              style={{ width: `${progress}%` }}
+            />
 
-                <p className="text-xs mt-1">{step}</p>
-              </div>
-            ))}
+            {/* 🚚 TRUCK */}
+            <div
+              className="absolute -top-4 text-2xl transition-all duration-500"
+              style={{ left: `${progress}%` }}
+            >
+              🚚
+            </div>
 
           </div>
+
+          {/* STEPS */}
+          <div className="flex justify-between mt-4 text-xs">
+            {steps.map((step, i) => (
+              <span
+                key={i}
+                className={
+                  i <= currentStep ? "text-green-600 font-bold" : "text-gray-400"
+                }
+              >
+                {step}
+              </span>
+            ))}
+          </div>
+
         </div>
 
         {/* =========================
            LIVE MAP
         ========================= */}
         <div className="mt-6">
-          <h3 className="font-semibold mb-2">
-            📍 Delivery Location
-          </h3>
+          <h3 className="font-semibold mb-2">📍 Live Location</h3>
 
           <iframe
-            src={`https://maps.google.com/maps?q=${order.customer?.city}&z=13&output=embed`}
-            width="100%"
-            height="200"
-            className="rounded-xl border"
+            className="w-full h-52 rounded-xl border"
+            src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ&q=${order.customer?.city}`}
           />
-
-          <a
-            href={mapUrl}
-            target="_blank"
-            className="text-blue-600 text-sm underline mt-2 block"
-          >
-            Open in Google Maps
-          </a>
         </div>
 
         {/* =========================
-           SHIPPING INFO
+           DELIVERY BOY ANIMATION
         ========================= */}
-        {order.trackingId && (
-          <div className="mt-6 bg-gray-50 p-3 rounded-xl">
-            <p className="text-sm">
-              Tracking ID: {order.trackingId}
-            </p>
-            <p className="text-sm">
-              Courier: {order.courier}
-            </p>
+        <div className="mt-6 text-center">
+
+          <div className="text-5xl animate-bounce">
+            🧍‍♂️📦
           </div>
-        )}
+
+          <p className="text-sm text-gray-600 mt-2">
+            Delivery partner is on the way...
+          </p>
+
+        </div>
 
         {/* =========================
-           WHATSAPP SUPPORT
+           WHATSAPP
         ========================= */}
         <div className="mt-6">
-
           <a
             href={whatsappLink}
             target="_blank"
@@ -153,7 +195,6 @@ Tracking ID: ${order.trackingId || "Not available"}`;
           >
             Chat on WhatsApp 📲
           </a>
-
         </div>
 
       </div>
