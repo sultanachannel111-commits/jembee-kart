@@ -11,6 +11,7 @@ import ThemeLoader from "@/components/ThemeLoader";
 import { useEffect } from "react";
 import { loadTheme } from "@/lib/themeLoader";
 import { Toaster } from "react-hot-toast";
+import { logError } from "@/lib/errorLogger"; // 🔥 ADD THIS
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +23,33 @@ export default function RootLayout({
 
   useEffect(() => {
     loadTheme();
+
+    // 🔥 vConsole (ONLY DEV)
+    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+      const VConsole = require("vconsole");
+      new VConsole();
+    }
+
+    // 🔴 JS Error capture
+    window.onerror = function (msg, url, line, col, error) {
+      logError({
+        message: msg,
+        file: url,
+        line,
+        stack: error?.stack,
+        page: window.location.href,
+      });
+    };
+
+    // 🔴 Promise error capture
+    window.onunhandledrejection = function (event) {
+      logError({
+        message: event.reason?.message || "Promise error",
+        stack: event.reason?.stack,
+        page: window.location.href,
+      });
+    };
+
   }, []);
 
   return (
@@ -54,9 +82,9 @@ export default function RootLayout({
 
             {/* 🔥 WHATSAPP BUTTON */}
             <WhatsAppButton />
-            {/* ✅ TOASTER ALWAYS LAST */}
-    <Toaster position="top-center" />
 
+            {/* 🔥 TOASTER */}
+            <Toaster position="top-center" />
 
           </CartProvider>
         </AuthProvider>
