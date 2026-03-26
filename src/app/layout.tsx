@@ -45,7 +45,6 @@ export default function RootLayout({
             <div className="pb-24">
               {children}
             </div>
-            <Toaster position="top-center" />
 
             {/* 🔥 FOOTER */}
             <Footer />
@@ -55,6 +54,9 @@ export default function RootLayout({
 
             {/* 🔥 WHATSAPP BUTTON */}
             <WhatsAppButton />
+            {/* ✅ TOASTER ALWAYS LAST */}
+    <Toaster position="top-center" />
+
 
           </CartProvider>
         </AuthProvider>
