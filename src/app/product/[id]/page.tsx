@@ -181,7 +181,13 @@ export default function ProductPage() {
     quantity: 1,
   });
 
-  console.log("✅ Added to cart");
+  // ✅ YAHI LIKHNA HAI (IMPORTANT)
+  toast.success("Added to cart 🛒");
+
+  // ✅ delay (warna dikhega nahi)
+  setTimeout(() => {
+    router.push("/cart");
+  }, 1200);
 };
 
   // ⚡ BUY (FIXED)
