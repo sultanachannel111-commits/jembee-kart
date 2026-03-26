@@ -220,6 +220,25 @@ export default function ProductPage() {
           <div key={i} className={`w-2 h-2 rounded-full ${i===currentImage?"bg-blue-500":"bg-gray-300"}`}/>
         ))}
       </div>
+      {/* 🔥 VARIANT THUMBNAILS */}
+<div className="flex gap-3 mt-3 px-4">
+  {product?.variations?.map((v:any,i:number)=>(
+    <img
+      key={i}
+      src={v?.images?.main}
+      onClick={()=>{
+        setSelectedColor(i);
+        setSelectedSize(v?.sizes?.[0] || null);
+        setCurrentImage(0);
+      }}
+      className={`w-14 h-14 rounded-xl object-cover border-2 cursor-pointer transition ${
+        selectedColor === i
+          ? "border-blue-600 scale-105 shadow"
+          : "border-gray-200"
+      }`}
+    />
+  ))}
+</div>
 
       {/* FULL VIEW */}
       {showViewer && (
