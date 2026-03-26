@@ -23,22 +23,23 @@ export default function ProductPage() {
   const searchParams = useSearchParams();
   const ref = searchParams.get("ref");
 
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
 
   const [selectedColor, setSelectedColor] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedSize, setSelectedSize] = useState<any>(null);
 
   const [currentImage, setCurrentImage] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
 
   const [similar, setSimilar] = useState<any[]>([]);
 
-  // 🔥 NEW STATES
+  // 🔥 PIN STATE
   const [pincode, setPincode] = useState("");
   const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
   const [checkingPin, setCheckingPin] = useState(false);
+  const [pinError, setPinError] = useState("");
 
   // 🔐 AUTH
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function ProductPage() {
     if (id) fetchProduct();
   }, [id]);
 
-  // 🔥 AFFILIATE FIX
+  // 🔥 AFFILIATE
   useEffect(() => {
     const saveAffiliate = async () => {
       if (!ref) return;
@@ -86,11 +87,7 @@ export default function ProductPage() {
             { merge: true }
           );
         }
-
-        console.log("✅ Affiliate saved:", ref);
-      } catch (err) {
-        console.log(err);
-      }
+      } catch {}
     };
 
     saveAffiliate();
@@ -108,10 +105,14 @@ export default function ProductPage() {
     setSimilar(data);
   };
 
-  // 🚚 PINCODE CHECK
+  // 🚚 PINCODE CHECK (PROFESSIONAL)
   const checkPincode = async () => {
+    setPinError("");
+    setDeliveryInfo(null);
+
     if (!pincode || pincode.length !== 6) {
-      return alert("Please enter a valid 6-digit PIN code.");
+      setPinError("Please enter a valid 6-digit PIN code.");
+      return;
     }
 
     setCheckingPin(true);
@@ -131,13 +132,12 @@ export default function ProductPage() {
           deliveryDays: Math.floor(Math.random() * 3) + 3,
         });
       } else {
-        setDeliveryInfo(null);
-        alert(
-          "We’re sorry, but delivery is not available at this PIN code. Please enter a different location."
+        setPinError(
+          "Delivery is not available for this PIN code. Please try another location."
         );
       }
-    } catch (err) {
-      alert("Unable to verify PIN code at the moment. Please try again.");
+    } catch {
+      setPinError("Unable to verify PIN code. Please try again.");
     }
 
     setCheckingPin(false);
@@ -164,30 +164,27 @@ export default function ProductPage() {
     Number(product?.price) ||
     0;
 
-  const stock = Number(selectedSize?.stock) || 0;
-
   // 🛒 CART
   const handleAddToCart = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
+    if (!selectedSize) return;
 
     await addDoc(collection(db, "carts", user.uid, "items"), {
       productId: product.id,
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
-      price: price,
+      price,
       quantity: 1,
     });
 
-    alert("Added to cart");
     router.push("/cart");
   };
 
   // ⚡ BUY
   const handleBuyNow = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
+    if (!selectedSize) return;
 
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
@@ -195,196 +192,85 @@ export default function ProductPage() {
       name: product.name,
       image: images?.[0] || "",
       size: selectedSize.size,
-      price: price,
+      price,
       status: "pending",
     });
 
     router.push(`/checkout?orderId=${orderRef.id}`);
   };
 
-  const handleShare = () => {
-    navigator.share?.({
-      title: product.name,
-      url: window.location.href,
-    });
-  };
-
-  const handleScroll = (e: any) => {
-    const index = Math.round(
-      e.target.scrollLeft / e.target.clientWidth
-    );
-    setCurrentImage(index);
-  };
-
   return (
     <div>
-      {/* IMAGE SLIDER */}
-      <div
-        onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
-      >
-        {images.map((img: any, i: number) => (
-          <div key={i} className="min-w-full snap-center">
-            <img
-              src={img}
-              onClick={() => setShowViewer(true)}
-              className="w-full h-[320px] object-contain"
-            />
-          </div>
-        ))}
-      </div>
+      {/* IMAGE */}
+      {images.map((img: any, i: number) => (
+        <img
+          key={i}
+          src={img}
+          onClick={() => setShowViewer(true)}
+          className="w-full h-[320px] object-contain"
+        />
+      ))}
 
-      {/* ZOOM */}
-      {showViewer && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
-          <button
-            onClick={() => setShowViewer(false)}
-            className="text-white text-xl p-4"
-          >
-            ✕
-          </button>
-
-          <div className="flex-1 flex items-center justify-center">
-            <img
-              src={images[currentImage]}
-              className="max-w-full max-h-full"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* SHARE */}
-      <button
-        onClick={handleShare}
-        className="absolute top-4 right-4 bg-white p-2 rounded-full shadow"
-      >
-        🔗
-      </button>
-
-      {/* DOTS */}
-      <div className="flex justify-center gap-2 mt-2">
-        {images.map((_, i) => (
-          <div
-            key={i}
-            className={`w-2 h-2 rounded-full ${
-              currentImage === i ? "bg-blue-600" : "bg-gray-300"
-            }`}
+      {/* PIN */}
+      <div className="mt-5 bg-white p-4 rounded-2xl shadow">
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="Enter PIN code"
+            value={pincode}
+            onChange={(e) => setPincode(e.target.value)}
+            className="flex-1 border rounded-lg px-3 py-2"
           />
-        ))}
+
+          <button
+            onClick={checkPincode}
+            className="bg-black text-white px-4 rounded-lg"
+          >
+            {checkingPin ? "Checking..." : "Check"}
+          </button>
+        </div>
+
+        {/* ✅ ERROR */}
+        {pinError && (
+          <p className="text-red-500 text-sm mt-2">{pinError}</p>
+        )}
+
+        {/* ✅ SUCCESS */}
+        {deliveryInfo && (
+          <div className="mt-3 text-green-600 text-sm font-medium">
+            Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
+            {deliveryInfo.deliveryDays} - {deliveryInfo.deliveryDays + 2} days
+          </div>
+        )}
       </div>
 
-      <div className="p-4">
-        {/* COLOR */}
+      {/* ⭐ SIMILAR (ABOVE REVIEWS) */}
+      <div className="mt-6">
+        <h3 className="font-bold mb-3">You may also like</h3>
+
         <div className="flex gap-3 overflow-x-auto">
-          {product?.variations?.map((v: any, i: number) => (
-            <img
-              key={i}
-              src={v?.images?.main}
-              onClick={() => {
-                setSelectedColor(i);
-                setSelectedSize(v?.sizes?.[0] || null);
-              }}
-              className={`w-16 h-16 rounded-xl border ${
-                selectedColor === i ? "border-blue-600" : ""
-              }`}
-            />
+          {similar.map((p: any) => (
+            <div
+              key={p.id}
+              onClick={() => router.push(`/product/${p.id}`)}
+              className="min-w-[140px] bg-white p-2 rounded-xl shadow"
+            >
+              <img
+                src={p?.variations?.[0]?.images?.main}
+                className="h-32 w-full object-cover rounded"
+              />
+              <p className="text-sm">{p.name}</p>
+              <p className="text-green-600 font-bold">
+                ₹{p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
+              </p>
+            </div>
           ))}
         </div>
+      </div>
 
-        <h1 className="text-xl font-bold mt-4">{product.name}</h1>
-
-        <div className="mt-2 text-3xl font-bold text-green-600">
-          ₹{price}
-        </div>
-
-        {/* ⭐ TRUST LINE */}
-        <div className="mt-2 text-sm text-gray-600 font-medium">
-          🚚 Fast Delivery | 🔒 Secure Payment | 💵 Cash on Delivery Available
-        </div>
-
-        {/* 🚚 PIN */}
-        <div className="mt-5 bg-white p-4 rounded-2xl shadow">
-          <div className="flex gap-2">
-            <input
-              type="number"
-              placeholder="Enter PIN code"
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-2"
-            />
-
-            <button
-              onClick={checkPincode}
-              className="bg-black text-white px-4 rounded-lg"
-            >
-              {checkingPin ? "Checking..." : "Check"}
-            </button>
-          </div>
-
-          {deliveryInfo && (
-            <div className="mt-3 text-green-600 text-sm font-medium">
-              Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}
-              {deliveryInfo.deliveryDays} -{" "}
-              {deliveryInfo.deliveryDays + 2} days
-            </div>
-          )}
-        </div>
-
-        {/* SIZE */}
-        <div className="mt-5">
-          <h3 className="font-semibold mb-3">Select Size</h3>
-
-          <div className="grid grid-cols-3 gap-3">
-            {variant?.sizes?.map((s: any, i: number) => (
-              <div
-                key={i}
-                onClick={() => setSelectedSize(s)}
-                className={`p-3 rounded-xl border text-center ${
-                  selectedSize?.size === s.size
-                    ? "bg-blue-600 text-white"
-                    : "bg-white"
-                }`}
-              >
-                {s.size}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* DESCRIPTION */}
-        <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">
-          {product.description || "Premium product"}
-        </div>
-
-        {/* ⭐ REVIEWS */}
-        <div className="mt-6">
-          <ReviewSection productId={product.id} />
-        </div>
-
-        {/* SIMILAR */}
-        <div className="mt-6">
-          <h3 className="font-bold mb-3">You may also like</h3>
-
-          <div className="flex gap-3 overflow-x-auto">
-            {similar.map((p: any) => (
-              <div
-                key={p.id}
-                onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px] bg-white p-2 rounded-xl shadow"
-              >
-                <img
-                  src={p?.variations?.[0]?.images?.main}
-                  className="h-32 w-full object-cover rounded"
-                />
-                <p className="text-sm">{p.name}</p>
-                <p className="text-green-600 font-bold">
-                  ₹
-                  {p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ⭐ REVIEWS */}
+      <div className="mt-6">
+        <ReviewSection productId={product.id} />
       </div>
 
       {/* BUTTONS */}
