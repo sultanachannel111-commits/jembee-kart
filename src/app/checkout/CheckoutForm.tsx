@@ -139,26 +139,22 @@ export default function CheckoutPage(){
     }
 
     setLoading(true);
+    // ✅ TEMP ORDER SAVE (IMPORTANT)
+const tempOrder = {
+  userId: user.uid,
+  items,
+  total,
+  customer,
+  paymentMethod: "online"
+};
 
-    const orderRef = await addDoc(
-      collection(db,"orders"),
-      {
-        userId:user.uid,
-        items,
-        total,
-        customer,
-        paymentMethod:"online",
-        paymentStatus:"pending",
-        status:"pending",
-        createdAt:serverTimestamp()
-      }
-    );
+localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const res = await fetch("/api/cashfree/create-order",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
-        orderId:orderRef.id,
+        orderId: "temp_" + Date.now(),
         amount:total,
         customer
       })
