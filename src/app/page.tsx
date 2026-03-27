@@ -57,7 +57,6 @@ export default function HomePage() {
     try{
       const res = await fetch("/api/home");
       const data = await res.json();
-      console.log("🔥 BANNERS:", data.banners);
 
       setCategories(data.categories || []);
       setBanners(data.banners || []);
@@ -160,7 +159,10 @@ export default function HomePage() {
         />
 
         {/* BANNER */}
-        <BannerSlider banners={banners}/>
+        {/* 🔥 BANNER */}
+{Array.isArray(banners) && banners.length > 0 && (
+  <BannerSlider banners={banners} />
+)}
 
         {/* FLASH */}
         <FlashSale/>
