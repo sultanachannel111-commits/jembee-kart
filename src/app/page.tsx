@@ -57,6 +57,7 @@ export default function HomePage() {
     try{
       const res = await fetch("/api/home");
       const data = await res.json();
+      console.log("🔥 BANNERS:", data.banners);
 
       setCategories(data.categories || []);
       setBanners(data.banners || []);
