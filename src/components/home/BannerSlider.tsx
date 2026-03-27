@@ -24,7 +24,7 @@ export default function BannerSlider({ banners }: any) {
     <div className="mt-3 px-3">
 
       {/* 🔥 BANNER IMAGE */}
-      <div className="w-full h-[200px] rounded-xl overflow-hidden shadow">
+      <div className="w-full h-[180px] rounded-xl overflow-hidden shadow">
 
         <img
           src={banners[current]?.image}
