@@ -144,6 +144,18 @@ const total = items.reduce(
   (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
   0
 );
+  const discount = items.reduce((sum, item) => {
+  const base =
+    item?.variations?.[0]?.sizes?.[0]?.price || 0;
+
+  const sell =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+    item.price || 0;
+
+  return sum + Math.max(0, base - sell);
+}, 0);
+
+const totalSaving = discount + COD_CHARGE;
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
@@ -217,11 +229,6 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
       if (snap.exists()) {
         sellerId = snap.data().sellerId;
       }
-    }
-
-    if(!codUnlocked){
-      alert("COD locked ❌ Complete 2 prepaid orders first");
-      return;
     }
 
     if(!customer.firstName || !customer.phone){
@@ -386,8 +393,15 @@ const finalTotal = total + COD_CHARGE;
             onClick={placeOrder}
             className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg"
           >
-            {loading ? "Processing..." : `Pay ₹${total}`}
-          </button>
+            {loading
+    ? "Processing..."
+    : `Pay ₹${total} ${
+        discount > 0
+          ? `(Save ₹${totalSaving} = ₹${discount} discount + ₹${COD_CHARGE} COD)`
+          : `(Save ₹${COD_CHARGE})`
+      }`
+  }
+</button>
 
           {/* 🔥 COD */}
           <button
