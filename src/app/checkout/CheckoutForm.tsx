@@ -248,7 +248,6 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const profit = sellPrice - basePrice;
     const commission = Math.max(0, Math.round(profit * 0.5));
-    const COD_CHARGE = 80;
 const finalTotal = total + COD_CHARGE;
     setLoading(true);
 
