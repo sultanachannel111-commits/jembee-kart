@@ -6,7 +6,7 @@ export default function BannerSlider({ banners }: any) {
 
   const [current, setCurrent] = useState(0);
 
-  // ✅ FULL SAFETY (no crash)
+  // ✅ SAFETY
   if (!Array.isArray(banners) || banners.length === 0) {
     return null;
   }
@@ -24,16 +24,19 @@ export default function BannerSlider({ banners }: any) {
     <div className="mt-2 px-3">
 
       {/* IMAGE */}
-      <img
-        src={banners[current]?.image}
-        className="w-full h-[160px] object-cover rounded-xl"
-      />
+      <div className="w-full h-[160px] bg-white rounded-xl flex items-center justify-center">
+        <img
+          src={banners[current]?.image}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
 
       {/* DOTS */}
       <div className="flex justify-center gap-2 mt-2">
         {banners.map((_: any, i: number) => (
           <div
             key={i}
+            onClick={() => setCurrent(i)}
             className={`w-2 h-2 rounded-full ${
               current === i ? "bg-black" : "bg-gray-300"
             }`}
