@@ -119,10 +119,7 @@ if (userDoc.exists()) {
         (doc:any)=> doc.data().paymentStatus === "success"
       );
 
-      if(paidOrders.length >= 2){
-        setCodUnlocked(true);
-      }
-
+setCodUnlocked(true); // ✅ LINE 125 (YAHI ADD KARO)
     });
 
     return ()=>unsub();
