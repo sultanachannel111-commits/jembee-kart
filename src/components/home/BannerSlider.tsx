@@ -6,12 +6,10 @@ export default function BannerSlider({ banners }: any) {
 
   const [current, setCurrent] = useState(0);
 
-  // ✅ SAFETY
   if (!Array.isArray(banners) || banners.length === 0) {
     return null;
   }
 
-  // 🔄 AUTO SLIDE
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % banners.length);
@@ -21,17 +19,19 @@ export default function BannerSlider({ banners }: any) {
   }, [banners]);
 
   return (
-    <div className="mt-2 px-3">
+    <div className="mt-3 px-3">
 
-      {/* IMAGE */}
-      <div className="w-full h-[160px] bg-white rounded-xl flex items-center justify-center">
+      {/* 🔥 IMAGE CONTAINER */}
+      <div className="w-full aspect-[3/1] rounded-xl overflow-hidden bg-white">
+
         <img
           src={banners[current]?.image}
-          className="max-h-full max-w-full object-contain"
+          className="w-full h-full object-cover"
         />
+
       </div>
 
-      {/* DOTS */}
+      {/* 🔵 DOTS */}
       <div className="flex justify-center gap-2 mt-2">
         {banners.map((_: any, i: number) => (
           <div
