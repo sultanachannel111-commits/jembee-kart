@@ -52,7 +52,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // ✅ AUTO LOAD ADDRESS
+      // ✅ LOAD ADDRESS
       const userDoc = await getDoc(doc(db,"users",u.uid));
       if(userDoc.exists()){
         const data = userDoc.data();
@@ -67,15 +67,15 @@ export default function CheckoutPage(){
         const parsed = JSON.parse(buyNow);
 
         const finalPrice =
-          Number(parsed.price) ||
-          parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-          parsed?.variations?.[0]?.sizes?.[0]?.price ||
+          Number(parsed?.price) ||
+          Number(parsed?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+          Number(parsed?.variations?.[0]?.sizes?.[0]?.price) ||
           0;
 
         setItems([{
           ...parsed,
           quantity: parsed.quantity || 1,
-          price: Number(finalPrice)
+          price: finalPrice
         }]);
 
       } else {
@@ -90,23 +90,23 @@ export default function CheckoutPage(){
           const d = doc.data();
 
           const finalPrice =
-            Number(d.price) ||
-            d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            d?.variations?.[0]?.sizes?.[0]?.price ||
+            Number(d?.price) ||
+            Number(d?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+            Number(d?.variations?.[0]?.sizes?.[0]?.price) ||
             0;
 
           data.push({
             id:doc.id,
             ...d,
             quantity: d.quantity || 1,
-            price: Number(finalPrice)
+            price: finalPrice
           });
         });
 
         setItems(data);
       }
 
-      // COD unlock check
+      // 🔥 COD CHECK FIXED
       const orderSnap = await getDocs(
         query(
           collection(db,"orders"),
@@ -115,7 +115,7 @@ export default function CheckoutPage(){
       );
 
       const paidOrders = orderSnap.docs.filter(
-        (doc:any)=> doc.data().paymentStatus === "success"
+        (doc:any)=> doc.data().paymentMethod === "online"
       );
 
       if(paidOrders.length >= 2){
@@ -143,11 +143,11 @@ export default function CheckoutPage(){
   };
 
   /* ========================
-  TOTAL
+  TOTAL FIXED
   ======================== */
 
   const total = items.reduce(
-    (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
+    (sum,i)=> sum + (Number(i.price || 0) * Number(i.quantity || 1)),
     0
   );
 
@@ -162,7 +162,7 @@ export default function CheckoutPage(){
       return;
     }
 
-    await saveAddress(); // ✅ SAVE
+    await saveAddress();
 
     if(total <= 0){
       alert("Invalid amount ❌");
@@ -186,7 +186,7 @@ export default function CheckoutPage(){
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
         orderId: "temp_" + Date.now(),
-        amount:total,
+        amount: total,
         customer
       })
     });
@@ -227,7 +227,7 @@ export default function CheckoutPage(){
       return;
     }
 
-    await saveAddress(); // ✅ SAVE
+    await saveAddress();
 
     if(items.length === 0){
       alert("Cart empty ❌");
@@ -262,16 +262,15 @@ export default function CheckoutPage(){
   ======================== */
 
   return(
-
     <div className="min-h-screen bg-gray-100 p-4">
 
       <div className="max-w-xl mx-auto">
 
-        <h1 className="text-2xl font-bold mb-4 text-center">
-          Checkout
+        <h1 className="text-2xl font-bold text-center mb-4">
+          Checkout 🛍️
         </h1>
 
-        {/* ORDER SUMMARY */}
+        {/* SUMMARY */}
         <div className="bg-white p-4 rounded-xl mb-4">
 
           {items.map(item=>(
@@ -291,78 +290,48 @@ export default function CheckoutPage(){
         {/* FORM */}
         <div className="bg-white p-4 rounded-xl space-y-3">
 
-          <input
-            placeholder="First Name"
-            value={customer.firstName}
+          <input value={customer.firstName}
             onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="First Name" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="Last Name"
-            value={customer.lastName}
+          <input value={customer.lastName}
             onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="Last Name" className="w-full p-3 border rounded"/>
 
-          <textarea
-            placeholder="Address"
-            value={customer.address}
+          <textarea value={customer.address}
             onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="Address" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="City"
-            value={customer.city}
+          <input value={customer.city}
             onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="City" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="State"
-            value={customer.state}
+          <input value={customer.state}
             onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="State" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="Pin Code"
-            value={customer.zip}
+          <input value={customer.zip}
             onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="Pin Code" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="Phone"
-            value={customer.phone}
+          <input value={customer.phone}
             onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="Phone" className="w-full p-3 border rounded"/>
 
-          <input
-            placeholder="Email"
-            value={customer.email}
+          <input value={customer.email}
             onChange={(e)=>setCustomer({...customer,email:e.target.value})}
-            className="w-full p-3 border rounded-lg"
-          />
+            placeholder="Email" className="w-full p-3 border rounded"/>
 
-          {/* PAY */}
-          <button
-            onClick={placeOrder}
-            className="w-full bg-green-600 text-white p-3 rounded-lg"
-          >
+          <button onClick={placeOrder}
+            className="w-full bg-green-600 text-white p-3 rounded">
             {loading ? "Processing..." : `Pay ₹${total}`}
           </button>
 
-          {/* COD */}
-          <button
-            onClick={placeCOD}
+          <button onClick={placeCOD}
             disabled={!codUnlocked}
-            className={`w-full p-3 rounded-lg text-white ${
+            className={`w-full p-3 rounded text-white ${
               codUnlocked ? "bg-black" : "bg-gray-400"
-            }`}
-          >
+            }`}>
             {codUnlocked ? "Cash on Delivery" : "COD Locked"}
           </button>
 
