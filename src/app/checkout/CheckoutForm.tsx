@@ -146,6 +146,20 @@ const COD_CHARGE = 80;
     (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
     0
   );
+  const COD_CHARGE = 80;
+
+/* 🔥 TOTAL SAFE */
+const total = items.reduce(
+  (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
+  0
+);
+
+const [paymentMode, setPaymentMode] = useState("online");
+
+const finalPayable =
+  paymentMode === "cod"
+    ? total + COD_CHARGE
+    : total;
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
