@@ -24,6 +24,7 @@ export default function CheckoutPage(){
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
   const [codUnlocked,setCodUnlocked] = useState(false);
+  const [offers, setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -57,6 +58,17 @@ if (userDoc.exists()) {
     setCustomer(data.address);
   }
 }
+      // 🔥 FETCH OFFERS
+const offerSnap = await getDocs(collection(db, "offers"));
+
+const offerMap:any = {};
+
+offerSnap.forEach(doc => {
+  const data = doc.data();
+  offerMap[data.productId] = data.discount;
+});
+
+setOffers(offerMap);
 
       const buyNow = localStorage.getItem("buy-now");
 
@@ -64,11 +76,13 @@ if (userDoc.exists()) {
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-        const finalPrice =
-          Number(parsed.price) ||
-          parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-          parsed?.variations?.[0]?.sizes?.[0]?.price ||
-          0;
+        const basePrice =
+  parsed?.variations?.[0]?.sizes?.[0]?.price || 0;
+
+const discountPercent = offers[parsed.id] || 0;
+
+const finalPrice =
+  basePrice - (basePrice * discountPercent) / 100;
 
         console.log("🔥 BUY NOW:", parsed);
         console.log("🔥 FINAL PRICE:", finalPrice);
@@ -90,11 +104,13 @@ if (userDoc.exists()) {
         snap.forEach(doc=>{
           const d = doc.data();
 
-          const finalPrice =
-            Number(d.price) ||
-            d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            d?.variations?.[0]?.sizes?.[0]?.price ||
-            0;
+          const basePrice =
+  d?.variations?.[0]?.sizes?.[0]?.price || 0;
+
+const discountPercent = offers[doc.id] || 0;
+
+const finalPrice =
+  basePrice - (basePrice * discountPercent) / 100;
 
           data.push({
             id:doc.id,
@@ -124,7 +140,7 @@ setCodUnlocked(true); // ✅ LINE 125 (YAHI ADD KARO)
 
     return ()=>unsub();
 
-  },[]);
+  },[offers]);
   // 👇 YAHI ADD KARO
 const saveAddress = async () => {
   if (!user) return;
