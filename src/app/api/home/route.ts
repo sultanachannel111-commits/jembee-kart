@@ -7,22 +7,23 @@ import {
   doc,
   getDoc,
   query,
-  limit
+  limit,
+  orderBy
 } from "firebase/firestore";
 
-// 🔥 GLOBAL MEMORY CACHE (server level)
+// 🔥 MEMORY CACHE
 let cache: any = null;
 let lastFetch = 0;
 
 export async function GET() {
   try {
 
-    // ⚡ 1. MEMORY CACHE (0ms response)
+    // ⚡ FAST CACHE (5 sec)
     if (cache && Date.now() - lastFetch < 5000) {
       return NextResponse.json(cache);
     }
 
-    // ⚡ 2. PARALLEL FETCH
+    // ⚡ PARALLEL FETCH
     const [
       catSnap,
       bannerSnap,
@@ -31,38 +32,44 @@ export async function GET() {
       festSnap
     ] = await Promise.all([
 
-      getDocs(collection(db,"qikinkCategories")),
+      getDocs(collection(db, "qikinkCategories")),
 
-      getDocs(collection(db,"banners")),
+      // ✅ FIXED (ORDER + QUERY)
+      getDocs(
+        query(collection(db, "banners"), orderBy("order", "asc"))
+      ),
 
-      getDocs(query(collection(db,"products"), limit(30))),
+      getDocs(query(collection(db, "products"), limit(30))),
 
-      getDoc(doc(db,"settings","theme")),
+      getDoc(doc(db, "settings", "theme")),
 
-      getDoc(doc(db,"settings","festival"))
+      getDoc(doc(db, "settings", "festival"))
     ]);
 
     // 🔥 CATEGORY
     const categories = [
       {
-        id:"all",
-        name:"All",
-        image:"https://cdn-icons-png.flaticon.com/512/3081/3081559.png"
+        id: "all",
+        name: "All",
+        image:
+          "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
       },
-      ...catSnap.docs.map(d => ({
-        id:d.id,
-        ...d.data()
-      }))
+      ...catSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })),
     ];
 
-    // 🔥 BANNERS
-    const banners = bannerSnap.docs.map(d => ({
-      id:d.id,
-      ...d.data()
-    }));
+    // 🔥 BANNERS (FILTER ACTIVE)
+    const banners = bannerSnap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((b: any) => b.active !== false);
 
     // 🔥 PRICE FIX
-    const getPrice = (data:any)=>{
+    const getPrice = (data: any) => {
       if (data?.variations?.length) {
         const v = data.variations[0];
         if (v?.sizes?.length) {
@@ -75,12 +82,12 @@ export async function GET() {
     };
 
     // 🔥 PRODUCTS
-    const products = productSnap.docs.map(d => {
+    const products = productSnap.docs.map((d) => {
       const data = d.data();
       return {
-        id:d.id,
+        id: d.id,
         ...data,
-        price:getPrice(data)
+        price: getPrice(data),
       };
     });
 
@@ -95,20 +102,19 @@ export async function GET() {
       banners,
       products,
       theme,
-      festival
+      festival,
     };
 
-    // 💾 SAVE MEMORY CACHE
+    // 💾 CACHE SAVE
     cache = response;
     lastFetch = Date.now();
 
     return NextResponse.json(response, {
       headers: {
-        // 🚀 CDN + EDGE CACHE
-        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300"
-      }
+        "Cache-Control":
+          "public, s-maxage=120, stale-while-revalidate=300",
+      },
     });
-
   } catch (err) {
     console.log("❌ API ERROR:", err);
 
