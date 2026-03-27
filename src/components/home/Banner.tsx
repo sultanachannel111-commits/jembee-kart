@@ -17,10 +17,7 @@ export default function Banner() {
         ...doc.data()
       }));
 
-      // ✅ only active banners
-      const active = data.filter((b: any) => b.active !== false);
-
-      setBanners(active);
+      setBanners(data);
     };
 
     fetchBanners();
@@ -30,15 +27,13 @@ export default function Banner() {
 
   return (
     <div className="px-3 mt-3">
-      <div className="flex overflow-x-auto gap-3">
-        {banners.map((b) => (
-          <img
-            key={b.id}
-            src={b.image}
-            className="w-[90%] h-[160px] object-cover rounded-xl shadow"
-          />
-        ))}
-      </div>
+      {banners.map((b) => (
+        <img
+          key={b.id}
+          src={b.image}
+          className="w-full h-[160px] object-cover rounded-xl shadow mb-3"
+        />
+      ))}
     </div>
   );
 }
