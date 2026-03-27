@@ -140,14 +140,6 @@ const saveAddress = async () => {
     { merge: true }
   );
 };
-  const COD_CHARGE = 80;
-
-/* 🔥 TOTAL SAFE */
-const total = items.reduce(
-  (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
-  0
-);
-
 const [paymentMode, setPaymentMode] = useState("online");
 
 const finalPayable =
