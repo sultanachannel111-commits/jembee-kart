@@ -140,12 +140,7 @@ const saveAddress = async () => {
     { merge: true }
   );
 };
-const [paymentMode, setPaymentMode] = useState("online");
 
-const finalPayable =
-  paymentMode === "cod"
-    ? total + COD_CHARGE
-    : total;
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
