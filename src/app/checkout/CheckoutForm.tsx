@@ -316,38 +316,62 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
           <h2 className="font-semibold">Delivery Details</h2>
 
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="First Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-            />
-            <input placeholder="Last Name" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-            />
-          </div>
+  <input
+    value={customer.firstName}
+    placeholder="First Name"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+  />
+  <input
+    value={customer.lastName}
+    placeholder="Last Name"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+  />
+</div>
 
-          <textarea placeholder="Full Address" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-          />
+<textarea
+  value={customer.address}
+  placeholder="Full Address"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+/>
 
-          <div className="grid grid-cols-2 gap-3">
-            <input placeholder="City" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-            />
-            <input placeholder="State" className="p-3 rounded-xl border"
-              onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-            />
-          </div>
+<div className="grid grid-cols-2 gap-3">
+  <input
+    value={customer.city}
+    placeholder="City"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+  />
+  <input
+    value={customer.state}
+    placeholder="State"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+  />
+</div>
 
-          <input placeholder="Pin Code" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
-          />
+<input
+  value={customer.zip}
+  placeholder="Pin Code"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+/>
 
-          <input placeholder="Phone Number" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-          />
+<input
+  value={customer.phone}
+  placeholder="Phone Number"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+/>
 
-          <input placeholder="Email" className="p-3 rounded-xl border w-full"
-            onChange={(e)=>setCustomer({...customer,email:e.target.value})}
-          />
+<input
+  value={customer.email}
+  placeholder="Email"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+/>
 
           {/* 🔥 PAY */}
           <button
