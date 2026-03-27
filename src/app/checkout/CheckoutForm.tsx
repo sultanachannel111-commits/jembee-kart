@@ -311,10 +311,6 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
   </span>
 </div>
 
-{/* 🔥 SAVING */}
-<p className="text-sm text-green-600 font-medium mt-1">
-  You saved ₹80 🎉
-</p>
 
 {/* 🔥 TOTAL */}
 <div className="border-t mt-3 pt-3 flex justify-between font-bold">
