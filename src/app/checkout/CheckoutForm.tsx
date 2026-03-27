@@ -140,13 +140,12 @@ const saveAddress = async () => {
     { merge: true }
   );
 };
-const COD_CHARGE = 80;
 
-/* 🔥 TOTAL SAFE */
-const total = items.reduce(
-  (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
-  0
-);
+  /* 🔥 TOTAL SAFE */
+  const total = items.reduce(
+    (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
+    0
+  );
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
@@ -248,7 +247,7 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const profit = sellPrice - basePrice;
     const commission = Math.max(0, Math.round(profit * 0.5));
-const finalTotal = total + COD_CHARGE;
+
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -264,7 +263,7 @@ const finalTotal = total + COD_CHARGE;
       commission,
 
       items,
-      total: finalTotal,
+      total,
       customer,
 
       paymentMethod:"cod",
