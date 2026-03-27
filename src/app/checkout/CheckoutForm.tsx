@@ -296,27 +296,17 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
           <h2 className="font-semibold mb-3">Order Summary</h2>
 
-          {items.map(item => (
-  <div key={item.id} className="flex justify-between text-sm mb-2">
-    <span>{item.name} × {item.quantity}</span>
-    <span>₹{item.price}</span>
-  </div>
-))}
+          {items.map(item=>(
+            <div key={item.id} className="flex justify-between text-sm mb-2">
+              <span>{item.name} × {item.quantity}</span>
+              <span>₹{item.price}</span>
+            </div>
+          ))}
 
-{/* 🔥 SHIPPING */}
-<div className="flex justify-between text-sm mt-3">
-  <span className="text-gray-600">Shipping</span>
-  <span className="text-green-600 font-semibold">
-    FREE 🚚
-  </span>
-</div>
-
-
-{/* 🔥 TOTAL */}
-<div className="border-t mt-3 pt-3 flex justify-between font-bold">
-  <span>Total</span>
-  <span className="text-lg text-green-600">₹{total}</span>
-</div>
+          <div className="border-t mt-3 pt-3 flex justify-between font-bold">
+            <span>Total</span>
+            <span className="text-lg text-green-600">₹{total}</span>
+          </div>
 
         </div>
 
