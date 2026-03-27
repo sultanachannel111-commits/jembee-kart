@@ -140,12 +140,13 @@ const saveAddress = async () => {
     { merge: true }
   );
 };
+const COD_CHARGE = 80;
 
-  /* 🔥 TOTAL SAFE */
-  const total = items.reduce(
-    (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
-    0
-  );
+/* 🔥 TOTAL SAFE */
+const total = items.reduce(
+  (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
+  0
+);
 
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
@@ -247,7 +248,7 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const profit = sellPrice - basePrice;
     const commission = Math.max(0, Math.round(profit * 0.5));
-
+const finalTotal = total + COD_CHARGE;
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -263,7 +264,7 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
       commission,
 
       items,
-      total,
+      total: finalTotal,
       customer,
 
       paymentMethod:"cod",
@@ -296,17 +297,27 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
           <h2 className="font-semibold mb-3">Order Summary</h2>
 
-          {items.map(item=>(
-            <div key={item.id} className="flex justify-between text-sm mb-2">
-              <span>{item.name} × {item.quantity}</span>
-              <span>₹{item.price}</span>
-            </div>
-          ))}
+          {items.map(item => (
+  <div key={item.id} className="flex justify-between text-sm mb-2">
+    <span>{item.name} × {item.quantity}</span>
+    <span>₹{item.price}</span>
+  </div>
+))}
 
-          <div className="border-t mt-3 pt-3 flex justify-between font-bold">
-            <span>Total</span>
-            <span className="text-lg text-green-600">₹{total}</span>
-          </div>
+{/* 🔥 SHIPPING */}
+<div className="flex justify-between text-sm mt-3">
+  <span className="text-gray-600">Shipping</span>
+  <span className="text-green-600 font-semibold">
+    FREE 🚚
+  </span>
+</div>
+
+
+{/* 🔥 TOTAL */}
+<div className="border-t mt-3 pt-3 flex justify-between font-bold">
+  <span>Total</span>
+  <span className="text-lg text-green-600">₹{total}</span>
+</div>
 
         </div>
 
