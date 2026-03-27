@@ -302,6 +302,16 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
               <span>₹{item.price}</span>
             </div>
           ))}
+          <div className="flex justify-between text-sm mt-2">
+  <span>Shipping</span>
+  <span className="text-green-600 font-semibold">
+    FREE 🚚
+  </span>
+</div>
+
+<p className="text-sm text-green-600 font-medium mt-1">
+  You saved ₹80 🎉
+</p>
 
           <div className="border-t mt-3 pt-3 flex justify-between font-bold">
             <span>Total</span>
