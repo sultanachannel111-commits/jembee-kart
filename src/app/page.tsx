@@ -100,107 +100,66 @@ console.log("🔥 offers:", offerMap);
       console.log("❌ LOAD ERROR",err);
     }
   };
+{/* 🔍 SEARCH */}
+<div
+  style={{
+    background: theme?.searchBg || "#ffffff10",
+    color: theme?.searchText || "#fff",
+    borderColor: theme?.searchBorder || "#ffffff20"
+  }}
+  className="rounded-xl p-2 border backdrop-blur-md"
+>
+  <SearchBar search={search} setSearch={setSearch} />
+</div>
 
-  // 🔍 SEARCH
-  const normalize = (text:string)=>
-    text?.toLowerCase().replace(/\s|-/g,"");
+{/* 🔥 TRENDING */}
+<div
+  style={{
+    background: theme?.trendingBg || "#ffffff10",
+    color: theme?.trendingText || "#fff"
+  }}
+  className="rounded-xl shadow p-3 backdrop-blur-md"
+>
+  <p className="text-sm font-semibold mb-2">🔥 Trending</p>
 
-  const filteredProducts = products.filter(p=>{
-    const matchSearch = normalize(p.name).includes(normalize(search));
-    const matchCategory =
-      selectedCategory === "All" || p.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
-const safeProducts = filteredProducts.map(p => {
+  <div className="flex flex-wrap gap-2">
+    {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
+      <button
+        key={item}
+        style={{
+          background: theme?.trendingChipBg || "#ffffff20",
+          color: theme?.trendingChipText || "#fff"
+        }}
+        className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
+      >
+        {item}
+      </button>
+    ))}
+  </div>
+</div>
 
-  const productId = p?.id || p?._id || "";
+{/* 📦 CATEGORY (SAFE) */}
+{Array.isArray(categories) && (
+  <CategoryList
+    categories={categories}
+    selectedCategory={selectedCategory}
+    setSelectedCategory={setSelectedCategory}
+  />
+)}
 
-  const d = offers?.[productId] || 0;
-
-  const price = Number(p?.price) || 0;
-
-  return {
-    ...p,
-    id: productId,
-    originalPrice: price,
-    price: Math.max(0, Math.round(price - (price * d) / 100)),
-    discountPercent: d
-  };
-});
-  // 🎨 BACKGROUND (NO FLASH)
-  const backgroundStyle = theme?.gradient
-    ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#0f172a"; // dark fallback (premium feel)
-
-  return(
-    <div
-      style={{ background: backgroundStyle }}
-      className="min-h-screen pb-[80px] transition-all duration-300"
-    >
-
-      {/* 🔥 HEADER */}
-      <Header theme={theme}/>
-
-      <div className="pt-[80px] px-4 space-y-4">
-
-        {/* 🔍 SEARCH */}
-        <div
-          style={{
-            background: theme?.searchBg || "#ffffff10",
-            color: theme?.searchText || "#fff",
-            borderColor: theme?.searchBorder || "#ffffff20"
-          }}
-          className="rounded-xl p-2 border backdrop-blur-md"
-        >
-          <SearchBar search={search} setSearch={setSearch}/>
-        </div>
-
-        {/* 🔥 TRENDING */}
-        <div
-          style={{
-            background: theme?.trendingBg || "#ffffff10",
-            color: theme?.trendingText || "#fff"
-          }}
-          className="rounded-xl shadow p-3 backdrop-blur-md"
-        >
-          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
-
-          <div className="flex flex-wrap gap-2">
-            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
-              <button
-                key={item}
-                style={{
-                  background: theme?.trendingChipBg || "#ffffff20",
-                  color: theme?.trendingChipText || "#fff"
-                }}
-                className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CATEGORY */}
-        <CategoryList
-          categories={categories}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-        />
-
-        {/* BANNER */}
-        {/* 🔥 BANNER */}
+{/* 🖼️ BANNER (FIXED) */}
 {Array.isArray(banners) && banners.length > 0 && (
   <BannerSlider banners={banners} />
 )}
 
-        {/* FLASH */}
-        <FlashSale/>
+{/* ⚡ FLASH (SAFE) */}
+{typeof FlashSale === "function" && <FlashSale />}
 
-        {festival?.active && (
-          <FestivalBanner festival={festival}/>
-        )}
-
+{/* 🎉 FESTIVAL (SAFE) */}
+{festival?.active && (
+  <FestivalBanner festival={festival} />
+)}
+  
 {/* PRODUCTS */}
 
 <ProductGrid title="⚡ Lightning Deals"
