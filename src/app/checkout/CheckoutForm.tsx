@@ -77,12 +77,13 @@ setOffers(offerMap);
 
         // ✅ FINAL PRICE FIX
         const basePrice =
-  parsed?.variations?.[0]?.sizes?.[0]?.price || 0;
+  parsed.price ||
+  parsed.finalPrice ||
+  parsed.originalPrice ||
+  parsed?.variations?.[0]?.sizes?.[0]?.price ||
+  0;
 
-const discountPercent = offers[parsed.id] || 0;
-
-const finalPrice =
-  basePrice - (basePrice * discountPercent) / 100;
+const finalPrice = basePrice;
 
         console.log("🔥 BUY NOW:", parsed);
         console.log("🔥 FINAL PRICE:", finalPrice);
@@ -105,12 +106,13 @@ const finalPrice =
           const d = doc.data();
 
           const basePrice =
-  d?.variations?.[0]?.sizes?.[0]?.price || 0;
+  d.price ||
+  d.finalPrice ||
+  d.originalPrice ||
+  d?.variations?.[0]?.sizes?.[0]?.price ||
+  0;
 
-const discountPercent = offers[doc.id] || 0;
-
-const finalPrice =
-  basePrice - (basePrice * discountPercent) / 100;
+const finalPrice = basePrice;
 
           data.push({
             id:doc.id,
