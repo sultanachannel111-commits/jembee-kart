@@ -87,7 +87,10 @@ const offerMap:any = {};
 
 offerSnap.forEach(doc => {
   const data = doc.data();
-  offerMap[data.productId] = data.discount;
+
+  if (data?.active && data?.productId) {
+    offerMap[data.productId] = data.discount || 0;
+  }
 });
 
 setOffers(offerMap);
@@ -108,7 +111,22 @@ console.log("🔥 offers:", offerMap);
       selectedCategory === "All" || p.category === selectedCategory;
     return matchSearch && matchCategory;
   });
+const safeProducts = filteredProducts.map(p => {
 
+  const productId = p?.id || p?._id || "";
+
+  const d = offers?.[productId] || 0;
+
+  const price = Number(p?.price) || 0;
+
+  return {
+    ...p,
+    id: productId,
+    originalPrice: price,
+    price: Math.max(0, Math.round(price - (price * d) / 100)),
+    discountPercent: d
+  };
+});
   // 🎨 BACKGROUND (NO FLASH)
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
@@ -183,15 +201,20 @@ console.log("🔥 offers:", offerMap);
           <FestivalBanner festival={festival}/>
         )}
 
-        {/* PRODUCTS */}
-        <ProductGrid title="⚡ Lightning Deals"
+{/* PRODUCTS */}
+
+<ProductGrid title="⚡ Lightning Deals"
   products={lightning.map(p=>{
-    const d = offers[p.id] || 0;
+    const productId = p?.id || p?._id || "";
+    const d = offers?.[productId] || 0;
+    const price = Number(p?.price) || 0;
+
     return {
       ...p,
-      originalPrice:p.price,
-      price: Math.round(p.price - (p.price*d)/100),
-      discountPercent:d
+      id: productId,
+      originalPrice: price,
+      price: Math.max(0, Math.round(price - (price * d) / 100)),
+      discountPercent: d
     };
   })}
   theme={theme}
@@ -199,12 +222,16 @@ console.log("🔥 offers:", offerMap);
 
 <ProductGrid title="🔥 Trending"
   products={trending.map(p=>{
-    const d = offers[p.id] || 0;
+    const productId = p?.id || p?._id || "";
+    const d = offers?.[productId] || 0;
+    const price = Number(p?.price) || 0;
+
     return {
       ...p,
-      originalPrice:p.price,
-      price: Math.round(p.price - (p.price*d)/100),
-      discountPercent:d
+      id: productId,
+      originalPrice: price,
+      price: Math.max(0, Math.round(price - (price * d) / 100)),
+      discountPercent: d
     };
   })}
   theme={theme}
@@ -212,12 +239,16 @@ console.log("🔥 offers:", offerMap);
 
 <ProductGrid title="⚡ Clearance"
   products={clearance.map(p=>{
-    const d = offers[p.id] || 0;
+    const productId = p?.id || p?._id || "";
+    const d = offers?.[productId] || 0;
+    const price = Number(p?.price) || 0;
+
     return {
       ...p,
-      originalPrice:p.price,
-      price: Math.round(p.price - (p.price*d)/100),
-      discountPercent:d
+      id: productId,
+      originalPrice: price,
+      price: Math.max(0, Math.round(price - (price * d) / 100)),
+      discountPercent: d
     };
   })}
   theme={theme}
@@ -225,22 +256,26 @@ console.log("🔥 offers:", offerMap);
 
 <ProductGrid title="⭐ Recommended"
   products={recommended.map(p=>{
-    const d = offers[p.id] || 0;
+    const productId = p?.id || p?._id || "";
+    const d = offers?.[productId] || 0;
+    const price = Number(p?.price) || 0;
+
     return {
       ...p,
-      originalPrice:p.price,
-      price: Math.round(p.price - (p.price*d)/100),
-      discountPercent:d
+      id: productId,
+      originalPrice: price,
+      price: Math.max(0, Math.round(price - (price * d) / 100)),
+      discountPercent: d
     };
   })}
   theme={theme}
 />
 
-      </div>
+</div>
 
-      {/* 🔥 BOTTOM NAV */}
-      <BottomNav theme={theme}/>
+{/* 🔥 BOTTOM NAV */}
+<BottomNav theme={theme}/>
 
-    </div>
-  );
+</div>
+);
 }
