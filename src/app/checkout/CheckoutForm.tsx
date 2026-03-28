@@ -77,10 +77,11 @@ setOffers(offerMap);
 
         // ✅ FINAL PRICE FIX
         const basePrice =
-  parsed.price ||
-  parsed.finalPrice ||
-  parsed.originalPrice ||
-  parsed?.variations?.[0]?.sizes?.[0]?.price ||
+  const basePrice =
+  parsed.price ??
+  parsed.finalPrice ??
+  parsed.originalPrice ??
+  parsed?.variations?.[0]?.sizes?.[0]?.price ??
   0;
 
 const finalPrice = basePrice;
