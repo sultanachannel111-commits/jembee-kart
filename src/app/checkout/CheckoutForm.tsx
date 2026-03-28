@@ -77,7 +77,7 @@ setOffers(offerMap);
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-  const finalPrice = getFinalPrice(parsed);
+  const finalPrice = getFinalPrice(parsed, offerMap);
         console.log("🔥 BUY NOW:", parsed);
         console.log("🔥 FINAL PRICE:", finalPrice);
 
@@ -97,7 +97,7 @@ setOffers(offerMap);
         snap.forEach(doc=>{
           const d = doc.data();
           console.log("🔥 FIRESTORE ITEM:", d); //
-          const finalPrice = getFinalPrice(d);
+          const finalPrice = getFinalPrice(d, offerMap);
           data.push({
   id:doc.id,
   ...d,
@@ -142,7 +142,7 @@ const COD_CHARGE = 80;
 
 /* 🔥 TOTAL SAFE */
 const total = items.reduce(
-  (sum,i)=> sum + (getFinalPrice(i) * (i.quantity || 1)),
+  (sum,i)=> sum + (getFinalPrice(i, offers) * (i.quantity || 1)),
   0
 );
   const discount = items.reduce((sum, item) => {
@@ -151,7 +151,7 @@ const total = items.reduce(
 
   const sell =
     item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-  getFinalPrice(item);
+   getFinalPrice(item, offers)
 
   return sum + Math.max(0, base - sell);
 }, 0);
@@ -305,7 +305,7 @@ const finalTotal = total + COD_CHARGE;
           {items.map(item => (
   <div key={item.id} className="flex justify-between text-sm mb-2">
     <span>{item.name} × {item.quantity}</span>
-    <span>₹{getFinalPrice(item) * (item.quantity || 1)}</span>
+    <span>₹{getFinalPrice(item, offers) * (item.quantity || 1)}</span>
   </div>
 ))}
 
