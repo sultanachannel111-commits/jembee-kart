@@ -104,12 +104,11 @@ const finalPrice = basePrice;
 
         snap.forEach(doc=>{
           const d = doc.data();
-
           const basePrice =
-  d.price ||
-  d.finalPrice ||
-  d.originalPrice ||
-  d?.variations?.[0]?.sizes?.[0]?.price ||
+  d.price ??
+  d.finalPrice ??
+  d.originalPrice ??
+  d?.variations?.[0]?.sizes?.[0]?.price ??
   0;
 
 const finalPrice = basePrice;
