@@ -153,7 +153,7 @@ const total = items.reduce(
 
   const sell =
     item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-    item.price || 0;
+  getFinalPrice(item);
 
   return sum + Math.max(0, base - sell);
 }, 0);
