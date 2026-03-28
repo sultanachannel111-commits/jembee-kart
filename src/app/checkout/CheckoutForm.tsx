@@ -383,18 +383,45 @@ const finalTotal = codTotal;
 />
 
           {/* 🔥 PAY */}
-          <button
-            onClick={placeOrder}
-            className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-green-500 to-green-600 shadow-lg"
-          >
-            {loading
-    ? "Processing..."
-    : `Pay ₹${total} ${
-        discount > 0
-          ? `(Save ₹${totalSaving} = ₹${discount} discount + ₹${COD_CHARGE} COD)`
-          : `(Save ₹${COD_CHARGE})`
-      }`
-  }
+<button
+  onClick={placeOrder}
+  className="w-full py-4 rounded-2xl text-white font-semibold text-lg 
+             bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500 
+             shadow-xl active:scale-95 transition-all duration-200"
+>
+  {loading ? (
+    "⏳ Processing..."
+  ) : (
+    <div className="flex flex-col items-center leading-tight">
+      
+      {/* 💎 Main Premium Text */}
+      <span className="text-lg font-bold tracking-wide">
+        💎 Premium Checkout
+      </span>
+
+      {/* 💰 Price */}
+      <span className="text-xl">
+        Pay ₹{codChecked ? codTotal : total}
+      </span>
+
+      {/* 🏷️ Extra Info */}
+      <span className="text-xs opacity-90 mt-1">
+        {codChecked
+          ? shippingTotal > 0
+            ? `Includes ₹${shippingTotal} COD shipping 🚚`
+            : "Free COD Shipping 🚚"
+          : "Free Delivery ⚡"}
+      </span>
+
+      {/* 💸 Discount */}
+      {discount > 0 && (
+        <span className="text-xs text-yellow-200 mt-1">
+          🎉 You save ₹{discount}
+        </span>
+      )}
+      
+    </div>
+  )}
 </button>
 
           {/* 🔥 COD */}
