@@ -5,122 +5,162 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 
-export default function OffersPage(){
+export default function OffersPage() {
 
-const [products,setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
-useEffect(()=>{
+  useEffect(() => {
 
-const fetchData = async()=>{
+    const fetchData = async () => {
 
-const productSnap = await getDocs(collection(db,"products"));
-const offerSnap = await getDocs(collection(db,"offers"));
+      try {
 
-const allProducts = productSnap.docs.map(d=>({
-id:d.id,
-...d.data()
-}));
+        const productSnap = await getDocs(collection(db, "products"));
+        const offerSnap = await getDocs(collection(db, "offers"));
 
-const activeOffers = offerSnap.docs
-.map(d=>({id:d.id,...d.data()}))
-.filter(
-(o:any)=>
-o.active &&
-new Date(o.endDate).getTime()>Date.now()
-);
+        const allProducts = productSnap.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        }));
 
-const result = allProducts.map((product:any)=>{
+        // 🔥 ACTIVE OFFERS
+        const activeOffers = offerSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter((o: any) =>
+            o.active &&
+            new Date(o.endDate).getTime() > Date.now()
+          );
 
-const basePrice = Number(product.sellPrice || product.price || 0);
+        const result = allProducts.map((product: any) => {
 
-let matchedOffer = activeOffers.find((o:any)=>{
+          // ✅ SAFE PRICE (MAIN FIX)
+          const basePrice = Number(
+            product?.price ||
+            product?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            0
+          );
 
-if(o.type==="product" && o.productId===product.id)
-return true;
+          // ❌ अगर price ही नहीं तो skip
+          if (basePrice <= 0) return null;
 
-if(o.type==="category" && o.category===product.category)
-return true;
+          // ✅ SAFE OFFER MATCH
+          let matchedOffer = activeOffers.find((o: any) => {
 
-return false;
+            // product based offer
+            if (
+              o.type === "product" &&
+              o.productId?.trim() === product.id?.trim()
+            ) return true;
 
-});
+            // category based offer
+            if (
+              o.type === "category" &&
+              o.category?.toLowerCase().trim() ===
+              product.category?.toLowerCase().trim()
+            ) return true;
 
-if(!matchedOffer) return null;
+            return false;
+          });
 
-const discount = Number(matchedOffer.discount);
+          if (!matchedOffer) return null;
 
-const finalPrice = Math.round(
-basePrice - (basePrice * discount)/100
-);
+          const discount = Number(matchedOffer.discount || 0);
 
-return{
-...product,
-discount,
-finalPrice,
-basePrice
-};
+          // ✅ FINAL PRICE (₹0 FIXED)
+          const finalPrice = Math.max(
+            1,
+            Math.round(basePrice - (basePrice * discount) / 100)
+          );
 
-}).filter(Boolean);
+          return {
+            ...product,
+            discount,
+            finalPrice,
+            basePrice
+          };
 
-setProducts(result);
+        }).filter(Boolean);
 
-};
+        setProducts(result);
 
-fetchData();
+      } catch (err) {
+        console.log("❌ Offer load error:", err);
+      }
 
-},[]);
+    };
 
-return(
+    fetchData();
 
-<div className="p-4 pt-[96px]">
+  }, []);
 
-<h1 className="text-2xl font-bold mb-4">
-🔥 Hot Offers
-</h1>
+  return (
 
-<div className="grid grid-cols-2 gap-4">
+    <div className="p-4 pt-[96px]">
 
-{products.map((p:any)=>(
+      {/* 🔥 TITLE */}
+      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        🔥 Hot Offers
+      </h1>
 
-<Link
-key={p.id}
-href={`/product/${p.id}`}
-className="bg-white rounded-xl shadow p-2 relative"
->
+      {/* ❌ NO DATA */}
+      {products.length === 0 && (
+        <p className="text-gray-400 text-center mt-10">
+          No offers available 😢
+        </p>
+      )}
 
-<span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-{p.discount}% OFF
-</span>
+      {/* 🛒 GRID */}
+      <div className="grid grid-cols-2 gap-4">
 
-<img
-src={p.image}
-className="w-full h-40 object-cover rounded"
-/>
+        {products.map((p: any) => (
 
-<div className="mt-2 text-sm font-medium truncate">
-{p.name}
-</div>
+          <Link
+            key={p.id}
+            href={`/product/${p.id}`}
+            className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-2 relative hover:scale-105 transition"
+          >
 
-<div className="flex gap-2 items-center mt-1">
+            {/* 🔥 DISCOUNT TAG */}
+            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+              {p.discount}% OFF
+            </span>
 
-<span className="font-bold text-red-600">
-₹{p.finalPrice}
-</span>
+            {/* 🖼 IMAGE FIX */}
+            <img
+              src={
+                p?.image ||
+                p?.variations?.[0]?.images?.front ||
+                "https://via.placeholder.com/300"
+              }
+              className="w-full h-40 object-cover rounded"
+            />
 
-<span className="text-gray-400 line-through text-xs">
-₹{p.basePrice}
-</span>
+            {/* 📝 NAME */}
+            <div className="mt-2 text-sm font-medium truncate">
+              {p.name}
+            </div>
 
-</div>
+            {/* 💰 PRICE */}
+            <div className="flex gap-2 items-center mt-1">
 
-</Link>
+              <span className="font-bold text-red-600">
+                ₹{p.finalPrice}
+              </span>
 
-))}
+              <span className="text-gray-400 line-through text-xs">
+                ₹{p.basePrice}
+              </span>
 
-</div>
+            </div>
 
-</div>
+          </Link>
 
-);
+        ))}
+
+      </div>
+
+    </div>
+
+  );
 
 }
