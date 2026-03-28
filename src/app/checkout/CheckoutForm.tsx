@@ -76,7 +76,6 @@ setOffers(offerMap);
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-        const basePrice =
   const basePrice =
   parsed.price ??
   parsed.finalPrice ??
