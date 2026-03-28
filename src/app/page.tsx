@@ -162,78 +162,90 @@ console.log("🔥 offers:", offerMap);
   
 {/* PRODUCTS */}
 
-<ProductGrid title="⚡ Lightning Deals"
-  products={lightning.map(p=>{
-    const productId = p?.id || p?._id || "";
-    const d = offers?.[productId] || 0;
-    const price = Number(p?.price) || 0;
+{Array.isArray(lightning) && lightning.length > 0 && (
+  <ProductGrid
+    title="⚡ Lightning Deals"
+    products={lightning.map((p) => {
+      const productId = p?.id || p?._id || "";
+      const d = offers?.[productId] || 0;
+      const price = Number(p?.price) || 0;
 
-    return {
-      ...p,
-      id: productId,
-      originalPrice: price,
-      price: Math.max(0, Math.round(price - (price * d) / 100)),
-      discountPercent: d
-    };
-  })}
-  theme={theme}
-/>
+      return {
+        ...p,
+        id: productId,
+        originalPrice: price,
+        price: Math.max(0, Math.round(price - (price * d) / 100)),
+        discountPercent: d,
+      };
+    })}
+    theme={theme}
+  />
+)}
 
-<ProductGrid title="🔥 Trending"
-  products={trending.map(p=>{
-    const productId = p?.id || p?._id || "";
-    const d = offers?.[productId] || 0;
-    const price = Number(p?.price) || 0;
+{Array.isArray(trending) && trending.length > 0 && (
+  <ProductGrid
+    title="🔥 Trending"
+    products={trending.map((p) => {
+      const productId = p?.id || p?._id || "";
+      const d = offers?.[productId] || 0;
+      const price = Number(p?.price) || 0;
 
-    return {
-      ...p,
-      id: productId,
-      originalPrice: price,
-      price: Math.max(0, Math.round(price - (price * d) / 100)),
-      discountPercent: d
-    };
-  })}
-  theme={theme}
-/>
+      return {
+        ...p,
+        id: productId,
+        originalPrice: price,
+        price: Math.max(0, Math.round(price - (price * d) / 100)),
+        discountPercent: d,
+      };
+    })}
+    theme={theme}
+  />
+)}
 
-<ProductGrid title="⚡ Clearance"
-  products={clearance.map(p=>{
-    const productId = p?.id || p?._id || "";
-    const d = offers?.[productId] || 0;
-    const price = Number(p?.price) || 0;
+{Array.isArray(clearance) && clearance.length > 0 && (
+  <ProductGrid
+    title="⚡ Clearance"
+    products={clearance.map((p) => {
+      const productId = p?.id || p?._id || "";
+      const d = offers?.[productId] || 0;
+      const price = Number(p?.price) || 0;
 
-    return {
-      ...p,
-      id: productId,
-      originalPrice: price,
-      price: Math.max(0, Math.round(price - (price * d) / 100)),
-      discountPercent: d
-    };
-  })}
-  theme={theme}
-/>
+      return {
+        ...p,
+        id: productId,
+        originalPrice: price,
+        price: Math.max(0, Math.round(price - (price * d) / 100)),
+        discountPercent: d,
+      };
+    })}
+    theme={theme}
+  />
+)}
 
-<ProductGrid title="⭐ Recommended"
-  products={recommended.map(p=>{
-    const productId = p?.id || p?._id || "";
-    const d = offers?.[productId] || 0;
-    const price = Number(p?.price) || 0;
+{Array.isArray(recommended) && recommended.length > 0 && (
+  <ProductGrid
+    title="⭐ Recommended"
+    products={recommended.map((p) => {
+      const productId = p?.id || p?._id || "";
+      const d = offers?.[productId] || 0;
+      const price = Number(p?.price) || 0;
 
-    return {
-      ...p,
-      id: productId,
-      originalPrice: price,
-      price: Math.max(0, Math.round(price - (price * d) / 100)),
-      discountPercent: d
-    };
-  })}
-  theme={theme}
-/>
+      return {
+        ...p,
+        id: productId,
+        originalPrice: price,
+        price: Math.max(0, Math.round(price - (price * d) / 100)),
+        discountPercent: d,
+      };
+    })}
+    theme={theme}
+  />
+)}
 
 </div>
 
 {/* 🔥 BOTTOM NAV */}
-<BottomNav theme={theme}/>
+<BottomNav theme={theme} />
 
 </div>
 );
