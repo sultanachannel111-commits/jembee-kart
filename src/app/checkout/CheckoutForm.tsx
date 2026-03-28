@@ -24,7 +24,7 @@ export default function CheckoutPage(){
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [codUnlocked,setCodUnlocked] = useState(false);
+  const [codUnlocked,setCodUnlocked] = useState(true);
   const [codChecked, setCodChecked] = useState(false);
   const [offers, setOffers] = useState<any>({});
 
