@@ -144,7 +144,7 @@ const COD_CHARGE = 80;
 
 /* 🔥 TOTAL SAFE */
 const total = items.reduce(
-  (sum,i)=> sum + (Number(i.price) * (i.quantity || 1)),
+  (sum,i)=> sum + (getFinalPrice(i) * (i.quantity || 1)),
   0
 );
   const discount = items.reduce((sum, item) => {
