@@ -80,7 +80,19 @@ export default function HomePage() {
       setClearance(c);
       setRecommended(r);
       setLightning(l);
+      // 🔥 FETCH OFFERS
+const offerSnap = await getDocs(collection(db, "offers"));
 
+const offerMap:any = {};
+
+offerSnap.forEach(doc => {
+  const data = doc.data();
+  offerMap[data.productId] = data.discount;
+});
+
+setOffers(offerMap);
+
+console.log("🔥 offers:", offerMap);
     }catch(err){
       console.log("❌ LOAD ERROR",err);
     }
@@ -172,11 +184,57 @@ export default function HomePage() {
         )}
 
         {/* PRODUCTS */}
-        <ProductGrid products={filteredProducts} theme={theme}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme}/>
+        <ProductGrid title="⚡ Lightning Deals"
+  products={lightning.map(p=>{
+    const d = offers[p.id] || 0;
+    return {
+      ...p,
+      originalPrice:p.price,
+      price: Math.round(p.price - (p.price*d)/100),
+      discountPercent:d
+    };
+  })}
+  theme={theme}
+/>
+
+<ProductGrid title="🔥 Trending"
+  products={trending.map(p=>{
+    const d = offers[p.id] || 0;
+    return {
+      ...p,
+      originalPrice:p.price,
+      price: Math.round(p.price - (p.price*d)/100),
+      discountPercent:d
+    };
+  })}
+  theme={theme}
+/>
+
+<ProductGrid title="⚡ Clearance"
+  products={clearance.map(p=>{
+    const d = offers[p.id] || 0;
+    return {
+      ...p,
+      originalPrice:p.price,
+      price: Math.round(p.price - (p.price*d)/100),
+      discountPercent:d
+    };
+  })}
+  theme={theme}
+/>
+
+<ProductGrid title="⭐ Recommended"
+  products={recommended.map(p=>{
+    const d = offers[p.id] || 0;
+    return {
+      ...p,
+      originalPrice:p.price,
+      price: Math.round(p.price - (p.price*d)/100),
+      discountPercent:d
+    };
+  })}
+  theme={theme}
+/>
 
       </div>
 
