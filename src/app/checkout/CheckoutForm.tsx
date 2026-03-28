@@ -76,15 +76,12 @@ setOffers(offerMap);
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-  const basePrice = (
-  parsed.price ??
+  const basePrice =
   parsed.sellPrice ??
+  parsed.price ??
   parsed.finalPrice ??
-  parsed.originalPrice ??
   parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-  parsed?.variations?.[0]?.sizes?.[0]?.price ??
-  0
-);
+  0;
 
 const finalPrice = basePrice;
 
@@ -107,15 +104,12 @@ const finalPrice = basePrice;
 
         snap.forEach(doc=>{
           const d = doc.data();
-          const basePrice = (
-  d.price ??
+          const basePrice =
   d.sellPrice ??
+  d.price ??
   d.finalPrice ??
-  d.originalPrice ??
   d?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-  d?.variations?.[0]?.sizes?.[0]?.price ??
-  0
-);
+  0;
 
 const finalPrice = basePrice;
 
