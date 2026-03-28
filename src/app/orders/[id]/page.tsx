@@ -23,7 +23,7 @@ export default function OrderDetailsPage() {
         // total calculate
         let total = 0;
         data.items?.forEach((item: any) => {
-          total += Number(item.price) * Number(item.quantity);
+          total += getFinalPrice(item) * Number(item.quantity);
         });
 
         setOrder({ ...data, total });
