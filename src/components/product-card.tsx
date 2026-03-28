@@ -36,15 +36,6 @@ export default function HomePage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  useEffect(() => {
-  async function loadQikinkProducts() {
-    const data = await getQikinkProducts();
-    console.log("Qikink Products:", data);
-    setProducts(data);
-  }
-
-  loadQikinkProducts();
-}, []);
   const [festival, setFestival] = useState<any>(null);
   const [slide, setSlide] = useState(0);
   const [search, setSearch] = useState("");
