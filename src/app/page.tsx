@@ -34,7 +34,9 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
 
-  // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
+  const [loading,setLoading] = useState(true);
+
+  // 🚀 CACHE + FETCH
   useEffect(()=>{
 
     const saved = localStorage.getItem("home-cache");
@@ -48,7 +50,6 @@ export default function HomePage() {
       setFestival(data.festival || null);
     }
 
-    // 🌍 BACKGROUND FETCH
     loadData();
 
   },[]);
@@ -63,12 +64,9 @@ export default function HomePage() {
       setProducts(data.products || []);
       setFestival(data.festival || null);
 
-      // 💾 SAVE CACHE
       localStorage.setItem("home-cache", JSON.stringify(data));
 
-      console.log("⚡ Fresh data loaded");
-
-      // 🔥 EXTRA SERVICES (parallel)
+      // 🔥 EXTRA SERVICES
       const [t,c,r,l] = await Promise.all([
         getTrendingProducts(),
         getClearanceProducts(),
@@ -80,173 +78,104 @@ export default function HomePage() {
       setClearance(c);
       setRecommended(r);
       setLightning(l);
-      // 🔥 FETCH OFFERS
-const offerSnap = await getDocs(collection(db, "offers"));
 
-const offerMap:any = {};
+      setLoading(false);
 
-offerSnap.forEach(doc => {
-  const data = doc.data();
-
-  if (data?.active && data?.productId) {
-    offerMap[data.productId] = data.discount || 0;
-  }
-});
-
-setOffers(offerMap);
-
-console.log("🔥 offers:", offerMap);
     }catch(err){
       console.log("❌ LOAD ERROR",err);
+      setLoading(false);
     }
   };
-{/* 🔍 SEARCH */}
-<div
-  style={{
-    background: theme?.searchBg || "#ffffff10",
-    color: theme?.searchText || "#fff",
-    borderColor: theme?.searchBorder || "#ffffff20"
-  }}
-  className="rounded-xl p-2 border backdrop-blur-md"
->
-  <SearchBar search={search} setSearch={setSearch} />
-</div>
 
-{/* 🔥 TRENDING */}
-<div
-  style={{
-    background: theme?.trendingBg || "#ffffff10",
-    color: theme?.trendingText || "#fff"
-  }}
-  className="rounded-xl shadow p-3 backdrop-blur-md"
->
-  <p className="text-sm font-semibold mb-2">🔥 Trending</p>
+  // 🔍 SEARCH
+  const normalize = (text:string)=>
+    text?.toLowerCase().replace(/\s|-/g,"");
 
-  <div className="flex flex-wrap gap-2">
-    {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
-      <button
-        key={item}
-        style={{
-          background: theme?.trendingChipBg || "#ffffff20",
-          color: theme?.trendingChipText || "#fff"
-        }}
-        className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
-      >
-        {item}
-      </button>
-    ))}
-  </div>
-</div>
+  const filteredProducts = products.filter(p=>{
+    const matchSearch = normalize(p.name).includes(normalize(search));
+    const matchCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
+    return matchSearch && matchCategory;
+  });
 
-{/* 📦 CATEGORY (SAFE) */}
-{Array.isArray(categories) && (
-  <CategoryList
-    categories={categories}
-    selectedCategory={selectedCategory}
-    setSelectedCategory={setSelectedCategory}
-  />
-)}
+  // 🎨 BG
+  const backgroundStyle = theme?.gradient
+    ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
+    : theme?.background || "#0f172a";
 
-{/* 🖼️ BANNER (FIXED) */}
-{Array.isArray(banners) && banners.length > 0 && (
-  <BannerSlider banners={banners} />
-)}
+  return(
+    <div
+      style={{ background: backgroundStyle }}
+      className="min-h-screen pb-[80px] transition-all duration-300"
+    >
 
-{/* ⚡ FLASH (SAFE) */}
-{typeof FlashSale === "function" && <FlashSale />}
+      <Header theme={theme}/>
 
-{/* 🎉 FESTIVAL (SAFE) */}
-{festival?.active && (
-  <FestivalBanner festival={festival} />
-)}
-  
-{/* PRODUCTS */}
+      <div className="pt-[80px] px-4 space-y-4">
 
-{Array.isArray(lightning) && lightning.length > 0 && (
-  <ProductGrid
-    title="⚡ Lightning Deals"
-    products={lightning.map((p) => {
-      const productId = p?.id || p?._id || "";
-      const d = offers?.[productId] || 0;
-      const price = Number(p?.price) || 0;
+        {/* SEARCH */}
+        <div className="rounded-xl p-2 border backdrop-blur-md">
+          <SearchBar search={search} setSearch={setSearch}/>
+        </div>
 
-      return {
-        ...p,
-        id: productId,
-        originalPrice: price,
-        price: Math.max(0, Math.round(price - (price * d) / 100)),
-        discountPercent: d,
-      };
-    })}
-    theme={theme}
-  />
-)}
+        {/* 🔥 TRENDING CLICKABLE */}
+        <div className="rounded-xl shadow p-3 backdrop-blur-md">
+          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
 
-{Array.isArray(trending) && trending.length > 0 && (
-  <ProductGrid
-    title="🔥 Trending"
-    products={trending.map((p) => {
-      const productId = p?.id || p?._id || "";
-      const d = offers?.[productId] || 0;
-      const price = Number(p?.price) || 0;
+          <div className="flex flex-wrap gap-2">
+            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
+              <button
+                key={item}
+                onClick={()=>setSearch(item)}
+                className="px-3 py-1 rounded-full text-xs bg-white/20 hover:bg-white/30 transition"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      return {
-        ...p,
-        id: productId,
-        originalPrice: price,
-        price: Math.max(0, Math.round(price - (price * d) / 100)),
-        discountPercent: d,
-      };
-    })}
-    theme={theme}
-  />
-)}
+        {/* CATEGORY */}
+        <CategoryList
+          categories={categories}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+        />
 
-{Array.isArray(clearance) && clearance.length > 0 && (
-  <ProductGrid
-    title="⚡ Clearance"
-    products={clearance.map((p) => {
-      const productId = p?.id || p?._id || "";
-      const d = offers?.[productId] || 0;
-      const price = Number(p?.price) || 0;
+        {/* ✅ FIXED BANNER */}
+        {Array.isArray(banners) && banners.length > 0 && (
+          <BannerSlider banners={banners} />
+        )}
 
-      return {
-        ...p,
-        id: productId,
-        originalPrice: price,
-        price: Math.max(0, Math.round(price - (price * d) / 100)),
-        discountPercent: d,
-      };
-    })}
-    theme={theme}
-  />
-)}
+        {/* FLASH */}
+        <FlashSale/>
 
-{Array.isArray(recommended) && recommended.length > 0 && (
-  <ProductGrid
-    title="⭐ Recommended"
-    products={recommended.map((p) => {
-      const productId = p?.id || p?._id || "";
-      const d = offers?.[productId] || 0;
-      const price = Number(p?.price) || 0;
+        {/* FESTIVAL */}
+        {festival?.active && (
+          <FestivalBanner festival={festival}/>
+        )}
 
-      return {
-        ...p,
-        id: productId,
-        originalPrice: price,
-        price: Math.max(0, Math.round(price - (price * d) / 100)),
-        discountPercent: d,
-      };
-    })}
-    theme={theme}
-  />
-)}
+        {/* 🔥 LOADING SKELETON */}
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {[1,2,3,4].map(i=>(
+              <div key={i} className="h-40 bg-white/10 animate-pulse rounded-xl"/>
+            ))}
+          </div>
+        ) : (
+          <>
+            <ProductGrid products={filteredProducts} theme={theme}/>
+            <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
+            <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
+            <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
+            <ProductGrid title="⭐ Recommended" products={recommended} theme={theme}/>
+          </>
+        )}
 
-</div>
+      </div>
 
-{/* 🔥 BOTTOM NAV */}
-<BottomNav theme={theme} />
+      <BottomNav theme={theme}/>
 
-</div>
-);
+    </div>
+  );
 }
