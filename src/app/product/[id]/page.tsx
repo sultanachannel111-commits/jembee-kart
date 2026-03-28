@@ -35,6 +35,8 @@ export default function ProductPage() {
   const [showViewer, setShowViewer] = useState(false);
 
   const [similar, setSimilar] = useState<any[]>([]);
+  // ✅ LINE 38 (YAHAN ADD KARO)
+  const [discount, setDiscount] = useState(0);
 
   // 🔥 NEW STATES
   const [pincode, setPincode] = useState("");
@@ -67,6 +69,44 @@ export default function ProductPage() {
 
     if (id) fetchProduct();
   }, [id]);
+  // 🔥 OFFER FETCH (LINE 72 PAR ADD KARO)
+useEffect(() => {
+  const fetchOffer = async () => {
+    try {
+      const snap = await getDocs(collection(db, "offers"));
+
+      const offers = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((o: any) =>
+          o.active &&
+          new Date(o.endDate).getTime() > Date.now()
+        );
+
+      const matched = offers.find((o: any) => {
+
+        if (o.type === "product" && o.productId === product?.id)
+          return true;
+
+        if (
+          o.type === "category" &&
+          o.category?.toLowerCase() === product?.category?.toLowerCase()
+        )
+          return true;
+
+        return false;
+      });
+
+      if (matched) {
+        setDiscount(Number(matched.discount || 0));
+      }
+
+    } catch (err) {
+      console.log("Offer error", err);
+    }
+  };
+
+  if (product) fetchOffer();
+}, [product]);
 
   // 🔥 AFFILIATE FIX
   useEffect(() => {
@@ -164,6 +204,12 @@ export default function ProductPage() {
     Number(variant?.sizes?.[0]?.price) ||
     Number(product?.price) ||
     0;
+  const finalPrice = Math.max(
+  1,
+  Math.round(price - (price * discount) / 100)
+);
+
+const stock = Number(selectedSize?.stock) || 0;
 
   const stock = Number(selectedSize?.stock) || 0;
 
