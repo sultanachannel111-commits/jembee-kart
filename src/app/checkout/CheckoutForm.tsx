@@ -104,6 +104,7 @@ const finalPrice = basePrice;
 
         snap.forEach(doc=>{
           const d = doc.data();
+          console.log("🔥 FIRESTORE ITEM:", d); //
           const basePrice =
   d.sellPrice ??
   d.price ??
