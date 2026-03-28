@@ -76,12 +76,15 @@ setOffers(offerMap);
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-  const basePrice =
-  parsed.sellPrice ??
+  const basePrice = (
   parsed.price ??
+  parsed.sellPrice ??
   parsed.finalPrice ??
+  parsed.originalPrice ??
+  parsed?.variations?.[0]?.sizes?.[0]?.price ??
   parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-  0;
+  0
+);
 
 const finalPrice = basePrice;
 
@@ -105,12 +108,15 @@ const finalPrice = basePrice;
         snap.forEach(doc=>{
           const d = doc.data();
           console.log("🔥 FIRESTORE ITEM:", d); //
-          const basePrice =
-  d.sellPrice ??
-  d.price ??
-  d.finalPrice ??
-  d?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-  0;
+          const basePrice = (
+    d.price ??                  
+    d.sellPrice ??              
+    d.finalPrice ??
+    d.originalPrice ??
+    d?.variations?.[0]?.sizes?.[0]?.price ??
+    d?.variations?.[0]?.sizes?.[0]?.sellPrice ??
+    0
+  );
 
 const finalPrice = basePrice;
 
