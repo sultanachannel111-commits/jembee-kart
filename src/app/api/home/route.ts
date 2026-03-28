@@ -29,12 +29,12 @@ export async function GET() {
       bannerSnap,
       productSnap,
       themeSnap,
-      festSnap
+      festSnap,
+      offerSnap
     ] = await Promise.all([
 
       getDocs(collection(db, "qikinkCategories")),
 
-      // ✅ FIXED (ORDER + QUERY)
       getDocs(
         query(collection(db, "banners"), orderBy("order", "asc"))
       ),
@@ -43,7 +43,9 @@ export async function GET() {
 
       getDoc(doc(db, "settings", "theme")),
 
-      getDoc(doc(db, "settings", "festival"))
+      getDoc(doc(db, "settings", "festival")),
+
+      getDocs(collection(db, "offers"))
     ]);
 
     // 🔥 CATEGORY
@@ -60,7 +62,7 @@ export async function GET() {
       })),
     ];
 
-    // 🔥 BANNERS (FILTER ACTIVE)
+    // 🔥 BANNERS
     const banners = bannerSnap.docs
       .map((d) => ({
         id: d.id,
@@ -68,7 +70,7 @@ export async function GET() {
       }))
       .filter((b: any) => b.active !== false);
 
-    // 🔥 PRICE FIX
+    // 🔥 PRICE FUNCTION (UNIVERSAL)
     const getPrice = (data: any) => {
       if (data?.variations?.length) {
         const v = data.variations[0];
@@ -81,14 +83,76 @@ export async function GET() {
       return data?.price || 0;
     };
 
-    // 🔥 PRODUCTS
+    // 🔥 ACTIVE OFFERS
+    const activeOffers = offerSnap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter(
+        (o: any) =>
+          o.active &&
+          new Date(o.endDate).getTime() > Date.now()
+      );
+
+    // 🔥 APPLY OFFER (CORE LOGIC)
+    const applyOffer = (product: any) => {
+
+      const basePrice = getPrice(product);
+
+      if (basePrice <= 0) {
+        return {
+          ...product,
+          price: 0
+        };
+      }
+
+      const matchedOffer = activeOffers.find((o: any) => {
+
+        // product match
+        if (
+          o.type === "product" &&
+          o.productId?.trim() === product.id?.trim()
+        ) return true;
+
+        // category match
+        if (
+          o.type === "category" &&
+          o.category?.toLowerCase().trim() ===
+          product.category?.toLowerCase().trim()
+        ) return true;
+
+        return false;
+      });
+
+      // ❌ no offer
+      if (!matchedOffer) {
+        return {
+          ...product,
+          price: basePrice
+        };
+      }
+
+      const discount = Number(matchedOffer.discount || 0);
+
+      const finalPrice = Math.max(
+        1,
+        Math.round(basePrice - (basePrice * discount) / 100)
+      );
+
+      return {
+        ...product,
+        price: finalPrice,
+        originalPrice: basePrice,
+        discount
+      };
+    };
+
+    // 🔥 PRODUCTS WITH OFFER
     const products = productSnap.docs.map((d) => {
       const data = d.data();
-      return {
+
+      return applyOffer({
         id: d.id,
-        ...data,
-        price: getPrice(data),
-      };
+        ...data
+      });
     });
 
     // 🔥 THEME
@@ -115,6 +179,7 @@ export async function GET() {
           "public, s-maxage=120, stale-while-revalidate=300",
       },
     });
+
   } catch (err) {
     console.log("❌ API ERROR:", err);
 
