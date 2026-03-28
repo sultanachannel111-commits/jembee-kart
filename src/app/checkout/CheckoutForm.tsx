@@ -142,7 +142,7 @@ setCodUnlocked(true); // ✅ LINE 125 (YAHI ADD KARO)
 
     return ()=>unsub();
 
-  },[offers]);
+  },[]);
   // 👇 YAHI ADD KARO
 const saveAddress = async () => {
   if (!user) return;
