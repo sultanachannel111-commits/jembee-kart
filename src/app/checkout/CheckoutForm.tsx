@@ -307,7 +307,7 @@ const finalTotal = total + COD_CHARGE;
           {items.map(item => (
   <div key={item.id} className="flex justify-between text-sm mb-2">
     <span>{item.name} × {item.quantity}</span>
-    <span>₹{item.price * (item.quantity || 1)}</span>
+    <span>₹{getFinalPrice(item) * (item.quantity || 1)}</span>
   </div>
 ))}
 
