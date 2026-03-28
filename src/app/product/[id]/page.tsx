@@ -211,8 +211,6 @@ useEffect(() => {
 
 const stock = Number(selectedSize?.stock) || 0;
 
-  const stock = Number(selectedSize?.stock) || 0;
-
   // 🛒 CART
   const handleAddToCart = async () => {
   if (!user) return router.push(`/login?redirect=/product/${id}`);
