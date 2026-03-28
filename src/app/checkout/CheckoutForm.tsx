@@ -107,20 +107,6 @@ setOffers(offerMap);
 
         setItems(data);
       }
-
-      // 🔥 COD CHECK
-      const orderSnap = await getDocs(
-        query(
-          collection(db,"orders"),
-          where("userId","==",u.uid)
-        )
-      );
-
-      const paidOrders = orderSnap.docs.filter(
-        (doc:any)=> doc.data().paymentStatus === "success"
-      );
-
-setCodUnlocked(true); // ✅ LINE 125 (YAHI ADD KARO)
     });
 
     return ()=>unsub();
@@ -138,10 +124,10 @@ const saveAddress = async () => {
     { merge: true }
   );
 };
-const COD_CHARGE = 80;
 
 /* 🔥 TOTAL SAFE */
 const total = items.reduce(
+
   (sum,i)=> sum + (getFinalPrice(i, offers) * (i.quantity || 1)),
   0
 );
@@ -155,11 +141,17 @@ const total = items.reduce(
 
   return sum + Math.max(0, base - sell);
 }, 0);
+    // ✅ SHIPPING TOTAL (PRODUCT WISE)
+const shippingTotal = items.reduce(
+  (sum, item) => sum + ((item.shippingCharge || 0) * (item.quantity || 1)),
+  0
+);
 
-const totalSaving = discount + COD_CHARGE;
-
+// ✅ COD FINAL TOTAL
+const codTotal = total + shippingTotal;
   /* 🔥 ONLINE PAYMENT */
   const placeOrder = async()=>{
+    setCodChecked(false);
     if(customer.firstName && customer.phone){
   await saveAddress();
 }
@@ -219,6 +211,7 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
   /* 🔥 COD ORDER */
   const placeCOD = async()=>{
+    setCodChecked(true);
     if(customer.firstName && customer.phone){
   await saveAddress();
 }
@@ -253,7 +246,7 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const profit = sellPrice - basePrice;
     const commission = Math.max(0, Math.round(profit * 0.5));
-const finalTotal = total + COD_CHARGE;
+const finalTotal = codTotal;
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -309,19 +302,18 @@ const finalTotal = total + COD_CHARGE;
   </div>
 ))}
 
-{/* 🔥 SHIPPING */}
 <div className="flex justify-between text-sm mt-3">
   <span className="text-gray-600">Shipping</span>
-  <span className="text-green-600 font-semibold">
-    FREE 🚚
+  <span className="text-orange-600 font-semibold">
+    {shippingTotal > 0 ? `₹${shippingTotal}` : "FREE 🚚"}
   </span>
 </div>
 
-
 {/* 🔥 TOTAL */}
 <div className="border-t mt-3 pt-3 flex justify-between font-bold">
-  <span>Total</span>
-  <span className="text-lg text-green-600">₹{total}</span>
+  <span className="text-lg text-green-600">
+  ₹{codChecked ? codTotal : total}
+</span>
 </div>
 
         </div>
