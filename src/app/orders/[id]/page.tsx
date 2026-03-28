@@ -93,7 +93,7 @@ export default function OrderDetailsPage() {
           {order.items?.map((item: any, i: number) => (
             <div key={i} className="flex justify-between bg-gray-50 p-2 rounded-lg">
               <span>{item.name} × {item.quantity}</span>
-              <span>₹{item.price * (item.quantity || 1)}</span>
+              <span>₹{getFinalPrice(item) * (item.quantity || 1)}</span>
             </div>
           ))}
         </div>
