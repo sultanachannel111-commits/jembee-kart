@@ -221,7 +221,9 @@ const stock = Number(selectedSize?.stock) || 0;
     name: product.name,
     image: images?.[0] || "",
     size: selectedSize.size,
-    price: price,
+    price: finalPrice,
+originalPrice: price,
+discount: discount,
     quantity: 1,
   });
 
