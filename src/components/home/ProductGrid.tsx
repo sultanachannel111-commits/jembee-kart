@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Heart, Star, Flame } from "lucide-react";
-import { getFinalPrice } from "@/lib/priceCalculator";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
 import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebase";
