@@ -82,10 +82,9 @@ setOffers(offerMap);
         console.log("🔥 FINAL PRICE:", finalPrice);
 
         setItems([{
-          ...parsed,
-          quantity: parsed.quantity || 1,
-          price: Number(finalPrice)
-        }]);
+  ...parsed,
+  quantity: parsed.quantity || 1
+}]);
 
       } else {
         // 🛒 CART LOAD
@@ -100,11 +99,10 @@ setOffers(offerMap);
           console.log("🔥 FIRESTORE ITEM:", d); //
           const finalPrice = getFinalPrice(d);
           data.push({
-            id:doc.id,
-            ...d,
-            quantity: d.quantity || 1,
-            price: Number(finalPrice)
-          });
+  id:doc.id,
+  ...d,
+  quantity: d.quantity || 1
+});
         });
 
         setItems(data);
