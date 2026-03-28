@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
 export default function CheckoutPage(){
 
@@ -76,18 +77,7 @@ setOffers(offerMap);
         const parsed = JSON.parse(buyNow);
 
         // ✅ FINAL PRICE FIX
-  const basePrice = (
-  parsed.price ??
-  parsed.sellPrice ??
-  parsed.finalPrice ??
-  parsed.originalPrice ??
-  parsed?.variations?.[0]?.sizes?.[0]?.price ??
-  parsed?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-  0
-);
-
-const finalPrice = basePrice;
-
+  const finalPrice = getFinalPrice(parsed);
         console.log("🔥 BUY NOW:", parsed);
         console.log("🔥 FINAL PRICE:", finalPrice);
 
@@ -108,18 +98,7 @@ const finalPrice = basePrice;
         snap.forEach(doc=>{
           const d = doc.data();
           console.log("🔥 FIRESTORE ITEM:", d); //
-          const basePrice = (
-    d.price ??                  
-    d.sellPrice ??              
-    d.finalPrice ??
-    d.originalPrice ??
-    d?.variations?.[0]?.sizes?.[0]?.price ??
-    d?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-    0
-  );
-
-const finalPrice = basePrice;
-
+          const finalPrice = getFinalPrice(d);
           data.push({
             id:doc.id,
             ...d,
