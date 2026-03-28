@@ -355,7 +355,7 @@ const handleBuyNow = async () => {
         <h1 className="text-xl font-bold mt-4">{product.name}</h1>
 
         <div className="mt-2 text-3xl font-bold text-green-600">
-          ₹{price}
+          ₹{finalPrice}
         </div>
 
         {/* ⭐ TRUST LINE */}
