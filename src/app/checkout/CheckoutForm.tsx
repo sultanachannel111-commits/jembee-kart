@@ -23,20 +23,15 @@ export default function CheckoutPage(){
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
 
-  const [showPaymentPage,setShowPaymentPage] = useState(false);
+  const [showPayment,setShowPayment] = useState(false);
   const [paymentMethod,setPaymentMethod] = useState("online");
 
   const [offers,setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
-    lastName:"",
-    address:"",
-    city:"",
-    state:"",
-    zip:"",
     phone:"",
-    email:""
+    address:""
   });
 
   useEffect(()=>{
@@ -64,39 +59,30 @@ export default function CheckoutPage(){
 
       if(buyNow){
         const parsed = JSON.parse(buyNow);
-        setItems([{...parsed,quantity:parsed.quantity || 1}]);
-      }else{
-        const snap = await getDocs(collection(db,"carts",u.uid,"items"));
-        const data:any[]=[];
-        snap.forEach(doc=>{
-          const d = doc.data();
-          data.push({
-            id:doc.id,
-            ...d,
-            quantity:d.quantity || 1
-          });
-        });
-        setItems(data);
+        setItems([{...parsed,quantity:1}]);
       }
+
     });
 
     return ()=>unsub();
 
   },[]);
 
-  const saveAddress = async ()=>{
-    if(!user) return;
-    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
-  };
-
   const total = items.reduce(
     (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),0
   );
 
+  // ✅ AUTO DISCOUNT (MEESHO STYLE)
   const discount = items.reduce((sum,item)=>{
-    const base = item?.price || 0;
-    const sell = getFinalPrice(item,offers);
-    return sum + Math.max(0,base - sell);
+
+    const original =
+      item?.variations?.[0]?.sizes?.[0]?.price ||
+      item?.price || 0;
+
+    const final = getFinalPrice(item,offers);
+
+    return sum + Math.max(0, original - final);
+
   },0);
 
   const shippingTotal = items.reduce(
@@ -105,14 +91,13 @@ export default function CheckoutPage(){
 
   const codTotal = total + shippingTotal;
 
-  /* 💳 ONLINE */
   const placeOrder = async()=>{
+
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
 
-    await saveAddress();
     setLoading(true);
 
     const res = await fetch("/api/cashfree/create-order",{
@@ -126,7 +111,6 @@ export default function CheckoutPage(){
     });
 
     const data = await res.json();
-
     const cashfree = await load({mode:"production"});
 
     await cashfree.checkout({
@@ -137,14 +121,13 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  /* 🚚 COD */
   const placeCOD = async()=>{
+
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
 
-    await saveAddress();
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -167,23 +150,24 @@ export default function CheckoutPage(){
 <div className="max-w-xl mx-auto">
 
 {/* STEP 1 */}
-{!showPaymentPage && (
-
+{!showPayment && (
 <>
-<h1 className="text-2xl font-bold text-center mb-4">
-Review Order
+<h1 className="text-xl font-bold text-center mb-3">
+REVIEW YOUR ORDER
 </h1>
 
-{/* OFFER */}
-<div className="bg-green-100 text-green-700 p-3 rounded mb-3 text-center font-semibold">
+{/* OFF */}
+{discount > 0 && (
+<div className="bg-green-100 text-green-700 p-2 rounded mb-3 text-center">
 ₹{discount} OFF on this order 🎉
 </div>
+)}
 
 {/* PRODUCT */}
 <div className="bg-white p-4 rounded-xl mb-4">
 {items.map(item=>(
-<div key={item.id} className="flex justify-between mb-2">
-<span>{item.name} × {item.quantity}</span>
+<div key={item.id} className="flex justify-between">
+<span>{item.name}</span>
 <span>₹{getFinalPrice(item,offers)}</span>
 </div>
 ))}
@@ -192,7 +176,7 @@ Review Order
 {/* TOTAL */}
 <div className="bg-white p-4 rounded-xl mb-4">
 <div className="flex justify-between">
-<span>Product</span>
+<span>Price</span>
 <span>₹{total}</span>
 </div>
 
@@ -201,7 +185,7 @@ Review Order
 <span>-₹{discount}</span>
 </div>
 
-<div className="flex justify-between font-bold mt-2">
+<div className="flex justify-between font-bold">
 <span>Total</span>
 <span>₹{total}</span>
 </div>
@@ -229,10 +213,10 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
 <button
-onClick={()=>setShowPaymentPage(true)}
-className="w-full py-4 rounded-xl text-white text-lg font-semibold bg-gradient-to-r from-green-500 to-lime-500"
+onClick={()=>setShowPayment(true)}
+className="w-full py-3 bg-purple-600 text-white rounded"
 >
-💎 Premium Checkout • ₹{total}
+Continue
 </button>
 
 </div>
@@ -240,57 +224,41 @@ className="w-full py-4 rounded-xl text-white text-lg font-semibold bg-gradient-t
 )}
 
 {/* STEP 2 PAYMENT */}
-{showPaymentPage && (
+{showPayment && (
 
 <div className="bg-white p-4 rounded-xl">
 
-<h2 className="text-lg font-semibold mb-3">
-Select payment method
-</h2>
+<h2 className="font-semibold mb-2">Select payment method</h2>
 
-{/* OFF */}
+{discount > 0 && (
 <div className="bg-green-100 text-green-700 p-2 rounded mb-3 text-center">
 ₹{discount} OFF applied 🎉
 </div>
+)}
 
-{/* COD */}
 <div
 onClick={()=>setPaymentMethod("cod")}
-className={`p-3 rounded border mb-2 cursor-pointer ${
-paymentMethod==="cod" && "border-green-500"
-}`}
+className={`p-3 border rounded mb-2 ${paymentMethod==="cod" && "border-green-500"}`}
 >
 ₹{codTotal} Cash on Delivery
 </div>
 
-{/* FRIEND PAY */}
-<div className="p-3 border rounded mb-2">
-₹{total} Ask Friends to Pay 🤝
-</div>
-
-{/* ONLINE */}
 <div
 onClick={()=>setPaymentMethod("online")}
-className={`p-3 rounded border mb-2 cursor-pointer ${
-paymentMethod==="online" && "border-green-500"
-}`}
+className={`p-3 border rounded mb-2 ${paymentMethod==="online" && "border-green-500"}`}
 >
-₹{total} Pay Online 💳
-<div className="text-xs text-green-600 mt-1">
-Extra ₹10 OFF with UPI ⚡
-</div>
+₹{total} Pay Online
 </div>
 
-{/* PLACE ORDER */}
 <button
 onClick={paymentMethod==="cod" ? placeCOD : placeOrder}
-className="w-full py-3 bg-purple-600 text-white rounded mt-4"
+className="w-full py-3 bg-purple-600 text-white rounded mt-3"
 >
 Place Order ₹{paymentMethod==="cod" ? codTotal : total}
 </button>
 
 <button
-onClick={()=>setShowPaymentPage(false)}
+onClick={()=>setShowPayment(false)}
 className="w-full mt-2 text-gray-500"
 >
 ← Back
