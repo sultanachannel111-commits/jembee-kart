@@ -9,8 +9,6 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
-  query,
-  where,
   doc,
   getDoc,
   setDoc
@@ -24,9 +22,11 @@ export default function CheckoutPage(){
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [codUnlocked,setCodUnlocked] = useState(true);
-  const [codChecked, setCodChecked] = useState(false);
-  const [offers, setOffers] = useState<any>({});
+
+  const [showPaymentPage,setShowPaymentPage] = useState(false);
+  const [paymentMethod,setPaymentMethod] = useState("online");
+
+  const [offers,setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -39,73 +39,43 @@ export default function CheckoutPage(){
     email:""
   });
 
-  const refCode =
-    typeof window !== "undefined"
-      ? localStorage.getItem("affiliate")
-      : null;
-
-  /* 🔥 LOAD CART + BUY NOW FIXED */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
 
       setUser(u);
-      // 🔥 AUTO LOAD ADDRESS
-const userDoc = await getDoc(doc(db, "users", u.uid));
 
-if (userDoc.exists()) {
-  const data = userDoc.data();
-  if (data.address) {
-    setCustomer(data.address);
-  }
-}
-      // 🔥 FETCH OFFERS
-const offerSnap = await getDocs(collection(db, "offers"));
+      const userDoc = await getDoc(doc(db,"users",u.uid));
+      if(userDoc.exists()){
+        const data = userDoc.data();
+        if(data.address) setCustomer(data.address);
+      }
 
-const offerMap:any = {};
-
-offerSnap.forEach(doc => {
-  const data = doc.data();
-  offerMap[data.productId] = data.discount;
-});
-
-setOffers(offerMap);
+      const offerSnap = await getDocs(collection(db,"offers"));
+      const offerMap:any = {};
+      offerSnap.forEach(doc=>{
+        const d = doc.data();
+        offerMap[d.productId] = d.discount;
+      });
+      setOffers(offerMap);
 
       const buyNow = localStorage.getItem("buy-now");
 
       if(buyNow){
         const parsed = JSON.parse(buyNow);
-
-        // ✅ FINAL PRICE FIX
-  const finalPrice = getFinalPrice(parsed, offerMap);
-        console.log("🔥 BUY NOW:", parsed);
-        console.log("🔥 FINAL PRICE:", finalPrice);
-
-        setItems([{
-  ...parsed,
-  quantity: parsed.quantity || 1
-}]);
-
-      } else {
-        // 🛒 CART LOAD
-        const snap = await getDocs(
-          collection(db,"carts",u.uid,"items")
-        );
-
-        const data:any[] = [];
-
+        setItems([{...parsed,quantity:parsed.quantity || 1}]);
+      }else{
+        const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+        const data:any[]=[];
         snap.forEach(doc=>{
           const d = doc.data();
-          console.log("🔥 FIRESTORE ITEM:", d); //
-          const finalPrice = getFinalPrice(d, offerMap);
           data.push({
-  id:doc.id,
-  ...d,
-  quantity: d.quantity || 1
-});
+            id:doc.id,
+            ...d,
+            quantity:d.quantity || 1
+          });
         });
-
         setItems(data);
       }
     });
@@ -113,77 +83,43 @@ setOffers(offerMap);
     return ()=>unsub();
 
   },[]);
-  // 👇 YAHI ADD KARO
-const saveAddress = async () => {
-  if (!user) return;
 
-  await setDoc(
-    doc(db, "users", user.uid),
-    {
-      address: customer
-    },
-    { merge: true }
+  const saveAddress = async ()=>{
+    if(!user) return;
+    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
+  };
+
+  const total = items.reduce(
+    (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),0
   );
-};
 
-/* 🔥 TOTAL SAFE */
-const total = items.reduce(
+  const discount = items.reduce((sum,item)=>{
+    const base = item?.price || 0;
+    const sell = getFinalPrice(item,offers);
+    return sum + Math.max(0,base - sell);
+  },0);
 
-  (sum,i)=> sum + (getFinalPrice(i, offers) * (i.quantity || 1)),
-  0
-);
-  const discount = items.reduce((sum, item) => {
-  const base =
-    item?.variations?.[0]?.sizes?.[0]?.price || 0;
+  const shippingTotal = items.reduce(
+    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),0
+  );
 
-  const sell =
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-   getFinalPrice(item, offers)
+  const codTotal = total + shippingTotal;
 
-  return sum + Math.max(0, base - sell);
-}, 0);
-    // ✅ SHIPPING TOTAL (PRODUCT WISE)
-const shippingTotal = items.reduce(
-  (sum, item) => sum + ((item.shippingCharge || 0) * (item.quantity || 1)),
-  0
-);
-
-// ✅ COD FINAL TOTAL
-const codTotal = total + shippingTotal;
-  /* 🔥 ONLINE PAYMENT */
+  /* 💳 ONLINE */
   const placeOrder = async()=>{
-    setCodChecked(false);
-    if(customer.firstName && customer.phone){
-  await saveAddress();
-}
-
     if(!customer.firstName || !customer.phone){
-      alert("Please fill details");
+      alert("Fill details");
       return;
     }
 
-    if(total <= 0){
-      alert("Invalid amount ❌");
-      return;
-    }
-
+    await saveAddress();
     setLoading(true);
-    // ✅ TEMP ORDER SAVE (IMPORTANT)
-const tempOrder = {
-  userId: user.uid,
-  items,
-  total,
-  customer,
-  paymentMethod: "online"
-};
-
-localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const res = await fetch("/api/cashfree/create-order",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
-        orderId: "temp_" + Date.now(),
+        orderId:"order_"+Date.now(),
         amount:total,
         customer
       })
@@ -191,258 +127,181 @@ localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const data = await res.json();
 
-    if(!data.payment_session_id){
-      alert("Payment failed ❌");
-      setLoading(false);
-      return;
-    }
-
-    const cashfree = await load({ mode:"production" });
+    const cashfree = await load({mode:"production"});
 
     await cashfree.checkout({
       paymentSessionId:data.payment_session_id,
       redirectTarget:"_self"
     });
 
-    // ✅ BUY NOW CLEAR
-    localStorage.removeItem("buy-now");
-
     setLoading(false);
   };
 
-  /* 🔥 COD ORDER */
+  /* 🚚 COD */
   const placeCOD = async()=>{
-    setCodChecked(true);
-    if(customer.firstName && customer.phone){
-  await saveAddress();
-}
-
-    let sellerId = null;
-
-    if (refCode) {
-      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
-      if (snap.exists()) {
-        sellerId = snap.data().sellerId;
-      }
-    }
-
     if(!customer.firstName || !customer.phone){
-      alert("Please fill details");
+      alert("Fill details");
       return;
     }
 
-    if(items.length === 0){
-      alert("Cart empty ❌");
-      return;
-    }
-
-    const firstItem = items[0];
-
-    const sellPrice =
-      firstItem?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      firstItem?.price || 0;
-
-    const basePrice =
-      firstItem?.variations?.[0]?.sizes?.[0]?.basePrice || 0;
-
-    const profit = sellPrice - basePrice;
-    const commission = Math.max(0, Math.round(profit * 0.5));
-const finalTotal = codTotal;
+    await saveAddress();
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-
-      userId: user.uid,
-      productId: firstItem?.id,
-
-      sellerId: sellerId || null,
-      affiliateCode: refCode || null,
-
-      sellPrice,
-      basePrice,
-      commission,
-
+      userId:user.uid,
       items,
-      total: finalTotal,
+      total:codTotal,
       customer,
-
       paymentMethod:"cod",
-      paymentStatus:"pending",
       status:"placed",
-
       createdAt:serverTimestamp()
     });
 
-    alert("Order placed (COD) ✅");
-
-    // ✅ BUY NOW CLEAR
-    localStorage.removeItem("buy-now");
-
+    alert("Order placed ✅");
     setLoading(false);
   };
 
   return(
 
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 p-4">
+<div className="min-h-screen bg-gray-100 p-4">
+<div className="max-w-xl mx-auto">
 
-      <div className="max-w-xl mx-auto">
+{/* STEP 1 */}
+{!showPaymentPage && (
 
-        <h1 className="text-3xl font-bold text-center mb-4">
-          Checkout 🛍️
-        </h1>
+<>
+<h1 className="text-2xl font-bold text-center mb-4">
+Review Order
+</h1>
 
-        {/* 🔥 SUMMARY */}
-        <div className="bg-white rounded-2xl shadow p-4 mb-4">
+{/* OFFER */}
+<div className="bg-green-100 text-green-700 p-3 rounded mb-3 text-center font-semibold">
+₹{discount} OFF on this order 🎉
+</div>
 
-          <h2 className="font-semibold mb-3">Order Summary</h2>
-
-          {items.map(item => (
-  <div key={item.id} className="flex justify-between text-sm mb-2">
-    <span>{item.name} × {item.quantity}</span>
-    <span>₹{getFinalPrice(item, offers) * (item.quantity || 1)}</span>
-  </div>
+{/* PRODUCT */}
+<div className="bg-white p-4 rounded-xl mb-4">
+{items.map(item=>(
+<div key={item.id} className="flex justify-between mb-2">
+<span>{item.name} × {item.quantity}</span>
+<span>₹{getFinalPrice(item,offers)}</span>
+</div>
 ))}
-
-<div className="flex justify-between text-sm mt-3">
-  <span className="text-gray-600">Shipping</span>
-  <span className="text-orange-600 font-semibold">
-    {shippingTotal > 0 ? `₹${shippingTotal}` : "FREE 🚚"}
-  </span>
 </div>
 
-{/* 🔥 TOTAL */}
-<div className="border-t mt-3 pt-3 flex justify-between font-bold">
-  <span className="text-lg text-green-600">
-  ₹{codChecked ? codTotal : total}
-</span>
+{/* TOTAL */}
+<div className="bg-white p-4 rounded-xl mb-4">
+<div className="flex justify-between">
+<span>Product</span>
+<span>₹{total}</span>
 </div>
 
-        </div>
-
-        {/* 🔥 FORM */}
-        <div className="bg-white rounded-2xl shadow p-5 space-y-4">
-
-          <h2 className="font-semibold">Delivery Details</h2>
-
-          <div className="grid grid-cols-2 gap-3">
-  <input
-    value={customer.firstName}
-    placeholder="First Name"
-    className="p-3 rounded-xl border"
-    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-  />
-  <input
-    value={customer.lastName}
-    placeholder="Last Name"
-    className="p-3 rounded-xl border"
-    onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
-  />
+<div className="flex justify-between text-green-600">
+<span>Discount</span>
+<span>-₹{discount}</span>
 </div>
 
-<textarea
-  value={customer.address}
-  placeholder="Full Address"
-  className="p-3 rounded-xl border w-full"
-  onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-/>
-
-<div className="grid grid-cols-2 gap-3">
-  <input
-    value={customer.city}
-    placeholder="City"
-    className="p-3 rounded-xl border"
-    onChange={(e)=>setCustomer({...customer,city:e.target.value})}
-  />
-  <input
-    value={customer.state}
-    placeholder="State"
-    className="p-3 rounded-xl border"
-    onChange={(e)=>setCustomer({...customer,state:e.target.value})}
-  />
+<div className="flex justify-between font-bold mt-2">
+<span>Total</span>
+<span>₹{total}</span>
+</div>
 </div>
 
-<input
-  value={customer.zip}
-  placeholder="Pin Code"
-  className="p-3 rounded-xl border w-full"
-  onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+{/* ADDRESS */}
+<div className="bg-white p-4 rounded-xl space-y-3">
+
+<input placeholder="Name"
+className="w-full p-2 border rounded"
+value={customer.firstName}
+onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
 />
 
-<input
-  value={customer.phone}
-  placeholder="Phone Number"
-  className="p-3 rounded-xl border w-full"
-  onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+<input placeholder="Phone"
+className="w-full p-2 border rounded"
+value={customer.phone}
+onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
-<input
-  value={customer.email}
-  placeholder="Email"
-  className="p-3 rounded-xl border w-full"
-  onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+<textarea placeholder="Address"
+className="w-full p-2 border rounded"
+value={customer.address}
+onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
-          {/* 🔥 PAY */}
 <button
-  onClick={placeOrder}
-  className="w-full py-4 rounded-2xl text-white font-semibold text-lg 
-             bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500 
-             shadow-xl active:scale-95 transition-all duration-200"
+onClick={()=>setShowPaymentPage(true)}
+className="w-full py-4 rounded-xl text-white text-lg font-semibold bg-gradient-to-r from-green-500 to-lime-500"
 >
-  {loading ? (
-    "⏳ Processing..."
-  ) : (
-    <div className="flex flex-col items-center leading-tight">
-      
-      {/* 💎 Main Premium Text */}
-      <span className="text-lg font-bold tracking-wide">
-        💎 Premium Checkout
-      </span>
-
-      {/* 💰 Price */}
-      <span className="text-xl">
-        Pay ₹{codChecked ? codTotal : total}
-      </span>
-
-      {/* 🏷️ Extra Info */}
-      <span className="text-xs opacity-90 mt-1">
-        {codChecked
-          ? shippingTotal > 0
-            ? `Includes ₹${shippingTotal} COD shipping 🚚`
-            : "Free COD Shipping 🚚"
-          : "Free Delivery ⚡"}
-      </span>
-
-      {/* 💸 Discount */}
-      {discount > 0 && (
-        <span className="text-xs text-yellow-200 mt-1">
-          🎉 You save ₹{discount}
-        </span>
-      )}
-      
-    </div>
-  )}
+💎 Premium Checkout • ₹{total}
 </button>
 
-          {/* 🔥 COD */}
-          <button
-            onClick={placeCOD}
-            disabled={!codUnlocked}
-            className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
-              codUnlocked
-                ? "bg-black"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-          >
-            {codUnlocked
-              ? "Cash on Delivery"
-              : "COD Locked (2 prepaid orders required)"}
-          </button>
+</div>
+</>
+)}
 
-        </div>
+{/* STEP 2 PAYMENT */}
+{showPaymentPage && (
 
-      </div>
+<div className="bg-white p-4 rounded-xl">
 
-    </div>
+<h2 className="text-lg font-semibold mb-3">
+Select payment method
+</h2>
+
+{/* OFF */}
+<div className="bg-green-100 text-green-700 p-2 rounded mb-3 text-center">
+₹{discount} OFF applied 🎉
+</div>
+
+{/* COD */}
+<div
+onClick={()=>setPaymentMethod("cod")}
+className={`p-3 rounded border mb-2 cursor-pointer ${
+paymentMethod==="cod" && "border-green-500"
+}`}
+>
+₹{codTotal} Cash on Delivery
+</div>
+
+{/* FRIEND PAY */}
+<div className="p-3 border rounded mb-2">
+₹{total} Ask Friends to Pay 🤝
+</div>
+
+{/* ONLINE */}
+<div
+onClick={()=>setPaymentMethod("online")}
+className={`p-3 rounded border mb-2 cursor-pointer ${
+paymentMethod==="online" && "border-green-500"
+}`}
+>
+₹{total} Pay Online 💳
+<div className="text-xs text-green-600 mt-1">
+Extra ₹10 OFF with UPI ⚡
+</div>
+</div>
+
+{/* PLACE ORDER */}
+<button
+onClick={paymentMethod==="cod" ? placeCOD : placeOrder}
+className="w-full py-3 bg-purple-600 text-white rounded mt-4"
+>
+Place Order ₹{paymentMethod==="cod" ? codTotal : total}
+</button>
+
+<button
+onClick={()=>setShowPaymentPage(false)}
+className="w-full mt-2 text-gray-500"
+>
+← Back
+</button>
+
+</div>
+
+)}
+
+</div>
+</div>
+
   );
 }
