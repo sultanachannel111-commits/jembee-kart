@@ -15,14 +15,15 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [payment,setPayment] = useState<"cod"|"online">("online");
-  const [offers,setOffers] = useState<any>({});
+  const [codChecked, setCodChecked] = useState(false);
+  const [offers, setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -35,7 +36,7 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* 🔥 LOAD DATA */
+  /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
@@ -61,11 +62,10 @@ export default function CheckoutPage(){
       // cart
       const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
       const data:any[]=[];
-      cartSnap.forEach(docSnap=>{
-        const d = docSnap.data();
+      cartSnap.forEach(doc=>{
+        const d = doc.data();
         data.push({
-          id:docSnap.id,
-          productId:d.productId || docSnap.id, // 🔥 FIX
+          id:doc.id,
           ...d,
           quantity:d.quantity || 1
         });
@@ -77,61 +77,49 @@ export default function CheckoutPage(){
     return ()=>unsub();
   },[]);
 
-  /* 🔥 PRICE LOGIC */
-  const getOriginalPrice = (item:any)=>{
-    return (
-      item?.variations?.[0]?.sizes?.[0]?.price ||
-      item?.price ||
-      0
-    );
-  };
-
-  const getDiscountPercent = (item:any)=>{
-    return offers[item.productId] || 0;
-  };
-
-  const getSellingPrice = (item:any)=>{
-    const original = getOriginalPrice(item);
-    const percent = getDiscountPercent(item);
-
-    if(percent > 0){
-      return Math.round(original - (original * percent)/100);
-    }
-
-    return original;
-  };
-
   /* 💰 TOTAL */
-  const originalTotal = items.reduce(
-    (sum,i)=> sum + getOriginalPrice(i)*(i.quantity||1),0
-  );
-
   const total = items.reduce(
-    (sum,i)=> sum + getSellingPrice(i)*(i.quantity||1),0
+    (sum,i)=> sum + (getFinalPrice(i, offers)*(i.quantity||1)),
+    0
   );
 
-  const discount = originalTotal - total;
+  /* 💸 DISCOUNT */
+  const discount = items.reduce((sum,item)=>{
+    const base =
+      item?.variations?.[0]?.sizes?.[0]?.price || 0;
+
+    const sell =
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      getFinalPrice(item, offers);
+
+    return sum + Math.max(0, base - sell);
+  },0);
+
+  const originalTotal = total + discount;
 
   const discountPercent =
     originalTotal > 0
-      ? Math.round((discount/originalTotal)*100)
+      ? Math.round((discount / originalTotal) * 100)
       : 0;
 
   /* 🚚 SHIPPING */
   const shippingTotal = items.reduce(
-    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),0
+    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),
+    0
   );
 
   const codTotal = total + shippingTotal;
 
-  /* 💾 SAVE ADDRESS */
+  /* 💾 SAVE */
   const saveAddress = async ()=>{
     if(!user) return;
     await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
   };
 
   /* 💳 ONLINE */
-  const placeOnline = async()=>{
+  const placeOrder = async()=>{
+    setCodChecked(false);
+
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
@@ -163,6 +151,8 @@ export default function CheckoutPage(){
 
   /* 🚚 COD */
   const placeCOD = async()=>{
+    setCodChecked(true);
+
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
@@ -177,7 +167,6 @@ export default function CheckoutPage(){
       total:codTotal,
       customer,
       paymentMethod:"cod",
-      paymentStatus:"pending",
       status:"placed",
       createdAt:serverTimestamp()
     });
@@ -186,81 +175,96 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  const handlePlace = ()=>{
-    if(payment==="cod") placeCOD();
-    else placeOnline();
-  };
-
   return(
 <div className="min-h-screen bg-gray-100 pb-24">
 
 <div className="max-w-xl mx-auto p-4">
 
-{/* 🔥 OFFER BAR */}
-{discount > 0 && (
-<div className="bg-green-100 text-green-700 text-center py-2 rounded mb-3 font-semibold">
-₹{discount} OFF on this order 🎉
-</div>
-)}
+{/* 🔥 SUMMARY */}
+<div className="bg-white rounded-xl p-4 mb-4 shadow">
 
-{/* 🔥 PAYMENT */}
-<div className="bg-white rounded-xl p-4 space-y-3">
+<h2 className="font-semibold mb-3">Order Summary</h2>
 
-<h2 className="font-semibold text-lg">Select payment method</h2>
+{items.map(item => (
+  <div key={item.id} className="flex justify-between text-sm mb-2">
+    <span>{item.name} × {item.quantity}</span>
+    <span>₹{getFinalPrice(item, offers)*(item.quantity||1)}</span>
+  </div>
+))}
 
-{/* COD */}
-<div
-onClick={()=>setPayment("cod")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="cod" && "border-green-500"
-}`}
->
-<div className="flex justify-between">
-<span>₹{codTotal} Cash on Delivery 🚚</span>
-<input type="radio" checked={payment==="cod"} readOnly />
+<div className="flex justify-between mt-3 text-sm">
+  <span>Shipping</span>
+  <span className="text-green-600">
+    {shippingTotal > 0 ? `₹${shippingTotal}` : "FREE 🚚"}
+  </span>
 </div>
 
-{/* Meesho style */}
-<div className="text-sm mt-1 text-gray-600">
-<span className="line-through">₹{originalTotal}</span>{" "}
-<span className="text-green-600">{discountPercent}% OFF ₹{discount}</span>
-</div>
-
-<div className="text-green-600 text-sm">
-{shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
+<div className="border-t mt-3 pt-3 flex justify-between font-bold text-lg">
+  <span>Total</span>
+  <span>₹{codChecked ? codTotal : total}</span>
 </div>
 
 </div>
+
+{/* 🔥 PAYMENT BOX */}
+<div className="bg-white p-4 rounded-xl shadow mb-4">
+
+<h2 className="font-semibold mb-2">Payment</h2>
 
 {/* ONLINE */}
 <div
-onClick={()=>setPayment("online")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="online" && "border-green-500"
+onClick={()=>setCodChecked(false)}
+className={`p-3 border rounded mb-2 cursor-pointer ${
+!codChecked && "border-green-500"
 }`}
 >
 <div className="flex justify-between">
 <span>₹{total} Pay Online 💳</span>
-<input type="radio" checked={payment==="online"} readOnly />
+<input type="radio" checked={!codChecked} readOnly />
 </div>
 
-<div className="text-sm mt-1 text-gray-600">
+<div className="text-xs mt-1 text-gray-600">
 <span className="line-through">₹{originalTotal}</span>{" "}
-<span className="text-green-600">{discountPercent}% OFF ₹{discount}</span>
+<span className="text-green-600">
+{discountPercent}% OFF ₹{discount}
+</span>
 </div>
 
-<div className="text-green-600 text-sm">
+<div className="text-green-600 text-xs">
 Free Delivery
 </div>
+</div>
 
+{/* COD */}
+<div
+onClick={()=>setCodChecked(true)}
+className={`p-3 border rounded cursor-pointer ${
+codChecked && "border-green-500"
+}`}
+>
+<div className="flex justify-between">
+<span>₹{codTotal} Cash on Delivery 🚚</span>
+<input type="radio" checked={codChecked} readOnly />
+</div>
+
+<div className="text-xs mt-1 text-gray-600">
+<span className="line-through">₹{originalTotal}</span>{" "}
+<span className="text-green-600">
+{discountPercent}% OFF ₹{discount}
+</span>
+</div>
+
+<div className="text-green-600 text-xs">
+{shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
+</div>
 </div>
 
 </div>
 
 {/* 🔥 ADDRESS */}
-<div className="bg-white mt-4 p-4 rounded-xl space-y-2">
+<div className="bg-white p-4 rounded-xl shadow space-y-2">
 
-<h2 className="font-semibold text-lg">Delivery Details</h2>
+<h2 className="font-semibold">Delivery Details</h2>
 
 <input
 placeholder="Full Name"
@@ -270,14 +274,14 @@ onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
 />
 
 <input
-placeholder="Phone Number"
+placeholder="Phone"
 className="w-full p-2 border rounded"
 value={customer.phone}
 onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
 <textarea
-placeholder="Full Address"
+placeholder="Address"
 className="w-full p-2 border rounded"
 value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
@@ -285,58 +289,23 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 
 </div>
 
-{/* 🔥 PRICE DETAILS */}
-<div className="bg-white mt-4 p-4 rounded-xl">
-
-<h2 className="font-semibold mb-2">Price Details</h2>
-
-<div className="flex justify-between text-sm">
-<span>Product Price</span>
-<span className="line-through">₹{originalTotal}</span>
-</div>
-
-<div className="flex justify-between text-green-600 text-sm">
-<span>Discount ({discountPercent}%)</span>
-<span>-₹{discount}</span>
-</div>
-
-{payment==="cod" && shippingTotal > 0 && (
-<div className="flex justify-between text-sm">
-<span>Shipping</span>
-<span>₹{shippingTotal}</span>
-</div>
-)}
-
-<div className="flex justify-between font-bold mt-2 text-lg">
-<span>Order Total</span>
-<span>₹{payment==="cod" ? codTotal : total}</span>
-</div>
-
-</div>
-
-</div>
-
-{/* 🔥 BOTTOM BAR */}
+{/* 🔥 BUTTON */}
 <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
 
-<div>
 <div className="font-bold text-lg">
-₹{payment==="cod" ? codTotal : total}
-</div>
-<div className="text-xs text-purple-600">
-VIEW PRICE DETAILS
-</div>
+₹{codChecked ? codTotal : total}
 </div>
 
 <button
-onClick={handlePlace}
-className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold"
+onClick={codChecked ? placeCOD : placeOrder}
+className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl"
 >
 {loading ? "Processing..." : "Place Order"}
 </button>
 
 </div>
 
+</div>
 </div>
   );
 }
