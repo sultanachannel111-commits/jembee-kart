@@ -28,13 +28,8 @@ export default function CheckoutPage(){
 
   const [customer,setCustomer] = useState({
     firstName:"",
-    lastName:"",
     address:"",
-    city:"",
-    state:"",
-    zip:"",
-    phone:"",
-    email:""
+    phone:""
   });
 
   /* 🔥 LOAD */
@@ -44,7 +39,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // address autofill
+      // address
       const userDoc = await getDoc(doc(db,"users",u.uid));
       if(userDoc.exists()){
         const d = userDoc.data();
@@ -66,31 +61,41 @@ export default function CheckoutPage(){
       cartSnap.forEach(doc=>{
         data.push({...doc.data(), id:doc.id});
       });
+
       setItems(data);
     });
 
     return ()=>unsub();
   },[]);
 
-  /* 💰 TOTAL */
-  const total = items.reduce(
-    (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),
+  /* 🧠 PRICE LOGIC (IMPORTANT FIX) */
+
+  const getOriginalPrice = (item:any)=>{
+    return (
+      item?.variations?.[0]?.sizes?.[0]?.price ||
+      item?.price ||
+      0
+    );
+  };
+
+  const getSellingPrice = (item:any)=>{
+    return getFinalPrice(item,offers);
+  };
+
+  /* 💰 TOTALS */
+
+  const originalTotal = items.reduce(
+    (sum,i)=> sum + (getOriginalPrice(i)*(i.quantity||1)),
     0
   );
 
-  /* 🏷 ORIGINAL PRICE */
-  const originalTotal = items.reduce((sum,item)=>{
-    const original =
-      item?.variations?.[0]?.sizes?.[0]?.price ||
-      item?.price || 0;
+  const total = items.reduce(
+    (sum,i)=> sum + (getSellingPrice(i)*(i.quantity||1)),
+    0
+  );
 
-    return sum + (original * (item.quantity||1));
-  },0);
+  const discount = originalTotal - total;
 
-  /* 💸 DISCOUNT ₹ */
-  const discount = Math.max(0, originalTotal - total);
-
-  /* 📊 DISCOUNT % */
   const discountPercent =
     originalTotal > 0
       ? Math.round((discount / originalTotal) * 100)
@@ -104,7 +109,7 @@ export default function CheckoutPage(){
 
   const codTotal = total + shippingTotal;
 
-  /* 💾 SAVE ADDRESS */
+  /* 💾 SAVE */
   const saveAddress = async ()=>{
     if(!user) return;
     await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
@@ -191,8 +196,7 @@ payment==="cod" && "border-green-500"
 <input type="radio" checked={payment==="cod"} readOnly />
 </div>
 
-{/* 👇 Meesho style details */}
-<div className="text-xs mt-2 space-y-1 text-gray-600">
+<div className="text-xs mt-2 text-gray-600 space-y-1">
 <div>
 <span className="line-through">₹{originalTotal}</span>{" "}
 <span className="text-green-600">{discountPercent}% OFF</span>{" "}
@@ -218,7 +222,7 @@ payment==="online" && "border-green-500"
 <input type="radio" checked={payment==="online"} readOnly />
 </div>
 
-<div className="text-xs mt-2 space-y-1 text-gray-600">
+<div className="text-xs mt-2 text-gray-600 space-y-1">
 <div>
 <span className="line-through">₹{originalTotal}</span>{" "}
 <span className="text-green-600">{discountPercent}% OFF</span>{" "}
