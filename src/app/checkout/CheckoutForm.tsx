@@ -15,124 +15,95 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
-export default function CheckoutPage() {
+export default function CheckoutPage(){
 
-  const [items, setItems] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any>({});
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [paymentMode, setPaymentMode] = useState("online");
+  const [items,setItems] = useState<any[]>([]);
+  const [user,setUser] = useState<any>(null);
+  const [loading,setLoading] = useState(false);
 
-  const [customer, setCustomer] = useState({
-    firstName: "",
-    lastName: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-    phone: "",
-    email: ""
+  const [offers,setOffers] = useState<any>({});
+  const [payment,setPayment] = useState("online");
+
+  const [customer,setCustomer] = useState({
+    firstName:"",
+    lastName:"",
+    address:"",
+    city:"",
+    state:"",
+    zip:"",
+    phone:"",
+    email:""
   });
 
-  /* 🔥 LOAD DATA */
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) return;
+  /* 🔥 LOAD */
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, async (u)=>{
+      if(!u) return;
 
       setUser(u);
 
-      // ✅ address load
-      const userDoc = await getDoc(doc(db, "users", u.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.address) setCustomer(data.address);
+      // address autofill
+      const userDoc = await getDoc(doc(db,"users",u.uid));
+      if(userDoc.exists()){
+        const d = userDoc.data();
+        if(d.address) setCustomer(d.address);
       }
 
-      // ✅ offers load
-      const snap = await getDocs(collection(db, "offers"));
-      const map: any = {};
-      snap.forEach(d => {
-        const data = d.data();
-        map[data.productId] = data.discount;
+      // offers
+      const snap = await getDocs(collection(db,"offers"));
+      const map:any = {};
+      snap.forEach(doc=>{
+        const d = doc.data();
+        map[d.productId] = d.discount;
       });
       setOffers(map);
 
-      // ✅ cart load
-      const cartSnap = await getDocs(
-        collection(db, "carts", u.uid, "items")
-      );
-
-      const arr: any[] = [];
-      cartSnap.forEach(d => {
-        arr.push({
-          id: d.id,
-          ...d.data(),
-          quantity: d.data().quantity || 1
-        });
+      // cart
+      const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
+      const data:any[]=[];
+      cartSnap.forEach(doc=>{
+        data.push({...doc.data(), id:doc.id});
       });
-
-      setItems(arr);
+      setItems(data);
     });
 
-    return () => unsub();
-  }, []);
+    return ()=>unsub();
+  },[]);
 
-  /* 🔥 PRICE CALCULATION */
-  const priceDetails = items.map(item => {
-    const base =
-      item?.variations?.[0]?.sizes?.[0]?.price || 0;
-
-    const percent = offers?.[item.id] || 0;
-
-    const discountAmount = Math.round((base * percent) / 100);
-
-    const final = base - discountAmount;
-
-    return {
-      ...item,
-      base,
-      percent,
-      discountAmount,
-      final
-    };
-  });
-
-  const totalBase = priceDetails.reduce(
-    (sum, i) => sum + (i.base * i.quantity),
-    0
+  /* 💰 TOTAL */
+  const total = items.reduce(
+    (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),0
   );
 
-  const totalDiscount = priceDetails.reduce(
-    (sum, i) => sum + (i.discountAmount * i.quantity),
-    0
+  /* 💸 DISCOUNT (FIXED %) */
+  const discount = items.reduce((sum,item)=>{
+    const original =
+      item?.variations?.[0]?.sizes?.[0]?.price ||
+      item?.price || 0;
+
+    const final = getFinalPrice(item,offers);
+
+    return sum + Math.max(0, original - final);
+  },0);
+
+  /* 🚚 SHIPPING */
+  const shippingTotal = items.reduce(
+    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),0
   );
 
-  const total = priceDetails.reduce(
-    (sum, i) => sum + (i.final * i.quantity),
-    0
-  );
+  const codTotal = total + shippingTotal;
 
-  const shipping = items.reduce(
-    (sum, i) => sum + ((i.shippingCharge || 0) * i.quantity),
-    0
-  );
-
-  const codTotal = total + shipping;
-
-  /* 🔥 SAVE ADDRESS */
-  const saveAddress = async () => {
-    if (!user) return;
-    await setDoc(
-      doc(db, "users", user.uid),
-      { address: customer },
-      { merge: true }
-    );
+  /* 💾 SAVE */
+  const saveAddress = async ()=>{
+    if(!user) return;
+    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
   };
 
-  /* 🔥 ONLINE PAYMENT */
-  const placeOrder = async () => {
-    if (!customer.firstName || !customer.phone) {
+  /* 💳 ONLINE */
+  const placeOnline = async()=>{
+    if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
@@ -140,11 +111,11 @@ export default function CheckoutPage() {
     await saveAddress();
     setLoading(true);
 
-    const res = await fetch("/api/cashfree/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: "order_" + Date.now(),
+    const res = await fetch("/api/cashfree/create-order",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        orderId:"order_"+Date.now(),
         amount: total,
         customer
       })
@@ -152,19 +123,18 @@ export default function CheckoutPage() {
 
     const data = await res.json();
 
-    const cashfree = await load({ mode: "production" });
-
+    const cashfree = await load({mode:"production"});
     await cashfree.checkout({
-      paymentSessionId: data.payment_session_id,
-      redirectTarget: "_self"
+      paymentSessionId:data.payment_session_id,
+      redirectTarget:"_self"
     });
 
     setLoading(false);
   };
 
-  /* 🔥 COD */
-  const placeCOD = async () => {
-    if (!customer.firstName || !customer.phone) {
+  /* 🚚 COD */
+  const placeCOD = async()=>{
+    if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
@@ -172,133 +142,152 @@ export default function CheckoutPage() {
     await saveAddress();
     setLoading(true);
 
-    await addDoc(collection(db, "orders"), {
-      userId: user.uid,
+    await addDoc(collection(db,"orders"),{
+      userId:user.uid,
       items,
-      total: codTotal,
+      total:codTotal,
       customer,
-      paymentMethod: "cod",
-      status: "placed",
-      createdAt: serverTimestamp()
+      paymentMethod:"cod",
+      status:"placed",
+      createdAt:serverTimestamp()
     });
 
-    alert("COD Order Placed ✅");
+    alert("Order placed ✅");
     setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-4">
+  /* 🔥 PLACE */
+  const handlePlace = ()=>{
+    if(payment==="cod") placeCOD();
+    else placeOnline();
+  };
 
-      <div className="max-w-xl mx-auto space-y-4">
+  return(
+<div className="min-h-screen bg-gray-100 pb-24">
 
-        {/* 🧾 PRICE DETAILS */}
-        <div className="bg-white p-4 rounded-xl shadow">
+<div className="max-w-xl mx-auto p-4">
 
-          <h2 className="font-bold mb-3">Price Details</h2>
+{/* 🔥 OFFER BAR */}
+{discount > 0 && (
+<div className="bg-green-100 text-green-700 text-center py-2 rounded mb-3">
+₹{discount} OFF on this order 🎉
+</div>
+)}
 
-          <div className="flex justify-between text-sm">
-            <span>Product Price</span>
-            <span>₹{totalBase}</span>
-          </div>
+{/* 🔥 PAYMENT METHODS */}
+<div className="bg-white rounded-xl p-3 space-y-3">
 
-          <div className="flex justify-between text-green-600 text-sm">
-            <span>Discount</span>
-            <span>- ₹{totalDiscount}</span>
-          </div>
+<h2 className="font-semibold">Select payment method</h2>
 
-          <div className="flex justify-between text-sm">
-            <span>Shipping</span>
-            <span>{shipping > 0 ? `₹${shipping}` : "FREE"}</span>
-          </div>
+{/* COD */}
+<div
+onClick={()=>setPayment("cod")}
+className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
+payment==="cod" && "border-green-500"
+}`}
+>
+<span>₹{codTotal} Cash on Delivery 🚚</span>
+<input type="radio" checked={payment==="cod"} readOnly />
+</div>
 
-          <div className="border-t mt-2 pt-2 flex justify-between font-bold">
-            <span>Total</span>
-            <span>₹{paymentMode === "cod" ? codTotal : total}</span>
-          </div>
+{/* FRIEND */}
+<div className="border p-3 rounded-lg">
+₹{total} Ask Friends to Pay 🤝
+</div>
 
-          {totalDiscount > 0 && (
-            <div className="bg-green-100 text-green-700 p-2 rounded mt-2 text-sm">
-              🎉 You saved ₹{totalDiscount}
-            </div>
-          )}
-        </div>
+{/* ONLINE */}
+<div
+onClick={()=>setPayment("online")}
+className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
+payment==="online" && "border-green-500"
+}`}
+>
+<div>
+₹{total} Pay Online 💳
+<div className="text-xs text-green-600">
+Extra offers available
+</div>
+</div>
+<input type="radio" checked={payment==="online"} readOnly />
+</div>
 
-        {/* 💳 PAYMENT */}
-        <div className="bg-white p-4 rounded-xl shadow">
+</div>
 
-          <h2 className="font-bold mb-3">Payment Method</h2>
+{/* 🔥 ADDRESS */}
+<div className="bg-white mt-4 p-3 rounded-xl space-y-2">
 
-          <div
-            onClick={() => setPaymentMode("cod")}
-            className={`p-3 border rounded mb-2 cursor-pointer ${
-              paymentMode === "cod" && "border-black"
-            }`}
-          >
-            Cash on Delivery - ₹{codTotal}
-          </div>
+<h2 className="font-semibold">Delivery Details</h2>
 
-          <div
-            onClick={() => setPaymentMode("online")}
-            className={`p-3 border rounded mb-2 cursor-pointer ${
-              paymentMode === "online" && "border-green-600 bg-green-50"
-            }`}
-          >
-            Pay Online - ₹{total}
-          </div>
+<input
+placeholder="Name"
+className="w-full p-2 border rounded"
+value={customer.firstName}
+onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+/>
 
-          <div
-            onClick={() => setPaymentMode("upi")}
-            className={`p-3 border rounded cursor-pointer ${
-              paymentMode === "upi" && "border-blue-600 bg-blue-50"
-            }`}
-          >
-            UPI Offer - ₹{total - 10}
-          </div>
+<input
+placeholder="Phone"
+className="w-full p-2 border rounded"
+value={customer.phone}
+onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+/>
 
-        </div>
+<textarea
+placeholder="Address"
+className="w-full p-2 border rounded"
+value={customer.address}
+onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+/>
 
-        {/* 📝 ADDRESS */}
-        <div className="bg-white p-4 rounded-xl shadow space-y-2">
+</div>
 
-          <input placeholder="Name"
-            className="w-full p-2 border rounded"
-            value={customer.firstName}
-            onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-          />
+{/* 🔥 PRICE DETAILS */}
+<div className="bg-white mt-4 p-3 rounded-xl">
 
-          <input placeholder="Phone"
-            className="w-full p-2 border rounded"
-            value={customer.phone}
-            onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-          />
+<h2 className="font-semibold mb-2">Price Details</h2>
 
-          <textarea placeholder="Address"
-            className="w-full p-2 border rounded"
-            value={customer.address}
-            onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-          />
+<div className="flex justify-between text-sm">
+<span>Product Price</span>
+<span>₹{total + discount}</span>
+</div>
 
-        </div>
+{discount > 0 && (
+<div className="flex justify-between text-green-600 text-sm">
+<span>Total Discount</span>
+<span>-₹{discount}</span>
+</div>
+)}
 
-        {/* 🚀 BUTTON */}
-        <button
-          onClick={
-            paymentMode === "cod"
-              ? placeCOD
-              : placeOrder
-          }
-          className="w-full bg-pink-600 text-white py-4 rounded-xl font-bold text-lg"
-        >
-          {loading
-            ? "Processing..."
-            : `Place Order ₹${
-                paymentMode === "cod"
-                  ? codTotal
-                  : total
-              }`}
-        </button>
+<div className="flex justify-between font-bold mt-2">
+<span>Order Total</span>
+<span>₹{payment==="cod" ? codTotal : total}</span>
+</div>
 
-      </div>
-    </div>
+</div>
+
+</div>
+
+{/* 🔥 BOTTOM BAR */}
+<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
+
+<div>
+<div className="font-bold text-lg">
+₹{payment==="cod" ? codTotal : total}
+</div>
+<div className="text-xs text-purple-600">
+VIEW PRICE DETAILS
+</div>
+</div>
+
+<button
+onClick={handlePlace}
+className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+>
+{loading ? "Processing..." : "Place Order"}
+</button>
+
+</div>
+
+</div>
   );
 }
