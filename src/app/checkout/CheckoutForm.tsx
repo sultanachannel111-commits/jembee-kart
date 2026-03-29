@@ -22,6 +22,7 @@ export default function CheckoutPage(){
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
+  const [codUnlocked,setCodUnlocked] = useState(true);
   const [codChecked, setCodChecked] = useState(false);
   const [offers, setOffers] = useState<any>({});
 
@@ -36,6 +37,11 @@ export default function CheckoutPage(){
     email:""
   });
 
+  const refCode =
+    typeof window !== "undefined"
+      ? localStorage.getItem("affiliate")
+      : null;
+
   /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -44,30 +50,31 @@ export default function CheckoutPage(){
       setUser(u);
 
       // address autofill
-      const userDoc = await getDoc(doc(db,"users",u.uid));
-      if(userDoc.exists()){
-        const d = userDoc.data();
-        if(d.address) setCustomer(d.address);
+      const userDoc = await getDoc(doc(db, "users", u.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.address) setCustomer(data.address);
       }
 
       // offers
-      const snap = await getDocs(collection(db,"offers"));
-      const map:any = {};
-      snap.forEach(doc=>{
+      const offerSnap = await getDocs(collection(db, "offers"));
+      const offerMap:any = {};
+      offerSnap.forEach(doc => {
         const d = doc.data();
-        map[d.productId] = d.discount;
+        offerMap[d.productId] = d.discount;
       });
-      setOffers(map);
+      setOffers(offerMap);
 
       // cart
-      const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
-      const data:any[]=[];
-      cartSnap.forEach(doc=>{
+      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+      const data:any[] = [];
+
+      snap.forEach(doc=>{
         const d = doc.data();
         data.push({
           id:doc.id,
           ...d,
-          quantity:d.quantity || 1
+          quantity: d.quantity || 1
         });
       });
 
@@ -112,8 +119,10 @@ export default function CheckoutPage(){
 
   /* 💾 SAVE */
   const saveAddress = async ()=>{
-    if(!user) return;
-    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
+    if (!user) return;
+    await setDoc(doc(db, "users", user.uid), {
+      address: customer
+    }, { merge: true });
   };
 
   /* 💳 ONLINE */
@@ -121,7 +130,7 @@ export default function CheckoutPage(){
     setCodChecked(false);
 
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Please fill details");
       return;
     }
 
@@ -140,7 +149,8 @@ export default function CheckoutPage(){
 
     const data = await res.json();
 
-    const cashfree = await load({mode:"production"});
+    const cashfree = await load({ mode:"production" });
+
     await cashfree.checkout({
       paymentSessionId:data.payment_session_id,
       redirectTarget:"_self"
@@ -154,7 +164,7 @@ export default function CheckoutPage(){
     setCodChecked(true);
 
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Please fill details");
       return;
     }
 
@@ -162,16 +172,17 @@ export default function CheckoutPage(){
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-      userId:user.uid,
+      userId: user.uid,
       items,
-      total:codTotal,
+      total: codTotal,
       customer,
       paymentMethod:"cod",
+      paymentStatus:"pending",
       status:"placed",
       createdAt:serverTimestamp()
     });
 
-    alert("Order placed ✅");
+    alert("Order placed (COD) ✅");
     setLoading(false);
   };
 
@@ -192,6 +203,13 @@ export default function CheckoutPage(){
   </div>
 ))}
 
+<div className="text-xs text-gray-500 mt-2">
+<span className="line-through">₹{originalTotal}</span>{" "}
+<span className="text-green-600">
+{discountPercent}% OFF ₹{discount}
+</span>
+</div>
+
 <div className="flex justify-between mt-3 text-sm">
   <span>Shipping</span>
   <span className="text-green-600">
@@ -206,63 +224,8 @@ export default function CheckoutPage(){
 
 </div>
 
-{/* 🔥 PAYMENT BOX */}
-<div className="bg-white p-4 rounded-xl shadow mb-4">
-
-<h2 className="font-semibold mb-2">Payment</h2>
-
-{/* ONLINE */}
-<div
-onClick={()=>setCodChecked(false)}
-className={`p-3 border rounded mb-2 cursor-pointer ${
-!codChecked && "border-green-500"
-}`}
->
-<div className="flex justify-between">
-<span>₹{total} Pay Online 💳</span>
-<input type="radio" checked={!codChecked} readOnly />
-</div>
-
-<div className="text-xs mt-1 text-gray-600">
-<span className="line-through">₹{originalTotal}</span>{" "}
-<span className="text-green-600">
-{discountPercent}% OFF ₹{discount}
-</span>
-</div>
-
-<div className="text-green-600 text-xs">
-Free Delivery
-</div>
-</div>
-
-{/* COD */}
-<div
-onClick={()=>setCodChecked(true)}
-className={`p-3 border rounded cursor-pointer ${
-codChecked && "border-green-500"
-}`}
->
-<div className="flex justify-between">
-<span>₹{codTotal} Cash on Delivery 🚚</span>
-<input type="radio" checked={codChecked} readOnly />
-</div>
-
-<div className="text-xs mt-1 text-gray-600">
-<span className="line-through">₹{originalTotal}</span>{" "}
-<span className="text-green-600">
-{discountPercent}% OFF ₹{discount}
-</span>
-</div>
-
-<div className="text-green-600 text-xs">
-{shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
-</div>
-</div>
-
-</div>
-
-{/* 🔥 ADDRESS */}
-<div className="bg-white p-4 rounded-xl shadow space-y-2">
+{/* 🔥 FORM */}
+<div className="bg-white rounded-xl shadow p-4 space-y-3">
 
 <h2 className="font-semibold">Delivery Details</h2>
 
@@ -287,21 +250,43 @@ value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
-</div>
-
 {/* 🔥 BUTTON */}
-<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
-
-<div className="font-bold text-lg">
-₹{codChecked ? codTotal : total}
-</div>
+<button
+onClick={placeOrder}
+className="w-full py-4 rounded-xl text-white font-semibold bg-green-600"
+>
+{loading ? "Processing..." : `Pay ₹${codChecked ? codTotal : total}`}
+</button>
 
 <button
-onClick={codChecked ? placeCOD : placeOrder}
-className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl"
+onClick={placeCOD}
+className="w-full py-3 rounded-xl text-white bg-black"
 >
-{loading ? "Processing..." : "Place Order"}
+Cash on Delivery
 </button>
+
+{/* 🔥 DISCOUNT UI */}
+{discount > 0 && (
+<div className="text-center text-sm mt-3">
+
+<div>
+<span className="line-through">₹{originalTotal}</span>{" "}
+<span className="text-green-600 font-semibold">
+{discountPercent}% OFF
+</span>{" "}
+₹{discount}
+</div>
+
+<div className="text-green-600 mt-1">
+{codChecked
+  ? (shippingTotal > 0
+      ? `Delivery ₹${shippingTotal}`
+      : "Free Delivery 🚚")
+  : "Free Delivery ⚡"}
+</div>
+
+</div>
+)}
 
 </div>
 
