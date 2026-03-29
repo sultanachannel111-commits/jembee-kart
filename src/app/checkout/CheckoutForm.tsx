@@ -37,7 +37,7 @@ export default function CheckoutPage(){
     email:""
   });
 
-  /* 🔥 LOAD DATA */
+  /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
@@ -51,7 +51,7 @@ export default function CheckoutPage(){
         if(d.address) setCustomer(d.address);
       }
 
-      // offers load
+      // offers
       const snap = await getDocs(collection(db,"offers"));
       const map:any = {};
       snap.forEach(doc=>{
@@ -60,7 +60,7 @@ export default function CheckoutPage(){
       });
       setOffers(map);
 
-      // cart load
+      // cart
       const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
       const data:any[]=[];
       cartSnap.forEach(doc=>{
@@ -78,18 +78,25 @@ export default function CheckoutPage(){
     0
   );
 
-  /* 💸 DISCOUNT */
-  const discount = items.reduce((sum,item)=>{
+  /* 🏷 ORIGINAL PRICE */
+  const originalTotal = items.reduce((sum,item)=>{
     const original =
       item?.variations?.[0]?.sizes?.[0]?.price ||
       item?.price || 0;
 
-    const final = getFinalPrice(item,offers);
-
-    return sum + Math.max(0, original - final);
+    return sum + (original * (item.quantity||1));
   },0);
 
-  /* 🚚 SHIPPING (COD only) */
+  /* 💸 DISCOUNT ₹ */
+  const discount = Math.max(0, originalTotal - total);
+
+  /* 📊 DISCOUNT % */
+  const discountPercent =
+    originalTotal > 0
+      ? Math.round((discount / originalTotal) * 100)
+      : 0;
+
+  /* 🚚 SHIPPING */
   const shippingTotal = items.reduce(
     (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),
     0
@@ -103,7 +110,7 @@ export default function CheckoutPage(){
     await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
   };
 
-  /* 💳 ONLINE PAYMENT */
+  /* 💳 ONLINE */
   const placeOnline = async()=>{
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -134,7 +141,7 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  /* 🚚 COD ORDER */
+  /* 🚚 COD */
   const placeCOD = async()=>{
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -150,7 +157,6 @@ export default function CheckoutPage(){
       total:codTotal,
       customer,
       paymentMethod:"cod",
-      paymentStatus:"pending",
       status:"placed",
       createdAt:serverTimestamp()
     });
@@ -160,21 +166,13 @@ export default function CheckoutPage(){
   };
 
   const handlePlace = ()=>{
-    if(payment==="cod") placeCOD();
-    else placeOnline();
+    payment==="cod" ? placeCOD() : placeOnline();
   };
 
   return(
 <div className="min-h-screen bg-gray-100 pb-24">
 
 <div className="max-w-xl mx-auto p-4">
-
-{/* 🔥 OFFER BAR */}
-{discount > 0 && (
-<div className="bg-green-100 text-green-700 text-center py-2 rounded mb-3">
-₹{discount} OFF on this order 🎉
-</div>
-)}
 
 {/* 🔥 PAYMENT */}
 <div className="bg-white rounded-xl p-4 space-y-3">
@@ -184,33 +182,54 @@ export default function CheckoutPage(){
 {/* COD */}
 <div
 onClick={()=>setPayment("cod")}
-className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
+className={`border p-3 rounded-lg cursor-pointer ${
 payment==="cod" && "border-green-500"
 }`}
 >
+<div className="flex justify-between">
 <span>₹{codTotal} Cash on Delivery 🚚</span>
 <input type="radio" checked={payment==="cod"} readOnly />
 </div>
 
-{/* FRIEND */}
-<div className="border p-3 rounded-lg">
-₹{total} Ask Friends to Pay 🤝
+{/* 👇 Meesho style details */}
+<div className="text-xs mt-2 space-y-1 text-gray-600">
+<div>
+<span className="line-through">₹{originalTotal}</span>{" "}
+<span className="text-green-600">{discountPercent}% OFF</span>{" "}
+<span>₹{discount}</span>
+</div>
+
+<div className="text-green-600">
+{shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
+</div>
+</div>
+
 </div>
 
 {/* ONLINE */}
 <div
 onClick={()=>setPayment("online")}
-className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
+className={`border p-3 rounded-lg cursor-pointer ${
 payment==="online" && "border-green-500"
 }`}
 >
-<div>
-₹{total} Pay Online 💳
-<div className="text-xs text-green-600">
-Extra offers available
-</div>
-</div>
+<div className="flex justify-between">
+<span>₹{total} Pay Online 💳</span>
 <input type="radio" checked={payment==="online"} readOnly />
+</div>
+
+<div className="text-xs mt-2 space-y-1 text-gray-600">
+<div>
+<span className="line-through">₹{originalTotal}</span>{" "}
+<span className="text-green-600">{discountPercent}% OFF</span>{" "}
+<span>₹{discount}</span>
+</div>
+
+<div className="text-green-600">
+Free Delivery
+</div>
+</div>
+
 </div>
 
 </div>
@@ -228,14 +247,14 @@ onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
 />
 
 <input
-placeholder="Phone Number"
+placeholder="Phone"
 className="w-full p-2 border rounded"
 value={customer.phone}
 onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
 <textarea
-placeholder="Full Address"
+placeholder="Address"
 className="w-full p-2 border rounded"
 value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
@@ -243,22 +262,20 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 
 </div>
 
-{/* 🔥 PRICE DETAILS */}
+{/* 🔥 PRICE */}
 <div className="bg-white mt-4 p-4 rounded-xl">
 
 <h2 className="font-semibold mb-2">Price Details</h2>
 
 <div className="flex justify-between text-sm">
 <span>Product Price</span>
-<span>₹{total + discount}</span>
+<span className="line-through">₹{originalTotal}</span>
 </div>
 
-{discount > 0 && (
 <div className="flex justify-between text-green-600 text-sm">
-<span>Total Discount</span>
+<span>Discount ({discountPercent}%)</span>
 <span>-₹{discount}</span>
 </div>
-)}
 
 {payment==="cod" && shippingTotal > 0 && (
 <div className="flex justify-between text-sm">
@@ -276,7 +293,7 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 
 </div>
 
-{/* 🔥 BOTTOM BAR */}
+{/* 🔥 BOTTOM */}
 <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
 
 <div>
