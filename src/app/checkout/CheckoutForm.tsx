@@ -44,14 +44,12 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // address autofill
       const userDoc = await getDoc(doc(db,"users",u.uid));
       if(userDoc.exists()){
         const d = userDoc.data();
         if(d.address) setCustomer(d.address);
       }
 
-      // offers
       const snap = await getDocs(collection(db,"offers"));
       const map:any = {};
       snap.forEach(doc=>{
@@ -60,7 +58,6 @@ export default function CheckoutPage(){
       });
       setOffers(map);
 
-      // cart
       const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
       const data:any[]=[];
       cartSnap.forEach(doc=>{
@@ -77,7 +74,7 @@ export default function CheckoutPage(){
     (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),0
   );
 
-  /* 💸 DISCOUNT (FIXED %) */
+  /* 💸 DISCOUNT */
   const discount = items.reduce((sum,item)=>{
     const original =
       item?.variations?.[0]?.sizes?.[0]?.price ||
@@ -156,7 +153,6 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  /* 🔥 PLACE */
   const handlePlace = ()=>{
     if(payment==="cod") placeCOD();
     else placeOnline();
@@ -174,7 +170,7 @@ export default function CheckoutPage(){
 </div>
 )}
 
-{/* 🔥 PAYMENT METHODS */}
+{/* 🔥 PAYMENT */}
 <div className="bg-white rounded-xl p-3 space-y-3">
 
 <h2 className="font-semibold">Select payment method</h2>
@@ -182,33 +178,50 @@ export default function CheckoutPage(){
 {/* COD */}
 <div
 onClick={()=>setPayment("cod")}
-className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
-payment==="cod" && "border-green-500"
+className={`border p-3 rounded-lg ${
+payment==="cod" && "border-purple-500"
 }`}
 >
+<div className="flex justify-between">
 <span>₹{codTotal} Cash on Delivery 🚚</span>
 <input type="radio" checked={payment==="cod"} readOnly />
 </div>
 
-{/* FRIEND */}
-<div className="border p-3 rounded-lg">
-₹{total} Ask Friends to Pay 🤝
+{payment==="cod" && (
+<div className="text-xs text-gray-500 mt-2">
+Includes shipping ₹{shippingTotal}
+</div>
+)}
+
 </div>
 
 {/* ONLINE */}
 <div
 onClick={()=>setPayment("online")}
-className={`border p-3 rounded-lg flex justify-between cursor-pointer ${
-payment==="online" && "border-green-500"
+className={`border p-3 rounded-lg ${
+payment==="online" && "border-purple-500"
 }`}
 >
-<div>
-₹{total} Pay Online 💳
-<div className="text-xs text-green-600">
-Extra offers available
-</div>
-</div>
+<div className="flex justify-between">
+<span>₹{total} Pay Online 💳</span>
 <input type="radio" checked={payment==="online"} readOnly />
+</div>
+
+{payment==="online" && (
+<div className="mt-3 space-y-2 text-sm">
+
+<div className="p-2 bg-green-100 rounded">
+Extra discount with bank offers
+</div>
+
+<div className="p-2 border rounded">UPI</div>
+<div className="p-2 border rounded">Wallet</div>
+<div className="p-2 border rounded">Cards</div>
+<div className="p-2 border rounded">Net Banking</div>
+
+</div>
+)}
+
 </div>
 
 </div>
@@ -219,7 +232,7 @@ Extra offers available
 <h2 className="font-semibold">Delivery Details</h2>
 
 <input
-placeholder="Name"
+placeholder="Full Name"
 className="w-full p-2 border rounded"
 value={customer.firstName}
 onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
@@ -233,7 +246,7 @@ onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
 <textarea
-placeholder="Address"
+placeholder="Full Address"
 className="w-full p-2 border rounded"
 value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
@@ -241,7 +254,7 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 
 </div>
 
-{/* 🔥 PRICE DETAILS */}
+{/* 🔥 PRICE */}
 <div className="bg-white mt-4 p-3 rounded-xl">
 
 <h2 className="font-semibold mb-2">Price Details</h2>
@@ -258,16 +271,29 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 </div>
 )}
 
+{payment==="cod" && shippingTotal > 0 && (
+<div className="flex justify-between text-sm">
+<span>Shipping</span>
+<span>₹{shippingTotal}</span>
+</div>
+)}
+
 <div className="flex justify-between font-bold mt-2">
 <span>Order Total</span>
 <span>₹{payment==="cod" ? codTotal : total}</span>
 </div>
 
+{discount > 0 && (
+<div className="bg-green-100 text-green-700 text-sm p-2 mt-2 rounded">
+Yay! You saved ₹{discount}
 </div>
+)}
 
 </div>
 
-{/* 🔥 BOTTOM BAR */}
+</div>
+
+{/* 🔥 BOTTOM */}
 <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
 
 <div>
