@@ -23,19 +23,23 @@ export default function CheckoutPage(){
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
 
-  const [showPayment,setShowPayment] = useState(false);
+  const [step,setStep] = useState(1); // 1=Review 2=Payment
   const [paymentMethod,setPaymentMethod] = useState("online");
 
   const [offers,setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
+    lastName:"",
+    address:"",
+    city:"",
+    state:"",
+    zip:"",
     phone:"",
-    address:""
+    email:""
   });
 
   useEffect(()=>{
-
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
 
@@ -60,21 +64,26 @@ export default function CheckoutPage(){
       if(buyNow){
         const parsed = JSON.parse(buyNow);
         setItems([{...parsed,quantity:1}]);
+      }else{
+        const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+        const data:any[]=[];
+        snap.forEach(doc=>{
+          data.push({...doc.data(), id:doc.id});
+        });
+        setItems(data);
       }
-
     });
 
     return ()=>unsub();
-
   },[]);
 
+  // 💰 TOTAL
   const total = items.reduce(
     (sum,i)=> sum + (getFinalPrice(i,offers)*(i.quantity||1)),0
   );
 
-  // ✅ AUTO DISCOUNT (MEESHO STYLE)
+  // 💸 DISCOUNT (AUTO %)
   const discount = items.reduce((sum,item)=>{
-
     const original =
       item?.variations?.[0]?.sizes?.[0]?.price ||
       item?.price || 0;
@@ -82,22 +91,29 @@ export default function CheckoutPage(){
     const final = getFinalPrice(item,offers);
 
     return sum + Math.max(0, original - final);
-
   },0);
 
+  // 🚚 SHIPPING
   const shippingTotal = items.reduce(
     (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),0
   );
 
   const codTotal = total + shippingTotal;
 
-  const placeOrder = async()=>{
+  // 💾 SAVE ADDRESS
+  const saveAddress = async ()=>{
+    if(!user) return;
+    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
+  };
 
+  // 💳 ONLINE PAYMENT
+  const placeOrder = async()=>{
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
 
+    await saveAddress();
     setLoading(true);
 
     const res = await fetch("/api/cashfree/create-order",{
@@ -121,13 +137,14 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
+  // 🚚 COD
   const placeCOD = async()=>{
-
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
       return;
     }
 
+    await saveAddress();
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -145,16 +162,20 @@ export default function CheckoutPage(){
   };
 
   return(
-
 <div className="min-h-screen bg-gray-100 p-4">
 <div className="max-w-xl mx-auto">
 
-{/* STEP 1 */}
-{!showPayment && (
+{/* STEP HEADER */}
+<div className="flex justify-center mb-4">
+  <span className="text-sm">
+    {step === 1 ? "Review" : "Payment"}
+  </span>
+</div>
+
+{/* ================= STEP 1 ================= */}
+{step === 1 && (
 <>
-<h1 className="text-xl font-bold text-center mb-3">
-REVIEW YOUR ORDER
-</h1>
+<h1 className="text-xl font-bold mb-3">Review Your Order</h1>
 
 {/* OFF */}
 {discount > 0 && (
@@ -164,35 +185,18 @@ REVIEW YOUR ORDER
 )}
 
 {/* PRODUCT */}
-<div className="bg-white p-4 rounded-xl mb-4">
+<div className="bg-white p-4 rounded-xl mb-3">
 {items.map(item=>(
-<div key={item.id} className="flex justify-between">
-<span>{item.name}</span>
+<div key={item.id} className="flex justify-between mb-2">
+<span>{item.name} × {item.quantity}</span>
 <span>₹{getFinalPrice(item,offers)}</span>
 </div>
 ))}
 </div>
 
-{/* TOTAL */}
-<div className="bg-white p-4 rounded-xl mb-4">
-<div className="flex justify-between">
-<span>Price</span>
-<span>₹{total}</span>
-</div>
-
-<div className="flex justify-between text-green-600">
-<span>Discount</span>
-<span>-₹{discount}</span>
-</div>
-
-<div className="flex justify-between font-bold">
-<span>Total</span>
-<span>₹{total}</span>
-</div>
-</div>
-
-{/* ADDRESS */}
-<div className="bg-white p-4 rounded-xl space-y-3">
+{/* DELIVERY */}
+<div className="bg-white p-4 rounded-xl mb-3 space-y-2">
+<h2 className="font-semibold">Delivery Details</h2>
 
 <input placeholder="Name"
 className="w-full p-2 border rounded"
@@ -212,23 +216,39 @@ value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
+</div>
+
+{/* PRICE */}
+<div className="bg-white p-4 rounded-xl mb-3">
+<div className="flex justify-between">
+<span>Product Price</span>
+<span>₹{total}</span>
+</div>
+
+<div className="flex justify-between text-green-600">
+<span>Total Discount</span>
+<span>-₹{discount}</span>
+</div>
+
+<div className="flex justify-between font-bold mt-2">
+<span>Order Total</span>
+<span>₹{total}</span>
+</div>
+</div>
+
 <button
-onClick={()=>setShowPayment(true)}
-className="w-full py-3 bg-purple-600 text-white rounded"
+onClick={()=>setStep(2)}
+className="w-full py-3 bg-purple-600 text-white rounded-xl"
 >
 Continue
 </button>
-
-</div>
 </>
 )}
 
-{/* STEP 2 PAYMENT */}
-{showPayment && (
-
-<div className="bg-white p-4 rounded-xl">
-
-<h2 className="font-semibold mb-2">Select payment method</h2>
+{/* ================= STEP 2 ================= */}
+{step === 2 && (
+<>
+<h1 className="text-xl font-bold mb-3">Select payment method</h1>
 
 {discount > 0 && (
 <div className="bg-green-100 text-green-700 p-2 rounded mb-3 text-center">
@@ -236,40 +256,48 @@ Continue
 </div>
 )}
 
+{/* COD */}
 <div
 onClick={()=>setPaymentMethod("cod")}
-className={`p-3 border rounded mb-2 ${paymentMethod==="cod" && "border-green-500"}`}
+className={`p-3 rounded border mb-2 cursor-pointer ${
+paymentMethod==="cod" && "border-green-500"
+}`}
 >
-₹{codTotal} Cash on Delivery
+₹{codTotal} Cash on Delivery 🚚
 </div>
 
+{/* FRIEND */}
+<div className="p-3 rounded border mb-2">
+₹{total} Ask Friends to Pay 🤝
+</div>
+
+{/* ONLINE */}
 <div
 onClick={()=>setPaymentMethod("online")}
-className={`p-3 border rounded mb-2 ${paymentMethod==="online" && "border-green-500"}`}
+className={`p-3 rounded border mb-2 cursor-pointer ${
+paymentMethod==="online" && "border-green-500"
+}`}
 >
-₹{total} Pay Online
+₹{total} Pay Online 💳
 </div>
 
 <button
 onClick={paymentMethod==="cod" ? placeCOD : placeOrder}
-className="w-full py-3 bg-purple-600 text-white rounded mt-3"
+className="w-full py-3 bg-purple-600 text-white rounded-xl mt-3"
 >
 Place Order ₹{paymentMethod==="cod" ? codTotal : total}
 </button>
 
 <button
-onClick={()=>setShowPayment(false)}
+onClick={()=>setStep(1)}
 className="w-full mt-2 text-gray-500"
 >
 ← Back
 </button>
-
-</div>
-
+</>
 )}
 
 </div>
 </div>
-
   );
 }
