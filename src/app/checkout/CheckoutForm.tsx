@@ -1,3 +1,6 @@
+Checkout page 
+
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,339 +12,440 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
+  query,
+  where,
   doc,
   getDoc,
   setDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-
-  const [offers,setOffers] = useState<any>({});
-  const [payment,setPayment] = useState<"cod"|"online">("online");
+  const [codUnlocked,setCodUnlocked] = useState(true);
+  const [codChecked, setCodChecked] = useState(false);
+  const [offers, setOffers] = useState<any>({});
 
   const [customer,setCustomer] = useState({
     firstName:"",
+    lastName:"",
     address:"",
-    phone:""
+    city:"",
+    state:"",
+    zip:"",
+    phone:"",
+    email:""
   });
 
-  /* 🔥 LOAD DATA */
+  const refCode =
+    typeof window !== "undefined"
+      ? localStorage.getItem("affiliate")
+      : null;
+
+  /* 🔥 LOAD CART + BUY NOW FIXED */
   useEffect(()=>{
+
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
 
       setUser(u);
+      // 🔥 AUTO LOAD ADDRESS
+const userDoc = await getDoc(doc(db, "users", u.uid));
 
-      // address
-      const userDoc = await getDoc(doc(db,"users",u.uid));
-      if(userDoc.exists()){
-        const d = userDoc.data();
-        if(d.address) setCustomer(d.address);
-      }
+if (userDoc.exists()) {
+  const data = userDoc.data();
+  if (data.address) {
+    setCustomer(data.address);
+  }
+}
+      // 🔥 FETCH OFFERS
+const offerSnap = await getDocs(collection(db, "offers"));
 
-      // offers load
-      const snap = await getDocs(collection(db,"offers"));
-      const map:any = {};
-      snap.forEach(doc=>{
-        const d = doc.data();
-        map[d.productId] = d.discount;
-      });
-      setOffers(map);
+const offerMap:any = {};
 
-      // cart load
-      const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
-      const data:any[]=[];
-      cartSnap.forEach(doc=>{
-        const d = doc.data();
-        data.push({
-          ...d,
-          id: doc.id,
-          productId: d.productId || doc.id // 🔥 FIX
+offerSnap.forEach(doc => {
+  const data = doc.data();
+  offerMap[data.productId] = data.discount;
+});
+
+setOffers(offerMap);
+
+      const buyNow = localStorage.getItem("buy-now");
+
+      if(buyNow){
+        const parsed = JSON.parse(buyNow);
+
+        // ✅ FINAL PRICE FIX
+  const finalPrice = getFinalPrice(parsed, offerMap);
+        console.log("🔥 BUY NOW:", parsed);
+        console.log("🔥 FINAL PRICE:", finalPrice);
+
+        setItems([{
+  ...parsed,
+  quantity: parsed.quantity || 1
+}]);
+
+      } else {
+        // 🛒 CART LOAD
+        const snap = await getDocs(
+          collection(db,"carts",u.uid,"items")
+        );
+
+        const data:any[] = [];
+
+        snap.forEach(doc=>{
+          const d = doc.data();
+          console.log("🔥 FIRESTORE ITEM:", d); //
+          const finalPrice = getFinalPrice(d, offerMap);
+          data.push({
+  id:doc.id,
+  ...d,
+  quantity: d.quantity || 1
+});
         });
-      });
 
-      setItems(data);
+        setItems(data);
+      }
     });
 
     return ()=>unsub();
+
   },[]);
+  // 👇 YAHI ADD KARO
+const saveAddress = async () => {
+  if (!user) return;
 
-  /* 🧠 PRICE LOGIC */
-
-  const getOriginalPrice = (item:any)=>{
-    return (
-      item?.variations?.[0]?.sizes?.[0]?.price ||
-      item?.price ||
-      0
-    );
-  };
-
-  const getDiscountPercent = (item:any)=>{
-    return (
-      offers[item.productId] ||
-      offers[item.id] ||
-      0
-    );
-  };
-
-  const getSellingPrice = (item:any)=>{
-    const original = getOriginalPrice(item);
-    const discountPercent = getDiscountPercent(item);
-
-    if(discountPercent > 0){
-      return Math.round(original - (original * discountPercent)/100);
-    }
-
-    return original;
-  };
-
-  /* 💰 TOTALS */
-
-  const originalTotal = items.reduce(
-    (sum,i)=> sum + getOriginalPrice(i)*(i.quantity||1),
-    0
+  await setDoc(
+    doc(db, "users", user.uid),
+    {
+      address: customer
+    },
+    { merge: true }
   );
+};
 
-  const total = items.reduce(
-    (sum,i)=> sum + getSellingPrice(i)*(i.quantity||1),
-    0
-  );
+/* 🔥 TOTAL SAFE */
+const total = items.reduce(
 
-  const discount = originalTotal - total;
+  (sum,i)=> sum + (getFinalPrice(i, offers) * (i.quantity || 1)),
+  0
+);
+  const discount = items.reduce((sum, item) => {
+  const base =
+    item?.variations?.[0]?.sizes?.[0]?.price || 0;
 
-  const discountPercent =
-    originalTotal > 0
-      ? Math.round((discount / originalTotal) * 100)
-      : 0;
+  const sell =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+   getFinalPrice(item, offers)
 
-  /* 🚚 SHIPPING */
+  return sum + Math.max(0, base - sell);
+}, 0);
+    // ✅ SHIPPING TOTAL (PRODUCT WISE)
+const shippingTotal = items.reduce(
+  (sum, item) => sum + ((item.shippingCharge || 0) * (item.quantity || 1)),
+  0
+);
 
-  const shippingTotal = items.reduce(
-    (sum,i)=> sum + ((i.shippingCharge || 0)*(i.quantity||1)),
-    0
-  );
+// ✅ COD FINAL TOTAL
+const codTotal = total + shippingTotal;
+  /* 🔥 ONLINE PAYMENT */
+  const placeOrder = async()=>{
+    setCodChecked(false);
+    if(customer.firstName && customer.phone){
+  await saveAddress();
+}
 
-  const codTotal = total + shippingTotal;
-
-  /* 💾 SAVE */
-
-  const saveAddress = async ()=>{
-    if(!user) return;
-    await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
-  };
-
-  /* 💳 ONLINE */
-
-  const placeOnline = async()=>{
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Please fill details");
       return;
     }
 
-    await saveAddress();
+    if(total <= 0){
+      alert("Invalid amount ❌");
+      return;
+    }
+
     setLoading(true);
+    // ✅ TEMP ORDER SAVE (IMPORTANT)
+const tempOrder = {
+  userId: user.uid,
+  items,
+  total,
+  customer,
+  paymentMethod: "online"
+};
+
+localStorage.setItem("temp-order", JSON.stringify(tempOrder));
 
     const res = await fetch("/api/cashfree/create-order",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
-        orderId:"order_"+Date.now(),
-        amount: total,
+        orderId: "temp_" + Date.now(),
+        amount:total,
         customer
       })
     });
 
     const data = await res.json();
 
-    const cashfree = await load({mode:"production"});
+    if(!data.payment_session_id){
+      alert("Payment failed ❌");
+      setLoading(false);
+      return;
+    }
+
+    const cashfree = await load({ mode:"production" });
+
     await cashfree.checkout({
       paymentSessionId:data.payment_session_id,
       redirectTarget:"_self"
     });
 
+    // ✅ BUY NOW CLEAR
+    localStorage.removeItem("buy-now");
+
     setLoading(false);
   };
 
-  /* 🚚 COD */
-
+  /* 🔥 COD ORDER */
   const placeCOD = async()=>{
+    setCodChecked(true);
+    if(customer.firstName && customer.phone){
+  await saveAddress();
+}
+
+    let sellerId = null;
+
+    if (refCode) {
+      const snap = await getDoc(doc(db, "affiliateLinks", refCode));
+      if (snap.exists()) {
+        sellerId = snap.data().sellerId;
+      }
+    }
+
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Please fill details");
       return;
     }
 
-    await saveAddress();
+    if(items.length === 0){
+      alert("Cart empty ❌");
+      return;
+    }
+
+    const firstItem = items[0];
+
+    const sellPrice =
+      firstItem?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      firstItem?.price || 0;
+
+    const basePrice =
+      firstItem?.variations?.[0]?.sizes?.[0]?.basePrice || 0;
+
+    const profit = sellPrice - basePrice;
+    const commission = Math.max(0, Math.round(profit * 0.5));
+const finalTotal = codTotal;
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-      userId:user.uid,
+
+      userId: user.uid,
+      productId: firstItem?.id,
+
+      sellerId: sellerId || null,
+      affiliateCode: refCode || null,
+
+      sellPrice,
+      basePrice,
+      commission,
+
       items,
-      total:codTotal,
+      total: finalTotal,
       customer,
+
       paymentMethod:"cod",
       paymentStatus:"pending",
       status:"placed",
+
       createdAt:serverTimestamp()
     });
 
-    alert("Order placed ✅");
+    alert("Order placed (COD) ✅");
+
+    // ✅ BUY NOW CLEAR
+    localStorage.removeItem("buy-now");
+
     setLoading(false);
   };
 
-  const handlePlace = ()=>{
-    payment==="cod" ? placeCOD() : placeOnline();
-  };
-
   return(
-<div className="min-h-screen bg-gray-100 pb-24">
 
-<div className="max-w-xl mx-auto p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-200 p-4">
 
-{/* 🔥 PAYMENT */}
-<div className="bg-white rounded-xl p-4 space-y-3">
+      <div className="max-w-xl mx-auto">
 
-<h2 className="font-semibold text-lg">Select payment method</h2>
+        <h1 className="text-3xl font-bold text-center mb-4">
+          Checkout 🛍️
+        </h1>
 
-{/* COD */}
-<div
-onClick={()=>setPayment("cod")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="cod" && "border-green-500"
-}`}
->
-<div className="flex justify-between">
-<span>₹{codTotal} Cash on Delivery 🚚</span>
-<input type="radio" checked={payment==="cod"} readOnly />
+        {/* 🔥 SUMMARY */}
+        <div className="bg-white rounded-2xl shadow p-4 mb-4">
+
+          <h2 className="font-semibold mb-3">Order Summary</h2>
+
+          {items.map(item => (
+  <div key={item.id} className="flex justify-between text-sm mb-2">
+    <span>{item.name} × {item.quantity}</span>
+    <span>₹{getFinalPrice(item, offers) * (item.quantity || 1)}</span>
+  </div>
+))}
+
+<div className="flex justify-between text-sm mt-3">
+  <span className="text-gray-600">Shipping</span>
+  <span className="text-orange-600 font-semibold">
+    {shippingTotal > 0 ? `₹${shippingTotal}` : "FREE 🚚"}
+  </span>
 </div>
 
-<div className="text-xs mt-2 space-y-1">
-<div>
-<span className="line-through text-gray-500">₹{originalTotal}</span>{" "}
-<span className="text-green-600 font-semibold">
-{discountPercent}% OFF
-</span>{" "}
-₹{discount}
+{/* 🔥 TOTAL */}
+<div className="border-t mt-3 pt-3 flex justify-between font-bold">
+  <span className="text-lg text-green-600">
+  ₹{codChecked ? codTotal : total}
+</span>
 </div>
 
-<div className="text-green-600">
-{shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
-</div>
-</div>
-</div>
+        </div>
 
-{/* ONLINE */}
-<div
-onClick={()=>setPayment("online")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="online" && "border-green-500"
-}`}
->
-<div className="flex justify-between">
-<span>₹{total} Pay Online 💳</span>
-<input type="radio" checked={payment==="online"} readOnly />
+        {/* 🔥 FORM */}
+        <div className="bg-white rounded-2xl shadow p-5 space-y-4">
+
+          <h2 className="font-semibold">Delivery Details</h2>
+
+          <div className="grid grid-cols-2 gap-3">
+  <input
+    value={customer.firstName}
+    placeholder="First Name"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+  />
+  <input
+    value={customer.lastName}
+    placeholder="Last Name"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,lastName:e.target.value})}
+  />
 </div>
-
-<div className="text-xs mt-2 space-y-1">
-<div>
-<span className="line-through text-gray-500">₹{originalTotal}</span>{" "}
-<span className="text-green-600 font-semibold">
-{discountPercent}% OFF
-</span>{" "}
-₹{discount}
-</div>
-
-<div className="text-green-600">Free Delivery</div>
-</div>
-</div>
-
-</div>
-
-{/* 🔥 ADDRESS */}
-<div className="bg-white mt-4 p-4 rounded-xl space-y-2">
-
-<h2 className="font-semibold text-lg">Delivery Details</h2>
-
-<input
-placeholder="Full Name"
-className="w-full p-2 border rounded"
-value={customer.firstName}
-onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-/>
-
-<input
-placeholder="Phone"
-className="w-full p-2 border rounded"
-value={customer.phone}
-onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-/>
 
 <textarea
-placeholder="Address"
-className="w-full p-2 border rounded"
-value={customer.address}
-onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+  value={customer.address}
+  placeholder="Full Address"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
+<div className="grid grid-cols-2 gap-3">
+  <input
+    value={customer.city}
+    placeholder="City"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,city:e.target.value})}
+  />
+  <input
+    value={customer.state}
+    placeholder="State"
+    className="p-3 rounded-xl border"
+    onChange={(e)=>setCustomer({...customer,state:e.target.value})}
+  />
 </div>
 
-{/* 🔥 PRICE DETAILS */}
-<div className="bg-white mt-4 p-4 rounded-xl">
+<input
+  value={customer.zip}
+  placeholder="Pin Code"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,zip:e.target.value})}
+/>
 
-<h2 className="font-semibold mb-2">Price Details</h2>
+<input
+  value={customer.phone}
+  placeholder="Phone Number"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+/>
 
-<div className="flex justify-between text-sm">
-<span>Product Price</span>
-<span className="line-through">₹{originalTotal}</span>
-</div>
+<input
+  value={customer.email}
+  placeholder="Email"
+  className="p-3 rounded-xl border w-full"
+  onChange={(e)=>setCustomer({...customer,email:e.target.value})}
+/>
 
-<div className="flex justify-between text-green-600 text-sm">
-<span>Discount ({discountPercent}%)</span>
-<span>-₹{discount}</span>
-</div>
-
-{payment==="cod" && shippingTotal > 0 && (
-<div className="flex justify-between text-sm">
-<span>Shipping</span>
-<span>₹{shippingTotal}</span>
-</div>
-)}
-
-<div className="flex justify-between font-bold mt-2 text-lg">
-<span>Order Total</span>
-<span>₹{payment==="cod" ? codTotal : total}</span>
-</div>
-
-</div>
-
-</div>
-
-{/* 🔥 BOTTOM BAR */}
-<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
-
-<div>
-<div className="font-bold text-lg">
-₹{payment==="cod" ? codTotal : total}
-</div>
-<div className="text-xs text-purple-600">
-VIEW PRICE DETAILS
-</div>
-</div>
-
+          {/* 🔥 PAY */}
 <button
-onClick={handlePlace}
-className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold"
+  onClick={placeOrder}
+  className="w-full py-4 rounded-2xl text-white font-semibold text-lg 
+             bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500 
+             shadow-xl active:scale-95 transition-all duration-200"
 >
-{loading ? "Processing..." : "Place Order"}
+  {loading ? (
+    "⏳ Processing..."
+  ) : (
+    <div className="flex flex-col items-center leading-tight">
+      
+      {/* 💎 Main Premium Text */}
+      <span className="text-lg font-bold tracking-wide">
+        💎 Premium Checkout
+      </span>
+
+      {/* 💰 Price */}
+      <span className="text-xl">
+        Pay ₹{codChecked ? codTotal : total}
+      </span>
+
+      {/* 🏷️ Extra Info */}
+      <span className="text-xs opacity-90 mt-1">
+        {codChecked
+          ? shippingTotal > 0
+            ? `Includes ₹${shippingTotal} COD shipping 🚚`
+            : "Free COD Shipping 🚚"
+          : "Free Delivery ⚡"}
+      </span>
+
+      {/* 💸 Discount */}
+      {discount > 0 && (
+        <span className="text-xs text-yellow-200 mt-1">
+          🎉 You save ₹{discount}
+        </span>
+      )}
+      
+    </div>
+  )}
 </button>
 
-</div>
+          {/* 🔥 COD */}
+          <button
+            onClick={placeCOD}
+            disabled={!codUnlocked}
+            className={`w-full py-3 rounded-xl text-white font-semibold text-lg ${
+              codUnlocked
+                ? "bg-black"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {codUnlocked
+              ? "Cash on Delivery"
+              : "COD Locked (2 prepaid orders required)"}
+          </button>
 
-</div>
+        </div>
+
+      </div>
+
+    </div>
   );
 }
