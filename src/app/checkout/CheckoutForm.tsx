@@ -15,21 +15,18 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
-import { getFinalPrice } from "@/utils/getFinalPrice";
 
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
-  const [loading,setLoading] = useState(false);
-
-  const [offers,setOffers] = useState<any>({});
   const [payment,setPayment] = useState<"cod"|"online">("online");
+  const [loading,setLoading] = useState(false);
 
   const [customer,setCustomer] = useState({
     firstName:"",
-    address:"",
-    phone:""
+    phone:"",
+    address:""
   });
 
   /* 🔥 LOAD */
@@ -39,25 +36,17 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // address
+      // address autofill
       const userDoc = await getDoc(doc(db,"users",u.uid));
       if(userDoc.exists()){
         const d = userDoc.data();
         if(d.address) setCustomer(d.address);
       }
 
-      // offers
-      const snap = await getDocs(collection(db,"offers"));
-      const map:any = {};
-      snap.forEach(doc=>{
-        const d = doc.data();
-        map[d.productId] = d.discount;
-      });
-      setOffers(map);
-
-      // cart
+      // cart load
       const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
       const data:any[]=[];
+
       cartSnap.forEach(doc=>{
         data.push({...doc.data(), id:doc.id});
       });
@@ -68,33 +57,27 @@ export default function CheckoutPage(){
     return ()=>unsub();
   },[]);
 
-  /* 🧠 PRICE LOGIC (IMPORTANT FIX) */
+  /* 💰 PRICE LOGIC (FIXED) */
 
-  const getOriginalPrice = (item:any)=>{
-    return (
-      item?.variations?.[0]?.sizes?.[0]?.price ||
-      item?.price ||
-      0
-    );
-  };
+  const originalTotal = items.reduce((sum,item)=>{
+    const original =
+      item?.variations?.[0]?.sizes?.[0]?.price || // 🔥 MRP
+      item?.originalPrice ||
+      item?.price || 0;
 
-  const getSellingPrice = (item:any)=>{
-    return getFinalPrice(item,offers);
-  };
+    return sum + original * (item.quantity||1);
+  },0);
 
-  /* 💰 TOTALS */
+  const finalTotal = items.reduce((sum,item)=>{
+    const final =
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice || // 🔥 SELL PRICE
+      item?.sellPrice ||
+      item?.price || 0;
 
-  const originalTotal = items.reduce(
-    (sum,i)=> sum + (getOriginalPrice(i)*(i.quantity||1)),
-    0
-  );
+    return sum + final * (item.quantity||1);
+  },0);
 
-  const total = items.reduce(
-    (sum,i)=> sum + (getSellingPrice(i)*(i.quantity||1)),
-    0
-  );
-
-  const discount = originalTotal - total;
+  const discount = Math.max(0, originalTotal - finalTotal);
 
   const discountPercent =
     originalTotal > 0
@@ -107,7 +90,7 @@ export default function CheckoutPage(){
     0
   );
 
-  const codTotal = total + shippingTotal;
+  const codTotal = finalTotal + shippingTotal;
 
   /* 💾 SAVE */
   const saveAddress = async ()=>{
@@ -130,7 +113,7 @@ export default function CheckoutPage(){
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
         orderId:"order_"+Date.now(),
-        amount: total,
+        amount: finalTotal,
         customer
       })
     });
@@ -148,14 +131,6 @@ export default function CheckoutPage(){
 
   /* 🚚 COD */
   const placeCOD = async()=>{
-    if(!customer.firstName || !customer.phone){
-      alert("Fill details");
-      return;
-    }
-
-    await saveAddress();
-    setLoading(true);
-
     await addDoc(collection(db,"orders"),{
       userId:user.uid,
       items,
@@ -167,7 +142,6 @@ export default function CheckoutPage(){
     });
 
     alert("Order placed ✅");
-    setLoading(false);
   };
 
   const handlePlace = ()=>{
@@ -185,53 +159,43 @@ export default function CheckoutPage(){
 <h2 className="font-semibold text-lg">Select payment method</h2>
 
 {/* COD */}
-<div
-onClick={()=>setPayment("cod")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="cod" && "border-green-500"
-}`}
->
+<div onClick={()=>setPayment("cod")}
+className={`border p-3 rounded-lg cursor-pointer ${payment==="cod" && "border-green-500"}`}>
+
 <div className="flex justify-between">
 <span>₹{codTotal} Cash on Delivery 🚚</span>
 <input type="radio" checked={payment==="cod"} readOnly />
 </div>
 
-<div className="text-xs mt-2 text-gray-600 space-y-1">
-<div>
+<div className="text-xs mt-2 text-gray-600">
 <span className="line-through">₹{originalTotal}</span>{" "}
 <span className="text-green-600">{discountPercent}% OFF</span>{" "}
-<span>₹{discount}</span>
+₹{discount}
 </div>
 
-<div className="text-green-600">
+<div className="text-green-600 text-xs">
 {shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
-</div>
 </div>
 
 </div>
 
 {/* ONLINE */}
-<div
-onClick={()=>setPayment("online")}
-className={`border p-3 rounded-lg cursor-pointer ${
-payment==="online" && "border-green-500"
-}`}
->
+<div onClick={()=>setPayment("online")}
+className={`border p-3 rounded-lg cursor-pointer ${payment==="online" && "border-green-500"}`}>
+
 <div className="flex justify-between">
-<span>₹{total} Pay Online 💳</span>
+<span>₹{finalTotal} Pay Online 💳</span>
 <input type="radio" checked={payment==="online"} readOnly />
 </div>
 
-<div className="text-xs mt-2 text-gray-600 space-y-1">
-<div>
+<div className="text-xs mt-2 text-gray-600">
 <span className="line-through">₹{originalTotal}</span>{" "}
 <span className="text-green-600">{discountPercent}% OFF</span>{" "}
-<span>₹{discount}</span>
+₹{discount}
 </div>
 
-<div className="text-green-600">
+<div className="text-green-600 text-xs">
 Free Delivery
-</div>
 </div>
 
 </div>
@@ -241,24 +205,21 @@ Free Delivery
 {/* 🔥 ADDRESS */}
 <div className="bg-white mt-4 p-4 rounded-xl space-y-2">
 
-<h2 className="font-semibold text-lg">Delivery Details</h2>
+<h2 className="font-semibold">Delivery Details</h2>
 
-<input
-placeholder="Full Name"
+<input placeholder="Name"
 className="w-full p-2 border rounded"
 value={customer.firstName}
 onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
 />
 
-<input
-placeholder="Phone"
+<input placeholder="Phone"
 className="w-full p-2 border rounded"
 value={customer.phone}
 onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
-<textarea
-placeholder="Address"
+<textarea placeholder="Address"
 className="w-full p-2 border rounded"
 value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
@@ -266,7 +227,7 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 
 </div>
 
-{/* 🔥 PRICE */}
+{/* 🔥 PRICE DETAILS */}
 <div className="bg-white mt-4 p-4 rounded-xl">
 
 <h2 className="font-semibold mb-2">Price Details</h2>
@@ -281,16 +242,9 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 <span>-₹{discount}</span>
 </div>
 
-{payment==="cod" && shippingTotal > 0 && (
-<div className="flex justify-between text-sm">
-<span>Shipping</span>
-<span>₹{shippingTotal}</span>
-</div>
-)}
-
-<div className="flex justify-between font-bold mt-2 text-lg">
+<div className="flex justify-between font-bold mt-2">
 <span>Order Total</span>
-<span>₹{payment==="cod" ? codTotal : total}</span>
+<span>₹{payment==="cod" ? codTotal : finalTotal}</span>
 </div>
 
 </div>
@@ -298,21 +252,17 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 </div>
 
 {/* 🔥 BOTTOM */}
-<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between items-center">
+<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex justify-between">
 
 <div>
 <div className="font-bold text-lg">
-₹{payment==="cod" ? codTotal : total}
+₹{payment==="cod" ? codTotal : finalTotal}
 </div>
-<div className="text-xs text-purple-600">
-VIEW PRICE DETAILS
-</div>
+<div className="text-xs text-purple-600">VIEW PRICE DETAILS</div>
 </div>
 
-<button
-onClick={handlePlace}
-className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold"
->
+<button onClick={handlePlace}
+className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl">
 {loading ? "Processing..." : "Place Order"}
 </button>
 
