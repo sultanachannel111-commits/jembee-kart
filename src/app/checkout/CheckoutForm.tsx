@@ -15,7 +15,6 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
-import { getFinalPrice } from "@/utils/getFinalPrice";
 
 export default function CheckoutPage(){
 
@@ -46,7 +45,7 @@ export default function CheckoutPage(){
         if(d.address) setCustomer(d.address);
       }
 
-      // offers
+      // offers load
       const snap = await getDocs(collection(db,"offers"));
       const map:any = {};
       snap.forEach(doc=>{
@@ -55,11 +54,16 @@ export default function CheckoutPage(){
       });
       setOffers(map);
 
-      // cart
+      // cart load
       const cartSnap = await getDocs(collection(db,"carts",u.uid,"items"));
       const data:any[]=[];
       cartSnap.forEach(doc=>{
-        data.push({...doc.data(), id:doc.id});
+        const d = doc.data();
+        data.push({
+          ...d,
+          id: doc.id,
+          productId: d.productId || doc.id // 🔥 FIX
+        });
       });
 
       setItems(data);
@@ -71,25 +75,30 @@ export default function CheckoutPage(){
   /* 🧠 PRICE LOGIC */
 
   const getOriginalPrice = (item:any)=>{
-    const original =
+    return (
       item?.variations?.[0]?.sizes?.[0]?.price ||
-      item?.price;
+      item?.price ||
+      0
+    );
+  };
 
-    if(original && original > 0) return original;
-
-    // fallback (reverse calculate)
-    const discountPercent = offers[item.id] || 0;
-    const final = getFinalPrice(item, offers);
-
-    if(discountPercent > 0){
-      return Math.round(final / (1 - discountPercent/100));
-    }
-
-    return final;
+  const getDiscountPercent = (item:any)=>{
+    return (
+      offers[item.productId] ||
+      offers[item.id] ||
+      0
+    );
   };
 
   const getSellingPrice = (item:any)=>{
-    return getFinalPrice(item, offers);
+    const original = getOriginalPrice(item);
+    const discountPercent = getDiscountPercent(item);
+
+    if(discountPercent > 0){
+      return Math.round(original - (original * discountPercent)/100);
+    }
+
+    return original;
   };
 
   /* 💰 TOTALS */
@@ -111,21 +120,24 @@ export default function CheckoutPage(){
       ? Math.round((discount / originalTotal) * 100)
       : 0;
 
-  /* 🚚 SHIPPING (COD only) */
+  /* 🚚 SHIPPING */
+
   const shippingTotal = items.reduce(
-    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),
+    (sum,i)=> sum + ((i.shippingCharge || 0)*(i.quantity||1)),
     0
   );
 
   const codTotal = total + shippingTotal;
 
   /* 💾 SAVE */
+
   const saveAddress = async ()=>{
     if(!user) return;
     await setDoc(doc(db,"users",user.uid),{address:customer},{merge:true});
   };
 
   /* 💳 ONLINE */
+
   const placeOnline = async()=>{
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -157,6 +169,7 @@ export default function CheckoutPage(){
   };
 
   /* 🚚 COD */
+
   const placeCOD = async()=>{
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -209,9 +222,7 @@ payment==="cod" && "border-green-500"
 
 <div className="text-xs mt-2 space-y-1">
 <div>
-<span className="line-through text-gray-500">
-₹{originalTotal}
-</span>{" "}
+<span className="line-through text-gray-500">₹{originalTotal}</span>{" "}
 <span className="text-green-600 font-semibold">
 {discountPercent}% OFF
 </span>{" "}
@@ -222,7 +233,6 @@ payment==="cod" && "border-green-500"
 {shippingTotal > 0 ? `Delivery ₹${shippingTotal}` : "Free Delivery"}
 </div>
 </div>
-
 </div>
 
 {/* ONLINE */}
@@ -239,20 +249,15 @@ payment==="online" && "border-green-500"
 
 <div className="text-xs mt-2 space-y-1">
 <div>
-<span className="line-through text-gray-500">
-₹{originalTotal}
-</span>{" "}
+<span className="line-through text-gray-500">₹{originalTotal}</span>{" "}
 <span className="text-green-600 font-semibold">
 {discountPercent}% OFF
 </span>{" "}
 ₹{discount}
 </div>
 
-<div className="text-green-600">
-Free Delivery
+<div className="text-green-600">Free Delivery</div>
 </div>
-</div>
-
 </div>
 
 </div>
@@ -277,7 +282,7 @@ onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
 />
 
 <textarea
-placeholder="Full Address"
+placeholder="Address"
 className="w-full p-2 border rounded"
 value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
