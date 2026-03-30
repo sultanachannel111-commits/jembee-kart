@@ -14,7 +14,8 @@ import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
-
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 export default function HomePage() {
@@ -33,7 +34,7 @@ export default function HomePage() {
   const [clearance,setClearance] = useState<any[]>([]);
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
-
+  const [offers, setOffers] = useState<any>({});
   // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
   useEffect(()=>{
 
@@ -67,7 +68,19 @@ export default function HomePage() {
       localStorage.setItem("home-cache", JSON.stringify(data));
 
       console.log("⚡ Fresh data loaded");
+      // 🔥 FETCH OFFERS
+const offerSnap = await getDocs(collection(db, "offers"));
 
+const offerMap:any = {};
+
+offerSnap.forEach(doc => {
+  const data = doc.data();
+  offerMap[data.productId] = data.discount;
+});
+
+setOffers(offerMap);
+
+console.log("🔥 OFFERS:", offerMap);
       // 🔥 EXTRA SERVICES (parallel)
       const [t,c,r,l] = await Promise.all([
         getTrendingProducts(),
@@ -172,11 +185,11 @@ export default function HomePage() {
         )}
 
         {/* PRODUCTS */}
-        <ProductGrid products={filteredProducts} theme={theme}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme}/>
+        <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
+<ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
+<ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
+<ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
+<ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
 
       </div>
 
