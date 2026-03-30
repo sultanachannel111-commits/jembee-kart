@@ -15,70 +15,67 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
-import { getFinalPrice } from "@/utils/getFinalPrice";
+
+/* 🔥 FINAL PRICE FUNCTION */
+const getFinalPrice = (item:any) => {
+  const sellPrice =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+    item.price ||
+    0;
+
+  const discount = item.discount || 0;
+
+  return discount > 0
+    ? Math.round(sellPrice - (sellPrice * discount) / 100)
+    : sellPrice;
+};
 
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [codUnlocked,setCodUnlocked] = useState(true);
-  const [codChecked, setCodChecked] = useState(false);
-  const [offers, setOffers] = useState<any>({});
+  const [codChecked,setCodChecked] = useState(false);
+
+  const [shippingConfig,setShippingConfig] = useState({
+    prepaid: 0,
+    cod: 50
+  });
 
   const [customer,setCustomer] = useState({
     firstName:"",
-    lastName:"",
-    address:"",
-    city:"",
-    state:"",
-    zip:"",
     phone:"",
-    email:""
+    address:""
   });
 
-  const refCode =
-    typeof window !== "undefined"
-      ? localStorage.getItem("affiliate")
-      : null;
-
-  /* 🔥 LOAD */
+  /* 🔥 LOAD DATA */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
 
       setUser(u);
 
-      // address autofill
+      // address
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         if (data.address) setCustomer(data.address);
       }
 
-      // offers
-      const offerSnap = await getDocs(collection(db, "offers"));
-      const offerMap:any = {};
-      offerSnap.forEach(doc => {
-        const d = doc.data();
-        offerMap[d.productId] = d.discount;
-      });
-      setOffers(offerMap);
-
       // cart
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
-      const data:any[] = [];
-
+      const arr:any[] = [];
       snap.forEach(doc=>{
-        const d = doc.data();
-        data.push({
-          id:doc.id,
-          ...d,
-          quantity: d.quantity || 1
-        });
+        arr.push({ id:doc.id, ...doc.data(), quantity:1 });
       });
+      setItems(arr);
 
-      setItems(data);
+      // 🔥 shipping config from admin
+      const shipDoc = await getDoc(doc(db,"config","shipping"));
+      if(shipDoc.exists()){
+        setShippingConfig(shipDoc.data());
+      }
+
     });
 
     return ()=>unsub();
@@ -86,38 +83,30 @@ export default function CheckoutPage(){
 
   /* 💰 TOTAL */
   const total = items.reduce(
-    (sum,i)=> sum + (getFinalPrice(i, offers)*(i.quantity||1)),
+    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
     0
   );
 
   /* 💸 DISCOUNT */
   const discount = items.reduce((sum,item)=>{
-    const base =
-      item?.variations?.[0]?.sizes?.[0]?.price || 0;
-
     const sell =
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      getFinalPrice(item, offers);
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice || 0;
 
-    return sum + Math.max(0, base - sell);
+    const final = getFinalPrice(item);
+
+    return sum + Math.max(0, sell - final);
   },0);
 
   const originalTotal = total + discount;
 
-  const discountPercent =
-    originalTotal > 0
-      ? Math.round((discount / originalTotal) * 100)
-      : 0;
-
   /* 🚚 SHIPPING */
-  const shippingTotal = items.reduce(
-    (sum,i)=> sum + ((i.shippingCharge||0)*(i.quantity||1)),
-    0
-  );
+  const shippingCharge = codChecked
+    ? shippingConfig.cod
+    : shippingConfig.prepaid;
 
-  const codTotal = total + shippingTotal;
+  const finalPay = total + shippingCharge;
 
-  /* 💾 SAVE */
+  /* 💾 SAVE ADDRESS */
   const saveAddress = async ()=>{
     if (!user) return;
     await setDoc(doc(db, "users", user.uid), {
@@ -125,12 +114,12 @@ export default function CheckoutPage(){
     }, { merge: true });
   };
 
-  /* 💳 ONLINE */
+  /* 💳 ONLINE PAYMENT */
   const placeOrder = async()=>{
     setCodChecked(false);
 
     if(!customer.firstName || !customer.phone){
-      alert("Please fill details");
+      alert("Fill details");
       return;
     }
 
@@ -142,13 +131,12 @@ export default function CheckoutPage(){
       headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({
         orderId:"order_"+Date.now(),
-        amount: total,
+        amount: finalPay,
         customer
       })
     });
 
     const data = await res.json();
-
     const cashfree = await load({ mode:"production" });
 
     await cashfree.checkout({
@@ -164,7 +152,7 @@ export default function CheckoutPage(){
     setCodChecked(true);
 
     if(!customer.firstName || !customer.phone){
-      alert("Please fill details");
+      alert("Fill details");
       return;
     }
 
@@ -174,15 +162,13 @@ export default function CheckoutPage(){
     await addDoc(collection(db,"orders"),{
       userId: user.uid,
       items,
-      total: codTotal,
-      customer,
+      total: finalPay,
       paymentMethod:"cod",
-      paymentStatus:"pending",
       status:"placed",
       createdAt:serverTimestamp()
     });
 
-    alert("Order placed (COD) ✅");
+    alert("Order placed ✅");
     setLoading(false);
   };
 
@@ -198,28 +184,28 @@ export default function CheckoutPage(){
 
 {items.map(item => (
   <div key={item.id} className="flex justify-between text-sm mb-2">
-    <span>{item.name} × {item.quantity}</span>
-    <span>₹{getFinalPrice(item, offers)*(item.quantity||1)}</span>
+    <span>{item.name}</span>
+    <span>₹{getFinalPrice(item)}</span>
   </div>
 ))}
 
 <div className="text-xs text-gray-500 mt-2">
 <span className="line-through">₹{originalTotal}</span>{" "}
 <span className="text-green-600">
-{discountPercent}% OFF ₹{discount}
+Save ₹{discount}
 </span>
 </div>
 
 <div className="flex justify-between mt-3 text-sm">
   <span>Shipping</span>
   <span className="text-green-600">
-    {shippingTotal > 0 ? `₹${shippingTotal}` : "FREE 🚚"}
+    {shippingCharge > 0 ? `₹${shippingCharge}` : "FREE 🚚"}
   </span>
 </div>
 
 <div className="border-t mt-3 pt-3 flex justify-between font-bold text-lg">
   <span>Total</span>
-  <span>₹{codChecked ? codTotal : total}</span>
+  <span>₹{finalPay}</span>
 </div>
 
 </div>
@@ -250,43 +236,21 @@ value={customer.address}
 onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 />
 
-{/* 🔥 BUTTON */}
+{/* 💳 PREPAID */}
 <button
 onClick={placeOrder}
 className="w-full py-4 rounded-xl text-white font-semibold bg-green-600"
 >
-{loading ? "Processing..." : `Pay ₹${codChecked ? codTotal : total}`}
+{loading ? "Processing..." : `Pay ₹${finalPay}`}
 </button>
 
+{/* 🚚 COD */}
 <button
 onClick={placeCOD}
 className="w-full py-3 rounded-xl text-white bg-black"
 >
-Cash on Delivery
+Cash on Delivery (+₹{shippingConfig.cod})
 </button>
-
-{/* 🔥 DISCOUNT UI */}
-{discount > 0 && (
-<div className="text-center text-sm mt-3">
-
-<div>
-<span className="line-through">₹{originalTotal}</span>{" "}
-<span className="text-green-600 font-semibold">
-{discountPercent}% OFF
-</span>{" "}
-₹{discount}
-</div>
-
-<div className="text-green-600 mt-1">
-{codChecked
-  ? (shippingTotal > 0
-      ? `Delivery ₹${shippingTotal}`
-      : "Free Delivery 🚚")
-  : "Free Delivery ⚡"}
-</div>
-
-</div>
-)}
 
 </div>
 
