@@ -12,7 +12,7 @@ type Props = {
   products: any[];
   title?: string;
   theme?: any;
-  offers?: any; // ✅ ADD (important)
+  offers?: any;
 };
 
 export default function ProductGrid({ products, title, theme, offers }: Props) {
@@ -58,7 +58,6 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
           ...prev,
           [product.id]: false
         }));
-
       } else {
         await setDoc(ref, {
           ...product,
@@ -70,7 +69,6 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
           [product.id]: true
         }));
       }
-
     } catch (err) {
       console.log(err);
     }
@@ -81,6 +79,7 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
   return (
     <div className="mt-4">
 
+      {/* 🔥 TITLE */}
       {title && (
         <h2
           style={{ color: theme?.cardText || "#000" }}
@@ -90,18 +89,27 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
         </h2>
       )}
 
+      {/* 🔥 GRID */}
       <div className="grid grid-cols-2 gap-4">
 
-        {products.slice(0, visibleCount).map((product: any, index:number) => {
+        {products.slice(0, visibleCount).map((product: any, index: number) => {
 
-          // ✅ ORIGINAL PRICE FIX
+          // ✅ SAFE PRODUCT ID
+          const productId =
+            product?.id ||
+            product?._id ||
+            product?.productId ||
+            "";
+
+          // ✅ ORIGINAL PRICE (CUT PRICE)
           const original =
-            product?.variations?.[0]?.sizes?.[0]?.price ||
-            product?.price ||
-            product?.originalPrice ||
+            product?.selectedSize?.price ??
+            product?.variations?.[0]?.sizes?.[0]?.price ??
+            product?.price ??
+            product?.originalPrice ??
             0;
 
-          // ✅ FINAL PRICE (REAL)
+          // ✅ FINAL PRICE (REAL FIX)
           const finalPrice = getFinalPrice(product, offers || {});
 
           // ✅ DISCOUNT %
@@ -119,14 +127,12 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
           const totalSold = realSold + demoSold;
 
           const image =
-            product.variations?.[0]?.images?.main ||
-            product.variations?.[0]?.images?.front ||
-            product.variations?.[0]?.images?.back ||
-            product.variations?.[0]?.images?.side ||
-            product.image ||
-            product.imageUrl ||
-            product.frontImage ||
-            "";
+            product?.selectedSize?.images?.main ||
+            product?.variations?.[0]?.images?.main ||
+            product?.variations?.[0]?.images?.front ||
+            product?.image ||
+            product?.imageUrl ||
+            "/no-image.png";
 
           return (
             <div
@@ -162,7 +168,7 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
               {/* 🔥 IMAGE */}
               <Link href={`/product/${product.id}`}>
                 <img
-                  src={image || "/no-image.png"}
+                  src={image}
                   alt={product.name}
                   className="w-full h-40 object-cover rounded-lg"
                   loading="lazy"
@@ -186,7 +192,6 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
 
                   return (
                     <div key={star} className="relative w-[14px] h-[14px]">
-
                       <Star size={14} className="text-gray-300" />
 
                       {full && (
@@ -204,18 +209,12 @@ export default function ProductGrid({ products, title, theme, offers }: Props) {
                           />
                         </div>
                       )}
-
                     </div>
                   );
                 })}
 
-                <span className="text-xs ml-1">
-                  {rating}
-                </span>
-
-                <span className="text-xs opacity-60">
-                  ({reviews})
-                </span>
+                <span className="text-xs ml-1">{rating}</span>
+                <span className="text-xs opacity-60">({reviews})</span>
               </div>
 
               {/* 🔥 SOLD */}
