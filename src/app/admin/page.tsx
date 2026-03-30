@@ -51,6 +51,18 @@ JembeeKart Admin Panel
 </Link>
 
 
+  {/* SHIPPING */}
+<Link href="/admin/shipping">
+  <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+    <Truck className="text-green-600 mb-2"/>
+    <h3 className="font-bold">Shipping</h3>
+    <p className="text-sm text-gray-500">
+      Manage shipping charges
+    </p>
+  </div>
+</Link>
+  
+
 {/* ADD QIKINK PRODUCTS */}
 
 <Link href="/admin/qikink-products">
