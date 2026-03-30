@@ -64,17 +64,17 @@ export default function CartPage() {
   /* 🔥 FINAL PRICE FUNCTION */
   const getPrice = (item:any) => {
 
-    // अगर cart में direct price saved है
-    if (item.price && item.price > 0) {
-      return item.price;
-    }
+  const sellPrice =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+    item.price ||
+    0;
 
-    // fallback (variations से)
-    return (
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      0
-    );
-  };
+  const discount = item.discount || 0;
+
+  return discount > 0
+    ? Math.round(sellPrice - (sellPrice * discount) / 100)
+    : sellPrice;
+};
 
   /* INCREASE */
   const increase = async (item:any) => {
