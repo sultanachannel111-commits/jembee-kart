@@ -55,22 +55,35 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // address
+      // ✅ ADDRESS LOAD
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         if (data.address) setCustomer(data.address);
       }
 
-      // cart
+      // ✅ CART LOAD (FIXED)
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
       const arr:any[] = [];
+
       snap.forEach(doc=>{
-        arr.push({ id:doc.id, ...doc.data(), quantity:1 });
+        const d = doc.data();
+
+        arr.push({
+          id: doc.id,
+          name: d.name || "",
+          price: d.price || 0,
+          discount: d.discount || 0,
+          variations: d.variations || [],
+          quantity: d.quantity || 1
+        });
       });
+
+      console.log("CART 👉", arr); // debug
+
       setItems(arr);
 
-      // 🔥 shipping config from admin
+      // ✅ SHIPPING CONFIG (ADMIN)
       const shipDoc = await getDoc(doc(db,"config","shipping"));
       if(shipDoc.exists()){
         setShippingConfig(shipDoc.data());
@@ -90,7 +103,9 @@ export default function CheckoutPage(){
   /* 💸 DISCOUNT */
   const discount = items.reduce((sum,item)=>{
     const sell =
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice || 0;
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item.price ||
+      0;
 
     const final = getFinalPrice(item);
 
@@ -114,7 +129,7 @@ export default function CheckoutPage(){
     }, { merge: true });
   };
 
-  /* 💳 ONLINE PAYMENT */
+  /* 💳 PREPAID */
   const placeOrder = async()=>{
     setCodChecked(false);
 
@@ -184,8 +199,8 @@ export default function CheckoutPage(){
 
 {items.map(item => (
   <div key={item.id} className="flex justify-between text-sm mb-2">
-    <span>{item.name}</span>
-    <span>₹{getFinalPrice(item)}</span>
+    <span>{item.name} × {item.quantity}</span>
+    <span>₹{getFinalPrice(item)*(item.quantity||1)}</span>
   </div>
 ))}
 
