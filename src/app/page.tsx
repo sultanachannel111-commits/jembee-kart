@@ -1,213 +1,262 @@
 "use client";
 
-import Header from "@/components/home/Header";
-import SearchBar from "@/components/home/SearchBar";
-import BannerSlider from "@/components/home/BannerSlider";
-import CategoryList from "@/components/home/CategoryList";
-import ProductGrid from "@/components/home/ProductGrid";
-import BottomNav from "@/components/home/BottomNav";
-import FestivalBanner from "@/components/home/FestivalBanner";
-import FlashSale from "@/components/home/FlashSale";
-import useTheme from "@/hooks/useTheme";
+import Link from "next/link";
+import { Heart, Star, Flame } from "lucide-react";
+import { getFinalPrice } from "@/utils/getFinalPrice";
 
-import { getTrendingProducts } from "@/services/trendingService";
-import { getClearanceProducts } from "@/services/clearanceService";
-import { getRecommendedProducts } from "@/services/recommendService";
-import { getLightningDeals } from "@/services/lightningService";
+import { useState, useEffect } from "react";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
-import { useEffect, useState } from "react";
+type Props = {
+  products: any[];
+  title?: string;
+  theme?: any;
+  offers?: any;
+};
 
-// ✅ ADD
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+export default function ProductGrid({ products, title, theme, offers }: Props) {
 
-export default function HomePage() {
+  const [likedItems, setLikedItems] = useState<any>({});
+  const [visibleCount, setVisibleCount] = useState(4);
 
-  const theme = useTheme();
+  useEffect(() => {
+    if (!products) return;
 
-  const [categories,setCategories] = useState<any[]>([]);
-  const [banners,setBanners] = useState<any[]>([]);
-  const [products,setProducts] = useState<any[]>([]);
-  const [festival,setFestival] = useState<any>(null);
+    let i = 4;
 
-  const [search,setSearch] = useState("");
-  const [selectedCategory,setSelectedCategory] = useState("All");
+    const interval = setInterval(() => {
+      i += 2;
+      setVisibleCount(i);
 
-  const [trending,setTrending] = useState<any[]>([]);
-  const [clearance,setClearance] = useState<any[]>([]);
-  const [recommended,setRecommended] = useState<any[]>([]);
-  const [lightning,setLightning] = useState<any[]>([]);
+      if (i >= products.length) {
+        clearInterval(interval);
+      }
+    }, 400);
 
-  // ✅ ADD OFFERS STATE
-  const [offers,setOffers] = useState<any>({});
+    return () => clearInterval(interval);
+  }, [products]);
 
-  // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
-  useEffect(()=>{
+  const toggleWishlist = async (e: any, product: any) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    const saved = localStorage.getItem("home-cache");
+    const user = auth.currentUser;
 
-    if(saved){
-      const data = JSON.parse(saved);
-
-      setCategories(data.categories || []);
-      setBanners(data.banners || []);
-      setProducts(data.products || []);
-      setFestival(data.festival || null);
+    if (!user) {
+      alert("Login first");
+      return;
     }
 
-    loadData();
+    const ref = doc(db, "wishlist", user.uid, "items", product.id);
 
-  },[]);
+    try {
+      if (likedItems[product.id]) {
+        await deleteDoc(ref);
 
-  // 🔥 LOAD OFFERS (NEW)
-  useEffect(()=>{
-    const loadOffers = async ()=>{
-      try{
-        const snap = await getDocs(collection(db,"offers"));
+        setLikedItems((prev: any) => ({
+          ...prev,
+          [product.id]: false
+        }));
 
-        const map:any = {};
-
-        snap.forEach(doc=>{
-          const d = doc.data();
-          map[d.productId] = d.discount;
+      } else {
+        await setDoc(ref, {
+          ...product,
+          createdAt: new Date()
         });
 
-        console.log("🔥 OFFERS:", map);
-
-        setOffers(map);
-
-      }catch(err){
-        console.log("❌ OFFER ERROR",err);
+        setLikedItems((prev: any) => ({
+          ...prev,
+          [product.id]: true
+        }));
       }
-    };
 
-    loadOffers();
-  },[]);
-
-  const loadData = async()=>{
-    try{
-      const res = await fetch("/api/home");
-      const data = await res.json();
-
-      setCategories(data.categories || []);
-      setBanners(data.banners || []);
-      setProducts(data.products || []);
-      setFestival(data.festival || null);
-
-      localStorage.setItem("home-cache", JSON.stringify(data));
-
-      console.log("⚡ Fresh data loaded");
-
-      const [t,c,r,l] = await Promise.all([
-        getTrendingProducts(),
-        getClearanceProducts(),
-        getRecommendedProducts(),
-        getLightningDeals()
-      ]);
-
-      setTrending(t);
-      setClearance(c);
-      setRecommended(r);
-      setLightning(l);
-
-    }catch(err){
-      console.log("❌ LOAD ERROR",err);
+    } catch (err) {
+      console.log(err);
     }
   };
 
-  // 🔍 SEARCH
-  const normalize = (text:string)=>
-    text?.toLowerCase().replace(/\s|-/g,"");
+  if (!products || products.length === 0) return null;
 
-  const filteredProducts = products.filter(p=>{
-    const matchSearch = normalize(p.name).includes(normalize(search));
-    const matchCategory =
-      selectedCategory === "All" || p.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
+  return (
+    <div className="mt-4">
 
-  // 🎨 BACKGROUND
-  const backgroundStyle = theme?.gradient
-    ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#0f172a";
-
-  return(
-    <div
-      style={{ background: backgroundStyle }}
-      className="min-h-screen pb-[80px] transition-all duration-300"
-    >
-
-      <Header theme={theme}/>
-
-      <div className="pt-[80px] px-4 space-y-4">
-
-        {/* SEARCH */}
-        <div
-          style={{
-            background: theme?.searchBg || "#ffffff10",
-            color: theme?.searchText || "#fff",
-            borderColor: theme?.searchBorder || "#ffffff20"
-          }}
-          className="rounded-xl p-2 border backdrop-blur-md"
+      {/* 🔥 TITLE */}
+      {title && (
+        <h2
+          style={{ color: theme?.cardText || "#000" }}
+          className="text-lg font-bold mb-3"
         >
-          <SearchBar search={search} setSearch={setSearch}/>
-        </div>
+          {title}
+        </h2>
+      )}
 
-        {/* TRENDING */}
-        <div
-          style={{
-            background: theme?.trendingBg || "#ffffff10",
-            color: theme?.trendingText || "#fff"
-          }}
-          className="rounded-xl shadow p-3 backdrop-blur-md"
-        >
-          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
+      {/* 🔥 GRID */}
+      <div className="grid grid-cols-2 gap-4">
 
-          <div className="flex flex-wrap gap-2">
-            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
-              <button
-                key={item}
-                style={{
-                  background: theme?.trendingChipBg || "#ffffff20",
-                  color: theme?.trendingChipText || "#fff"
-                }}
-                className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
+        {products.slice(0, visibleCount).map((product: any, index:number) => {
+
+          // 🔥 DEBUG (IMPORTANT)
+          console.log("🧾 PRODUCT ID:", product.id);
+          console.log("🎯 OFFERS MAP:", offers);
+
+          // ✅ ORIGINAL PRICE
+          const original =
+            product?.variations?.[0]?.sizes?.[0]?.price ||
+            product?.price ||
+            product?.originalPrice ||
+            0;
+
+          // ✅ FINAL PRICE
+          const finalPrice = getFinalPrice(product, offers || {});
+
+          // 🔥 DISCOUNT %
+          const discountPercent =
+            original > finalPrice
+              ? Math.round(((original - finalPrice) / original) * 100)
+              : 0;
+
+          const rating = product.rating || 4.5;
+          const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
+
+          const realSold = product.sold || 0;
+          const demoSold = product.demoSold || Math.floor(Math.random() * 300) + 50;
+
+          const totalSold = realSold + demoSold;
+
+          const image =
+            product.variations?.[0]?.images?.main ||
+            product.variations?.[0]?.images?.front ||
+            product.variations?.[0]?.images?.back ||
+            product.variations?.[0]?.images?.side ||
+            product.image ||
+            product.imageUrl ||
+            product.frontImage ||
+            "";
+
+          return (
+            <div
+              key={product.id}
+              style={{
+                background: theme?.cardBg || "#ffffff",
+                color: theme?.cardText || "#000"
+              }}
+              className={`rounded-xl shadow p-3 relative
+                transition-all duration-500
+                ${index >= 4 ? "opacity-0 animate-fadeIn" : "opacity-100"}
+              `}
+            >
+
+              {/* ❤️ Wishlist */}
+              <Heart
+                size={18}
+                onClick={(e) => toggleWishlist(e, product)}
+                className={`absolute top-2 right-2 cursor-pointer ${
+                  likedItems[product.id]
+                    ? "text-red-500 fill-red-500"
+                    : "text-gray-400"
+                }`}
+              />
+
+              {/* 🔥 DISCOUNT BADGE */}
+              {discountPercent > 0 && (
+                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                  {discountPercent}% OFF
+                </span>
+              )}
+
+              {/* 🔥 IMAGE */}
+              <Link href={`/product/${product.id}`}>
+                <img
+                  src={image || "/no-image.png"}
+                  alt={product.name}
+                  className="w-full h-40 object-cover rounded-lg"
+                  loading="lazy"
+                />
+              </Link>
+
+              {/* 🔥 NAME */}
+              <div
+                style={{ color: theme?.cardText || "#000" }}
+                className="mt-2 text-sm truncate font-medium"
               >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
+                {product.name}
+              </div>
 
-        {/* CATEGORY */}
-        <CategoryList
-          categories={categories}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-        />
+              {/* ⭐ RATING */}
+              <div className="flex items-center gap-1 mt-1">
+                {[1, 2, 3, 4, 5].map((star) => {
 
-        {/* BANNER */}
-        {Array.isArray(banners) && banners.length > 0 && (
-          <BannerSlider banners={banners} />
-        )}
+                  const full = rating >= star;
+                  const half = rating >= star - 0.5 && rating < star;
 
-        {/* FLASH */}
-        <FlashSale/>
+                  return (
+                    <div key={star} className="relative w-[14px] h-[14px]">
 
-        {festival?.active && (
-          <FestivalBanner festival={festival}/>
-        )}
+                      <Star size={14} className="text-gray-300" />
 
-        {/* PRODUCTS (FIXED) */}
-        <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
+                      {full && (
+                        <Star
+                          size={14}
+                          className="absolute top-0 left-0 text-yellow-500 fill-yellow-500"
+                        />
+                      )}
+
+                      {half && (
+                        <div className="absolute top-0 left-0 w-1/2 overflow-hidden">
+                          <Star
+                            size={14}
+                            className="text-yellow-500 fill-yellow-500"
+                          />
+                        </div>
+                      )}
+
+                    </div>
+                  );
+                })}
+
+                <span className="text-xs ml-1">
+                  {rating}
+                </span>
+
+                <span className="text-xs opacity-60">
+                  ({reviews})
+                </span>
+              </div>
+
+              {/* 🔥 SOLD */}
+              <div
+                style={{ color: theme?.priceColor || "#16a34a" }}
+                className="flex items-center gap-1 text-xs mt-1"
+              >
+                <Flame size={14} />
+                {totalSold} sold
+              </div>
+
+              {/* 💰 PRICE */}
+              <div className="flex items-center gap-2 mt-1">
+
+                <span
+                  style={{ color: theme?.priceColor || "#16a34a" }}
+                  className="font-bold"
+                >
+                  ₹{finalPrice}
+                </span>
+
+                {original > finalPrice && (
+                  <span className="line-through text-gray-400 text-xs">
+                    ₹{original}
+                  </span>
+                )}
+
+              </div>
+
+            </div>
+          );
+
+        })}
 
       </div>
-
-      <BottomNav theme={theme}/>
 
     </div>
   );
