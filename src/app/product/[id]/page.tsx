@@ -217,15 +217,21 @@ const stock = Number(selectedSize?.stock) || 0;
   if (!selectedSize) return alert("Select size");
 
   await addDoc(collection(db, "carts", user.uid, "items"), {
-    productId: product.id,
-    name: product.name,
-    image: images?.[0] || "",
-    size: selectedSize.size,
-    price: finalPrice,
-originalPrice: price,
-discount: discount,
-    quantity: 1,
-  });
+  productId: product.id,
+  name: product.name,
+  image: images?.[0] || "",
+  quantity: 1,
+
+  // 🔥 MAIN FIX
+  variations: [
+    {
+      ...variant,
+      sizes: [selectedSize]
+    }
+  ],
+
+  discount: discount
+});
 
   // ✅ YAHI LIKHNA HAI (IMPORTANT)
   toast.success("Added to cart 🛒");
