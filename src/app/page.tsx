@@ -1,3 +1,6 @@
+Src app page tsc
+
+
 "use client";
 
 import Header from "@/components/home/Header";
@@ -16,8 +19,6 @@ import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function HomePage() {
 
@@ -28,8 +29,6 @@ export default function HomePage() {
   const [products,setProducts] = useState<any[]>([]);
   const [festival,setFestival] = useState<any>(null);
 
-  const [offers,setOffers] = useState<any>({}); // ✅ ADD
-
   const [search,setSearch] = useState("");
   const [selectedCategory,setSelectedCategory] = useState("All");
 
@@ -38,6 +37,7 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
 
+  // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
   useEffect(()=>{
 
     const saved = localStorage.getItem("home-cache");
@@ -51,6 +51,7 @@ export default function HomePage() {
       setFestival(data.festival || null);
     }
 
+    // 🌍 BACKGROUND FETCH
     loadData();
 
   },[]);
@@ -65,17 +66,12 @@ export default function HomePage() {
       setProducts(data.products || []);
       setFestival(data.festival || null);
 
+      // 💾 SAVE CACHE
       localStorage.setItem("home-cache", JSON.stringify(data));
 
-      // 🔥 OFFERS LOAD
-      const offerSnap = await getDocs(collection(db, "offers"));
-      const offerMap:any = {};
-      offerSnap.forEach(doc=>{
-        const d = doc.data();
-        offerMap[d.productId] = d.discount;
-      });
-      setOffers(offerMap);
+      console.log("⚡ Fresh data loaded");
 
+      // 🔥 EXTRA SERVICES (parallel)
       const [t,c,r,l] = await Promise.all([
         getTrendingProducts(),
         getClearanceProducts(),
@@ -89,54 +85,105 @@ export default function HomePage() {
       setLightning(l);
 
     }catch(err){
-      console.log(err);
+      console.log("❌ LOAD ERROR",err);
     }
   };
 
+  // 🔍 SEARCH
   const normalize = (text:string)=>
     text?.toLowerCase().replace(/\s|-/g,"");
 
   const filteredProducts = products.filter(p=>{
-    return (
-      normalize(p.name).includes(normalize(search)) &&
-      (selectedCategory === "All" || p.category === selectedCategory)
-    );
+    const matchSearch = normalize(p.name).includes(normalize(search));
+    const matchCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
+    return matchSearch && matchCategory;
   });
 
+  // 🎨 BACKGROUND (NO FLASH)
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#0f172a";
+    : theme?.background || "#0f172a"; // dark fallback (premium feel)
 
   return(
-    <div style={{ background: backgroundStyle }} className="min-h-screen pb-[80px]">
+    <div
+      style={{ background: backgroundStyle }}
+      className="min-h-screen pb-[80px] transition-all duration-300"
+    >
 
+      {/* 🔥 HEADER */}
       <Header theme={theme}/>
 
       <div className="pt-[80px] px-4 space-y-4">
 
-        <SearchBar search={search} setSearch={setSearch}/>
+        {/* 🔍 SEARCH */}
+        <div
+          style={{
+            background: theme?.searchBg || "#ffffff10",
+            color: theme?.searchText || "#fff",
+            borderColor: theme?.searchBorder || "#ffffff20"
+          }}
+          className="rounded-xl p-2 border backdrop-blur-md"
+        >
+          <SearchBar search={search} setSearch={setSearch}/>
+        </div>
 
+        {/* 🔥 TRENDING */}
+        <div
+          style={{
+            background: theme?.trendingBg || "#ffffff10",
+            color: theme?.trendingText || "#fff"
+          }}
+          className="rounded-xl shadow p-3 backdrop-blur-md"
+        >
+          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
+
+          <div className="flex flex-wrap gap-2">
+            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
+              <button
+                key={item}
+                style={{
+                  background: theme?.trendingChipBg || "#ffffff20",
+                  color: theme?.trendingChipText || "#fff"
+                }}
+                className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* CATEGORY */}
         <CategoryList
           categories={categories}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
         />
 
-        {banners?.length > 0 && <BannerSlider banners={banners}/>}
+        {/* BANNER */}
+        {/* 🔥 BANNER */}
+{Array.isArray(banners) && banners.length > 0 && (
+  <BannerSlider banners={banners} />
+)}
 
+        {/* FLASH */}
         <FlashSale/>
 
-        {festival?.active && <FestivalBanner festival={festival}/>}
+        {festival?.active && (
+          <FestivalBanner festival={festival}/>
+        )}
 
-        {/* ✅ OFFERS PASS */}
-        <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
+        {/* PRODUCTS */}
+        <ProductGrid products={filteredProducts} theme={theme}/>
+        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
+        <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
+        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
+        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme}/>
 
       </div>
 
+      {/* 🔥 BOTTOM NAV */}
       <BottomNav theme={theme}/>
 
     </div>
