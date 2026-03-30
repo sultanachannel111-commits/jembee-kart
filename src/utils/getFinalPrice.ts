@@ -1,5 +1,3 @@
-Utils get final price 
-
 export const getFinalPrice = (item: any, offers: any = {}) => {
 
 // 🔥 SAFE PRODUCT ID (सब case cover)
