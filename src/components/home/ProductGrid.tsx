@@ -11,7 +11,7 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 type Props = {
   products: any[];
   title?: string;
-  theme?: any; // ✅ ADD
+  theme?: any;
 };
 
 export default function ProductGrid({ products, title, theme }: Props) {
@@ -85,7 +85,7 @@ export default function ProductGrid({ products, title, theme }: Props) {
       {/* 🔥 TITLE */}
       {title && (
         <h2
-          style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+          style={{ color: theme?.cardText || "#000" }}
           className="text-lg font-bold mb-3"
         >
           {title}
@@ -97,7 +97,20 @@ export default function ProductGrid({ products, title, theme }: Props) {
 
         {products.slice(0, visibleCount).map((product: any, index:number) => {
 
+          // ✅ ORIGINAL PRICE (BASE)
+          const original =
+            product?.variations?.[0]?.sizes?.[0]?.price ||
+            product?.price ||
+            0;
+
+          // ✅ FINAL PRICE (SELL)
           const finalPrice = getFinalPrice(product);
+
+          // ✅ AUTO DISCOUNT %
+          const discountPercent =
+            original > finalPrice
+              ? Math.round(((original - finalPrice) / original) * 100)
+              : 0;
 
           const rating = product.rating || 4.5;
           const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
@@ -121,8 +134,8 @@ export default function ProductGrid({ products, title, theme }: Props) {
             <div
               key={product.id}
               style={{
-                background: theme?.cardBg || "#ffffff",   // ✅ ADD
-                color: theme?.cardText || "#000"          // ✅ ADD
+                background: theme?.cardBg || "#ffffff",
+                color: theme?.cardText || "#000"
               }}
               className={`rounded-xl shadow p-3 relative
                 transition-all duration-500
@@ -141,10 +154,10 @@ export default function ProductGrid({ products, title, theme }: Props) {
                 }`}
               />
 
-              {/* 🔥 Discount */}
-              {product.discount && (
+              {/* 🔥 AUTO DISCOUNT BADGE */}
+              {discountPercent > 0 && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                  {product.discount}% OFF
+                  {discountPercent}% OFF
                 </span>
               )}
 
@@ -160,7 +173,7 @@ export default function ProductGrid({ products, title, theme }: Props) {
 
               {/* 🔥 NAME */}
               <div
-                style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+                style={{ color: theme?.cardText || "#000" }}
                 className="mt-2 text-sm truncate font-medium"
               >
                 {product.name}
@@ -209,7 +222,7 @@ export default function ProductGrid({ products, title, theme }: Props) {
 
               {/* 🔥 SOLD */}
               <div
-                style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                style={{ color: theme?.priceColor || "#16a34a" }}
                 className="flex items-center gap-1 text-xs mt-1"
               >
                 <Flame size={14} />
@@ -220,15 +233,15 @@ export default function ProductGrid({ products, title, theme }: Props) {
               <div className="flex items-center gap-2 mt-1">
 
                 <span
-                  style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                  style={{ color: theme?.priceColor || "#16a34a" }}
                   className="font-bold"
                 >
                   ₹{finalPrice}
                 </span>
 
-                {product.originalPrice && (
+                {original > finalPrice && (
                   <span className="line-through text-gray-400 text-xs">
-                    ₹{product.originalPrice}
+                    ₹{original}
                   </span>
                 )}
 
