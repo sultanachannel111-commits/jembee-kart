@@ -1,6 +1,3 @@
-Src app page tsc
-
-
 "use client";
 
 import Header from "@/components/home/Header";
