@@ -17,6 +17,10 @@ import { getLightningDeals } from "@/services/lightningService";
 
 import { useEffect, useState } from "react";
 
+// ✅ ADD
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 export default function HomePage() {
 
   const theme = useTheme();
@@ -34,6 +38,9 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
 
+  // ✅ ADD OFFERS STATE
+  const [offers,setOffers] = useState<any>({});
+
   // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
   useEffect(()=>{
 
@@ -48,9 +55,33 @@ export default function HomePage() {
       setFestival(data.festival || null);
     }
 
-    // 🌍 BACKGROUND FETCH
     loadData();
 
+  },[]);
+
+  // 🔥 LOAD OFFERS (NEW)
+  useEffect(()=>{
+    const loadOffers = async ()=>{
+      try{
+        const snap = await getDocs(collection(db,"offers"));
+
+        const map:any = {};
+
+        snap.forEach(doc=>{
+          const d = doc.data();
+          map[d.productId] = d.discount;
+        });
+
+        console.log("🔥 OFFERS:", map);
+
+        setOffers(map);
+
+      }catch(err){
+        console.log("❌ OFFER ERROR",err);
+      }
+    };
+
+    loadOffers();
   },[]);
 
   const loadData = async()=>{
@@ -63,12 +94,10 @@ export default function HomePage() {
       setProducts(data.products || []);
       setFestival(data.festival || null);
 
-      // 💾 SAVE CACHE
       localStorage.setItem("home-cache", JSON.stringify(data));
 
       console.log("⚡ Fresh data loaded");
 
-      // 🔥 EXTRA SERVICES (parallel)
       const [t,c,r,l] = await Promise.all([
         getTrendingProducts(),
         getClearanceProducts(),
@@ -97,10 +126,10 @@ export default function HomePage() {
     return matchSearch && matchCategory;
   });
 
-  // 🎨 BACKGROUND (NO FLASH)
+  // 🎨 BACKGROUND
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#0f172a"; // dark fallback (premium feel)
+    : theme?.background || "#0f172a";
 
   return(
     <div
@@ -108,12 +137,11 @@ export default function HomePage() {
       className="min-h-screen pb-[80px] transition-all duration-300"
     >
 
-      {/* 🔥 HEADER */}
       <Header theme={theme}/>
 
       <div className="pt-[80px] px-4 space-y-4">
 
-        {/* 🔍 SEARCH */}
+        {/* SEARCH */}
         <div
           style={{
             background: theme?.searchBg || "#ffffff10",
@@ -125,7 +153,7 @@ export default function HomePage() {
           <SearchBar search={search} setSearch={setSearch}/>
         </div>
 
-        {/* 🔥 TRENDING */}
+        {/* TRENDING */}
         <div
           style={{
             background: theme?.trendingBg || "#ffffff10",
@@ -159,10 +187,9 @@ export default function HomePage() {
         />
 
         {/* BANNER */}
-        {/* 🔥 BANNER */}
-{Array.isArray(banners) && banners.length > 0 && (
-  <BannerSlider banners={banners} />
-)}
+        {Array.isArray(banners) && banners.length > 0 && (
+          <BannerSlider banners={banners} />
+        )}
 
         {/* FLASH */}
         <FlashSale/>
@@ -171,16 +198,15 @@ export default function HomePage() {
           <FestivalBanner festival={festival}/>
         )}
 
-        {/* PRODUCTS */}
-        <ProductGrid products={filteredProducts} theme={theme}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme}/>
+        {/* PRODUCTS (FIXED) */}
+        <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
+        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
+        <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
+        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
+        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
 
       </div>
 
-      {/* 🔥 BOTTOM NAV */}
       <BottomNav theme={theme}/>
 
     </div>
