@@ -204,7 +204,7 @@ console.log("🔥 OFFERS:", offerMap);
   overflow:"auto",
   fontSize:"10px"
 }}>
-  {JSON.stringify(products, null, 2)}
+  {JSON.stringify(filteredProducts, null, 2)}
 </div>
 
       </div>
