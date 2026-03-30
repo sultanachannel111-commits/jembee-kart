@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Heart, Star, Flame } from "lucide-react";
-import { getFinalPrice } from "@/utils/getFinalPrice";
 
 import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebase";
@@ -102,16 +101,8 @@ export default function ProductGrid({ products, title, theme }: Props) {
             product?.variations?.[0]?.sizes?.[0]?.price ||
             product?.price ||
             0;
-
-          // ✅ FINAL PRICE (SELL)
-          const finalPrice = getFinalPrice(product);
-
-          // ✅ AUTO DISCOUNT %
-          const discountPercent =
-            original > finalPrice
-              ? Math.round(((original - finalPrice) / original) * 100)
-              : 0;
-
+          const finalPrice = product.price || original;
+const discount = product.discount || 0;
           const rating = product.rating || 4.5;
           const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
@@ -142,6 +133,11 @@ export default function ProductGrid({ products, title, theme }: Props) {
                 ${index >= 4 ? "opacity-0 animate-fadeIn" : "opacity-100"}
               `}
             >
+              {discount > 0 && (
+  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+    {discount}% OFF
+  </span>
+)}
 
               {/* ❤️ Wishlist */}
               <Heart
@@ -153,13 +149,6 @@ export default function ProductGrid({ products, title, theme }: Props) {
                     : "text-gray-400"
                 }`}
               />
-
-              {/* 🔥 AUTO DISCOUNT BADGE */}
-              {discountPercent > 0 && (
-                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                  {discountPercent}% OFF
-                </span>
-              )}
 
               {/* 🔥 IMAGE */}
               <Link href={`/product/${product.id}`}>
