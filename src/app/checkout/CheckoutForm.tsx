@@ -16,14 +16,28 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 
+/* 🔥 FINAL PRICE FUNCTION */
+const getFinalPrice = (item:any) => {
+  const sellPrice =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+    item.price ||
+    0;
+
+  const discount = item.discount || 0;
+
+  return discount > 0
+    ? Math.round(sellPrice - (sellPrice * discount) / 100)
+    : sellPrice;
+};
+
 export default function CheckoutPage(){
 
   const [items,setItems] = useState<any[]>([]);
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [codMode,setCodMode] = useState(false);
+  const [codChecked,setCodChecked] = useState(false);
 
-  const [shipping,setShipping] = useState({
+  const [shippingConfig,setShippingConfig] = useState({
     prepaid: 0,
     cod: 50
   });
@@ -34,40 +48,40 @@ export default function CheckoutPage(){
     address:""
   });
 
-  /* 🔥 LOAD DATA */
+  /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
 
       setUser(u);
 
-      // 📦 CART LOAD
+      const userDoc = await getDoc(doc(db, "users", u.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.address) setCustomer(data.address);
+      }
+
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
       const arr:any[] = [];
 
       snap.forEach(doc=>{
+        const d = doc.data();
         arr.push({
-          id:doc.id,
-          ...doc.data(),
-          quantity: doc.data().quantity || 1
+          id: doc.id,
+          name: d.name || "",
+          price: d.price || 0,
+          discount: d.discount || 0,
+          variations: d.variations || [],
+          quantity: d.quantity || 1,
+          image: d.image || ""
         });
       });
 
       setItems(arr);
 
-      // 🚚 SHIPPING CONFIG
       const shipDoc = await getDoc(doc(db,"config","shipping"));
       if(shipDoc.exists()){
-        setShipping(shipDoc.data());
-      }
-
-      // 👤 ADDRESS
-      const userDoc = await getDoc(doc(db,"users",u.uid));
-      if(userDoc.exists()){
-        const data = userDoc.data();
-        if(data.address){
-          setCustomer(data.address);
-        }
+        setShippingConfig(shipDoc.data());
       }
 
     });
@@ -75,50 +89,44 @@ export default function CheckoutPage(){
     return ()=>unsub();
   },[]);
 
-  /* 💰 PRICE FUNCTION */
-  const getPrice = (item:any)=>{
-    return (
-      item.price ||
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      0
-    );
-  };
-
   /* 💰 TOTAL */
   const total = items.reduce(
-    (sum,i)=> sum + getPrice(i)*(i.quantity||1),
+    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
     0
   );
 
-  /* 💸 ORIGINAL */
-  const originalTotal = items.reduce((sum,i)=>{
-    const p =
-      i?.originalPrice ||
-      i?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      getPrice(i);
+  /* 💸 DISCOUNT */
+  const discount = items.reduce((sum,item)=>{
+    const sell =
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item.price ||
+      0;
 
-    return sum + p*(i.quantity||1);
+    const final = getFinalPrice(item);
+
+    return sum + Math.max(0, sell - final);
   },0);
 
-  const discount = originalTotal - total;
+  const originalTotal = total + discount;
 
   /* 🚚 SHIPPING */
-  const shippingCharge = codMode ? shipping.cod : shipping.prepaid;
+  const shippingCharge = codChecked
+    ? shippingConfig.cod
+    : shippingConfig.prepaid;
 
   const finalPay = total + shippingCharge;
 
-  /* 💾 SAVE ADDRESS */
+  /* 💾 SAVE */
   const saveAddress = async ()=>{
     if (!user) return;
-
     await setDoc(doc(db, "users", user.uid), {
       address: customer
     }, { merge: true });
   };
 
-  /* 💳 ONLINE */
+  /* 💳 PREPAID */
   const placeOrder = async()=>{
-    setCodMode(false);
+    setCodChecked(false);
 
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -139,7 +147,6 @@ export default function CheckoutPage(){
     });
 
     const data = await res.json();
-
     const cashfree = await load({ mode:"production" });
 
     await cashfree.checkout({
@@ -152,7 +159,7 @@ export default function CheckoutPage(){
 
   /* 🚚 COD */
   const placeCOD = async()=>{
-    setCodMode(true);
+    setCodChecked(true);
 
     if(!customer.firstName || !customer.phone){
       alert("Fill details");
@@ -163,7 +170,7 @@ export default function CheckoutPage(){
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
-      userId:user.uid,
+      userId: user.uid,
       items,
       total: finalPay,
       paymentMethod:"cod",
@@ -175,56 +182,69 @@ export default function CheckoutPage(){
     setLoading(false);
   };
 
-  if(!items) return null;
-
   return(
-<div className="min-h-screen bg-gray-100 pb-28">
+<div className="min-h-screen bg-gray-100 pb-32">
 
 <div className="max-w-xl mx-auto p-4 space-y-4">
 
-{/* 🧾 SUMMARY */}
+{/* 🧾 PRODUCT LIST (NEW - MEESHO STYLE) */}
 <div className="bg-white rounded-xl p-4 shadow">
 
-<h2 className="font-semibold mb-3 text-lg">
-Order Summary
-</h2>
+{items.map(item => (
+  <div key={item.id} className="flex gap-3 mb-3">
 
-{items.map(item=>(
-  <div key={item.id} className="flex justify-between text-sm mb-2">
-    <span>{item.name} × {item.quantity}</span>
-    <span>₹{getPrice(item)*(item.quantity||1)}</span>
+    <img
+      src={item.image || "/no-image.png"}
+      className="w-16 h-16 rounded object-cover"
+    />
+
+    <div className="flex-1 text-sm">
+      <p className="font-medium">{item.name}</p>
+
+      <div className="flex justify-between mt-1">
+        <span>Qty: {item.quantity}</span>
+        <span className="font-semibold">
+          ₹{getFinalPrice(item)}
+        </span>
+      </div>
+
+    </div>
   </div>
 ))}
 
-<div className="text-sm mt-2">
-<span className="line-through text-gray-400">
-₹{originalTotal}
-</span>{" "}
-<span className="text-green-600 font-medium">
-Save ₹{discount}
-</span>
 </div>
 
-<div className="flex justify-between mt-3 text-sm">
+{/* 🔥 SUMMARY */}
+<div className="bg-white rounded-xl p-4 shadow">
+
+<h2 className="font-semibold mb-3">Price Details</h2>
+
+<div className="flex justify-between text-sm mb-2">
+  <span>Total MRP</span>
+  <span>₹{originalTotal}</span>
+</div>
+
+<div className="flex justify-between text-sm mb-2 text-green-600">
+  <span>Discount</span>
+  <span>-₹{discount}</span>
+</div>
+
+<div className="flex justify-between text-sm mb-2">
   <span>Shipping</span>
-  <span className="text-green-600">
-    {shippingCharge > 0 ? `₹${shippingCharge}` : "FREE 🚚"}
-  </span>
+  <span>{shippingCharge > 0 ? `₹${shippingCharge}` : "FREE"}</span>
 </div>
 
-<div className="border-t mt-3 pt-3 flex justify-between font-bold text-xl">
-  <span>Total</span>
+<div className="border-t mt-2 pt-2 flex justify-between font-bold">
+  <span>Total Amount</span>
   <span>₹{finalPay}</span>
 </div>
 
 </div>
 
-{/* 🚚 ADDRESS */}
-<div className="bg-white rounded-xl p-4 shadow space-y-3">
+{/* 🔥 ADDRESS */}
+<div className="bg-white rounded-xl shadow p-4 space-y-3">
 
-<h2 className="font-semibold text-lg">
-Delivery Details
-</h2>
+<h2 className="font-semibold">Delivery Address</h2>
 
 <input
 placeholder="Full Name"
@@ -254,7 +274,7 @@ onChange={(e)=>setCustomer({...customer,address:e.target.value})}
 {/* 🔥 FIXED BOTTOM BAR (MEESHO STYLE) */}
 <div className="fixed bottom-0 left-0 w-full bg-white border-t p-4 space-y-2">
 
-<div className="flex justify-between text-lg font-bold">
+<div className="flex justify-between font-bold text-lg">
   <span>₹{finalPay}</span>
   <span className="text-green-600 text-sm">
     {shippingCharge === 0 ? "Free Delivery" : ""}
@@ -272,7 +292,7 @@ className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold"
 onClick={placeCOD}
 className="w-full py-3 rounded-xl bg-black text-white"
 >
-Cash on Delivery (+₹{shipping.cod})
+Cash on Delivery (+₹{shippingConfig.cod})
 </button>
 
 </div>
