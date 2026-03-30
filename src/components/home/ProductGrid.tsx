@@ -97,17 +97,21 @@ export default function ProductGrid({ products, title, theme }: Props) {
         {products.slice(0, visibleCount).map((product: any, index:number) => {
 
           // ✅ ORIGINAL PRICE (BASE)
-         const finalPrice =
+         const sellPrice =
   product.variations?.[0]?.sizes?.[0]?.sellPrice ||
   product.price ||
   0;
 
 const discount = product.discount || 0;
 
-const original =
+// 🔥 FINAL PRICE (discount ke baad)
+const finalPrice =
   discount > 0
-    ? Math.round(finalPrice / (1 - discount / 100))
-    : finalPrice;
+    ? Math.round(sellPrice - (sellPrice * discount) / 100)
+    : sellPrice;
+
+// 🔥 ORIGINAL PRICE (cut wala)
+const original = sellPrice;
           const rating = product.rating || 4.5;
           const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
