@@ -61,6 +61,21 @@ export default function CartPage() {
 
   }, []);
 
+  /* 🔥 FINAL PRICE FUNCTION */
+  const getPrice = (item:any) => {
+
+    // अगर cart में direct price saved है
+    if (item.price && item.price > 0) {
+      return item.price;
+    }
+
+    // fallback (variations से)
+    return (
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      0
+    );
+  };
+
   /* INCREASE */
   const increase = async (item:any) => {
     await updateDoc(
@@ -90,11 +105,6 @@ export default function CartPage() {
     await deleteDoc(
       doc(db, "carts", user.uid, "items", id)
     );
-  };
-
-  /* ✅ SAFE PRICE FUNCTION */
-  const getPrice = (item:any) => {
-    return item.sellPrice || item.price || 0;
   };
 
   /* TOTAL */
@@ -128,7 +138,7 @@ export default function CartPage() {
         >
 
           <img
-            src={item.image}
+            src={item.image || ""}
             className="w-20 h-20 object-cover rounded-lg"
           />
 
@@ -138,8 +148,8 @@ export default function CartPage() {
               {item.name}
             </p>
 
-            {/* ✅ PRICE FIX */}
-            <p className="font-bold text-lg">
+            {/* ✅ FIXED PRICE */}
+            <p className="font-bold text-lg text-green-600">
               ₹{getPrice(item)}
             </p>
 
@@ -191,11 +201,7 @@ export default function CartPage() {
             return;
           }
 
-          const item = items[0];
-
-          router.push(
-            `/checkout?productId=${item.productId || item.id}`
-          );
+          router.push("/checkout");
 
         }}
         className="bg-black text-white px-6 py-3 rounded-xl mt-6 w-full"
