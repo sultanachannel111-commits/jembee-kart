@@ -98,8 +98,20 @@ export default function ProductGrid({ products, title, theme }: Props) {
 
           // ✅ ORIGINAL PRICE (BASE)
          const original = product.originalPrice || product.price || 0;
-const finalPrice = product.price || 0;
-const discount = product.discount || 0; 
+         const original =
+  product.variations?.[0]?.sizes?.[0]?.basePrice ||
+  product.originalPrice ||
+  0;
+
+const finalPrice =
+  product.variations?.[0]?.sizes?.[0]?.sellPrice ||
+  product.price ||
+  0;
+
+const discount =
+  original && finalPrice
+    ? Math.round(((original - finalPrice) / original) * 100)
+    : 0;
           const rating = product.rating || 4.5;
           const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
