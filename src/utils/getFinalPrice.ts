@@ -1,30 +1,38 @@
 export const getFinalPrice = (item: any, offers: any = {}) => {
-  
-  // 🔥 SAFE PRODUCT ID (सब case cover)
+
   const productId =
     item?.id ||
     item?._id ||
     item?.productId ||
     "";
 
-  // 🔥 PRICE PRIORITY (sell price first)
-  const price =
-    item?.selectedSize?.sellPrice ??
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ??
-    item?.sellPrice ??
+  // 🔥 ORIGINAL PRICE (CUT PRICE)
+  const originalPrice =
     item?.selectedSize?.price ??
     item?.variations?.[0]?.sizes?.[0]?.price ??
     item?.price ??
     0;
 
-  // 🔥 OFFER %
-  const discount = offers?.[productId] ?? 0;
+  // 🔥 SELL PRICE (अगर already set है)
+  const sellPrice =
+    item?.selectedSize?.sellPrice ??
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ??
+    item?.sellPrice ??
+    null;
 
-  // 🔥 FINAL PRICE CALCULATION
-  const finalPrice =
-    discount > 0
-      ? price - (price * discount) / 100
-      : price;
+  // 🔥 OFFER %
+  const discount = offers?.[productId] ?? item?.discount ?? 0;
+
+  // 🔥 FINAL PRICE LOGIC
+  let finalPrice = 0;
+
+  if (sellPrice) {
+    finalPrice = sellPrice; // admin sell price priority
+  } else if (discount > 0) {
+    finalPrice = originalPrice - (originalPrice * discount) / 100;
+  } else {
+    finalPrice = originalPrice;
+  }
 
   return Math.max(0, Math.round(finalPrice));
 };
