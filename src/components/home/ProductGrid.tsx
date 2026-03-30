@@ -11,76 +11,227 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 type Props = {
   products: any[];
   title?: string;
-  theme?: any;
-  offers?: any; // ✅ IMPORTANT
+  theme?: any; // ✅ ADD
 };
 
-export default function ProductGrid({ products, title, theme, offers }: Props) {
+export default function ProductGrid({ products, title, theme }: Props) {
 
   const [likedItems, setLikedItems] = useState<any>({});
   const [visibleCount, setVisibleCount] = useState(4);
 
+  // 🔥 LOAD ANIMATION
   useEffect(() => {
+    if (!products) return;
+
     let i = 4;
+
     const interval = setInterval(() => {
       i += 2;
       setVisibleCount(i);
-      if (i >= products.length) clearInterval(interval);
+
+      if (i >= products.length) {
+        clearInterval(interval);
+      }
     }, 400);
+
     return () => clearInterval(interval);
   }, [products]);
+
+  // ❤️ WISHLIST
+  const toggleWishlist = async (e: any, product: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("Login first");
+      return;
+    }
+
+    const ref = doc(db, "wishlist", user.uid, "items", product.id);
+
+    try {
+      if (likedItems[product.id]) {
+        await deleteDoc(ref);
+
+        setLikedItems((prev: any) => ({
+          ...prev,
+          [product.id]: false
+        }));
+
+      } else {
+        await setDoc(ref, {
+          ...product,
+          createdAt: new Date()
+        });
+
+        setLikedItems((prev: any) => ({
+          ...prev,
+          [product.id]: true
+        }));
+      }
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   if (!products || products.length === 0) return null;
 
   return (
     <div className="mt-4">
 
+      {/* 🔥 TITLE */}
       {title && (
-        <h2 className="text-lg font-bold mb-3">{title}</h2>
+        <h2
+          style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+          className="text-lg font-bold mb-3"
+        >
+          {title}
+        </h2>
       )}
 
+      {/* 🔥 GRID */}
       <div className="grid grid-cols-2 gap-4">
 
-        {products.slice(0, visibleCount).map((product: any) => {
+        {products.slice(0, visibleCount).map((product: any, index:number) => {
 
-          console.log("PRODUCT ID:", product.id);
-          console.log("OFFERS:", offers);
+          const finalPrice = getFinalPrice(product);
 
-          const original =
-            product?.variations?.[0]?.sizes?.[0]?.price ||
-            product?.price ||
-            0;
+          const rating = product.rating || 4.5;
+          const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
-          const finalPrice = getFinalPrice(product, offers || {});
+          const realSold = product.sold || 0;
+          const demoSold = product.demoSold || Math.floor(Math.random() * 300) + 50;
 
-          const discountPercent =
-            original > finalPrice
-              ? Math.round(((original - finalPrice) / original) * 100)
-              : 0;
+          const totalSold = realSold + demoSold;
+
+          const image =
+            product.variations?.[0]?.images?.main ||
+            product.variations?.[0]?.images?.front ||
+            product.variations?.[0]?.images?.back ||
+            product.variations?.[0]?.images?.side ||
+            product.image ||
+            product.imageUrl ||
+            product.frontImage ||
+            "";
 
           return (
-            <div key={product.id} className="bg-white p-3 rounded-xl shadow">
+            <div
+              key={product.id}
+              style={{
+                background: theme?.cardBg || "#ffffff",   // ✅ ADD
+                color: theme?.cardText || "#000"          // ✅ ADD
+              }}
+              className={`rounded-xl shadow p-3 relative
+                transition-all duration-500
+                ${index >= 4 ? "opacity-0 animate-fadeIn" : "opacity-100"}
+              `}
+            >
 
-              {discountPercent > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
-                  {discountPercent}% OFF
+              {/* ❤️ Wishlist */}
+              <Heart
+                size={18}
+                onClick={(e) => toggleWishlist(e, product)}
+                className={`absolute top-2 right-2 cursor-pointer ${
+                  likedItems[product.id]
+                    ? "text-red-500 fill-red-500"
+                    : "text-gray-400"
+                }`}
+              />
+
+              {/* 🔥 Discount */}
+              {product.discount && (
+                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                  {product.discount}% OFF
                 </span>
               )}
 
+              {/* 🔥 IMAGE */}
               <Link href={`/product/${product.id}`}>
-                <img src={product.image} className="w-full h-40 object-cover"/>
+                <img
+                  src={image || "/no-image.png"}
+                  alt={product.name}
+                  className="w-full h-40 object-cover rounded-lg"
+                  loading="lazy"
+                />
               </Link>
 
-              <p className="text-sm mt-2">{product.name}</p>
+              {/* 🔥 NAME */}
+              <div
+                style={{ color: theme?.cardText || "#000" }} // ✅ ADD
+                className="mt-2 text-sm truncate font-medium"
+              >
+                {product.name}
+              </div>
 
-              <div className="flex gap-2">
-                <span className="font-bold text-green-600">₹{finalPrice}</span>
+              {/* ⭐ RATING */}
+              <div className="flex items-center gap-1 mt-1">
+                {[1, 2, 3, 4, 5].map((star) => {
 
-                {original > finalPrice && (
+                  const full = rating >= star;
+                  const half = rating >= star - 0.5 && rating < star;
+
+                  return (
+                    <div key={star} className="relative w-[14px] h-[14px]">
+
+                      <Star size={14} className="text-gray-300" />
+
+                      {full && (
+                        <Star
+                          size={14}
+                          className="absolute top-0 left-0 text-yellow-500 fill-yellow-500"
+                        />
+                      )}
+
+                      {half && (
+                        <div className="absolute top-0 left-0 w-1/2 overflow-hidden">
+                          <Star
+                            size={14}
+                            className="text-yellow-500 fill-yellow-500"
+                          />
+                        </div>
+                      )}
+
+                    </div>
+                  );
+                })}
+
+                <span className="text-xs ml-1">
+                  {rating}
+                </span>
+
+                <span className="text-xs opacity-60">
+                  ({reviews})
+                </span>
+              </div>
+
+              {/* 🔥 SOLD */}
+              <div
+                style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                className="flex items-center gap-1 text-xs mt-1"
+              >
+                <Flame size={14} />
+                {totalSold} sold
+              </div>
+
+              {/* 💰 PRICE */}
+              <div className="flex items-center gap-2 mt-1">
+
+                <span
+                  style={{ color: theme?.priceColor || "#16a34a" }} // ✅ ADD
+                  className="font-bold"
+                >
+                  ₹{finalPrice}
+                </span>
+
+                {product.originalPrice && (
                   <span className="line-through text-gray-400 text-xs">
-                    ₹{original}
+                    ₹{product.originalPrice}
                   </span>
                 )}
+
               </div>
 
             </div>
