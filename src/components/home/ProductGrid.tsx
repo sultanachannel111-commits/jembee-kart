@@ -97,12 +97,9 @@ export default function ProductGrid({ products, title, theme }: Props) {
         {products.slice(0, visibleCount).map((product: any, index:number) => {
 
           // ✅ ORIGINAL PRICE (BASE)
-          const original =
-            product?.variations?.[0]?.sizes?.[0]?.price ||
-            product?.price ||
-            0;
-          const finalPrice = product.price || original;
-const discount = product.discount || 0;
+         const original = product.originalPrice || product.price || 0;
+const finalPrice = product.price || 0;
+const discount = product.discount || 0; 
           const rating = product.rating || 4.5;
           const reviews = product.reviews || Math.floor(Math.random() * 200) + 50;
 
