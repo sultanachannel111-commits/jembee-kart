@@ -98,7 +98,6 @@ export default function ProductGrid({ products, title, theme }: Props) {
 
           // ✅ ORIGINAL PRICE (BASE)
          const original = product.originalPrice || product.price || 0;
-         const original =
   product.variations?.[0]?.sizes?.[0]?.basePrice ||
   product.originalPrice ||
   0;
