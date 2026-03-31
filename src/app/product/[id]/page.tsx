@@ -366,7 +366,7 @@ const handleBuyNow = async () => {
 
         {/* ⭐ TRUST LINE */}
         <div className="mt-2 text-sm text-gray-600 font-medium">
-  🚚 Fast Delivery | 🔒 Secure Payment | 💵 COD Available (₹80 shipping charge)
+  🚚 Fast Delivery | 🔒 Secure Payment | 💵 COD Available (shipping charge)
 </div>
 
         {/* 🚚 PIN */}
