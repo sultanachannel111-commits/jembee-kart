@@ -292,11 +292,14 @@ JembeeKart Admin Panel
 </div>
 </Link>
 
-  {/* 🚀 PRO DEBUG */}
-<Link href="/admin/product-debug">
+  
+{/* 🚀 PRO DEBUG */}
+<Link href="/admin/pro-debug">
   <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-    <h3 className="font-bold">Pro Debug</h3>
-    <p className="text-sm text-gray-500">Product inspect + JSON view</p>
+    <h3 className="font-bold text-lg">Pro Debug</h3>
+    <p className="text-sm text-gray-500">
+      Live logs + redirect tracking
+    </p>
   </div>
 </Link>
 
