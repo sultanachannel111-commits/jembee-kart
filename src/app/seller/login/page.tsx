@@ -1,109 +1,99 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function SellerLoginPage() {
 
-  const router = useRouter();
+const router = useRouter();
 
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
-  const [loading,setLoading] = useState(false);
-  const [checking,setChecking] = useState(true);
+const [email,setEmail] = useState("");
+const [password,setPassword] = useState("");
+const [show,setShow] = useState(false);
+const [loading,setLoading] = useState(false);
 
-  // 🔥 IMPORTANT FIX (redirect control)
-  useEffect(() => {
+const login = async (e:any)=>{
 
-    const unsub = onAuthStateChanged(auth, (user) => {
+e.preventDefault();
+setLoading(true);
 
-      console.log("🔐 AUTH STATE:", user);
+try{
 
-      if (user) {
-        console.log("➡️ Redirecting to seller dashboard");
-        router.replace("/seller/dashboard"); // ✅ FIX
-      }
+await signInWithEmailAndPassword(auth,email,password);
 
-      setChecking(false);
-    });
+toast.success("Seller login successful");
 
-    return () => unsub();
+/* seller cookie set for middleware */
+document.cookie = "seller=true; path=/";
 
-  }, []);
+/* redirect to dashboard */
+router.push("/seller/dashboard");
 
-  const login = async (e:any) => {
-    e.preventDefault();
+}catch{
 
-    if (!email || !password) {
-      alert("Fill all fields");
-      return;
-    }
+toast.error("Invalid email or password");
 
-    try {
+}
 
-      setLoading(true);
+setLoading(false);
 
-      const res = await signInWithEmailAndPassword(auth,email,password);
+};
 
-      console.log("✅ LOGIN SUCCESS:", res.user);
+return(
 
-      // 🔥 IMPORTANT (cookie for middleware)
-      document.cookie = "seller=true; path=/";
+<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 p-4">  <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">  <h1 className="text-3xl font-bold text-center text-pink-600">  
+JembeeKart  
+</h1>  <p className="text-center text-gray-500 mb-6">  
+Seller Login  
+</p>  <form onSubmit={login} className="space-y-4">  <div className="relative">  <Mail className="absolute left-3 top-3 text-gray-400" size={18}/>  <input
+type="email"
+placeholder="Email"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+className="w-full border rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-pink-500 outline-none"
+/>
 
-      // 🔥 DIRECT FORCE REDIRECT
-      window.location.href = "/seller/dashboard";
+</div>  <div className="relative">  <Lock className="absolute left-3 top-3 text-gray-400" size={18}/>  <input
+type={show ? "text" : "password"}
+placeholder="Password"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+className="w-full border rounded-xl pl-10 pr-10 py-3 focus:ring-2 focus:ring-pink-500 outline-none"
+/>
 
-    } catch (err:any) {
-      console.log("❌ LOGIN ERROR:", err);
-      alert("Login failed");
-    }
+<button
+type="button"
+onClick={()=>setShow(!show)}
+className="absolute right-3 top-3 text-gray-400"
 
-    setLoading(false);
-  };
+> 
 
-  if (checking) {
-    return <div className="p-5 text-center">Checking auth...</div>;
-  }
+{show ? <EyeOff size={18}/> : <Eye size={18}/>}
+</button>
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+</div>  <button
+type="submit"
+className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow"
 
-      <form
-        onSubmit={login}
-        className="bg-white p-6 rounded-xl shadow w-[90%] max-w-sm space-y-4"
-      >
+> 
 
-        <h1 className="text-xl font-bold text-center">
-          Seller Login
-        </h1>
+{loading ? "Logging in..." : "Login"}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+</button>  </form>  <p className="text-center text-sm text-gray-500 mt-5">  New seller?
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e)=>setPassword(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+<button
+onClick={()=>router.push("/seller/signup")}
+className="text-pink-600 font-semibold ml-1"
 
-        <button
-          type="submit"
-          className="w-full bg-black text-white py-2 rounded"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
+> 
 
-      </form>
+Create account
+</button>
 
-    </div>
-  );
+</p>  </div>  </div>  );
+
 }
