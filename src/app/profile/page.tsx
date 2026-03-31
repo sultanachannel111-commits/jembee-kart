@@ -34,28 +34,14 @@ export default function ProfilePage(){
   const [editProfile,setEditProfile] = useState(false);
   const [editAddress,setEditAddress] = useState(false);
 
-  /* 🔥 GLOBAL ERROR TRACK */
-  useEffect(() => {
-    window.onerror = function (msg, url, line, col, error) {
-      console.log("🔥 GLOBAL ERROR:", { msg, url, line, col, error });
-      alert("Error: " + msg);
-    };
+  const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
 
-    window.onunhandledrejection = function (event) {
-      console.log("🔥 PROMISE ERROR:", event.reason);
-      alert("Promise Error: " + event.reason);
-    };
-  }, []);
-
-  /* 🔐 AUTH + DATA */
+  // 🔐 AUTH + LOAD
   useEffect(()=>{
     let unsubOrders:any;
 
     const unsubAuth = onAuthStateChanged(auth, async(u)=>{
       try{
-
-        console.log("👤 USER:", u);
-
         if(!u){
           router.push("/login");
           return;
@@ -66,9 +52,7 @@ export default function ProfilePage(){
         const userRef = doc(db,"users",u.uid);
         const snap = await getDoc(userRef);
 
-        console.log("📄 USER DOC:", snap.exists(), snap.data());
-
-        // ✅ CREATE USER
+        // ✅ CREATE USER IF NOT EXIST
         if(!snap.exists()){
           const code =
             (u.email?.slice(0,4) || "USER").toUpperCase() +
@@ -89,8 +73,6 @@ export default function ProfilePage(){
         onSnapshot(userRef,(snap)=>{
           if(snap.exists()){
             const d:any = snap.data() || {};
-            console.log("👤 REALTIME USER:", d);
-
             setName(d.name || "");
             setPhone(d.phone || "");
             setAddress(d.address || "");
@@ -99,7 +81,7 @@ export default function ProfilePage(){
           }
         });
 
-        // ✅ ORDERS
+        // ✅ REALTIME ORDERS
         const q = query(
           collection(db,"orders"),
           where("userId","==",u.uid)
@@ -112,15 +94,13 @@ export default function ProfilePage(){
             arr.push({ id:doc.id, ...doc.data() });
           });
 
-          console.log("📦 ORDERS:", arr);
-
           setOrders(arr);
           setLoading(false);
         });
 
       }catch(err){
-        console.log("🔥 AUTH ERROR:", err);
-        alert("Auth error");
+        console.log("🔥 PROFILE ERROR:", err);
+        alert("Profile load error");
       }
     });
 
@@ -131,18 +111,14 @@ export default function ProfilePage(){
 
   },[]);
 
-  /* 🔴 CANCEL ORDER */
+  // 🔴 CANCEL ORDER
   const cancelOrder = async(id:string)=>{
     try{
-
       const ref = doc(db,"orders",id);
       const snap = await getDoc(ref);
-
       if(!snap.exists()) return;
 
       const data:any = snap.data();
-      console.log("❌ CANCEL DATA:", data);
-
       const batch = writeBatch(db);
 
       batch.update(ref,{status:"Cancelled"});
@@ -161,7 +137,7 @@ export default function ProfilePage(){
     }
   };
 
-  /* 💾 SAVE */
+  // 💾 SAVE
   const saveProfile = async()=>{
     await setDoc(doc(db,"users",user.uid),{name,phone},{merge:true});
     setEditProfile(false);
@@ -177,22 +153,46 @@ export default function ProfilePage(){
     router.push("/");
   };
 
-  /* 📦 STATUS */
-  const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
-  const getStep = (status:any)=> steps.indexOf(status);
+  // 📦 STATUS FIX
+  const getStep = (status:any)=>{
+    if(!status) return 0;
 
+    const clean = status.toLowerCase();
+
+    const map:any = {
+      "placed":0,
+      "shipped":1,
+      "out for delivery":2,
+      "delivered":3
+    };
+
+    return map[clean] ?? 0;
+  };
+
+  // 💰 PRICE FIX
+  const getPrice = (order:any)=>{
+    return (
+      order?.total ||
+      order?.totalAmount ||
+      order?.items?.reduce((sum:any,i:any)=>
+        sum + (i.sellPrice || i.price || 0)
+      ,0) ||
+      0
+    );
+  };
+
+  // 📤 SHARE
   const shareReferral = ()=>{
-    const msg = `Join JembeeKart 💰 Code: ${referralCode}`;
+    const msg = `Join JembeeKart 💰 Use my code: ${referralCode}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
   };
 
   if(loading) return <div className="p-5">Loading...</div>;
-  if(!user) return <div>Loading user...</div>;
 
   return(
 <div className="min-h-screen bg-gray-100 p-4 space-y-4">
 
-{/* PROFILE */}
+{/* 👤 PROFILE */}
 <div className="bg-white p-4 rounded-xl shadow">
 
 <div className="flex gap-3 items-center">
@@ -203,8 +203,30 @@ export default function ProfilePage(){
 
 <div className="flex-1">
 
+{editProfile ? (
+<>
+<input value={name} onChange={e=>setName(e.target.value)}
+className="w-full border p-2 rounded mb-2" placeholder="Name"/>
+
+<input value={phone} onChange={e=>setPhone(e.target.value)}
+className="w-full border p-2 rounded" placeholder="Phone"/>
+
+<button onClick={saveProfile}
+className="mt-2 bg-purple-600 text-white px-4 py-2 rounded">
+Save
+</button>
+</>
+):(
+<>
 <p className="font-bold">{name || "Jembee User"}</p>
 <p className="text-sm text-gray-500">{user?.email}</p>
+
+<button onClick={()=>setEditProfile(true)}
+className="text-sm text-purple-600 mt-1">
+Edit Profile
+</button>
+</>
+)}
 
 </div>
 
@@ -231,9 +253,73 @@ Logout
 
 </div>
 
-{/* ORDERS */}
+{/* 🏠 ADDRESS */}
+<div className="bg-white p-4 rounded-xl shadow">
+
+<h3 className="font-semibold mb-2">Address</h3>
+
+{editAddress ? (
+<>
+<textarea value={address}
+onChange={e=>setAddress(e.target.value)}
+className="w-full border p-2 rounded"/>
+
+<button onClick={saveAddress}
+className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
+Save
+</button>
+</>
+):(
+<>
+<p className="text-sm">{address || "No address added"}</p>
+<button onClick={()=>setEditAddress(true)}
+className="text-sm text-purple-600 mt-1">
+Edit
+</button>
+</>
+)}
+
+</div>
+
+{/* 💰 WALLET */}
+<div className="bg-white p-4 rounded-xl shadow">
+<p className="text-sm text-gray-500">Wallet Balance</p>
+<p className="text-xl font-bold text-green-600">₹{wallet}</p>
+</div>
+
+{/* 🎁 REFERRAL */}
+<div className="bg-white p-4 rounded-xl shadow">
+
+<p className="text-sm text-gray-500">Referral Code</p>
+<p className="font-bold">{referralCode}</p>
+
+<div className="flex gap-3 mt-2">
+
+<button onClick={()=>{
+navigator.clipboard.writeText(referralCode);
+alert("Copied!");
+}}
+className="text-blue-600 text-sm">
+Copy
+</button>
+
+<button onClick={shareReferral}
+className="text-green-600 text-sm">
+WhatsApp Share
+</button>
+
+</div>
+
+</div>
+
+{/* 📦 ORDERS */}
 <div>
+
 <h3 className="font-semibold mb-2">Orders</h3>
+
+{orders.length === 0 && (
+<p className="text-sm text-gray-500">No orders yet</p>
+)}
 
 {orders.map(order=>(
 <div key={order.id}
@@ -243,10 +329,11 @@ className="bg-white p-4 rounded-xl shadow mb-3">
 #{order.id?.slice(0,8)}
 </p>
 
+{/* TRACK */}
 <div className="flex justify-between mt-2 text-xs">
 {steps.map((step,i)=>(
 <div key={i} className="flex-1 text-center">
-<div className={`h-2 ${
+<div className={`h-2 rounded ${
 getStep(order?.status) >= i
 ? "bg-green-500"
 : "bg-gray-300"
@@ -257,37 +344,21 @@ getStep(order?.status) >= i
 </div>
 
 <p className="font-bold mt-2">
-₹{order?.total || order?.totalAmount || 0}
+₹{getPrice(order)}
 </p>
+
+{order.status !== "Delivered" &&
+order.status !== "Cancelled" && (
+<button
+onClick={()=>cancelOrder(order.id)}
+className="text-red-500 text-xs mt-2">
+Cancel
+</button>
+)}
 
 </div>
 ))}
 
-</div>
-
-{/* 🔥 DEBUG PANEL */}
-<div style={{
-position:"fixed",
-bottom:0,
-left:0,
-right:0,
-background:"black",
-color:"white",
-padding:"10px",
-fontSize:"10px",
-maxHeight:"200px",
-overflow:"auto",
-zIndex:9999
-}}>
-<pre>
-{JSON.stringify({
-user:user?.email,
-orders:orders.length,
-wallet,
-referralCode,
-firstOrder:orders[0] || null
-},null,2)}
-</pre>
 </div>
 
 </div>
