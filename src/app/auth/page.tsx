@@ -31,55 +31,68 @@ export default function AuthPage() {
 
       if (isLogin) {
 
-        // LOGIN
+        // 🔐 LOGIN
         const userCredential = await signInWithEmailAndPassword(
           auth,
           email,
           password
         );
 
-        // GET ROLE FROM FIRESTORE
-        const userDoc = await getDoc(
-          doc(db, "users", userCredential.user.uid)
-        );
+        const uid = userCredential.user.uid;
 
+        // 📦 GET USER DOC
+        let userDoc = await getDoc(doc(db, "users", uid));
+
+        // 🔥 AUTO FIX (अगर doc missing है)
         if (!userDoc.exists()) {
-          router.push("/");
-          return;
+          console.log("⚠️ User doc missing → creating default");
+
+          await setDoc(doc(db, "users", uid), {
+            email,
+            role: "customer",
+            createdAt: new Date(),
+          });
+
+          userDoc = await getDoc(doc(db, "users", uid));
         }
 
         const data = userDoc.data();
+        console.log("🔥 ROLE:", data.role);
 
-        // ROLE BASED REDIRECT
+        // 🚀 ROLE BASED REDIRECT
         if (data.role === "admin") {
           router.push("/admin");
         } 
         else if (data.role === "seller") {
-          router.push("/seller");
+          router.push("/seller/dashboard"); // ✅ FIXED
         } 
         else {
-          router.push("/");
+          router.push("/"); // customer
         }
 
       } else {
 
-        // SIGNUP
+        // 🆕 SIGNUP
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
 
-        // SAVE ROLE IN FIRESTORE
-        await setDoc(doc(db, "users", userCredential.user.uid), {
+        const uid = userCredential.user.uid;
+
+        // 📦 SAVE USER
+        await setDoc(doc(db, "users", uid), {
           email,
           role,
           createdAt: new Date(),
         });
 
-        // REDIRECT AFTER SIGNUP
+        console.log("✅ Signup role:", role);
+
+        // 🚀 REDIRECT AFTER SIGNUP
         if (role === "seller") {
-          router.push("/seller");
+          router.push("/seller/dashboard"); // ✅ FIXED
         } else {
           router.push("/");
         }
@@ -87,6 +100,7 @@ export default function AuthPage() {
       }
 
     } catch (error: any) {
+      console.log("🔥 AUTH ERROR:", error);
       alert(error.message);
     }
   };
@@ -99,14 +113,11 @@ export default function AuthPage() {
     }
 
     try {
-
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset link sent to your email");
-
+      alert("Password reset link sent");
     } catch (error: any) {
       alert(error.message);
     }
-
   };
 
   return (
@@ -120,31 +131,33 @@ export default function AuthPage() {
         </h2>
 
         {/* ROLE SELECT */}
-        <div className="flex gap-4 mb-4 justify-center">
+        {!isLogin && (
+          <div className="flex gap-4 mb-4 justify-center">
 
-          <button
-            onClick={() => setRole("customer")}
-            className={`px-4 py-2 rounded ${
-              role === "customer"
-                ? "bg-yellow-400"
-                : "bg-gray-200"
-            }`}
-          >
-            Customer
-          </button>
+            <button
+              onClick={() => setRole("customer")}
+              className={`px-4 py-2 rounded ${
+                role === "customer"
+                  ? "bg-yellow-400"
+                  : "bg-gray-200"
+              }`}
+            >
+              Customer
+            </button>
 
-          <button
-            onClick={() => setRole("seller")}
-            className={`px-4 py-2 rounded ${
-              role === "seller"
-                ? "bg-yellow-400"
-                : "bg-gray-200"
-            }`}
-          >
-            Seller
-          </button>
+            <button
+              onClick={() => setRole("seller")}
+              className={`px-4 py-2 rounded ${
+                role === "seller"
+                  ? "bg-yellow-400"
+                  : "bg-gray-200"
+              }`}
+            >
+              Seller
+            </button>
 
-        </div>
+          </div>
+        )}
 
         {/* EMAIL */}
         <input
@@ -174,7 +187,7 @@ export default function AuthPage() {
           </p>
         )}
 
-        {/* LOGIN / SIGNUP BUTTON */}
+        {/* BUTTON */}
         <button
           onClick={handleAuth}
           className="w-full bg-yellow-400 py-2 rounded font-semibold hover:bg-yellow-500 transition"
