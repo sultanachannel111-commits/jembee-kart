@@ -292,12 +292,12 @@ JembeeKart Admin Panel
 </div>
 </Link>
 
-  <Link href="/admin/diagnostics">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Monitor className="text-gray-600 mb-2"/>
-<h3 className="font-bold">Pro Debug</h3>
-<p className="text-sm text-gray-500">System diagnostics</p>
-</div>
+  {/* 🚀 PRO DEBUG */}
+<Link href="/admin/product-debug">
+  <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
+    <h3 className="font-bold">Pro Debug</h3>
+    <p className="text-sm text-gray-500">Product inspect + JSON view</p>
+  </div>
 </Link>
 
 
