@@ -30,9 +30,9 @@ export default function AdminProtect({
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
-          router.push("/");
-          return;
-        }
+  console.log("❌ Not admin");
+  return; // redirect हटाओ
+}
 
         const data = userSnap.data();
 
