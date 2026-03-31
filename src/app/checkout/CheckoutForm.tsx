@@ -45,8 +45,9 @@ export default function CheckoutPage(){
     prepaid: 0,
     cod: 0
   });
+
   const codCharge = shippingConfig.cod || 0;
-const prepaidCharge = shippingConfig.prepaid || 0;
+  const prepaidCharge = shippingConfig.prepaid || 0;
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -64,17 +65,21 @@ const prepaidCharge = shippingConfig.prepaid || 0;
 
       setUser(u);
 
+      // ✅ USER DATA
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.address) {
-  setCustomer({
-    firstName: data.address.firstName || "",
-    phone: data.address.phone || "",
-    address: data.address.address || ""
-  });
-}
+        const data:any = userDoc.data();
 
+        if (data.address && typeof data.address === "object") {
+          setCustomer({
+            firstName: data.address.firstName || "",
+            phone: data.address.phone || "",
+            address: data.address.address || ""
+          });
+        }
+      }
+
+      // ✅ CART ITEMS
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
       const arr:any[] = [];
 
@@ -93,39 +98,37 @@ const prepaidCharge = shippingConfig.prepaid || 0;
 
       setItems(arr);
 
-      // ✅ ADMIN SHIPPING LOAD
+      // ✅ SHIPPING CONFIG
       const shipDoc = await getDoc(doc(db,"config","shipping"));
       if(shipDoc.exists()){
-        setShippingConfig(shipDoc.data());
+        setShippingConfig(shipDoc.data() as any);
       }
 
     });
 
     return ()=>unsub();
+
   },[]);
 
   /* 💰 TOTAL */
   const total = items.reduce(
-  (sum,i)=> 
-    sum + (Number(getFinalPrice(i)) || 0) * (i.quantity || 1),
-  0
-);
+    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
+    0
+  );
 
-  /* 💸 ONLINE EXTRA ₹10 OFF */
+  /* 💸 ONLINE DISCOUNT */
   const onlineDiscount = payment === "online" ? 10 : 0;
 
-  /* 🎟️ FINAL */
+  /* 🎟 FINAL */
   const finalPay = Math.max(0, total - couponDiscount - onlineDiscount);
 
   /* 🚚 SHIPPING */
- const shippingCharge =
-  payment === "cod"
-    ? codCharge
-    : prepaidCharge; 
+  const shippingCharge =
+    payment === "cod" ? codCharge : prepaidCharge;
 
   const grandTotal = finalPay + shippingCharge;
 
-  /* 🎟️ COUPON */
+  /* 🎟 COUPON */
   const applyCoupon = () => {
     if(coupon === "SAVE10"){
       setCouponDiscount(10);
@@ -149,19 +152,16 @@ const prepaidCharge = shippingConfig.prepaid || 0;
     window.open(`https://wa.me/919876543210?text=${encodeURIComponent(msg)}`);
   };
 
-  /* 💾 SAVE */
+  /* 💾 SAVE ADDRESS */
   const saveAddress = async ()=>{
     if (!user) return;
+
     await setDoc(doc(db, "users", user.uid), {
-      address: {
-  firstName: customer.firstName,
-  phone: customer.phone,
-  address: customer.address
-}
+      address: customer
     }, { merge: true });
   };
 
-  /* 🛒 ORDER */
+  /* 🛒 PLACE ORDER */
   const placeOrder = async()=>{
 
     if(!customer.firstName || !customer.phone){
@@ -175,23 +175,11 @@ const prepaidCharge = shippingConfig.prepaid || 0;
     if(payment === "cod"){
 
       await addDoc(collection(db,"orders"),{
-  userId: user.uid,
-
-  items: items.map(i => ({
-    productId: i.id,
-    name: i.name,
-    price: getFinalPrice(i),
-    quantity: i.quantity || 1,
-    image: i.image || ""
-  })),
-
-  total: Number(grandTotal) || 0,
-  status: "Placed", // 🔥 IMPORTANT
-  paymentMethod:"cod",
-  createdAt:serverTimestamp()
-});
+        userId: user.uid,
+        items,
         total: grandTotal,
         paymentMethod:"cod",
+        status:"Placed",
         createdAt:serverTimestamp()
       });
 
@@ -226,74 +214,49 @@ const prepaidCharge = shippingConfig.prepaid || 0;
 
 <div className="min-h-screen bg-gray-100 pb-32">
 
-{/* 🎉 TOP DISCOUNT BAR */}
-{(couponDiscount > 0 || onlineDiscount > 0) && (
-  <div className="bg-green-100 text-green-700 text-center py-2 text-sm font-medium">
-    ₹{couponDiscount + onlineDiscount} OFF on this order 🎉
-  </div>
-)}
-
-<div className="max-w-xl mx-auto">
-
 {/* HEADER */}
-<div className="bg-white p-4 border-b">
-  <h1 className="font-semibold">PAYMENT METHOD</h1>
+<div className="bg-white p-4 border-b font-semibold">
+  PAYMENT METHOD
 </div>
 
+<div className="max-w-xl mx-auto p-4 space-y-4">
+
 {/* COUPON */}
-<div className="p-4">
-  <div className="bg-white p-4 rounded-xl shadow flex gap-2">
-    <input
-      value={coupon}
-      onChange={(e)=>setCoupon(e.target.value)}
-      placeholder="Enter coupon"
-      className="flex-1 border p-2 rounded"
-    />
-    <button onClick={applyCoupon} className="bg-black text-white px-4 rounded">
-      Apply
-    </button>
-  </div>
+<div className="bg-white p-4 rounded-xl shadow flex gap-2">
+  <input
+    value={coupon}
+    onChange={(e)=>setCoupon(e.target.value)}
+    placeholder="Enter coupon"
+    className="flex-1 border p-2 rounded"
+  />
+  <button onClick={applyCoupon} className="bg-black text-white px-4 rounded">
+    Apply
+  </button>
 </div>
 
 {/* DELIVERY */}
-<div className="px-4">
-  <div className="bg-white p-4 rounded-xl shadow text-sm">
-    🚚 Delivery by <b>{getDeliveryDate()}</b>
-  </div>
+<div className="bg-white p-4 rounded-xl shadow text-sm">
+  🚚 Delivery by <b>{getDeliveryDate()}</b>
 </div>
 
-<div className="p-4 space-y-4">
+{/* PAYMENT */}
+<div className="space-y-3">
 
-{/* COD */}
 <div onClick={()=>setPayment("cod")}
-className={`p-4 rounded-xl bg-white border flex justify-between ${payment==="cod" ? "border-pink-500" : ""}`}>
-  <div>
-    <p className="font-medium">Cash on Delivery</p>
-    <p className="text-xs text-gray-500">
-      {codCharge > 0 ? `+₹${codCharge} shipping` : "Free Shipping"}
-    </p>
-  </div>
-  <div className={`w-5 h-5 rounded-full border ${payment==="cod" ? "bg-pink-500" : ""}`} />
+className={`p-4 bg-white rounded-xl border ${payment==="cod"?"border-pink-500":""}`}>
+  Cash on Delivery (+₹{codCharge})
 </div>
 
-{/* ONLINE */}
 <div onClick={()=>setPayment("online")}
-className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-500" : ""}`}>
-  <div className="flex justify-between">
-    <p className="font-medium">Pay Online</p>
-    <div className={`w-5 h-5 rounded-full border ${payment==="online" ? "bg-pink-500" : ""}`} />
-  </div>
-  <p className="text-sm text-green-600 mt-2">
-    Extra ₹10 OFF applied
-    <p className="text-xs text-gray-500">
-  {prepaidCharge > 0 ? `+₹${prepaidCharge} shipping` : "Free Shipping"}
-</p>
-  </p>
+className={`p-4 bg-white rounded-xl border ${payment==="online"?"border-pink-500":""}`}>
+  Pay Online (₹10 OFF)
+</div>
+
 </div>
 
 {/* ADDRESS */}
 <div className="bg-white p-4 rounded-xl shadow space-y-2">
-  <input placeholder="Full Name" className="w-full border p-2 rounded"
+  <input placeholder="Name" className="w-full border p-2 rounded"
     value={customer.firstName}
     onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
   />
@@ -309,30 +272,22 @@ className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-5
 
 </div>
 
-{/* BOTTOM BAR */}
-<div className="fixed bottom-0 w-full bg-white border-t p-4 flex justify-between items-center">
+{/* BOTTOM */}
+<div className="fixed bottom-0 w-full bg-white p-4 border-t flex justify-between">
 
-  <div>
-    <p className="font-bold text-lg">₹{grandTotal}</p>
+<div>
+  <p className="font-bold text-lg">₹{grandTotal}</p>
+</div>
 
-    {(couponDiscount > 0 || onlineDiscount > 0) && (
-      <p className="text-green-600 text-xs">
-        Saved ₹{couponDiscount + onlineDiscount}
-      </p>
-    )}
-  </div>
-
-  <button
-    onClick={placeOrder}
-    className="bg-purple-600 text-white px-6 py-3 rounded-xl"
-  >
-    {loading ? "Processing..." : "Place Order"}
-  </button>
+<button
+  onClick={placeOrder}
+  className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+>
+  {loading ? "Processing..." : "Place Order"}
+</button>
 
 </div>
 
 </div>
-</div>
-
   );
 }
