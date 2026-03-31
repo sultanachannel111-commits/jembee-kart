@@ -34,65 +34,94 @@ export default function ProfilePage(){
   const [editProfile,setEditProfile] = useState(false);
   const [editAddress,setEditAddress] = useState(false);
 
+  /* 🔥 GLOBAL ERROR TRACK */
+  useEffect(() => {
+    window.onerror = function (msg, url, line, col, error) {
+      console.log("🔥 GLOBAL ERROR:", { msg, url, line, col, error });
+      alert("Error: " + msg);
+    };
+
+    window.onunhandledrejection = function (event) {
+      console.log("🔥 PROMISE ERROR:", event.reason);
+      alert("Promise Error: " + event.reason);
+    };
+  }, []);
+
   /* 🔐 AUTH + DATA */
   useEffect(()=>{
     let unsubOrders:any;
 
     const unsubAuth = onAuthStateChanged(auth, async(u)=>{
-      if(!u){
-        router.push("/login");
-        return;
-      }
+      try{
 
-      setUser(u);
+        console.log("👤 USER:", u);
 
-      const userRef = doc(db,"users",u.uid);
-      const snap = await getDoc(userRef);
-
-      // ✅ CREATE USER IF NOT EXIST
-      if(!snap.exists()){
-        const code =
-          (u.email?.slice(0,4) || "USER").toUpperCase() +
-          Math.floor(1000 + Math.random()*9000);
-
-        await setDoc(userRef,{
-          name:"",
-          phone:"",
-          address:"",
-          wallet:0,
-          referralCode:code
-        });
-
-        setReferralCode(code);
-      }
-
-      // ✅ REALTIME USER
-      onSnapshot(userRef,(snap)=>{
-        if(snap.exists()){
-          const d:any = snap.data() || {};
-          setName(d.name || "");
-          setPhone(d.phone || "");
-          setAddress(d.address || "");
-          setWallet(d.wallet || 0);
-          setReferralCode(d.referralCode || "");
+        if(!u){
+          router.push("/login");
+          return;
         }
-      });
 
-      // ✅ REALTIME ORDERS
-      const q = query(
-        collection(db,"orders"),
-        where("userId","==",u.uid)
-      );
+        setUser(u);
 
-      unsubOrders = onSnapshot(q,(snap)=>{
-        const arr:any[] = [];
-        snap.forEach(doc=>{
-          arr.push({ id:doc.id, ...doc.data() });
+        const userRef = doc(db,"users",u.uid);
+        const snap = await getDoc(userRef);
+
+        console.log("📄 USER DOC:", snap.exists(), snap.data());
+
+        // ✅ CREATE USER
+        if(!snap.exists()){
+          const code =
+            (u.email?.slice(0,4) || "USER").toUpperCase() +
+            Math.floor(1000 + Math.random()*9000);
+
+          await setDoc(userRef,{
+            name:"",
+            phone:"",
+            address:"",
+            wallet:0,
+            referralCode:code
+          });
+
+          setReferralCode(code);
+        }
+
+        // ✅ REALTIME USER
+        onSnapshot(userRef,(snap)=>{
+          if(snap.exists()){
+            const d:any = snap.data() || {};
+            console.log("👤 REALTIME USER:", d);
+
+            setName(d.name || "");
+            setPhone(d.phone || "");
+            setAddress(d.address || "");
+            setWallet(d.wallet || 0);
+            setReferralCode(d.referralCode || "");
+          }
         });
-        setOrders(arr);
-        setLoading(false);
-      });
 
+        // ✅ ORDERS
+        const q = query(
+          collection(db,"orders"),
+          where("userId","==",u.uid)
+        );
+
+        unsubOrders = onSnapshot(q,(snap)=>{
+          const arr:any[] = [];
+
+          snap.forEach(doc=>{
+            arr.push({ id:doc.id, ...doc.data() });
+          });
+
+          console.log("📦 ORDERS:", arr);
+
+          setOrders(arr);
+          setLoading(false);
+        });
+
+      }catch(err){
+        console.log("🔥 AUTH ERROR:", err);
+        alert("Auth error");
+      }
     });
 
     return ()=>{
@@ -104,24 +133,32 @@ export default function ProfilePage(){
 
   /* 🔴 CANCEL ORDER */
   const cancelOrder = async(id:string)=>{
+    try{
 
-    const ref = doc(db,"orders",id);
-    const snap = await getDoc(ref);
-    if(!snap.exists()) return;
+      const ref = doc(db,"orders",id);
+      const snap = await getDoc(ref);
 
-    const data:any = snap.data();
-    const batch = writeBatch(db);
+      if(!snap.exists()) return;
 
-    batch.update(ref,{status:"Cancelled"});
+      const data:any = snap.data();
+      console.log("❌ CANCEL DATA:", data);
 
-    for(const item of data?.items || []){
-      const pRef = doc(db,"products",item.productId);
-      batch.update(pRef,{
-        stock: increment(item.quantity)
-      });
+      const batch = writeBatch(db);
+
+      batch.update(ref,{status:"Cancelled"});
+
+      for(const item of data?.items || []){
+        const pRef = doc(db,"products",item.productId);
+        batch.update(pRef,{
+          stock: increment(item.quantity)
+        });
+      }
+
+      await batch.commit();
+
+    }catch(err){
+      console.log("🔥 CANCEL ERROR:", err);
     }
-
-    await batch.commit();
   };
 
   /* 💾 SAVE */
@@ -144,18 +181,18 @@ export default function ProfilePage(){
   const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
   const getStep = (status:any)=> steps.indexOf(status);
 
-  /* 📤 WHATSAPP SHARE */
   const shareReferral = ()=>{
-    const msg = `Join JembeeKart & earn money 💰\nUse my code: ${referralCode}`;
+    const msg = `Join JembeeKart 💰 Code: ${referralCode}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
   };
 
   if(loading) return <div className="p-5">Loading...</div>;
+  if(!user) return <div>Loading user...</div>;
 
   return(
 <div className="min-h-screen bg-gray-100 p-4 space-y-4">
 
-{/* 👤 PROFILE */}
+{/* PROFILE */}
 <div className="bg-white p-4 rounded-xl shadow">
 
 <div className="flex gap-3 items-center">
@@ -166,30 +203,8 @@ export default function ProfilePage(){
 
 <div className="flex-1">
 
-{editProfile ? (
-<>
-<input value={name} onChange={e=>setName(e.target.value)}
-className="w-full border p-2 rounded mb-2" placeholder="Name"/>
-
-<input value={phone} onChange={e=>setPhone(e.target.value)}
-className="w-full border p-2 rounded" placeholder="Phone"/>
-
-<button onClick={saveProfile}
-className="mt-2 bg-purple-600 text-white px-4 py-2 rounded">
-Save
-</button>
-</>
-):(
-<>
 <p className="font-bold">{name || "Jembee User"}</p>
 <p className="text-sm text-gray-500">{user?.email}</p>
-
-<button onClick={()=>setEditProfile(true)}
-className="text-sm text-purple-600 mt-1">
-Edit Profile
-</button>
-</>
-)}
 
 </div>
 
@@ -216,88 +231,23 @@ Logout
 
 </div>
 
-{/* 🏠 ADDRESS */}
-<div className="bg-white p-4 rounded-xl shadow">
-
-<h3 className="font-semibold mb-2">Address</h3>
-
-{editAddress ? (
-<>
-<textarea value={address}
-onChange={e=>setAddress(e.target.value)}
-className="w-full border p-2 rounded"/>
-
-<button onClick={saveAddress}
-className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
-Save
-</button>
-</>
-):(
-<>
-<p className="text-sm">{address || "No address added"}</p>
-<button onClick={()=>setEditAddress(true)}
-className="text-sm text-purple-600 mt-1">
-Edit
-</button>
-</>
-)}
-
-</div>
-
-{/* 💰 WALLET */}
-<div className="bg-white p-4 rounded-xl shadow">
-<p className="text-sm text-gray-500">Wallet Balance</p>
-<p className="text-xl font-bold text-green-600">₹{wallet}</p>
-</div>
-
-{/* 🎁 REFERRAL */}
-<div className="bg-white p-4 rounded-xl shadow">
-
-<p className="text-sm text-gray-500">Referral Code</p>
-<p className="font-bold">{referralCode}</p>
-
-<div className="flex gap-2 mt-2">
-
-<button onClick={()=>{
-navigator.clipboard.writeText(referralCode);
-alert("Copied!");
-}}
-className="text-sm text-blue-600">
-Copy
-</button>
-
-<button onClick={shareReferral}
-className="text-sm text-green-600">
-WhatsApp Share
-</button>
-
-</div>
-
-</div>
-
-{/* 📦 ORDERS */}
+{/* ORDERS */}
 <div>
-
 <h3 className="font-semibold mb-2">Orders</h3>
-
-{orders.length === 0 && (
-<p className="text-sm text-gray-500">No orders yet</p>
-)}
 
 {orders.map(order=>(
 <div key={order.id}
 className="bg-white p-4 rounded-xl shadow mb-3">
 
 <p className="text-xs text-gray-500">
-#{order.id.slice(0,8)}
+#{order.id?.slice(0,8)}
 </p>
 
-{/* 🚚 TRACKING */}
 <div className="flex justify-between mt-2 text-xs">
 {steps.map((step,i)=>(
 <div key={i} className="flex-1 text-center">
-<div className={`h-2 rounded ${
-getStep(order.status) >= i
+<div className={`h-2 ${
+getStep(order?.status) >= i
 ? "bg-green-500"
 : "bg-gray-300"
 }`} />
@@ -310,18 +260,34 @@ getStep(order.status) >= i
 ₹{order?.total || order?.totalAmount || 0}
 </p>
 
-{order.status !== "Delivered" &&
-order.status !== "Cancelled" && (
-<button
-onClick={()=>cancelOrder(order.id)}
-className="text-red-500 text-xs mt-2">
-Cancel
-</button>
-)}
-
 </div>
 ))}
 
+</div>
+
+{/* 🔥 DEBUG PANEL */}
+<div style={{
+position:"fixed",
+bottom:0,
+left:0,
+right:0,
+background:"black",
+color:"white",
+padding:"10px",
+fontSize:"10px",
+maxHeight:"200px",
+overflow:"auto",
+zIndex:9999
+}}>
+<pre>
+{JSON.stringify({
+user:user?.email,
+orders:orders.length,
+wallet,
+referralCode,
+firstOrder:orders[0] || null
+},null,2)}
+</pre>
 </div>
 
 </div>
