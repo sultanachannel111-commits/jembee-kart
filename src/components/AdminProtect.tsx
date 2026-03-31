@@ -6,78 +6,46 @@ import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 
-export default function AdminProtect({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminProtect({ children }: any) {
 
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
 
-      console.log("🔐 ADMIN CHECK USER:", user?.email);
-
-      // ❌ NOT LOGGED IN
       if (!user) {
-        console.log("❌ No user → redirect auth");
         router.push("/auth");
         setLoading(false);
         return;
       }
 
-      try {
+      const snap = await getDoc(doc(db, "users", user.uid));
 
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
+      if (!snap.exists()) {
+        router.push("/");
+        setLoading(false);
+        return;
+      }
 
-        // ❌ USER DOC MISSING
-        if (!userSnap.exists()) {
-          console.log("❌ User doc missing");
+      const data = snap.data();
 
-          router.push("/"); // safe fallback
-          setLoading(false);
-          return;
-        }
-
-        const data = userSnap.data();
-
-        console.log("🔥 ROLE:", data.role);
-
-        // ✅ ADMIN + SELLER ALLOWED
-        if (data.role === "admin" || data.role === "seller") {
-          console.log("✅ ACCESS GRANTED");
-          setLoading(false);
-        } 
-        else {
-          console.log("❌ ACCESS DENIED");
-          router.push("/");
-          setLoading(false);
-        }
-
-      } catch (error) {
-        console.log("🔥 ERROR:", error);
+      // ❗ ONLY ADMIN
+      if (data.role === "admin") {
+        setLoading(false);
+      } else {
         router.push("/");
         setLoading(false);
       }
 
     });
 
-    return () => unsubscribe();
+    return () => unsub();
 
-  }, [router]);
+  }, []);
 
-  // ⏳ LOADING
-  if (loading) {
-    return (
-      <div className="p-10 text-center">
-        Checking access...
-      </div>
-    );
-  }
+  if (loading) return <div className="p-5">Checking admin...</div>;
 
-  return <>{children}</>;
+  return children;
 }
