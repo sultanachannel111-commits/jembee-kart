@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import toast from "react-hot-toast";
 
 export default function SellerLoginPage() {
 
@@ -13,114 +11,98 @@ export default function SellerLoginPage() {
 
   const [email,setEmail] = useState("");
   const [password,setPassword] = useState("");
-  const [show,setShow] = useState(false);
   const [loading,setLoading] = useState(false);
+  const [checking,setChecking] = useState(true);
 
-  const login = async (e:any)=>{
+  // 🔥 IMPORTANT FIX (redirect control)
+  useEffect(() => {
 
+    const unsub = onAuthStateChanged(auth, (user) => {
+
+      console.log("🔐 AUTH STATE:", user);
+
+      if (user) {
+        console.log("➡️ Redirecting to seller dashboard");
+        router.replace("/seller/dashboard"); // ✅ FIX
+      }
+
+      setChecking(false);
+    });
+
+    return () => unsub();
+
+  }, []);
+
+  const login = async (e:any) => {
     e.preventDefault();
-    setLoading(true);
 
-    try{
+    if (!email || !password) {
+      alert("Fill all fields");
+      return;
+    }
 
-      await signInWithEmailAndPassword(auth,email,password);
+    try {
 
-      toast.success("Seller login successful");
+      setLoading(true);
 
-      // 🔥 seller cookie (optional for middleware)
+      const res = await signInWithEmailAndPassword(auth,email,password);
+
+      console.log("✅ LOGIN SUCCESS:", res.user);
+
+      // 🔥 IMPORTANT (cookie for middleware)
       document.cookie = "seller=true; path=/";
 
-      // ✅ FINAL FIX (IMPORTANT)
-      router.replace("/seller");
+      // 🔥 DIRECT FORCE REDIRECT
+      window.location.href = "/seller/dashboard";
 
-    }catch(err:any){
-
-      console.log("🔥 LOGIN ERROR:", err);
-      toast.error("Invalid email or password");
-
+    } catch (err:any) {
+      console.log("❌ LOGIN ERROR:", err);
+      alert("Login failed");
     }
 
     setLoading(false);
-
   };
 
-  return(
+  if (checking) {
+    return <div className="p-5 text-center">Checking auth...</div>;
+  }
 
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 p-4">
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+      <form
+        onSubmit={login}
+        className="bg-white p-6 rounded-xl shadow w-[90%] max-w-sm space-y-4"
+      >
 
-        <h1 className="text-3xl font-bold text-center text-pink-600">
-          JembeeKart
+        <h1 className="text-xl font-bold text-center">
+          Seller Login
         </h1>
 
-        <p className="text-center text-gray-500 mb-6">
-          Seller Login
-        </p>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e)=>setEmail(e.target.value)}
+          className="w-full border p-2 rounded"
+        />
 
-        <form onSubmit={login} className="space-y-4">
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e)=>setPassword(e.target.value)}
+          className="w-full border p-2 rounded"
+        />
 
-          {/* EMAIL */}
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 text-gray-400" size={18}/>
+        <button
+          type="submit"
+          className="w-full bg-black text-white py-2 rounded"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
 
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e)=>setEmail(e.target.value)}
-              className="w-full border rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-pink-500 outline-none"
-              required
-            />
-          </div>
-
-          {/* PASSWORD */}
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 text-gray-400" size={18}/>
-
-            <input
-              type={show ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e)=>setPassword(e.target.value)}
-              className="w-full border rounded-xl pl-10 pr-10 py-3 focus:ring-2 focus:ring-pink-500 outline-none"
-              required
-            />
-
-            <button
-              type="button"
-              onClick={()=>setShow(!show)}
-              className="absolute right-3 top-3 text-gray-400"
-            >
-              {show ? <EyeOff size={18}/> : <Eye size={18}/>}
-            </button>
-          </div>
-
-          {/* BUTTON */}
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-
-        </form>
-
-        {/* SIGNUP */}
-        <p className="text-center text-sm text-gray-500 mt-5">
-
-          New seller?
-
-          <button
-            onClick={()=>router.push("/seller/signup")}
-            className="text-pink-600 font-semibold ml-1"
-          >
-            Create account
-          </button>
-
-        </p>
-
-      </div>
+      </form>
 
     </div>
   );
