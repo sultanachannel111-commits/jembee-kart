@@ -19,8 +19,13 @@ export default function AdminProtect({
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
 
+      console.log("🔐 ADMIN CHECK USER:", user?.email);
+
+      // ❌ NOT LOGGED IN
       if (!user) {
+        console.log("❌ No user → redirect auth");
         router.push("/auth");
+        setLoading(false);
         return;
       }
 
@@ -29,23 +34,34 @@ export default function AdminProtect({
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
 
+        // ❌ USER DOC MISSING
         if (!userSnap.exists()) {
-  console.log("❌ Not admin");
-  return; // redirect हटाओ
-}
+          console.log("❌ User doc missing");
+
+          router.push("/"); // safe fallback
+          setLoading(false);
+          return;
+        }
 
         const data = userSnap.data();
 
-        // ✅ Admin OR Seller allowed
+        console.log("🔥 ROLE:", data.role);
+
+        // ✅ ADMIN + SELLER ALLOWED
         if (data.role === "admin" || data.role === "seller") {
+          console.log("✅ ACCESS GRANTED");
           setLoading(false);
-        } else {
+        } 
+        else {
+          console.log("❌ ACCESS DENIED");
           router.push("/");
+          setLoading(false);
         }
 
       } catch (error) {
-        console.log(error);
+        console.log("🔥 ERROR:", error);
         router.push("/");
+        setLoading(false);
       }
 
     });
@@ -54,6 +70,7 @@ export default function AdminProtect({
 
   }, [router]);
 
+  // ⏳ LOADING
   if (loading) {
     return (
       <div className="p-10 text-center">
