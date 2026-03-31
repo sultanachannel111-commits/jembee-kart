@@ -19,14 +19,36 @@ export default function SellerPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  const [authChecked, setAuthChecked] = useState(false); // 🔥 important
   const [products, setProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(true);
 
-  // 🔐 AUTH CHECK (FIXED)
+  const [logs, setLogs] = useState<string[]>([]);
+
+  // 🔥 DEBUG LOGGER
+  const log = (msg: string, data?: any) => {
+    const text = data
+      ? `${msg} => ${JSON.stringify(data)}`
+      : msg;
+
+    console.log(text);
+
+    setLogs((prev) => [...prev, text]);
+  };
+
+  // 🔐 AUTH CHECK
   useEffect(() => {
+    log("🟢 SELLER PAGE LOADED");
+
     const unsub = onAuthStateChanged(auth, (u) => {
+      log("👤 AUTH USER", {
+        email: u?.email || null,
+        uid: u?.uid || null,
+      });
+
+      log("📍 CURRENT PATH", window.location.pathname);
+
       setUser(u);
       setAuthChecked(true);
     });
@@ -34,22 +56,36 @@ export default function SellerPage() {
     return () => unsub();
   }, []);
 
-  // 📦 FETCH PRODUCTS (ONLY AFTER USER)
+  // 🚨 REDIRECT TRACKER
+  useEffect(() => {
+    const originalPush = router.push;
+
+    router.push = (url: string) => {
+      log("🚨 REDIRECT DETECTED →", url);
+      return originalPush(url);
+    };
+  }, []);
+
+  // 📦 FETCH PRODUCTS
   useEffect(() => {
     if (!user) return;
 
     const fetchProducts = async () => {
       try {
+        log("📦 FETCHING PRODUCTS...");
+
         const snap = await getDocs(collection(db, "products"));
 
         const data: Product[] = snap.docs.map((doc) => ({
           id: doc.id,
-          ...(doc.data() as Omit<Product, "id">),
+          ...(doc.data() as any),
         }));
+
+        log("✅ PRODUCTS LOADED", { count: data.length });
 
         setProducts(data);
       } catch (err) {
-        console.log("🔥 PRODUCT ERROR:", err);
+        log("🔥 PRODUCT ERROR", err);
       } finally {
         setProductLoading(false);
       }
@@ -64,63 +100,25 @@ export default function SellerPage() {
     return `${window.location.origin}/product/${id}?ref=${user.uid}`;
   };
 
-  // 📤 SHARE
-  const handleShare = async (id: string) => {
-    const link = getLink(id);
-
-    if (!link) {
-      alert("Login first");
-      return;
-    }
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Check this product",
-          url: link,
-        });
-      } else {
-        navigator.clipboard.writeText(link);
-        alert("Link copied ✅");
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  // 📋 COPY
-  const handleCopy = (id: string) => {
-    const link = getLink(id);
-
-    if (!link) return alert("Login first");
-
-    navigator.clipboard.writeText(link);
-    alert("Copied ✅");
-  };
-
-  // 📲 WHATSAPP
-  const handleWhatsApp = (id: string) => {
-    const link = getLink(id);
-
-    if (!link) return alert("Login first");
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
-  };
-
-  // ⏳ AUTH LOADING (IMPORTANT FIX)
+  // ⏳ AUTH LOADING
   if (!authChecked) {
     return <div className="p-5 text-center">Checking login...</div>;
   }
 
   // 🔒 NOT LOGGED IN
   if (!user) {
+    log("❌ USER NOT LOGGED IN");
+
     return (
       <div className="p-5 text-center">
-        <p className="mb-3">Please login first</p>
+        <p>Please login first</p>
 
         <button
-          onClick={() => router.push("/login")}
-          className="bg-black text-white px-4 py-2 rounded"
+          onClick={() => {
+            log("➡️ MANUAL REDIRECT → /login");
+            router.push("/login");
+          }}
+          className="bg-black text-white px-4 py-2 mt-3 rounded"
         >
           Go to Login
         </button>
@@ -140,79 +138,62 @@ export default function SellerPage() {
         Seller Panel
       </h1>
 
-      {products.length === 0 ? (
-        <p>No products found</p>
-      ) : (
+      {/* PRODUCTS */}
+      <div className="grid grid-cols-2 gap-4">
+        {products.map((p) => {
+          const price =
+            p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            p?.price ||
+            0;
 
-        <div className="grid grid-cols-2 gap-4">
+          const image =
+            p?.variations?.[0]?.images?.main ||
+            p?.image ||
+            "";
 
-          {products.map((p) => {
+          return (
+            <div
+              key={p.id}
+              className="bg-white p-3 rounded-xl shadow"
+            >
+              <img
+                src={image}
+                className="h-40 w-full object-cover rounded"
+              />
 
-            const price =
-              p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-              p?.price ||
-              0;
+              <p className="text-sm mt-2">{p.name}</p>
 
-            const image =
-              p?.variations?.[0]?.images?.main ||
-              p?.image ||
-              "";
+              <p className="text-green-600 font-bold">
+                ₹{price}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
-            return (
-              <div
-                key={p.id}
-                className="bg-white p-3 rounded-xl shadow"
-              >
-
-                {/* IMAGE */}
-                <img
-                  src={image}
-                  alt="product"
-                  className="h-40 w-full object-cover rounded"
-                />
-
-                {/* NAME */}
-                <p className="text-sm mt-2 line-clamp-2">
-                  {p.name}
-                </p>
-
-                {/* PRICE */}
-                <p className="text-green-600 font-bold">
-                  ₹{price}
-                </p>
-
-                {/* BUTTONS */}
-                <div className="flex flex-col gap-2 mt-3">
-
-                  <button
-                    onClick={() => handleShare(p.id)}
-                    className="bg-blue-600 text-white py-1 rounded"
-                  >
-                    Share
-                  </button>
-
-                  <button
-                    onClick={() => handleWhatsApp(p.id)}
-                    className="bg-green-500 text-white py-1 rounded"
-                  >
-                    WhatsApp
-                  </button>
-
-                  <button
-                    onClick={() => handleCopy(p.id)}
-                    className="border py-1 rounded"
-                  >
-                    Copy Link
-                  </button>
-
-                </div>
-
-              </div>
-            );
-          })}
-
-        </div>
-      )}
+      {/* 🔥 DEBUG PANEL */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "black",
+          color: "white",
+          fontSize: "10px",
+          maxHeight: "200px",
+          overflow: "auto",
+          padding: "10px",
+          zIndex: 9999,
+        }}
+      >
+        <b>DEBUG LOGS</b>
+        <pre>
+          {logs.map((l, i) => (
+            <div key={i}>{l}</div>
+          ))}
+        </pre>
+      </div>
 
     </div>
   );
