@@ -5,7 +5,6 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   collection,
-  getDocs,
   query,
   where,
   doc,
@@ -13,267 +12,302 @@ import {
   getDoc,
   writeBatch,
   increment,
+  onSnapshot,
+  addDoc
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { load } from "@cashfreepayments/cashfree-js";
 
 export default function ProfilePage() {
 
-  const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(false);
-
-  const [theme, setTheme] = useState<any>({
-    background: "#f8fafc",
-    button: "#6366f1"
-  });
-
   const router = useRouter();
 
-  // 🔥 LOAD THEME
-  useEffect(() => {
-    const loadTheme = async () => {
-      const snap = await getDoc(doc(db, "settings", "theme"));
-      if (snap.exists()) setTheme(snap.data());
-    };
-    loadTheme();
-  }, []);
+  const [user,setUser] = useState<any>(null);
+  const [orders,setOrders] = useState<any[]>([]);
+  const [loading,setLoading] = useState(true);
 
-  // 🔐 AUTH + DATA
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+  const [name,setName] = useState("");
+  const [phone,setPhone] = useState("");
+  const [address,setAddress] = useState("");
 
-      if (!currentUser) {
+  const [wallet,setWallet] = useState(0);
+  const [referralCode,setReferralCode] = useState("");
+
+  const [editProfile,setEditProfile] = useState(false);
+  const [editAddress,setEditAddress] = useState(false);
+
+  /* 🔥 AUTH + REALTIME */
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, async(u)=>{
+      if(!u){
         router.push("/login");
         return;
       }
 
-      setUser(currentUser);
+      setUser(u);
 
-      // Orders
-      const q = query(
-        collection(db, "orders"),
-        where("userId", "==", currentUser.uid)
-      );
+      const userRef = doc(db,"users",u.uid);
 
-      const snapshot = await getDocs(q);
-      setOrders(snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })));
+      // 🔥 REALTIME USER
+      onSnapshot(userRef,(snap)=>{
+        if(snap.exists()){
+          const d = snap.data();
+          setName(d.name || "");
+          setPhone(d.phone || "");
+          setAddress(d.address || "");
+          setWallet(d.wallet || 0);
+          setReferralCode(d.referralCode || "");
+        }
+      });
 
-      // Profile
-      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setName(data.name || "");
-        setPhone(data.phone || "");
-        setAddress(data.address || "");
-      }
+      // 🔥 REALTIME ORDERS
+      const q = query(collection(db,"orders"), where("userId","==",u.uid));
+
+      onSnapshot(q,(snap)=>{
+        setOrders(
+          snap.docs.map(doc=>({
+            id:doc.id,
+            ...doc.data()
+          }))
+        );
+      });
 
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [router]);
+    return ()=>unsub();
+  },[]);
 
-  // 🔴 CANCEL ORDER
-  const cancelOrder = async (orderId: string) => {
+  /* 💰 WALLET RECHARGE (CASHFREE) */
+  const rechargeWallet = async(amount:number)=>{
 
-    const orderRef = doc(db, "orders", orderId);
-    const orderSnap = await getDoc(orderRef);
-    if (!orderSnap.exists()) return;
+    const res = await fetch("/api/cashfree/create-order",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        orderId:"wallet_"+Date.now(),
+        amount,
+        customer:{ phone, name }
+      })
+    });
 
-    const orderData = orderSnap.data();
+    const data = await res.json();
+    const cashfree = await load({ mode:"production" });
 
+    await cashfree.checkout({
+      paymentSessionId:data.payment_session_id,
+      redirectTarget:"_self"
+    });
+
+    // ✅ after success add wallet
+    await setDoc(doc(db,"users",user.uid),{
+      wallet: increment(amount)
+    },{merge:true});
+
+    await addDoc(collection(db,"walletTransactions"),{
+      userId:user.uid,
+      amount,
+      type:"credit",
+      createdAt:new Date()
+    });
+
+    alert("Wallet recharged 🎉");
+  };
+
+  /* 🎁 WHATSAPP SHARE */
+  const shareReferral = ()=>{
+    const msg = `🔥 Join JembeeKart & earn money!\nUse my code: ${referralCode}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+  };
+
+  /* 🔴 CANCEL ORDER */
+  const cancelOrder = async(orderId:string)=>{
+    const ref = doc(db,"orders",orderId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+
+    const data = snap.data();
     const batch = writeBatch(db);
 
-    batch.update(orderRef, { status: "Cancelled" });
+    batch.update(ref,{status:"Cancelled"});
 
-    for (const item of orderData.products || []) {
-      const productRef = doc(db, "products", item.productId);
-      batch.update(productRef, {
-        stock: increment(item.quantity),
+    for(const item of data.items || []){
+      batch.update(doc(db,"products",item.productId),{
+        stock: increment(item.quantity)
       });
     }
 
     await batch.commit();
-
-    setOrders(prev =>
-      prev.map(o => o.id === orderId ? { ...o, status: "Cancelled" } : o)
-    );
-
-    alert("Cancelled ✅");
   };
 
-  const handleLogout = async () => {
+  /* 💾 SAVE */
+  const saveProfile = async()=>{
+    await setDoc(doc(db,"users",user.uid),{name,phone},{merge:true});
+    setEditProfile(false);
+  };
+
+  const saveAddress = async()=>{
+    await setDoc(doc(db,"users",user.uid),{address},{merge:true});
+    setEditAddress(false);
+  };
+
+  const logout = async()=>{
     await signOut(auth);
     router.push("/");
   };
 
-  const saveProfile = async () => {
-    await setDoc(doc(db, "users", user.uid), { name, phone }, { merge: true });
-    setEditingProfile(false);
+  /* 📦 TRACK */
+  const getStep = (status:any)=>{
+    const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
+    return steps.indexOf(status);
   };
 
-  const saveAddress = async () => {
-    await setDoc(doc(db, "users", user.uid), { address }, { merge: true });
-    setEditingAddress(false);
-  };
+  if(loading) return <div className="p-5">Loading...</div>;
 
-  if (loading) return <div className="p-5">Loading...</div>;
+  return(
+<div className="min-h-screen bg-gray-100 p-4 space-y-4">
 
-  return (
-    <div
-      className="min-h-screen p-4"
-      style={{
-        background: `linear-gradient(135deg, ${theme.background}, #e0f2fe)`
-      }}
-    >
+{/* PROFILE */}
+<div className="bg-white p-4 rounded-xl shadow">
 
-      {/* 🔥 PROFILE GLASS CARD */}
-      <div className="backdrop-blur-xl bg-white/30 border border-white/40 rounded-3xl p-6 shadow-2xl">
+<div className="flex gap-3 items-center">
 
-        <div className="flex flex-col items-center">
+<div className="w-14 h-14 bg-purple-500 text-white flex items-center justify-center rounded-full text-xl">
+{user?.email?.charAt(0).toUpperCase()}
+</div>
 
-          {/* AVATAR */}
-          <div
-            style={{ background: theme.button }}
-            className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg"
-          >
-            {user?.email?.charAt(0).toUpperCase()}
-          </div>
+<div className="flex-1">
 
-          {/* INFO */}
-          {editingProfile ? (
-            <>
-              <input
-                className="w-full mt-4 p-3 rounded-xl bg-white/60 backdrop-blur border"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name"
-              />
-              <input
-                className="w-full mt-2 p-3 rounded-xl bg-white/60 backdrop-blur border"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Phone"
-              />
-              <button
-                onClick={saveProfile}
-                style={{ background: theme.button }}
-                className="mt-3 text-white py-2 rounded-xl w-full shadow"
-              >
-                Save
-              </button>
-            </>
-          ) : (
-            <>
-              <h2 className="text-xl font-bold mt-3">
-                {name || "Jembee User"}
-              </h2>
-              <p className="text-sm text-gray-700">{user.email}</p>
+{editProfile ? (
+<>
+<input value={name} onChange={(e)=>setName(e.target.value)}
+className="w-full border p-2 rounded mb-2"/>
 
-              <button
-                onClick={() => setEditingProfile(true)}
-                className="mt-2 text-sm text-blue-600"
-              >
-                Edit Profile
-              </button>
-            </>
-          )}
+<input value={phone} onChange={(e)=>setPhone(e.target.value)}
+className="w-full border p-2 rounded"/>
 
-          {/* STATS */}
-          <div className="mt-4 flex gap-6">
-            <div className="text-center">
-              <p className="text-xl font-bold">{orders.length}</p>
-              <p className="text-xs text-gray-500">Orders</p>
-            </div>
-          </div>
+<button onClick={saveProfile}
+className="mt-2 bg-purple-600 text-white px-4 py-2 rounded">
+Save
+</button>
+</>
+):(
+<>
+<p className="font-bold">{name || "User"}</p>
+<p className="text-sm">{user.email}</p>
 
-          <button
-            onClick={handleLogout}
-            className="mt-4 text-red-500 font-semibold"
-          >
-            Logout
-          </button>
+<button onClick={()=>setEditProfile(true)}
+className="text-purple-600 text-sm">
+Edit
+</button>
+</>
+)}
 
-        </div>
-      </div>
+</div>
 
-      {/* 🔥 ADDRESS GLASS */}
-      <div className="mt-6 backdrop-blur-xl bg-white/30 border rounded-2xl p-4 shadow">
+</div>
 
-        <h3 className="font-bold mb-2">🏠 Address</h3>
+<div className="flex justify-between mt-4">
 
-        {editingAddress ? (
-          <>
-            <textarea
-              className="w-full p-3 rounded-xl bg-white/60"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-            <button
-              onClick={saveAddress}
-              className="mt-2 bg-green-500 text-white px-4 py-2 rounded-xl"
-            >
-              Save
-            </button>
-          </>
-        ) : (
-          <>
-            <p>{address || "No address added"}</p>
-            <button
-              onClick={() => setEditingAddress(true)}
-              className="text-sm text-blue-600 mt-2"
-            >
-              Edit
-            </button>
-          </>
-        )}
-      </div>
+<div>
+<p className="font-bold">{orders.length}</p>
+<p className="text-xs">Orders</p>
+</div>
 
-      {/* 🔥 ORDERS GLASS */}
-      <div className="mt-6">
+<div>
+<p className="font-bold text-green-600">₹{wallet}</p>
+<p className="text-xs">Wallet</p>
+</div>
 
-        <h3 className="font-bold mb-3">📦 Orders</h3>
+</div>
 
-        {orders.map((order) => (
-          <div
-            key={order.id}
-            className="backdrop-blur-xl bg-white/30 border rounded-2xl p-4 mb-3 shadow"
-          >
-            <p className="text-sm font-semibold">
-              #{order.id.slice(0, 8)}
-            </p>
+<button onClick={logout}
+className="text-red-500 mt-3">
+Logout
+</button>
 
-            <p className="text-xs text-gray-600 mt-1">
-              {order.status}
-            </p>
+</div>
 
-            <p className="mt-1 font-bold">
-              ₹{order.totalAmount}
-            </p>
+{/* WALLET */}
+<div className="bg-white p-4 rounded-xl shadow">
 
-            {order.status !== "Delivered" && (
-              <button
-                onClick={() => cancelOrder(order.id)}
-                className="text-red-500 text-xs mt-2"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        ))}
+<p className="font-semibold">Wallet ₹{wallet}</p>
 
-      </div>
+<div className="flex gap-2 mt-3">
+<button onClick={()=>rechargeWallet(100)} className="bg-green-500 text-white px-3 py-1 rounded">+100</button>
+<button onClick={()=>rechargeWallet(500)} className="bg-green-500 text-white px-3 py-1 rounded">+500</button>
+<button onClick={()=>rechargeWallet(1000)} className="bg-green-500 text-white px-3 py-1 rounded">+1000</button>
+</div>
 
-    </div>
-  );
+</div>
+
+{/* REFERRAL */}
+<div className="bg-white p-4 rounded-xl shadow">
+
+<p className="text-sm">Referral Code</p>
+<p className="font-bold">{referralCode}</p>
+
+<div className="flex gap-3 mt-2">
+<button onClick={shareReferral} className="text-green-600">Share WhatsApp</button>
+<button onClick={()=>navigator.clipboard.writeText(referralCode)}>Copy</button>
+</div>
+
+</div>
+
+{/* ADDRESS */}
+<div className="bg-white p-4 rounded-xl shadow">
+
+{editAddress ? (
+<>
+<textarea value={address} onChange={(e)=>setAddress(e.target.value)}
+className="w-full border p-2"/>
+
+<button onClick={saveAddress} className="bg-green-500 text-white px-3 py-1 mt-2 rounded">
+Save
+</button>
+</>
+):(
+<>
+<p>{address || "No address"}</p>
+<button onClick={()=>setEditAddress(true)} className="text-blue-600 text-sm">Edit</button>
+</>
+)}
+
+</div>
+
+{/* ORDERS */}
+<div>
+
+<h3 className="font-bold mb-2">Orders</h3>
+
+{orders.map(order=>(
+<div key={order.id} className="bg-white p-4 rounded-xl shadow mb-3">
+
+<p className="text-xs">#{order.id.slice(0,8)}</p>
+
+{/* TRACK */}
+<div className="flex text-xs mt-2">
+{["Placed","Shipped","Out for Delivery","Delivered"].map((step,i)=>(
+<div key={i} className="flex-1 text-center">
+<div className={`h-2 ${getStep(order.status)>=i ? "bg-green-500":"bg-gray-300"}`} />
+<p>{step}</p>
+</div>
+))}
+</div>
+
+<p className="font-bold mt-2">₹{order.total}</p>
+
+{order.status !== "Delivered" && order.status !== "Cancelled" && (
+<button onClick={()=>cancelOrder(order.id)} className="text-red-500 text-xs mt-2">
+Cancel
+</button>
+)}
+
+</div>
+))}
+
+</div>
+
+</div>
+);
 }
