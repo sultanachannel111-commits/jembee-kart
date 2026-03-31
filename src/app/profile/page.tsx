@@ -36,12 +36,13 @@ export default function ProfilePage(){
 
   const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
 
-  // 🔐 AUTH + LOAD
+  /* 🔐 AUTH + DATA */
   useEffect(()=>{
     let unsubOrders:any;
 
     const unsubAuth = onAuthStateChanged(auth, async(u)=>{
       try{
+
         if(!u){
           router.push("/login");
           return;
@@ -52,7 +53,7 @@ export default function ProfilePage(){
         const userRef = doc(db,"users",u.uid);
         const snap = await getDoc(userRef);
 
-        // ✅ CREATE USER IF NOT EXIST
+        // ✅ CREATE USER
         if(!snap.exists()){
           const code =
             (u.email?.slice(0,4) || "USER").toUpperCase() +
@@ -111,7 +112,7 @@ export default function ProfilePage(){
 
   },[]);
 
-  // 🔴 CANCEL ORDER
+  /* 🔴 CANCEL ORDER */
   const cancelOrder = async(id:string)=>{
     try{
       const ref = doc(db,"orders",id);
@@ -137,7 +138,7 @@ export default function ProfilePage(){
     }
   };
 
-  // 💾 SAVE
+  /* 💾 SAVE */
   const saveProfile = async()=>{
     await setDoc(doc(db,"users",user.uid),{name,phone},{merge:true});
     setEditProfile(false);
@@ -153,41 +154,55 @@ export default function ProfilePage(){
     router.push("/");
   };
 
-  // 📦 STATUS FIX
+  /* 📦 STATUS FIX */
   const getStep = (status:any)=>{
-    if(!status) return 0;
+    try{
+      if(!status) return 0;
 
-    const clean = status.toLowerCase();
+      const clean = String(status).toLowerCase();
 
-    const map:any = {
-      "placed":0,
-      "shipped":1,
-      "out for delivery":2,
-      "delivered":3
-    };
+      if(clean === "placed") return 0;
+      if(clean === "shipped") return 1;
+      if(clean === "out for delivery") return 2;
+      if(clean === "delivered") return 3;
 
-    return map[clean] ?? 0;
+      return 0;
+    }catch{
+      return 0;
+    }
   };
 
-  // 💰 PRICE FIX
+  /* 💰 PRICE FIX */
   const getPrice = (order:any)=>{
-    return (
-      order?.total ||
-      order?.totalAmount ||
-      order?.items?.reduce((sum:any,i:any)=>
-        sum + (i.sellPrice || i.price || 0)
-      ,0) ||
-      0
-    );
+    try{
+      if(order?.total) return order.total;
+      if(order?.totalAmount) return order.totalAmount;
+
+      if(Array.isArray(order?.items)){
+        return order.items.reduce((sum:number,i:any)=>
+          sum + (
+            Number(i?.sellPrice) ||
+            Number(i?.price) ||
+            0
+          )
+        ,0);
+      }
+
+      return 0;
+
+    }catch{
+      return 0;
+    }
   };
 
-  // 📤 SHARE
+  /* 📤 SHARE */
   const shareReferral = ()=>{
     const msg = `Join JembeeKart 💰 Use my code: ${referralCode}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
   };
 
   if(loading) return <div className="p-5">Loading...</div>;
+  if(!user) return <div className="p-5">User not found</div>;
 
   return(
 <div className="min-h-screen bg-gray-100 p-4 space-y-4">
@@ -321,43 +336,56 @@ WhatsApp Share
 <p className="text-sm text-gray-500">No orders yet</p>
 )}
 
-{orders.map(order=>(
-<div key={order.id}
-className="bg-white p-4 rounded-xl shadow mb-3">
+{orders.map(order=>{
+  try{
+    return (
+      <div key={order?.id || Math.random()}
+        className="bg-white p-4 rounded-xl shadow mb-3">
 
-<p className="text-xs text-gray-500">
-#{order.id?.slice(0,8)}
-</p>
+        <p className="text-xs text-gray-500">
+          #{String(order?.id).slice(0,8)}
+        </p>
 
-{/* TRACK */}
-<div className="flex justify-between mt-2 text-xs">
-{steps.map((step,i)=>(
-<div key={i} className="flex-1 text-center">
-<div className={`h-2 rounded ${
-getStep(order?.status) >= i
-? "bg-green-500"
-: "bg-gray-300"
-}`} />
-<p>{step}</p>
-</div>
-))}
-</div>
+        {/* TRACK */}
+        <div className="flex justify-between mt-2 text-xs">
+          {steps.map((step,i)=>(
+            <div key={i} className="flex-1 text-center">
+              <div className={`h-2 rounded ${
+                getStep(order?.status) >= i
+                ? "bg-green-500"
+                : "bg-gray-300"
+              }`} />
+              <p>{step}</p>
+            </div>
+          ))}
+        </div>
 
-<p className="font-bold mt-2">
-₹{getPrice(order)}
-</p>
+        <p className="font-bold mt-2">
+          ₹{getPrice(order)}
+        </p>
 
-{order.status !== "Delivered" &&
-order.status !== "Cancelled" && (
-<button
-onClick={()=>cancelOrder(order.id)}
-className="text-red-500 text-xs mt-2">
-Cancel
-</button>
-)}
+        {/* SAFE CUSTOMER */}
+        <p className="text-xs text-gray-500 mt-1">
+          {typeof order?.customer === "object"
+            ? order.customer?.firstName || "User"
+            : "User"}
+        </p>
 
-</div>
-))}
+        {order?.status !== "Delivered" &&
+        order?.status !== "Cancelled" && (
+          <button
+            onClick={()=>cancelOrder(order.id)}
+            className="text-red-500 text-xs mt-2">
+            Cancel
+          </button>
+        )}
+
+      </div>
+    );
+  }catch{
+    return null;
+  }
+})}
 
 </div>
 
