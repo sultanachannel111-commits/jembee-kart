@@ -3,135 +3,189 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
-export default function SellerProductsPage() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
+type Product = {
+  id: string;
+  name?: string;
+  price?: number;
+  image?: string;
+  variations?: any[];
+};
+
+export default function SellerPage() {
+  const router = useRouter();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 AUTH
+  // 🔐 AUTH CHECK
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      setLoading(false);
     });
+
     return () => unsub();
   }, []);
 
-  // 🔥 FETCH ALL PRODUCTS (IMPORTANT FIX)
+  // 📦 FETCH PRODUCTS
   useEffect(() => {
+    if (!user) return;
+
     const fetchProducts = async () => {
-      const snap = await getDocs(collection(db, "products"));
+      try {
+        const snap = await getDocs(collection(db, "products"));
 
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        const data: Product[] = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Product, "id">),
+        }));
 
-      setProducts(data);
-      setLoading(false);
+        setProducts(data);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+      }
     };
 
     fetchProducts();
-  }, []);
+  }, [user]);
 
-  // 🔗 SHARE FUNCTION
-  const handleShare = (id: string) => {
-    if (!user) return alert("Login first");
-
-    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
-
-    navigator.share?.({
-      title: "Check this product",
-      url: link,
-    });
+  // 🔗 GENERATE AFFILIATE LINK
+  const getLink = (id: string) => {
+    if (!user) return "";
+    return `${window.location.origin}/product/${id}?ref=${user.uid}`;
   };
 
-  // 📋 COPY LINK
-  const handleCopy = (id: string) => {
-    if (!user) return alert("Login first");
+  // 📤 SHARE
+  const handleShare = (id: string) => {
+    const link = getLink(id);
+    if (!link) return alert("Login first");
 
-    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
+    if (navigator.share) {
+      navigator.share({
+        title: "Check this product",
+        url: link,
+      });
+    } else {
+      navigator.clipboard.writeText(link);
+      alert("Link copied ✅");
+    }
+  };
+
+  // 📋 COPY
+  const handleCopy = (id: string) => {
+    const link = getLink(id);
+    if (!link) return alert("Login first");
 
     navigator.clipboard.writeText(link);
     alert("Link copied ✅");
   };
 
-  // 📲 WHATSAPP SHARE
+  // 📲 WHATSAPP
   const handleWhatsApp = (id: string) => {
-    if (!user) return alert("Login first");
-
-    const link = `${window.location.origin}/product/${id}?ref=${user.uid}`;
+    const link = getLink(id);
+    if (!link) return alert("Login first");
 
     window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
   };
 
-  if (loading) return <div className="p-5">Loading...</div>;
+  // ⏳ LOADING
+  if (loading) {
+    return <div className="p-5 text-center">Loading...</div>;
+  }
+
+  // 🔒 NOT LOGGED IN
+  if (!user) {
+    return (
+      <div className="p-5 text-center">
+        <p className="mb-3">Please login to access seller panel</p>
+        <button
+          onClick={() => router.push("/login")}
+          className="bg-black text-white px-4 py-2 rounded"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">All Products</h1>
+    <div className="p-4 max-w-xl mx-auto">
 
-      <div className="grid grid-cols-2 gap-4">
-        {products.map((p: any) => {
-          const price =
-            p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            p?.price ||
-            0;
+      <h1 className="text-xl font-bold mb-4">Seller Panel</h1>
 
-          const image =
-            p?.variations?.[0]?.images?.main ||
-            p?.image ||
-            "";
+      {products.length === 0 ? (
+        <p>No products found</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
 
-          return (
-            <div
-              key={p.id}
-              className="bg-white p-3 rounded-xl shadow"
-            >
-              {/* IMAGE */}
-              <img
-                src={image}
-                className="h-40 w-full object-cover rounded"
-              />
+          {products.map((p) => {
+            const price =
+              p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+              p?.price ||
+              0;
 
-              {/* NAME */}
-              <p className="text-sm mt-2 line-clamp-2">
-                {p.name}
-              </p>
+            const image =
+              p?.variations?.[0]?.images?.main ||
+              p?.image ||
+              "";
 
-              {/* PRICE */}
-              <p className="text-green-600 font-bold">
-                ₹{price}
-              </p>
+            return (
+              <div
+                key={p.id}
+                className="bg-white p-3 rounded-xl shadow"
+              >
+                {/* IMAGE */}
+                <img
+                  src={image}
+                  className="h-40 w-full object-cover rounded"
+                  alt="product"
+                />
 
-              {/* BUTTONS */}
-              <div className="flex flex-col gap-2 mt-3">
-                <button
-                  onClick={() => handleShare(p.id)}
-                  className="bg-blue-600 text-white py-1 rounded"
-                >
-                  Share
-                </button>
+                {/* NAME */}
+                <p className="text-sm mt-2 line-clamp-2">
+                  {p.name}
+                </p>
 
-                <button
-                  onClick={() => handleWhatsApp(p.id)}
-                  className="bg-green-500 text-white py-1 rounded"
-                >
-                  WhatsApp
-                </button>
+                {/* PRICE */}
+                <p className="text-green-600 font-bold">
+                  ₹{price}
+                </p>
 
-                <button
-                  onClick={() => handleCopy(p.id)}
-                  className="border py-1 rounded"
-                >
-                  Copy Link
-                </button>
+                {/* ACTIONS */}
+                <div className="flex flex-col gap-2 mt-3">
+
+                  <button
+                    onClick={() => handleShare(p.id)}
+                    className="bg-blue-600 text-white py-1 rounded"
+                  >
+                    Share
+                  </button>
+
+                  <button
+                    onClick={() => handleWhatsApp(p.id)}
+                    className="bg-green-500 text-white py-1 rounded"
+                  >
+                    WhatsApp
+                  </button>
+
+                  <button
+                    onClick={() => handleCopy(p.id)}
+                    className="border py-1 rounded"
+                  >
+                    Copy Link
+                  </button>
+
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+
+        </div>
+      )}
     </div>
   );
 }
