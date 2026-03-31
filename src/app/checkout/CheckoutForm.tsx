@@ -267,9 +267,9 @@ className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-5
   </p>
 
   <p className="text-xs text-gray-500">
-    {prepaidCharge > 0 
-      ? `+₹${prepaidCharge} shipping`
-      : "Free Shipping"}
+    {shippingConfig.prepaid > 0 
+  ? `+₹${shippingConfig.prepaid} shipping`
+  : "Free Shipping"}
   </p>
 </div>
 
