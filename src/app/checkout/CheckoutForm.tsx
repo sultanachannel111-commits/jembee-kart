@@ -1,293 +1,290 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { load } from "@cashfreepayments/cashfree-js";
 import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+collection,
+query,
+where,
+doc,
+setDoc,
+getDoc,
+writeBatch,
+increment,
+onSnapshot
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-  setDoc
-} from "firebase/firestore";
+export default function ProfilePage(){
 
-import { onAuthStateChanged } from "firebase/auth";
+const router = useRouter();
 
-/* 🔥 PRICE */
-const getFinalPrice = (item:any) => {
-  const sellPrice =
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-    item.price ||
-    0;
+const [user,setUser] = useState<any>(null);
+const [orders,setOrders] = useState<any[]>([]);
+const [loading,setLoading] = useState(true);
 
-  const discount = item.discount || 0;
+const [name,setName] = useState("");
+const [phone,setPhone] = useState("");
+const [address,setAddress] = useState("");
 
-  return discount > 0
-    ? Math.round(sellPrice - (sellPrice * discount) / 100)
-    : sellPrice;
+const [wallet,setWallet] = useState(0);
+const [referralCode,setReferralCode] = useState("");
+
+const [editProfile,setEditProfile] = useState(false);
+const [editAddress,setEditAddress] = useState(false);
+
+const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
+
+/* 🔥 SAFE ADDRESS FIX */
+const fixAddress = (addr:any)=>{
+try{
+if(typeof addr === "string") return addr;
+if(typeof addr === "object") return Object.values(addr).join("");
+return "";
+}catch{
+return "";
+}
 };
 
-export default function CheckoutPage(){
+/* 🔐 AUTH + DATA */
+useEffect(()=>{
+let unsubOrders:any;
 
-  const router = useRouter();
+const unsubAuth = onAuthStateChanged(auth, async(u)=>{  
+  try{  
+    if(!u){  
+      router.push("/login");  
+      return;  
+    }  
 
-  const [items,setItems] = useState<any[]>([]);
-  const [user,setUser] = useState<any>(null);
-  const [loading,setLoading] = useState(false);
+    setUser(u);  
 
-  const [payment,setPayment] = useState("online");
+    const userRef = doc(db,"users",u.uid);  
+    const snap = await getDoc(userRef);  
 
-  const [shippingConfig,setShippingConfig] = useState({
-    prepaid: 0,
-    cod: 0
-  });
+    if(!snap.exists()){  
+      const code =  
+        (u.email?.slice(0,4) || "USER").toUpperCase() +  
+        Math.floor(1000 + Math.random()*9000);  
 
-  const codCharge = shippingConfig.cod || 0;
-  const prepaidCharge = shippingConfig.prepaid || 0;
+      await setDoc(userRef,{  
+        name:"",  
+        phone:"",  
+        address:"",  
+        wallet:0,  
+        referralCode:code  
+      });  
 
-  const [customer,setCustomer] = useState({
-    firstName:"",
-    phone:"",
-    address:""
-  });
+      setReferralCode(code);  
+    }  
 
-  const [coupon,setCoupon] = useState("");
-  const [couponDiscount,setCouponDiscount] = useState(0);
+    // 🔄 REALTIME USER  
+    onSnapshot(userRef,(snap)=>{  
+      if(snap.exists()){  
+        const d:any = snap.data() || {};  
+        setName(d.name || "");  
+        setPhone(d.phone || "");  
+        setAddress(d.address || "");  
+        setWallet(d.wallet || 0);  
+        setReferralCode(d.referralCode || "");  
+      }  
+    });  
 
-  /* 🔥 LOAD */
-  useEffect(()=>{
-    const unsub = onAuthStateChanged(auth, async (u)=>{
-      if(!u) return;
+    // 🔄 REALTIME ORDERS  
+    const q = query(  
+      collection(db,"orders"),  
+      where("userId","==",u.uid)  
+    );  
 
-      setUser(u);
+    unsubOrders = onSnapshot(q,(snap)=>{  
+      const arr:any[] = [];  
+      snap.forEach(doc=>{  
+        arr.push({ id:doc.id, ...doc.data() });  
+      });  
+      setOrders(arr);  
+      setLoading(false);  
+    });  
 
-      // ✅ USER DATA
-      const userDoc = await getDoc(doc(db, "users", u.uid));
-      if (userDoc.exists()) {
-        const data:any = userDoc.data();
+  }catch(err){  
+    console.log("🔥 PROFILE ERROR:", err);  
+    alert("Profile load error");  
+  }  
+});  
 
-        if (data.address && typeof data.address === "object") {
-          setCustomer({
-            firstName: data.address.firstName || "",
-            phone: data.address.phone || "",
-            address: data.address.address || ""
-          });
-        }
-      }
+return ()=>{  
+  unsubAuth();  
+  if(unsubOrders) unsubOrders();  
+};
 
-      // ✅ CART ITEMS
-      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
-      const arr:any[] = [];
+},[]);
 
-      snap.forEach(doc=>{
-        const d = doc.data();
-        arr.push({
-          id: doc.id,
-          name: d.name,
-          price: d.price,
-          discount: d.discount || 0,
-          variations: d.variations || [],
-          quantity: d.quantity || 1,
-          image: d.image || ""
-        });
-      });
+/* 🔴 CANCEL */
+const cancelOrder = async(id:string)=>{
+try{
+const ref = doc(db,"orders",id);
+const snap = await getDoc(ref);
+if(!snap.exists()) return;
 
-      setItems(arr);
+const data:any = snap.data();  
+  const batch = writeBatch(db);  
 
-      // ✅ SHIPPING CONFIG
-      const shipDoc = await getDoc(doc(db,"config","shipping"));
-      if(shipDoc.exists()){
-        setShippingConfig(shipDoc.data() as any);
-      }
+  batch.update(ref,{status:"Cancelled"});  
 
-    });
+  for(const item of data?.items || []){  
+    const pRef = doc(db,"products",item.productId);  
+    batch.update(pRef,{  
+      stock: increment(item.quantity)  
+    });  
+  }  
 
-    return ()=>unsub();
+  await batch.commit();  
 
-  },[]);
+}catch(err){  
+  console.log("🔥 CANCEL ERROR:", err);  
+}
 
-  /* 💰 TOTAL */
-  const total = items.reduce(
-    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
-    0
-  );
+};
 
-  /* 💸 ONLINE DISCOUNT */
-  const onlineDiscount = payment === "online" ? 10 : 0;
+/* 💾 SAVE */
+const saveProfile = async()=>{
+await setDoc(doc(db,"users",user.uid),{name,phone},{merge:true});
+setEditProfile(false);
+};
 
-  /* 🎟 FINAL */
-  const finalPay = Math.max(0, total - couponDiscount - onlineDiscount);
+const saveAddress = async()=>{
+await setDoc(doc(db,"users",user.uid),{
+address:{
+firstName:name,
+phone:phone,
+address:address
+}
+},{merge:true});
+setEditAddress(false);
+};
 
-  /* 🚚 SHIPPING */
-  const shippingCharge =
-    payment === "cod" ? codCharge : prepaidCharge;
+const logout = async()=>{
+await signOut(auth);
+router.push("/");
+};
 
-  const grandTotal = finalPay + shippingCharge;
+/* 📦 STATUS */
+const getStep = (status:any)=>{
+const s = String(status || "").toLowerCase();
+if(s==="placed") return 0;
+if(s==="shipped") return 1;
+if(s==="out for delivery") return 2;
+if(s==="delivered") return 3;
+return 0;
+};
 
-  /* 🎟 COUPON */
-  const applyCoupon = () => {
-    if(coupon === "SAVE10"){
-      setCouponDiscount(10);
-    }else if(coupon === "FLAT50"){
-      setCouponDiscount(50);
-    }else{
-      alert("Invalid coupon");
-    }
-  };
+/* 💰 PRICE */
+const getPrice = (order:any)=>{
+try{
+if(order?.total) return order.total;
+if(order?.totalAmount) return order.totalAmount;
 
-  /* 📦 DELIVERY */
-  const getDeliveryDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 5);
-    return d.toDateString();
-  };
+if(Array.isArray(order?.items)){  
+    return order.items.reduce((sum:number,i:any)=>  
+      sum + (Number(i?.sellPrice)||Number(i?.price)||0)  
+    ,0);  
+  }  
+  return 0;  
+}catch{  
+  return 0;  
+}
 
-  /* 💬 WHATSAPP */
-  const sendWhatsApp = () => {
-    const msg = `Order placed!\nAmount: ₹${grandTotal}`;
-    window.open(`https://wa.me/919876543210?text=${encodeURIComponent(msg)}`);
-  };
+};
 
-  /* 💾 SAVE ADDRESS */
-  const saveAddress = async ()=>{
-    if (!user) return;
+/* 📤 SHARE */
+const shareReferral = ()=>{
+const msg = Join JembeeKart 💰 Use code: ${referralCode};
+window.open(https://wa.me/?text=${encodeURIComponent(msg)});
+};
 
-    await setDoc(doc(db, "users", user.uid), {
-      address: customer
-    }, { merge: true });
-  };
+if(loading) return <div className="p-5">Loading...</div>;
+if(!user) return <div className="p-5">User not found</div>;
 
-  /* 🛒 PLACE ORDER */
-  const placeOrder = async()=>{
+return(
 
-    if(!customer.firstName || !customer.phone){
-      alert("Fill details");
-      return;
-    }
+<div className="min-h-screen bg-gray-100">  {/* 🔝 HEADER */}
 
-    await saveAddress();
-    setLoading(true);
+<div className="bg-pink-600 text-white p-4 text-lg font-semibold">  
+My Account  
+</div>  <div className="p-4 space-y-4">  {/* 👤 PROFILE */}
 
-    if(payment === "cod"){
-
-      await addDoc(collection(db,"orders"),{
-        userId: user.uid,
-        items,
-        total: grandTotal,
-        paymentMethod:"cod",
-        status:"Placed",
-        createdAt:serverTimestamp()
-      });
-
-      sendWhatsApp();
-      router.push("/order-success");
-
-    }else{
-
-      const res = await fetch("/api/cashfree/create-order",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
-          orderId:"order_"+Date.now(),
-          amount: grandTotal,
-          customer
-        })
-      });
-
-      const data = await res.json();
-      const cashfree = await load({ mode:"production" });
-
-      await cashfree.checkout({
-        paymentSessionId:data.payment_session_id,
-        redirectTarget:"_self"
-      });
-    }
-
-    setLoading(false);
-  };
-
-  return (
-
-<div className="min-h-screen bg-gray-100 pb-32">
-
-{/* HEADER */}
-<div className="bg-white p-4 border-b font-semibold">
-  PAYMENT METHOD
-</div>
-
-<div className="max-w-xl mx-auto p-4 space-y-4">
-
-{/* COUPON */}
-<div className="bg-white p-4 rounded-xl shadow flex gap-2">
-  <input
-    value={coupon}
-    onChange={(e)=>setCoupon(e.target.value)}
-    placeholder="Enter coupon"
-    className="flex-1 border p-2 rounded"
-  />
-  <button onClick={applyCoupon} className="bg-black text-white px-4 rounded">
-    Apply
-  </button>
-</div>
-
-{/* DELIVERY */}
-<div className="bg-white p-4 rounded-xl shadow text-sm">
-  🚚 Delivery by <b>{getDeliveryDate()}</b>
-</div>
-
-{/* PAYMENT */}
-<div className="space-y-3">
-
-<div onClick={()=>setPayment("cod")}
-className={`p-4 bg-white rounded-xl border ${payment==="cod"?"border-pink-500":""}`}>
-  Cash on Delivery (+₹{codCharge})
-</div>
-
-<div onClick={()=>setPayment("online")}
-className={`p-4 bg-white rounded-xl border ${payment==="online"?"border-pink-500":""}`}>
-  Pay Online (₹10 OFF)
-</div>
-
-</div>
-
-{/* ADDRESS */}
-<div className="bg-white p-4 rounded-xl shadow space-y-2">
-  <input placeholder="Name" className="w-full border p-2 rounded"
-    value={customer.firstName}
-    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-  />
-  <input placeholder="Phone" className="w-full border p-2 rounded"
-    value={customer.phone}
-    onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-  />
-  <textarea placeholder="Address" className="w-full border p-2 rounded"
-    value={customer.address}
-    onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-  />
-</div>
-
-</div>
-
-{/* BOTTOM */}
-<div className="fixed bottom-0 w-full bg-white p-4 border-t flex justify-between">
-
-<div>
-  <p className="font-bold text-lg">₹{grandTotal}</p>
-</div>
-
-<button
-  onClick={placeOrder}
-  className="bg-purple-600 text-white px-6 py-3 rounded-xl"
->
-  {loading ? "Processing..." : "Place Order"}
+<div className="bg-white p-4 rounded-xl shadow flex items-center gap-3">  
+<div className="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center">  
+{user?.email?.charAt(0)?.toUpperCase()}  
+</div>  <div className="flex-1">  
+<p className="font-semibold">{name || "User"}</p>  
+<p className="text-xs text-gray-500">{user.email}</p>  
+</div>  <button onClick={()=>setEditProfile(!editProfile)}
+className="text-pink-600 text-sm">
+Edit
 </button>
 
-</div>
+</div>  {/* 🏠 ADDRESS */}
 
-</div>
-  );
+<div className="bg-white p-4 rounded-xl shadow">  
+<p className="font-semibold mb-2">Delivery Address</p>  
+<p className="text-sm">{fixAddress(address) || "No address"}</p>  <button onClick={()=>setEditAddress(!editAddress)}
+className="text-pink-600 text-sm mt-2">
+Edit
+</button>
+
+</div>  {/* 💰 WALLET */}
+
+<div className="bg-white p-4 rounded-xl shadow flex justify-between">  
+<p>Wallet</p>  
+<p className="text-green-600 font-bold">₹{wallet}</p>  
+</div>  {/* 🎁 REFERRAL */}
+
+<div className="bg-white p-4 rounded-xl shadow">  
+<p className="text-sm">Referral Code</p>  
+<p className="font-bold">{referralCode}</p>  <div className="flex gap-3 mt-2">  
+<button onClick={()=>navigator.clipboard.writeText(referralCode)}  
+className="text-blue-600 text-sm">Copy</button>  <button onClick={shareReferral}  
+className="text-green-600 text-sm">WhatsApp</button>
+
+</div>  
+</div>  {/* 📦 ORDERS */}
+
+<div>  
+<h3 className="font-semibold mb-2">My Orders</h3>  {orders.map(order=>(
+
+<div key={order.id}  
+className="bg-white p-4 rounded-xl shadow mb-3">  <p className="text-xs text-gray-500">  
+#{order.id.slice(0,8)}  
+</p>  {/* TRACK BAR */}
+
+<div className="flex mt-2">  
+{steps.map((step,i)=>(  
+<div key={i} className="flex-1 text-center text-xs">  
+<div className={`h-2 ${  
+getStep(order.status)>=i  
+? "bg-green-500"  
+: "bg-gray-300"  
+}`} />  
+<p>{step}</p>  
+</div>  
+))}  
+</div>  <p className="font-bold mt-2">₹{getPrice(order)}</p>  {order.status !== "Delivered" && (
+<button
+onClick={()=>cancelOrder(order.id)}
+className="text-red-500 text-xs mt-2">
+Cancel
+</button>
+)}
+
+</div>  
+))}  
+</div>  <button onClick={logout}  
+className="w-full bg-red-500 text-white py-3 rounded-xl">
+Logout
+</button>
+
+</div>  
+</div>  
+);  
 }
