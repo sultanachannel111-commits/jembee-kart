@@ -31,16 +31,22 @@ export default function AdminLayout({
 
   useEffect(() => {
 
-    // login page par check mat karo
-    if (pathname === "/admin/login") return;
+    useEffect(() => {
 
-    const cookies = document.cookie;
+  if (pathname === "/admin/login") return;
 
-    if (!cookies.includes("admin=true")) {
-      window.location.href = "/admin/login";
-    }
+  const cookies = document.cookie;
 
-  }, [pathname]);
+  console.log("🍪 ADMIN COOKIE:", cookies);
+
+  if (!cookies.includes("admin=true")) {
+    console.log("❌ No admin cookie → redirect login");
+    window.location.href = "/admin/login";
+  } else {
+    console.log("✅ Admin cookie found");
+  }
+
+}, [pathname]);
 
   /* login page par layout hide */
 
