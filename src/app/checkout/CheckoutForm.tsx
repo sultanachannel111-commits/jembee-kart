@@ -67,8 +67,13 @@ const prepaidCharge = shippingConfig.prepaid || 0;
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        if (data.address) setCustomer(data.address);
-      }
+        if (data.address) {
+  setCustomer({
+    firstName: data.address.firstName || "",
+    phone: data.address.phone || "",
+    address: data.address.address || ""
+  });
+}
 
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
       const arr:any[] = [];
