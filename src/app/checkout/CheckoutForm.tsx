@@ -45,6 +45,8 @@ export default function CheckoutPage(){
     prepaid: 0,
     cod: 0
   });
+  const codCharge = shippingConfig.cod || 0;
+const prepaidCharge = shippingConfig.prepaid || 0;
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -110,10 +112,10 @@ export default function CheckoutPage(){
   const finalPay = Math.max(0, total - couponDiscount - onlineDiscount);
 
   /* 🚚 SHIPPING */
-  const shippingCharge =
-    payment === "cod"
-      ? (shippingConfig.cod || 0)
-      : (shippingConfig.prepaid || 0);
+ const shippingCharge =
+  payment === "cod"
+    ? codCharge
+    : prepaidCharge; 
 
   const grandTotal = finalPay + shippingCharge;
 
@@ -245,7 +247,7 @@ className={`p-4 rounded-xl bg-white border flex justify-between ${payment==="cod
   <div>
     <p className="font-medium">Cash on Delivery</p>
     <p className="text-xs text-gray-500">
-      {shippingCharge > 0 ? `+₹${shippingCharge} shipping` : "Free Shipping"}
+      {codCharge > 0 ? `+₹${codCharge} shipping` : "Free Shipping"}
     </p>
   </div>
   <div className={`w-5 h-5 rounded-full border ${payment==="cod" ? "bg-pink-500" : ""}`} />
@@ -260,6 +262,9 @@ className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-5
   </div>
   <p className="text-sm text-green-600 mt-2">
     Extra ₹10 OFF applied
+    <p className="text-xs text-gray-500">
+  {prepaidCharge > 0 ? `+₹${prepaidCharge} shipping` : "Free Shipping"}
+</p>
   </p>
 </div>
 
