@@ -1,284 +1,310 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { load } from "@cashfreepayments/cashfree-js";
+import { auth, db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
-import { useCart } from "@/context/CartContext";
-import { getFinalPrice } from "@/lib/priceCalculator";
-import { getTheme } from "@/services/themeService";
-import { getTextColor } from "@/lib/utils";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  setDoc
+} from "firebase/firestore";
 
-export default function ProductPage() {
+import { onAuthStateChanged } from "firebase/auth";
 
-  const params = useParams();
-  const id = typeof params?.id === "string" ? params.id : "";
+/* 🔥 PRICE */
+const getFinalPrice = (item:any) => {
+  const sellPrice =
+    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+    item.price ||
+    0;
 
-  const { addToCart } = useCart();
+  const discount = item.discount || 0;
 
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState(0);
-  const [fullscreen, setFullscreen] = useState(false);
+  return discount > 0
+    ? Math.round(sellPrice - (sellPrice * discount) / 100)
+    : sellPrice;
+};
 
-  const [theme, setTheme] = useState<any>({
-    button: "#22c55e"
+export default function CheckoutPage(){
+
+  const router = useRouter();
+
+  const [items,setItems] = useState<any[]>([]);
+  const [user,setUser] = useState<any>(null);
+  const [loading,setLoading] = useState(false);
+
+  const [payment,setPayment] = useState("online");
+
+  const [shippingConfig,setShippingConfig] = useState({
+    prepaid: 0,
+    cod: 0
   });
 
-  // 🔥 VARIATION STATE
-  const [selectedColor, setSelectedColor] = useState("");
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [customer,setCustomer] = useState({
+    firstName:"",
+    phone:"",
+    address:""
+  });
 
-  // 🔥 FETCH PRODUCT
-  useEffect(() => {
-    if (!id) return;
+  const [coupon,setCoupon] = useState("");
+  const [couponDiscount,setCouponDiscount] = useState(0);
 
-    const fetchProduct = async () => {
-      try {
-        const snap = await getDoc(doc(db, "products", id));
+  /* 🔥 LOAD */
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, async (u)=>{
+      if(!u) return;
 
-        if (!snap.exists()) {
-          setLoading(false);
-          return;
-        }
+      setUser(u);
 
-        const data:any = {
-          id: snap.id,
-          ...snap.data()
-        };
-
-        // 🔥 OFFERS
-        const offerSnap = await getDocs(collection(db,"offers"));
-        let discount = 0;
-
-        offerSnap.forEach((doc)=>{
-          const offer:any = doc.data();
-
-          if(!offer?.active) return;
-
-          if(offer.type === "product" && offer.productId === id){
-            discount = offer.discount;
-          }
-
-          if(
-            offer.type === "category" &&
-            offer.category?.toLowerCase?.() === data.category?.toLowerCase?.()
-          ){
-            discount = offer.discount;
-          }
-        });
-
-        data.discount = discount;
-
-        setProduct(data);
-        setLoading(false);
-
-      } catch (err) {
-        console.log(err);
-        setLoading(false);
+      const userDoc = await getDoc(doc(db, "users", u.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.address) setCustomer(data.address);
       }
-    };
 
-    fetchProduct();
-  }, [id]);
+      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+      const arr:any[] = [];
 
-  // 🔥 THEME
-  useEffect(() => {
-    async function loadThemeData() {
-      const t = await getTheme();
-      if (t) setTheme(t);
-    }
-    loadThemeData();
-  }, []);
+      snap.forEach(doc=>{
+        const d = doc.data();
+        arr.push({
+          id: doc.id,
+          name: d.name,
+          price: d.price,
+          discount: d.discount || 0,
+          variations: d.variations || [],
+          quantity: d.quantity || 1,
+          image: d.image || ""
+        });
+      });
 
-  // 🔥 DEFAULT VARIANT
-  useEffect(() => {
-    if (product?.variations?.length) {
-      const first = product.variations[0];
-      setSelectedColor(first.color);
-      setSelectedSize(first.size);
-      setSelectedVariant(first);
-    }
-  }, [product]);
+      setItems(arr);
 
-  // 🔥 UPDATE VARIANT
-  useEffect(() => {
-    if (!product?.variations) return;
+      // ✅ ADMIN SHIPPING LOAD
+      const shipDoc = await getDoc(doc(db,"config","shipping"));
+      if(shipDoc.exists()){
+        setShippingConfig(shipDoc.data());
+      }
 
-    const found = product.variations.find(
-      (v: any) =>
-        v.color === selectedColor && v.size === selectedSize
-    );
+    });
 
-    if (found) setSelectedVariant(found);
-  }, [selectedColor, selectedSize, product]);
+    return ()=>unsub();
+  },[]);
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!product) return <div className="p-5">Product not found</div>;
-
-  const finalPrice = getFinalPrice(product);
-
-  // 🔥 IMAGE SOURCE
-  const images = selectedVariant?.images?.length
-    ? selectedVariant.images
-    : [
-        product?.image,
-        product?.frontImage,
-        product?.backImage,
-        product?.sideImage
-      ].filter((img) => img);
-
-  const finalImages = images.length ? images : ["/no-image.png"];
-
-  // 🔥 COLORS
-  const colors = [...new Set(product?.variations?.map((v:any)=>v.color))];
-
-  // 🔥 SIZES
-  const sizes = product?.variations?.filter(
-    (v:any)=>v.color===selectedColor
+  /* 💰 TOTAL */
+  const total = items.reduce(
+    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
+    0
   );
 
-  // 👉 SWIPE
-  const handleSwipe = (e:any) => {
-    const startX = e.touches[0].clientX;
+  /* 💸 ONLINE EXTRA ₹10 OFF */
+  const onlineDiscount = payment === "online" ? 10 : 0;
 
-    const end = (ev:any) => {
-      const endX = ev.changedTouches[0].clientX;
+  /* 🎟️ FINAL */
+  const finalPay = Math.max(0, total - couponDiscount - onlineDiscount);
 
-      if (startX - endX > 50)
-        setActiveImage((p)=>Math.min(p+1, finalImages.length-1));
+  /* 🚚 SHIPPING */
+  const shippingCharge =
+    payment === "cod"
+      ? (shippingConfig.cod || 0)
+      : (shippingConfig.prepaid || 0);
 
-      if (endX - startX > 50)
-        setActiveImage((p)=>Math.max(p-1, 0));
+  const grandTotal = finalPay + shippingCharge;
 
-      window.removeEventListener("touchend", end);
-    };
+  /* 🎟️ COUPON */
+  const applyCoupon = () => {
+    if(coupon === "SAVE10"){
+      setCouponDiscount(10);
+    }else if(coupon === "FLAT50"){
+      setCouponDiscount(50);
+    }else{
+      alert("Invalid coupon");
+    }
+  };
 
-    window.addEventListener("touchend", end);
+  /* 📦 DELIVERY */
+  const getDeliveryDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toDateString();
+  };
+
+  /* 💬 WHATSAPP */
+  const sendWhatsApp = () => {
+    const msg = `Order placed!\nAmount: ₹${grandTotal}`;
+    window.open(`https://wa.me/919876543210?text=${encodeURIComponent(msg)}`);
+  };
+
+  /* 💾 SAVE */
+  const saveAddress = async ()=>{
+    if (!user) return;
+    await setDoc(doc(db, "users", user.uid), {
+      address: customer
+    }, { merge: true });
+  };
+
+  /* 🛒 ORDER */
+  const placeOrder = async()=>{
+
+    if(!customer.firstName || !customer.phone){
+      alert("Fill details");
+      return;
+    }
+
+    await saveAddress();
+    setLoading(true);
+
+    if(payment === "cod"){
+
+      await addDoc(collection(db,"orders"),{
+        userId: user.uid,
+        items,
+        total: grandTotal,
+        paymentMethod:"cod",
+        createdAt:serverTimestamp()
+      });
+
+      sendWhatsApp();
+      router.push("/order-success");
+
+    }else{
+
+      const res = await fetch("/api/cashfree/create-order",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          orderId:"order_"+Date.now(),
+          amount: grandTotal,
+          customer
+        })
+      });
+
+      const data = await res.json();
+      const cashfree = await load({ mode:"production" });
+
+      await cashfree.checkout({
+        paymentSessionId:data.payment_session_id,
+        redirectTarget:"_self"
+      });
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-white pt-[96px]">
 
-      {/* 🔥 IMAGE SLIDER */}
-      <div
-        className="w-full overflow-hidden relative"
-        onTouchStart={handleSwipe}
-      >
-        <div
-          className="flex transition-transform duration-300"
-          style={{
-            transform: `translateX(-${activeImage * 100}%)`
-          }}
-        >
-          {finalImages.map((img:any, i:number)=>(
-            <img
-              key={i}
-              src={img}
-              onClick={()=>setFullscreen(true)}
-              className="w-full h-[380px] object-contain bg-white flex-shrink-0"
-            />
-          ))}
-        </div>
+<div className="min-h-screen bg-gray-100 pb-32">
 
-        {/* DOTS */}
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-          {finalImages.map((_:any,i:number)=>(
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full ${
-                activeImage===i ? "bg-blue-600" : "bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
+{/* 🎉 TOP DISCOUNT BAR */}
+{(couponDiscount > 0 || onlineDiscount > 0) && (
+  <div className="bg-green-100 text-green-700 text-center py-2 text-sm font-medium">
+    ₹{couponDiscount + onlineDiscount} OFF on this order 🎉
+  </div>
+)}
 
-      <div className="p-4">
+<div className="max-w-xl mx-auto">
 
-        {/* NAME */}
-        <h1 className="text-2xl font-bold mt-4">
-          {product.name}
-        </h1>
+{/* HEADER */}
+<div className="bg-white p-4 border-b">
+  <h1 className="font-semibold">PAYMENT METHOD</h1>
+</div>
 
-        {/* PRICE */}
-        <div className="flex gap-3 items-center mt-2">
-          <span className="text-2xl font-bold">
-            ₹{selectedVariant?.price || finalPrice}
-          </span>
-        </div>
+{/* COUPON */}
+<div className="p-4">
+  <div className="bg-white p-4 rounded-xl shadow flex gap-2">
+    <input
+      value={coupon}
+      onChange={(e)=>setCoupon(e.target.value)}
+      placeholder="Enter coupon"
+      className="flex-1 border p-2 rounded"
+    />
+    <button onClick={applyCoupon} className="bg-black text-white px-4 rounded">
+      Apply
+    </button>
+  </div>
+</div>
 
-        {/* STOCK */}
-        <p className="mt-2 text-green-600 font-semibold">
-          In Stock ({selectedVariant?.stock ?? product.stock})
-        </p>
+{/* DELIVERY */}
+<div className="px-4">
+  <div className="bg-white p-4 rounded-xl shadow text-sm">
+    🚚 Delivery by <b>{getDeliveryDate()}</b>
+  </div>
+</div>
 
-        {/* 🔥 COLOR */}
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Color</h3>
-          <div className="flex gap-3">
-            {colors.map((color:any,i:number)=>(
-              <div
-                key={i}
-                onClick={()=>setSelectedColor(color)}
-                className={`w-8 h-8 rounded-full border-2 ${
-                  selectedColor === color ? "border-black" : "border-gray-300"
-                }`}
-                style={{background:color}}
-              />
-            ))}
-          </div>
-        </div>
+<div className="p-4 space-y-4">
 
-        {/* 🔥 SIZE */}
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Size</h3>
-          <div className="flex gap-3">
-            {sizes.map((v:any,i:number)=>(
-              <div
-                key={i}
-                onClick={()=>setSelectedSize(v.size)}
-                className={`px-4 py-2 border rounded ${
-                  selectedSize === v.size ? "border-black" : "border-gray-300"
-                }`}
-              >
-                {v.size}
-              </div>
-            ))}
-          </div>
-        </div>
+{/* COD */}
+<div onClick={()=>setPayment("cod")}
+className={`p-4 rounded-xl bg-white border flex justify-between ${payment==="cod" ? "border-pink-500" : ""}`}>
+  <div>
+    <p className="font-medium">Cash on Delivery</p>
+    <p className="text-xs text-gray-500">
+      {shippingCharge > 0 ? `+₹${shippingCharge} shipping` : "Free Shipping"}
+    </p>
+  </div>
+  <div className={`w-5 h-5 rounded-full border ${payment==="cod" ? "bg-pink-500" : ""}`} />
+</div>
 
-        {/* 🔥 BUY BUTTON */}
-        <button
-          style={{
-            background: theme.button,
-            color: getTextColor(theme.button)
-          }}
-          className="w-full py-3 rounded-xl mt-6"
-        >
-          Buy Now
-        </button>
+{/* ONLINE */}
+<div onClick={()=>setPayment("online")}
+className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-500" : ""}`}>
+  <div className="flex justify-between">
+    <p className="font-medium">Pay Online</p>
+    <div className={`w-5 h-5 rounded-full border ${payment==="online" ? "bg-pink-500" : ""}`} />
+  </div>
+  <p className="text-sm text-green-600 mt-2">
+    Extra ₹10 OFF applied
+  </p>
+</div>
 
-      </div>
+{/* ADDRESS */}
+<div className="bg-white p-4 rounded-xl shadow space-y-2">
+  <input placeholder="Full Name" className="w-full border p-2 rounded"
+    value={customer.firstName}
+    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+  />
+  <input placeholder="Phone" className="w-full border p-2 rounded"
+    value={customer.phone}
+    onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+  />
+  <textarea placeholder="Address" className="w-full border p-2 rounded"
+    value={customer.address}
+    onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+  />
+</div>
 
-      {/* FULLSCREEN */}
-      {fullscreen && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <img
-            src={finalImages[activeImage]}
-            className="w-full object-contain"
-          />
-          <button
-            onClick={()=>setFullscreen(false)}
-            className="absolute top-4 right-4 text-white text-xl"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-    </div>
+</div>
+
+{/* BOTTOM BAR */}
+<div className="fixed bottom-0 w-full bg-white border-t p-4 flex justify-between items-center">
+
+  <div>
+    <p className="font-bold text-lg">₹{grandTotal}</p>
+
+    {(couponDiscount > 0 || onlineDiscount > 0) && (
+      <p className="text-green-600 text-xs">
+        Saved ₹{couponDiscount + onlineDiscount}
+      </p>
+    )}
+  </div>
+
+  <button
+    onClick={placeOrder}
+    className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+  >
+    {loading ? "Processing..." : "Place Order"}
+  </button>
+
+</div>
+
+</div>
+</div>
+
   );
 }
-Product id page tsc
