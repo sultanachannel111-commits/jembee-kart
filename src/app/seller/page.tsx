@@ -1,200 +1,102 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase";
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+} from "firebase/auth";
+import { useRouter, useSearchParams } from "next/navigation";
 
-type Product = {
-  id: string;
-  name?: string;
-  price?: number;
-  image?: string;
-  variations?: any[];
-};
-
-export default function SellerPage() {
+export default function LoginPage() {
 
   const router = useRouter();
+  const params = useSearchParams();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const redirect = params.get("redirect") || "/";
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productLoading, setProductLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [logs, setLogs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // 🔥 DEBUG LOGGER
-  const log = (msg: string, data?: any) => {
-    const text = data
-      ? `${msg} => ${JSON.stringify(data)}`
-      : msg;
-
-    console.log(text);
-
-    setLogs((prev) => [...prev, text]);
-  };
-
-  // 🔐 AUTH CHECK
+  // 🔥 AUTH CHECK (IMPORTANT)
   useEffect(() => {
-    log("🟢 SELLER PAGE LOADED");
+    const unsub = onAuthStateChanged(auth, (user) => {
+      console.log("🔐 LOGIN USER:", user);
 
-    const unsub = onAuthStateChanged(auth, (u) => {
-      log("👤 AUTH USER", {
-        email: u?.email || null,
-        uid: u?.uid || null,
-      });
+      if (user) {
+        console.log("➡️ REDIRECT TO:", redirect);
+        router.push(redirect); // 🔥 dynamic redirect
+      }
 
-      log("📍 CURRENT PATH", window.location.pathname);
-
-      setUser(u);
-      setAuthChecked(true);
+      setCheckingAuth(false);
     });
 
     return () => unsub();
   }, []);
 
-  // 🚨 REDIRECT TRACKER
-  useEffect(() => {
-    const originalPush = router.push;
+  // 🔐 LOGIN FUNCTION
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Fill all fields");
+      return;
+    }
 
-    router.push = (url: string) => {
-      log("🚨 REDIRECT DETECTED →", url);
-      return originalPush(url);
-    };
-  }, []);
+    try {
+      setLoading(true);
 
-  // 📦 FETCH PRODUCTS
-  useEffect(() => {
-    if (!user) return;
+      await signInWithEmailAndPassword(auth, email, password);
 
-    const fetchProducts = async () => {
-      try {
-        log("📦 FETCHING PRODUCTS...");
+      // 🔥 redirect handled automatically by useEffect
 
-        const snap = await getDocs(collection(db, "products"));
-
-        const data: Product[] = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as any),
-        }));
-
-        log("✅ PRODUCTS LOADED", { count: data.length });
-
-        setProducts(data);
-      } catch (err) {
-        log("🔥 PRODUCT ERROR", err);
-      } finally {
-        setProductLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [user]);
-
-  // 🔗 LINK
-  const getLink = (id: string) => {
-    if (!user) return "";
-    return `${window.location.origin}/product/${id}?ref=${user.uid}`;
+    } catch (err: any) {
+      console.log("🔥 LOGIN ERROR:", err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ⏳ AUTH LOADING
-  if (!authChecked) {
+  // ⏳ CHECKING AUTH
+  if (checkingAuth) {
     return <div className="p-5 text-center">Checking login...</div>;
   }
 
-  // 🔒 NOT LOGGED IN
-  if (!user) {
-    log("❌ USER NOT LOGGED IN");
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-    return (
-      <div className="p-5 text-center">
-        <p>Please login first</p>
+      <div className="bg-white p-6 rounded-xl shadow w-[90%] max-w-sm">
+
+        <h1 className="text-xl font-bold mb-4 text-center">
+          Login
+        </h1>
+
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full border p-2 rounded mb-3"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full border p-2 rounded mb-4"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
         <button
-          onClick={() => {
-            log("➡️ MANUAL REDIRECT → /login");
-            router.push("/login");
-          }}
-          className="bg-black text-white px-4 py-2 mt-3 rounded"
+          onClick={handleLogin}
+          className="w-full bg-black text-white py-2 rounded"
         >
-          Go to Login
+          {loading ? "Logging in..." : "Login"}
         </button>
+
       </div>
-    );
-  }
-
-  // ⏳ PRODUCT LOADING
-  if (productLoading) {
-    return <div className="p-5 text-center">Loading products...</div>;
-  }
-
-  return (
-    <div className="p-4 max-w-xl mx-auto">
-
-      <h1 className="text-xl font-bold mb-4">
-        Seller Panel
-      </h1>
-
-      {/* PRODUCTS */}
-      <div className="grid grid-cols-2 gap-4">
-        {products.map((p) => {
-          const price =
-            p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            p?.price ||
-            0;
-
-          const image =
-            p?.variations?.[0]?.images?.main ||
-            p?.image ||
-            "";
-
-          return (
-            <div
-              key={p.id}
-              className="bg-white p-3 rounded-xl shadow"
-            >
-              <img
-                src={image}
-                className="h-40 w-full object-cover rounded"
-              />
-
-              <p className="text-sm mt-2">{p.name}</p>
-
-              <p className="text-green-600 font-bold">
-                ₹{price}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 🔥 DEBUG PANEL */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: "black",
-          color: "white",
-          fontSize: "10px",
-          maxHeight: "200px",
-          overflow: "auto",
-          padding: "10px",
-          zIndex: 9999,
-        }}
-      >
-        <b>DEBUG LOGS</b>
-        <pre>
-          {logs.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-        </pre>
-      </div>
-
     </div>
   );
 }
