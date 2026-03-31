@@ -36,13 +36,23 @@ export default function ProfilePage(){
 
   const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
 
+  /* 🔥 SAFE ADDRESS FIX */
+  const fixAddress = (addr:any)=>{
+    try{
+      if(typeof addr === "string") return addr;
+      if(typeof addr === "object") return Object.values(addr).join("");
+      return "";
+    }catch{
+      return "";
+    }
+  };
+
   /* 🔐 AUTH + DATA */
   useEffect(()=>{
     let unsubOrders:any;
 
     const unsubAuth = onAuthStateChanged(auth, async(u)=>{
       try{
-
         if(!u){
           router.push("/login");
           return;
@@ -53,7 +63,6 @@ export default function ProfilePage(){
         const userRef = doc(db,"users",u.uid);
         const snap = await getDoc(userRef);
 
-        // ✅ CREATE USER
         if(!snap.exists()){
           const code =
             (u.email?.slice(0,4) || "USER").toUpperCase() +
@@ -70,7 +79,7 @@ export default function ProfilePage(){
           setReferralCode(code);
         }
 
-        // ✅ REALTIME USER
+        // 🔄 REALTIME USER
         onSnapshot(userRef,(snap)=>{
           if(snap.exists()){
             const d:any = snap.data() || {};
@@ -82,7 +91,7 @@ export default function ProfilePage(){
           }
         });
 
-        // ✅ REALTIME ORDERS
+        // 🔄 REALTIME ORDERS
         const q = query(
           collection(db,"orders"),
           where("userId","==",u.uid)
@@ -90,11 +99,9 @@ export default function ProfilePage(){
 
         unsubOrders = onSnapshot(q,(snap)=>{
           const arr:any[] = [];
-
           snap.forEach(doc=>{
             arr.push({ id:doc.id, ...doc.data() });
           });
-
           setOrders(arr);
           setLoading(false);
         });
@@ -112,7 +119,7 @@ export default function ProfilePage(){
 
   },[]);
 
-  /* 🔴 CANCEL ORDER */
+  /* 🔴 CANCEL */
   const cancelOrder = async(id:string)=>{
     try{
       const ref = doc(db,"orders",id);
@@ -145,7 +152,13 @@ export default function ProfilePage(){
   };
 
   const saveAddress = async()=>{
-    await setDoc(doc(db,"users",user.uid),{address},{merge:true});
+    await setDoc(doc(db,"users",user.uid),{
+      address:{
+        firstName:name,
+        phone:phone,
+        address:address
+      }
+    },{merge:true});
     setEditAddress(false);
   };
 
@@ -154,25 +167,17 @@ export default function ProfilePage(){
     router.push("/");
   };
 
-  /* 📦 STATUS FIX */
+  /* 📦 STATUS */
   const getStep = (status:any)=>{
-    try{
-      if(!status) return 0;
-
-      const clean = String(status).toLowerCase();
-
-      if(clean === "placed") return 0;
-      if(clean === "shipped") return 1;
-      if(clean === "out for delivery") return 2;
-      if(clean === "delivered") return 3;
-
-      return 0;
-    }catch{
-      return 0;
-    }
+    const s = String(status || "").toLowerCase();
+    if(s==="placed") return 0;
+    if(s==="shipped") return 1;
+    if(s==="out for delivery") return 2;
+    if(s==="delivered") return 3;
+    return 0;
   };
 
-  /* 💰 PRICE FIX */
+  /* 💰 PRICE */
   const getPrice = (order:any)=>{
     try{
       if(order?.total) return order.total;
@@ -180,16 +185,10 @@ export default function ProfilePage(){
 
       if(Array.isArray(order?.items)){
         return order.items.reduce((sum:number,i:any)=>
-          sum + (
-            Number(i?.sellPrice) ||
-            Number(i?.price) ||
-            0
-          )
+          sum + (Number(i?.sellPrice)||Number(i?.price)||0)
         ,0);
       }
-
       return 0;
-
     }catch{
       return 0;
     }
@@ -197,7 +196,7 @@ export default function ProfilePage(){
 
   /* 📤 SHARE */
   const shareReferral = ()=>{
-    const msg = `Join JembeeKart 💰 Use my code: ${referralCode}`;
+    const msg = `Join JembeeKart 💰 Use code: ${referralCode}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
   };
 
@@ -205,190 +204,109 @@ export default function ProfilePage(){
   if(!user) return <div className="p-5">User not found</div>;
 
   return(
-<div className="min-h-screen bg-gray-100 p-4 space-y-4">
+<div className="min-h-screen bg-gray-100">
+
+{/* 🔝 HEADER */}
+<div className="bg-pink-600 text-white p-4 text-lg font-semibold">
+My Account
+</div>
+
+<div className="p-4 space-y-4">
 
 {/* 👤 PROFILE */}
-<div className="bg-white p-4 rounded-xl shadow">
-
-<div className="flex gap-3 items-center">
-
-<div className="w-14 h-14 rounded-full bg-purple-600 text-white flex items-center justify-center text-xl font-bold">
-{user?.email?.charAt(0)?.toUpperCase() || "U"}
+<div className="bg-white p-4 rounded-xl shadow flex items-center gap-3">
+<div className="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center">
+{user?.email?.charAt(0)?.toUpperCase()}
 </div>
 
 <div className="flex-1">
+<p className="font-semibold">{name || "User"}</p>
+<p className="text-xs text-gray-500">{user.email}</p>
+</div>
 
-{editProfile ? (
-<>
-<input value={name} onChange={e=>setName(e.target.value)}
-className="w-full border p-2 rounded mb-2" placeholder="Name"/>
-
-<input value={phone} onChange={e=>setPhone(e.target.value)}
-className="w-full border p-2 rounded" placeholder="Phone"/>
-
-<button onClick={saveProfile}
-className="mt-2 bg-purple-600 text-white px-4 py-2 rounded">
-Save
+<button onClick={()=>setEditProfile(!editProfile)}
+className="text-pink-600 text-sm">
+Edit
 </button>
-</>
-):(
-<>
-<p className="font-bold">{name || "Jembee User"}</p>
-<p className="text-sm text-gray-500">{user?.email}</p>
-
-<button onClick={()=>setEditProfile(true)}
-className="text-sm text-purple-600 mt-1">
-Edit Profile
-</button>
-</>
-)}
-
-</div>
-
-</div>
-
-<div className="flex justify-between mt-4 text-center">
-
-<div>
-<p className="font-bold">{orders.length}</p>
-<p className="text-xs text-gray-500">Orders</p>
-</div>
-
-<div>
-<p className="font-bold text-green-600">₹{wallet}</p>
-<p className="text-xs text-gray-500">Wallet</p>
-</div>
-
-</div>
-
-<button onClick={logout}
-className="mt-3 text-red-500 font-semibold">
-Logout
-</button>
-
 </div>
 
 {/* 🏠 ADDRESS */}
 <div className="bg-white p-4 rounded-xl shadow">
+<p className="font-semibold mb-2">Delivery Address</p>
+<p className="text-sm">{fixAddress(address) || "No address"}</p>
 
-<h3 className="font-semibold mb-2">Address</h3>
-
-{editAddress ? (
-<>
-<textarea value={address}
-onChange={e=>setAddress(e.target.value)}
-className="w-full border p-2 rounded"/>
-
-<button onClick={saveAddress}
-className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
-Save
-</button>
-</>
-):(
-<>
-<p className="text-sm">{address || "No address added"}</p>
-<button onClick={()=>setEditAddress(true)}
-className="text-sm text-purple-600 mt-1">
+<button onClick={()=>setEditAddress(!editAddress)}
+className="text-pink-600 text-sm mt-2">
 Edit
 </button>
-</>
-)}
-
 </div>
 
 {/* 💰 WALLET */}
-<div className="bg-white p-4 rounded-xl shadow">
-<p className="text-sm text-gray-500">Wallet Balance</p>
-<p className="text-xl font-bold text-green-600">₹{wallet}</p>
+<div className="bg-white p-4 rounded-xl shadow flex justify-between">
+<p>Wallet</p>
+<p className="text-green-600 font-bold">₹{wallet}</p>
 </div>
 
 {/* 🎁 REFERRAL */}
 <div className="bg-white p-4 rounded-xl shadow">
-
-<p className="text-sm text-gray-500">Referral Code</p>
+<p className="text-sm">Referral Code</p>
 <p className="font-bold">{referralCode}</p>
 
 <div className="flex gap-3 mt-2">
-
-<button onClick={()=>{
-navigator.clipboard.writeText(referralCode);
-alert("Copied!");
-}}
-className="text-blue-600 text-sm">
-Copy
-</button>
+<button onClick={()=>navigator.clipboard.writeText(referralCode)}
+className="text-blue-600 text-sm">Copy</button>
 
 <button onClick={shareReferral}
-className="text-green-600 text-sm">
-WhatsApp Share
-</button>
-
+className="text-green-600 text-sm">WhatsApp</button>
 </div>
-
 </div>
 
 {/* 📦 ORDERS */}
 <div>
+<h3 className="font-semibold mb-2">My Orders</h3>
 
-<h3 className="font-semibold mb-2">Orders</h3>
+{orders.map(order=>(
+<div key={order.id}
+className="bg-white p-4 rounded-xl shadow mb-3">
 
-{orders.length === 0 && (
-<p className="text-sm text-gray-500">No orders yet</p>
-)}
+<p className="text-xs text-gray-500">
+#{order.id.slice(0,8)}
+</p>
 
-{orders.map(order=>{
-  try{
-    return (
-      <div key={order?.id || Math.random()}
-        className="bg-white p-4 rounded-xl shadow mb-3">
-
-        <p className="text-xs text-gray-500">
-          #{String(order?.id).slice(0,8)}
-        </p>
-
-        {/* TRACK */}
-        <div className="flex justify-between mt-2 text-xs">
-          {steps.map((step,i)=>(
-            <div key={i} className="flex-1 text-center">
-              <div className={`h-2 rounded ${
-                getStep(order?.status) >= i
-                ? "bg-green-500"
-                : "bg-gray-300"
-              }`} />
-              <p>{step}</p>
-            </div>
-          ))}
-        </div>
-
-        <p className="font-bold mt-2">
-          ₹{getPrice(order)}
-        </p>
-
-        {/* SAFE CUSTOMER */}
-        <p className="text-xs text-gray-500 mt-1">
-          {typeof order?.customer === "object"
-            ? order.customer?.firstName || "User"
-            : "User"}
-        </p>
-
-        {order?.status !== "Delivered" &&
-        order?.status !== "Cancelled" && (
-          <button
-            onClick={()=>cancelOrder(order.id)}
-            className="text-red-500 text-xs mt-2">
-            Cancel
-          </button>
-        )}
-
-      </div>
-    );
-  }catch{
-    return null;
-  }
-})}
-
+{/* TRACK BAR */}
+<div className="flex mt-2">
+{steps.map((step,i)=>(
+<div key={i} className="flex-1 text-center text-xs">
+<div className={`h-2 ${
+getStep(order.status)>=i
+? "bg-green-500"
+: "bg-gray-300"
+}`} />
+<p>{step}</p>
+</div>
+))}
 </div>
 
+<p className="font-bold mt-2">₹{getPrice(order)}</p>
+
+{order.status !== "Delivered" && (
+<button
+onClick={()=>cancelOrder(order.id)}
+className="text-red-500 text-xs mt-2">
+Cancel
+</button>
+)}
+
+</div>
+))}
+</div>
+
+<button onClick={logout}
+className="w-full bg-red-500 text-white py-3 rounded-xl">
+Logout
+</button>
+
+</div>
 </div>
 );
 }
