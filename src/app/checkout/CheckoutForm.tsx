@@ -245,7 +245,9 @@ className={`p-4 rounded-xl bg-white border flex justify-between ${payment==="cod
   <div>
     <p className="font-medium">Cash on Delivery</p>
     <p className="text-xs text-gray-500">
-      {shippingCharge > 0 ? `+₹${shippingCharge} shipping` : "Free Shipping"}
+      {shippingConfig.cod > 0 
+  ? `+₹${shippingConfig.cod} shipping`
+  : "Free Shipping"}
     </p>
   </div>
   <div className={`w-5 h-5 rounded-full border ${payment==="cod" ? "bg-pink-500" : ""}`} />
