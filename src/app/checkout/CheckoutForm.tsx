@@ -252,15 +252,27 @@ className={`p-4 rounded-xl bg-white border flex justify-between ${payment==="cod
 </div>
 
 {/* ONLINE */}
+{/* ONLINE */}
 <div onClick={()=>setPayment("online")}
 className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-500" : ""}`}>
-  <div className="flex justify-between">
-    <p className="font-medium">Pay Online</p>
-    <div className={`w-5 h-5 rounded-full border ${payment==="online" ? "bg-pink-500" : ""}`} />
-  </div>
-  <p className="text-sm text-green-600 mt-2">
+
+<div className="flex justify-between">
+  <p className="font-medium">Pay Online</p>
+  <div className={`w-5 h-5 rounded-full border ${payment==="online" ? "bg-pink-500" : ""}`} />
+</div>
+
+<div className="mt-2">
+  <p className="text-sm text-green-600">
     Extra ₹10 OFF applied
   </p>
+
+  <p className="text-xs text-gray-500">
+    {prepaidCharge > 0 
+      ? `+₹${prepaidCharge} shipping`
+      : "Free Shipping"}
+  </p>
+</div>
+
 </div>
 
 {/* ADDRESS */}
