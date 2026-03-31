@@ -106,9 +106,10 @@ const prepaidCharge = shippingConfig.prepaid || 0;
 
   /* 💰 TOTAL */
   const total = items.reduce(
-    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
-    0
-  );
+  (sum,i)=> 
+    sum + (Number(getFinalPrice(i)) || 0) * (i.quantity || 1),
+  0
+);
 
   /* 💸 ONLINE EXTRA ₹10 OFF */
   const onlineDiscount = payment === "online" ? 10 : 0;
@@ -152,7 +153,11 @@ const prepaidCharge = shippingConfig.prepaid || 0;
   const saveAddress = async ()=>{
     if (!user) return;
     await setDoc(doc(db, "users", user.uid), {
-      address: customer
+      address: {
+  firstName: customer.firstName,
+  phone: customer.phone,
+  address: customer.address
+}
     }, { merge: true });
   };
 
@@ -170,8 +175,21 @@ const prepaidCharge = shippingConfig.prepaid || 0;
     if(payment === "cod"){
 
       await addDoc(collection(db,"orders"),{
-        userId: user.uid,
-        items,
+  userId: user.uid,
+
+  items: items.map(i => ({
+    productId: i.id,
+    name: i.name,
+    price: getFinalPrice(i),
+    quantity: i.quantity || 1,
+    image: i.image || ""
+  })),
+
+  total: Number(grandTotal) || 0,
+  status: "Placed", // 🔥 IMPORTANT
+  paymentMethod:"cod",
+  createdAt:serverTimestamp()
+});
         total: grandTotal,
         paymentMethod:"cod",
         createdAt:serverTimestamp()
