@@ -15,23 +15,26 @@ type Product = {
 };
 
 export default function SellerPage() {
+
   const router = useRouter();
 
-  const [products, setProducts] = useState<Product[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // 🔐 AUTH CHECK
+  const [authChecked, setAuthChecked] = useState(false); // 🔥 important
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productLoading, setProductLoading] = useState(true);
+
+  // 🔐 AUTH CHECK (FIXED)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
+      setAuthChecked(true);
     });
 
     return () => unsub();
   }, []);
 
-  // 📦 FETCH PRODUCTS
+  // 📦 FETCH PRODUCTS (ONLY AFTER USER)
   useEffect(() => {
     if (!user) return;
 
@@ -46,62 +49,75 @@ export default function SellerPage() {
 
         setProducts(data);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.log("🔥 PRODUCT ERROR:", err);
+      } finally {
+        setProductLoading(false);
       }
     };
 
     fetchProducts();
   }, [user]);
 
-  // 🔗 GENERATE AFFILIATE LINK
+  // 🔗 LINK
   const getLink = (id: string) => {
     if (!user) return "";
     return `${window.location.origin}/product/${id}?ref=${user.uid}`;
   };
 
   // 📤 SHARE
-  const handleShare = (id: string) => {
+  const handleShare = async (id: string) => {
     const link = getLink(id);
-    if (!link) return alert("Login first");
 
-    if (navigator.share) {
-      navigator.share({
-        title: "Check this product",
-        url: link,
-      });
-    } else {
-      navigator.clipboard.writeText(link);
-      alert("Link copied ✅");
+    if (!link) {
+      alert("Login first");
+      return;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Check this product",
+          url: link,
+        });
+      } else {
+        navigator.clipboard.writeText(link);
+        alert("Link copied ✅");
+      }
+    } catch (err) {
+      console.log(err);
     }
   };
 
   // 📋 COPY
   const handleCopy = (id: string) => {
     const link = getLink(id);
+
     if (!link) return alert("Login first");
 
     navigator.clipboard.writeText(link);
-    alert("Link copied ✅");
+    alert("Copied ✅");
   };
 
   // 📲 WHATSAPP
   const handleWhatsApp = (id: string) => {
     const link = getLink(id);
+
     if (!link) return alert("Login first");
 
     window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
   };
 
-  // ⏳ LOADING
-  if (loading) {
-    return <div className="p-5 text-center">Loading...</div>;
+  // ⏳ AUTH LOADING (IMPORTANT FIX)
+  if (!authChecked) {
+    return <div className="p-5 text-center">Checking login...</div>;
   }
 
   // 🔒 NOT LOGGED IN
   if (!user) {
     return (
       <div className="p-5 text-center">
-        <p className="mb-3">Please login to access seller panel</p>
+        <p className="mb-3">Please login first</p>
+
         <button
           onClick={() => router.push("/login")}
           className="bg-black text-white px-4 py-2 rounded"
@@ -112,17 +128,26 @@ export default function SellerPage() {
     );
   }
 
+  // ⏳ PRODUCT LOADING
+  if (productLoading) {
+    return <div className="p-5 text-center">Loading products...</div>;
+  }
+
   return (
     <div className="p-4 max-w-xl mx-auto">
 
-      <h1 className="text-xl font-bold mb-4">Seller Panel</h1>
+      <h1 className="text-xl font-bold mb-4">
+        Seller Panel
+      </h1>
 
       {products.length === 0 ? (
         <p>No products found</p>
       ) : (
+
         <div className="grid grid-cols-2 gap-4">
 
           {products.map((p) => {
+
             const price =
               p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
               p?.price ||
@@ -138,11 +163,12 @@ export default function SellerPage() {
                 key={p.id}
                 className="bg-white p-3 rounded-xl shadow"
               >
+
                 {/* IMAGE */}
                 <img
                   src={image}
-                  className="h-40 w-full object-cover rounded"
                   alt="product"
+                  className="h-40 w-full object-cover rounded"
                 />
 
                 {/* NAME */}
@@ -155,7 +181,7 @@ export default function SellerPage() {
                   ₹{price}
                 </p>
 
-                {/* ACTIONS */}
+                {/* BUTTONS */}
                 <div className="flex flex-col gap-2 mt-3">
 
                   <button
@@ -180,12 +206,14 @@ export default function SellerPage() {
                   </button>
 
                 </div>
+
               </div>
             );
           })}
 
         </div>
       )}
+
     </div>
   );
 }
