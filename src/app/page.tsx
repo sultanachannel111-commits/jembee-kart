@@ -190,22 +190,6 @@ console.log("🔥 OFFERS:", offerMap);
 <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
 <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
 <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
-        {/* DEBUG */}
-<div style={{
-  position:"fixed",
-  bottom:0,
-  left:0,
-  right:0,
-  background:"black",
-  color:"white",
-  padding:"10px",
-  zIndex:9999,
-  maxHeight:"200px",
-  overflow:"auto",
-  fontSize:"10px"
-}}>
-  {JSON.stringify(filteredProducts, null, 2)}
-</div>
 
       </div>
 
