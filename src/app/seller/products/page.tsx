@@ -7,13 +7,15 @@ import { useRouter } from "next/navigation";
 import { getAuth } from "firebase/auth";
 
 export default function SellerProductsPage() {
+
   const [products, setProducts] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any>({}); // 🔥 ADD
+  const [offers, setOffers] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+
   const router = useRouter();
 
-  // 🔐 GET USER
+  // 🔐 USER
   useEffect(() => {
     const auth = getAuth();
     setUser(auth.currentUser);
@@ -34,7 +36,7 @@ export default function SellerProductsPage() {
 
         setProducts(data);
       } catch (err) {
-        console.log("❌ ERROR:", err);
+        console.log("❌ PRODUCT ERROR:", err);
       }
 
       setLoading(false);
@@ -43,7 +45,7 @@ export default function SellerProductsPage() {
     fetchProducts();
   }, []);
 
-  // 🔥 FETCH OFFERS (IMPORTANT)
+  // 🔥 FETCH OFFERS (FIXED)
   useEffect(() => {
     const fetchOffers = async () => {
       try {
@@ -52,10 +54,15 @@ export default function SellerProductsPage() {
         const data: any = {};
 
         snap.docs.forEach((doc) => {
-          data[doc.id] = doc.data().discount || 0;
+          const d: any = doc.data();
+
+          // ✅ productId use karo (IMPORTANT FIX)
+          if (d.productId && d.active) {
+            data[d.productId] = d.discount || 0;
+          }
         });
 
-        console.log("🔥 OFFERS:", data);
+        console.log("🔥 OFFERS MAP:", data);
 
         setOffers(data);
       } catch (err) {
@@ -70,31 +77,42 @@ export default function SellerProductsPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">All Products</h1>
+
+      <h1 className="text-2xl font-bold mb-4">
+        All Products
+      </h1>
 
       {products.length === 0 ? (
         <p>No products found ❌</p>
       ) : (
+
         <div className="grid grid-cols-2 gap-4">
+
           {products.map((p: any) => {
 
             // 🔥 BASE PRICE
             const basePrice =
               p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0;
 
-            // 🔥 OFFER
-            const discount = offers[p.id] || 0;
+            // 🔥 OFFER (FIXED)
+            const discount = offers[p.id] ?? 0;
 
             // 🔥 FINAL PRICE
             const finalPrice = Math.round(
               basePrice - (basePrice * discount) / 100
             );
 
+            console.log("🧪 CHECK:", {
+              productId: p.id,
+              discount,
+            });
+
             return (
               <div
                 key={p.id}
                 className="bg-white p-3 rounded-xl shadow"
               >
+
                 {/* IMAGE */}
                 <img
                   src={p?.variations?.[0]?.images?.main}
@@ -111,16 +129,24 @@ export default function SellerProductsPage() {
                   ₹{finalPrice}
                 </p>
 
+                {/* 🔥 OLD PRICE */}
+                {discount > 0 && (
+                  <p className="text-xs text-gray-400 line-through">
+                    ₹{basePrice}
+                  </p>
+                )}
+
                 {/* 🔥 DISCOUNT TAG */}
                 {discount > 0 && (
-                  <p className="text-xs text-red-500">
-                    {discount}% OFF
+                  <p className="text-xs text-red-500 font-semibold">
+                    {discount}% OFF 🔥
                   </p>
                 )}
 
                 {/* 🔗 SHARE */}
                 <button
                   onClick={() => {
+
                     if (!user) {
                       alert("Login required ❌");
                       return;
@@ -132,6 +158,7 @@ export default function SellerProductsPage() {
                       title: p.name,
                       url: link,
                     });
+
                   }}
                   className="mt-2 w-full bg-blue-600 text-white py-1 rounded"
                 >
@@ -145,11 +172,14 @@ export default function SellerProductsPage() {
                 >
                   View
                 </button>
+
               </div>
             );
           })}
+
         </div>
       )}
+
     </div>
   );
 }
