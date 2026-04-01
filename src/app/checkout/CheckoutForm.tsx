@@ -18,17 +18,20 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 
 /* 🔥 PRICE */
-const getFinalPrice = (item:any) => {
-  const sellPrice =
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-    item.price ||
+const getFinalPrice = (item: any) => {
+  const base =
+    Number(item?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+    Number(item?.price) ||
     0;
 
-  const discount = item.discount || 0;
+  const discount = Number(item?.discount) || 0;
 
-  return discount > 0
-    ? Math.round(sellPrice - (sellPrice * discount) / 100)
-    : sellPrice;
+  const finalPrice =
+    discount > 0
+      ? base - (base * discount) / 100
+      : base;
+
+  return Math.max(0, Math.round(finalPrice));
 };
 
 export default function CheckoutPage(){
