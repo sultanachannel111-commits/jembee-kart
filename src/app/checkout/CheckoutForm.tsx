@@ -122,9 +122,9 @@ const total = items.reduce((sum, i) => {
 
   /* 🚚 SHIPPING */
   const shippingCharge =
-    payment === "cod"
-      ? (shippingConfig.cod || 0)
-      : (shippingConfig.prepaid || 0);
+  payment === "cod"
+    ? Number(shippingConfig.cod || 0)
+    : Number(shippingConfig.prepaid || 0);
 
   const grandTotal = finalPay + shippingCharge;
 
