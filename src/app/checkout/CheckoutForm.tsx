@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { load } from "@cashfreepayments/cashfree-js";
 import { auth, db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 import {
   collection,
@@ -16,30 +17,35 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 
-/* 🔥 FINAL PRICE FUNCTION */
+/* 🔥 SAFE PRICE */
 const getFinalPrice = (item:any) => {
-  const sellPrice =
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-    item.price ||
-    0;
+  const base =
+    Number(item?.variations?.[0]?.sizes?.[0]?.sellPrice ?? item?.price ?? 0);
 
-  const discount = item.discount || 0;
+  const discount = Number(item?.discount ?? 0);
 
-  return discount > 0
-    ? Math.round(sellPrice - (sellPrice * discount) / 100)
-    : sellPrice;
+  return Math.max(
+    0,
+    Math.round(
+      discount > 0 ? base - (base * discount) / 100 : base
+    )
+  );
 };
 
 export default function CheckoutPage(){
 
+  const router = useRouter();
+
   const [items,setItems] = useState<any[]>([]);
+  const [debug,setDebug] = useState<any>({});
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
-  const [codChecked,setCodChecked] = useState(false);
+
+  const [payment,setPayment] = useState("online");
 
   const [shippingConfig,setShippingConfig] = useState({
     prepaid: 0,
-    cod: 50
+    cod: 0
   });
 
   const [customer,setCustomer] = useState({
@@ -48,6 +54,9 @@ export default function CheckoutPage(){
     address:""
   });
 
+  const [coupon,setCoupon] = useState("");
+  const [couponDiscount,setCouponDiscount] = useState(0);
+
   /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
@@ -55,27 +64,27 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      const userDoc = await getDoc(doc(db, "users", u.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.address) setCustomer(data.address);
-      }
-
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+
+      console.log("SNAP SIZE:", snap.size);
+
       const arr:any[] = [];
 
       snap.forEach(doc=>{
         const d = doc.data();
+
         arr.push({
           id: doc.id,
-          name: d.name || "",
-          price: d.price || 0,
-          discount: d.discount || 0,
+          name: d.name,
+          price: Number(d.price || 0),
+          discount: Number(d.discount || 0),
           variations: d.variations || [],
-          quantity: d.quantity || 1,
+          quantity: Number(d.quantity || 1),
           image: d.image || ""
         });
       });
+
+      console.log("CART DATA:", arr);
 
       setItems(arr);
 
@@ -90,213 +99,96 @@ export default function CheckoutPage(){
   },[]);
 
   /* 💰 TOTAL */
-  const total = items.reduce(
-    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
-    0
-  );
+  const total = items.reduce((sum,i)=>{
+    const final = getFinalPrice(i);
 
-  /* 💸 DISCOUNT */
-  const discount = items.reduce((sum,item)=>{
-    const sell =
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      item.price ||
-      0;
+    console.log("ITEM:", i);
+    console.log("FINAL:", final);
 
-    const final = getFinalPrice(item);
-
-    return sum + Math.max(0, sell - final);
+    return sum + final * (i.quantity || 1);
   },0);
 
-  const originalTotal = total + discount;
+  /* 💸 DISCOUNT */
+  const onlineDiscount = payment === "online" ? 10 : 0;
+
+  const finalPay = Math.max(0, total - couponDiscount - onlineDiscount);
 
   /* 🚚 SHIPPING */
-  const shippingCharge = codChecked
-    ? shippingConfig.cod
-    : shippingConfig.prepaid;
+  const shippingCharge =
+    payment === "cod"
+      ? Number(shippingConfig.cod || 0)
+      : Number(shippingConfig.prepaid || 0);
 
-  const finalPay = total + shippingCharge;
+  const grandTotal = finalPay + shippingCharge;
 
-  /* 💾 SAVE */
-  const saveAddress = async ()=>{
-    if (!user) return;
-    await setDoc(doc(db, "users", user.uid), {
-      address: customer
-    }, { merge: true });
-  };
-
-  /* 💳 PREPAID */
-  const placeOrder = async()=>{
-    setCodChecked(false);
-
-    if(!customer.firstName || !customer.phone){
-      alert("Fill details");
-      return;
-    }
-
-    await saveAddress();
-    setLoading(true);
-
-    const res = await fetch("/api/cashfree/create-order",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        orderId:"order_"+Date.now(),
-        amount: finalPay,
-        customer
-      })
-    });
-
-    const data = await res.json();
-    const cashfree = await load({ mode:"production" });
-
-    await cashfree.checkout({
-      paymentSessionId:data.payment_session_id,
-      redirectTarget:"_self"
-    });
-
-    setLoading(false);
-  };
-
-  /* 🚚 COD */
-  const placeCOD = async()=>{
-    setCodChecked(true);
-
-    if(!customer.firstName || !customer.phone){
-      alert("Fill details");
-      return;
-    }
-
-    await saveAddress();
-    setLoading(true);
-
-    await addDoc(collection(db,"orders"),{
-      userId: user.uid,
+  /* 🔥 DEBUG UI */
+  useEffect(()=>{
+    setDebug({
       items,
-      total: finalPay,
-      paymentMethod:"cod",
-      status:"placed",
-      createdAt:serverTimestamp()
+      total,
+      shipping: shippingCharge,
+      final: grandTotal
     });
+  },[items,total,shippingCharge,grandTotal]);
 
-    alert("Order placed ✅");
-    setLoading(false);
+  /* 🎟️ COUPON */
+  const applyCoupon = () => {
+    if(coupon.toUpperCase() === "SAVE10"){
+      setCouponDiscount(10);
+    }else if(coupon.toUpperCase() === "FLAT50"){
+      setCouponDiscount(50);
+    }else{
+      alert("Invalid coupon");
+    }
   };
+
+  return (
+
+<div className="min-h-screen bg-gray-100 pb-40">
+
+<div className="max-w-xl mx-auto">
+
+{/* 🧾 DEBUG PANEL */}
+<div className="bg-black text-green-400 p-3 text-xs mb-3">
+<pre>{JSON.stringify(debug,null,2)}</pre>
+</div>
+
+{/* SUMMARY */}
+<div className="bg-white p-4 rounded-xl shadow">
+
+<h2 className="font-semibold mb-2">Order Summary</h2>
+
+{items.map((i,index)=>{
+
+  const price = getFinalPrice(i);
 
   return(
-<div className="min-h-screen bg-gray-100 pb-32">
-
-<div className="max-w-xl mx-auto p-4 space-y-4">
-
-{/* 🧾 PRODUCT LIST (NEW - MEESHO STYLE) */}
-<div className="bg-white rounded-xl p-4 shadow">
-
-{items.map(item => (
-  <div key={item.id} className="flex gap-3 mb-3">
-
-    <img
-      src={item.image || "/no-image.png"}
-      className="w-16 h-16 rounded object-cover"
-    />
-
-    <div className="flex-1 text-sm">
-      <p className="font-medium">{item.name}</p>
-
-      <div className="flex justify-between mt-1">
-        <span>Qty: {item.quantity}</span>
-        <span className="font-semibold">
-          ₹{getFinalPrice(item)}
-        </span>
-      </div>
-
+    <div key={index} className="flex justify-between border-b py-2">
+      <span>{i.name} x{i.quantity}</span>
+      <span>₹{price * i.quantity}</span>
     </div>
-  </div>
-))}
+  );
+
+})}
 
 </div>
 
-{/* 🔥 SUMMARY */}
-<div className="bg-white rounded-xl p-4 shadow">
+{/* TOTAL */}
+<div className="bg-white mt-3 p-4 rounded-xl shadow">
 
-<h2 className="font-semibold mb-3">Price Details</h2>
+<p>Items Total: ₹{total}</p>
+<p>Shipping: ₹{shippingCharge}</p>
+<p>Discount: ₹{couponDiscount + onlineDiscount}</p>
 
-<div className="flex justify-between text-sm mb-2">
-  <span>Total MRP</span>
-  <span>₹{originalTotal}</span>
-</div>
-
-<div className="flex justify-between text-sm mb-2 text-green-600">
-  <span>Discount</span>
-  <span>-₹{discount}</span>
-</div>
-
-<div className="flex justify-between text-sm mb-2">
-  <span>Shipping</span>
-  <span>{shippingCharge > 0 ? `₹${shippingCharge}` : "FREE"}</span>
-</div>
-
-<div className="border-t mt-2 pt-2 flex justify-between font-bold">
-  <span>Total Amount</span>
-  <span>₹{finalPay}</span>
-</div>
-
-</div>
-
-{/* 🔥 ADDRESS */}
-<div className="bg-white rounded-xl shadow p-4 space-y-3">
-
-<h2 className="font-semibold">Delivery Address</h2>
-
-<input
-placeholder="Full Name"
-className="w-full p-2 border rounded"
-value={customer.firstName}
-onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
-/>
-
-<input
-placeholder="Phone"
-className="w-full p-2 border rounded"
-value={customer.phone}
-onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
-/>
-
-<textarea
-placeholder="Address"
-className="w-full p-2 border rounded"
-value={customer.address}
-onChange={(e)=>setCustomer({...customer,address:e.target.value})}
-/>
+<p className="font-bold text-lg mt-2">
+  Total: ₹{grandTotal}
+</p>
 
 </div>
 
 </div>
 
-{/* 🔥 FIXED BOTTOM BAR (MEESHO STYLE) */}
-<div className="fixed bottom-0 left-0 w-full bg-white border-t p-4 space-y-2">
-
-<div className="flex justify-between font-bold text-lg">
-  <span>₹{finalPay}</span>
-  <span className="text-green-600 text-sm">
-    {shippingCharge === 0 ? "Free Delivery" : ""}
-  </span>
 </div>
 
-<button
-onClick={placeOrder}
-className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold"
->
-{loading ? "Processing..." : `Pay ₹${finalPay}`}
-</button>
-
-<button
-onClick={placeCOD}
-className="w-full py-3 rounded-xl bg-black text-white"
->
-Cash on Delivery (+₹{shippingConfig.cod})
-</button>
-
-</div>
-
-</div>
   );
 }
