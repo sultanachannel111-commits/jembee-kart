@@ -197,8 +197,14 @@ const applyCoupon = () => {
       });
 
       const data = await res.json();
-      const cashfree = await load({ mode:"production" });
 
+if (!data || !data.payment_session_id) {
+  alert("Payment failed, try again");
+  setLoading(false);
+  return;
+}
+
+const cashfree = await load({ mode:"production" });
       await cashfree.checkout({
         paymentSessionId:data.payment_session_id,
         redirectTarget:"_self"
