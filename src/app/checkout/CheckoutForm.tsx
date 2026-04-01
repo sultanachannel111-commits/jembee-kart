@@ -101,10 +101,18 @@ export default function CheckoutPage(){
   },[]);
 
   /* 💰 TOTAL */
-  const total = items.reduce(
-    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
-    0
-  );
+const total = items.reduce((sum, i) => {
+
+  const final = getFinalPrice(i);
+
+  console.log("ITEM:", i);
+  console.log("PRICE:", i.price);
+  console.log("VARIATION:", i.variations);
+  console.log("FINAL:", final);
+
+  return sum + final * (i.quantity || 1);
+
+}, 0);
 
   /* 💸 ONLINE EXTRA ₹10 OFF */
   const onlineDiscount = payment === "online" ? 10 : 0;
@@ -121,15 +129,15 @@ export default function CheckoutPage(){
   const grandTotal = finalPay + shippingCharge;
 
   /* 🎟️ COUPON */
-  const applyCoupon = () => {
-    if(coupon === "SAVE10"){
-      setCouponDiscount(10);
-    }else if(coupon === "FLAT50"){
-      setCouponDiscount(50);
-    }else{
-      alert("Invalid coupon");
-    }
-  };
+const applyCoupon = () => {
+  if(coupon.toUpperCase() === "SAVE10"){
+    setCouponDiscount(10);
+  } else if(coupon.toUpperCase() === "FLAT50"){
+    setCouponDiscount(50);
+  } else {
+    alert("Invalid coupon");
+  }
+};
 
   /* 📦 DELIVERY */
   const getDeliveryDate = () => {
