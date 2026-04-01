@@ -37,7 +37,6 @@ export default function CheckoutPage(){
   const router = useRouter();
 
   const [items,setItems] = useState<any[]>([]);
-  const [debug,setDebug] = useState<any>({});
   const [user,setUser] = useState<any>(null);
   const [loading,setLoading] = useState(false);
 
@@ -60,34 +59,64 @@ export default function CheckoutPage(){
   /* 🔥 LOAD */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
-      if(!u) return;
+      if(!u){
+        console.log("❌ USER NOT LOGIN");
+        return;
+      }
 
       setUser(u);
 
-      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+      // 🔥 STEP 1: TRY USER CART PATH
+      let arr:any[] = [];
 
-      console.log("SNAP SIZE:", snap.size);
+      try{
+        const snap = await getDocs(collection(db,"carts",u.uid,"items"));
 
-      const arr:any[] = [];
+        console.log("USER CART SIZE:", snap.size);
 
-      snap.forEach(doc=>{
-        const d = doc.data();
+        snap.forEach(doc=>{
+          const d = doc.data();
 
-        arr.push({
-          id: doc.id,
-          name: d.name,
-          price: Number(d.price || 0),
-          discount: Number(d.discount || 0),
-          variations: d.variations || [],
-          quantity: Number(d.quantity || 1),
-          image: d.image || ""
+          arr.push({
+            id: doc.id,
+            name: d.name,
+            price: Number(d.price || 0),
+            discount: Number(d.discount || 0),
+            variations: d.variations || [],
+            quantity: Number(d.quantity || 1),
+            image: d.image || ""
+          });
         });
-      });
 
-      console.log("CART DATA:", arr);
+      }catch(err){
+        console.log("❌ USER CART PATH FAIL");
+      }
+
+      // 🔥 STEP 2: अगर empty है तो fallback
+      if(arr.length === 0){
+        console.log("⚠️ FALLBACK RUNNING");
+
+        const snap2 = await getDocs(collection(db,"carts"));
+
+        snap2.forEach(doc=>{
+          const d = doc.data();
+
+          if(d.items){
+            d.items.forEach((item:any)=>{
+              arr.push({
+                ...item,
+                quantity: item.quantity || 1
+              });
+            });
+          }
+        });
+      }
+
+      console.log("🔥 FINAL CART:", arr);
 
       setItems(arr);
 
+      // 🚚 SHIPPING LOAD
       const shipDoc = await getDoc(doc(db,"config","shipping"));
       if(shipDoc.exists()){
         setShippingConfig(shipDoc.data());
@@ -101,10 +130,6 @@ export default function CheckoutPage(){
   /* 💰 TOTAL */
   const total = items.reduce((sum,i)=>{
     const final = getFinalPrice(i);
-
-    console.log("ITEM:", i);
-    console.log("FINAL:", final);
-
     return sum + final * (i.quantity || 1);
   },0);
 
@@ -121,16 +146,6 @@ export default function CheckoutPage(){
 
   const grandTotal = finalPay + shippingCharge;
 
-  /* 🔥 DEBUG UI */
-  useEffect(()=>{
-    setDebug({
-      items,
-      total,
-      shipping: shippingCharge,
-      final: grandTotal
-    });
-  },[items,total,shippingCharge,grandTotal]);
-
   /* 🎟️ COUPON */
   const applyCoupon = () => {
     if(coupon.toUpperCase() === "SAVE10"){
@@ -142,21 +157,73 @@ export default function CheckoutPage(){
     }
   };
 
+  /* 🛒 ORDER */
+  const placeOrder = async()=>{
+
+    if(!customer.firstName || !customer.phone){
+      alert("Fill details");
+      return;
+    }
+
+    setLoading(true);
+
+    if(payment === "cod"){
+
+      await addDoc(collection(db,"orders"),{
+        userId: user.uid,
+        items,
+        total: grandTotal,
+        paymentMethod:"cod",
+        createdAt:serverTimestamp()
+      });
+
+      router.push("/order-success");
+
+    }else{
+
+      const res = await fetch("/api/cashfree/create-order",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          orderId:"order_"+Date.now(),
+          amount: grandTotal,
+          customer
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data || !data.payment_session_id) {
+        alert("Payment failed");
+        setLoading(false);
+        return;
+      }
+
+      const cashfree = await load({ mode:"production" });
+
+      await cashfree.checkout({
+        paymentSessionId:data.payment_session_id,
+        redirectTarget:"_self"
+      });
+    }
+
+    setLoading(false);
+  };
+
   return (
 
 <div className="min-h-screen bg-gray-100 pb-40">
 
 <div className="max-w-xl mx-auto">
 
-{/* 🧾 DEBUG PANEL */}
-<div className="bg-black text-green-400 p-3 text-xs mb-3">
-<pre>{JSON.stringify(debug,null,2)}</pre>
-</div>
-
-{/* SUMMARY */}
-<div className="bg-white p-4 rounded-xl shadow">
+{/* 🧾 ORDER SUMMARY */}
+<div className="bg-white p-4 mt-3 rounded-xl shadow">
 
 <h2 className="font-semibold mb-2">Order Summary</h2>
+
+{items.length === 0 && (
+  <p className="text-red-500 text-sm">❌ Cart Empty (Firestore issue)</p>
+)}
 
 {items.map((i,index)=>{
 
@@ -173,7 +240,7 @@ export default function CheckoutPage(){
 
 </div>
 
-{/* TOTAL */}
+{/* 💰 TOTAL */}
 <div className="bg-white mt-3 p-4 rounded-xl shadow">
 
 <p>Items Total: ₹{total}</p>
@@ -186,8 +253,33 @@ export default function CheckoutPage(){
 
 </div>
 
+{/* 📦 ADDRESS */}
+<div className="bg-white mt-3 p-4 rounded-xl shadow space-y-2">
+  <input placeholder="Name" className="w-full border p-2 rounded"
+    value={customer.firstName}
+    onChange={(e)=>setCustomer({...customer,firstName:e.target.value})}
+  />
+  <input placeholder="Phone" className="w-full border p-2 rounded"
+    value={customer.phone}
+    onChange={(e)=>setCustomer({...customer,phone:e.target.value})}
+  />
+  <textarea placeholder="Address" className="w-full border p-2 rounded"
+    value={customer.address}
+    onChange={(e)=>setCustomer({...customer,address:e.target.value})}
+  />
 </div>
 
+{/* 🔘 ORDER BUTTON */}
+<div className="p-4">
+  <button
+    onClick={placeOrder}
+    className="w-full bg-purple-600 text-white py-3 rounded-xl"
+  >
+    {loading ? "Processing..." : "Place Order"}
+  </button>
+</div>
+
+</div>
 </div>
 
   );
