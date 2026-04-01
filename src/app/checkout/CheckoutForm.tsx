@@ -316,7 +316,19 @@ className={`p-4 rounded-xl bg-white border ${payment==="online" ? "border-pink-5
 <div className="fixed bottom-0 w-full bg-white border-t p-4 flex justify-between items-center">
 
   <div>
-    <p className="font-bold text-lg">₹{grandTotal}</p>
+    <div>
+  <p className="text-sm text-gray-500">
+    Items Total: ₹{total}
+  </p>
+
+  <p className="text-sm text-gray-500">
+    Shipping: ₹{shippingCharge}
+  </p>
+
+  <p className="font-bold text-lg">
+    ₹{grandTotal}
+  </p>
+</div>
 
     {(couponDiscount > 0 || onlineDiscount > 0) && (
       <p className="text-green-600 text-xs">
