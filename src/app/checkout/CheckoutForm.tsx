@@ -9,27 +9,23 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
-  doc,
-  getDoc,
-  setDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
 
-/* 🔥 PRICE (AUTO 50% FIX) */
-const getFinalPrice = (item:any) => {
+/* ✅ PRICE LOGIC (CORRECT) */
+const getPrices = (item:any) => {
 
-  const price =
-    Number(item?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
-    Number(item?.price) ||
-    0;
+  const size = item?.variations?.[0]?.sizes?.[0] || {};
 
-  // 👉 AUTO 50% IF NO DISCOUNT
-  const discount = item?.discount > 0 ? item.discount : 50;
+  const original = Number(size?.basePrice) || Number(item.price) || 0;
+  const final = Number(size?.sellPrice) || original;
 
-  const final = price - (price * discount) / 100;
+  const discount = original > 0
+    ? Math.round(((original - final) / original) * 100)
+    : 0;
 
-  return Math.round(final);
+  return { original, final, discount };
 };
 
 export default function CheckoutPage(){
@@ -42,10 +38,10 @@ export default function CheckoutPage(){
 
   const [payment,setPayment] = useState("online");
 
-  const [shippingConfig,setShippingConfig] = useState({
+  const shippingConfig = {
     prepaid: 40,
     cod: 60
-  });
+  };
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -56,7 +52,7 @@ export default function CheckoutPage(){
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  /* 🔥 LOAD */
+  /* 🔥 LOAD CART */
   useEffect(()=>{
     const unsub = onAuthStateChanged(auth, async (u)=>{
       if(!u) return;
@@ -74,25 +70,25 @@ export default function CheckoutPage(){
           id: doc.id,
           name: d.name,
           price: d.price,
-          discount: d.discount || 0,
           quantity: d.quantity || 1,
           image: d.image || "",
           variations: d.variations || []
         });
       });
 
-      setItems(arr);
+      console.log("CART ITEMS:", arr);
 
+      setItems(arr);
     });
 
     return ()=>unsub();
   },[]);
 
   /* 💰 TOTAL */
-  const total = items.reduce(
-    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
-    0
-  );
+  const total = items.reduce((sum,i)=>{
+    const { final } = getPrices(i);
+    return sum + final * (i.quantity || 1);
+  },0);
 
   /* 💸 DISCOUNT */
   const onlineDiscount = payment === "online" ? 10 : 0;
@@ -121,28 +117,42 @@ export default function CheckoutPage(){
   /* 🛒 ORDER */
   const placeOrder = async()=>{
 
+    if(!user){
+      alert("Login first ❌");
+      return;
+    }
+
     if(items.length === 0){
       alert("Cart empty ❌");
       return;
     }
 
     if(!customer.firstName || !customer.phone){
-      alert("Fill details");
+      alert("Fill details ❌");
       return;
     }
 
-    setLoading(true);
+    try{
+      setLoading(true);
 
-    await addDoc(collection(db,"orders"),{
-      userId: user?.uid,
-      items,
-      total: grandTotal,
-      paymentMethod: payment,
-      createdAt: serverTimestamp()
-    });
+      await addDoc(collection(db,"orders"),{
+        userId: user.uid,
+        items,
+        total: grandTotal,
+        paymentMethod: payment,
+        createdAt: serverTimestamp()
+      });
 
-    router.push("/order-success");
-    setLoading(false);
+      alert("Order Placed ✅");
+
+      router.push("/order-success");
+
+    }catch(err){
+      console.error(err);
+      alert("Order failed ❌");
+    }finally{
+      setLoading(false);
+    }
   };
 
   return (
@@ -160,10 +170,7 @@ export default function CheckoutPage(){
 <div className="p-4 space-y-3">
 {items.map((i,index)=>{
 
-  const price = getFinalPrice(i);
-  const original =
-    Number(i?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
-    Number(i.price);
+  const { original, final, discount } = getPrices(i);
 
   return(
   <div key={index} className="bg-white p-3 rounded-xl flex gap-3 shadow">
@@ -178,11 +185,19 @@ export default function CheckoutPage(){
       <p className="font-medium">{i.name}</p>
 
       <div className="flex gap-2 items-center">
-        <p className="text-green-600 font-bold">₹{price}</p>
+        <p className="text-green-600 font-bold">₹{final}</p>
 
-        <p className="line-through text-gray-400 text-sm">
-          ₹{original}
-        </p>
+        {original > final && (
+          <p className="line-through text-gray-400 text-sm">
+            ₹{original}
+          </p>
+        )}
+
+        {discount > 0 && (
+          <span className="text-xs bg-red-500 text-white px-2 rounded">
+            {discount}% OFF
+          </span>
+        )}
       </div>
 
       {/* QTY */}
