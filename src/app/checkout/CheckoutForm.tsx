@@ -21,6 +21,7 @@ export default function CheckoutPage(){
 
   const [user,setUser] = useState<any>(null);
   const [items,setItems] = useState<any[]>([]);
+  const [offers,setOffers] = useState<any>({});
   const [loading,setLoading] = useState(false);
 
   const [customer,setCustomer] = useState({
@@ -40,16 +41,22 @@ export default function CheckoutPage(){
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  /* 🔥 PRICE (ADMIN DISCOUNT ALREADY INCLUDED) */
-  const getPrice = (item:any)=>{
-    try{
-      return Number(
-        item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-        item?.price || 0
-      );
-    }catch{
-      return 0;
-    }
+  /* 🔥 BASE PRICE */
+  const getBasePrice = (item:any)=>{
+    return Number(
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item?.price || 0
+    );
+  };
+
+  /* 🔥 ADMIN DISCOUNT */
+  const getDiscountedPrice = (item:any)=>{
+    const base = getBasePrice(item);
+    const d = offers?.[item.id] || 0;
+
+    const final = Math.round(base - (base * d / 100));
+
+    return final > 0 ? final : base;
   };
 
   /* 🔄 LOAD DATA */
@@ -60,7 +67,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // CART
+      /* CART */
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -72,35 +79,40 @@ export default function CheckoutPage(){
 
         arr.push({
           id:doc.id,
-          name:d.name || "",
-          price:
-            Number(d?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
-            Number(d?.price) ||
-            0,
+          name:d.name,
           quantity:d.quantity || 1,
           image:d.image || "",
           sellerId:d.sellerId || "",
-          variations:d.variations || []
+          variations:d.variations || [],
+          price:d.price || 0
         });
       });
 
       setItems(arr);
 
-      // USER ADDRESS
+      /* OFFERS */
+      const offerSnap = await getDocs(collection(db,"offers"));
+      const off:any = {};
+
+      offerSnap.forEach(doc=>{
+        off[doc.id] = doc.data().discount || 0;
+      });
+
+      setOffers(off);
+
+      /* USER */
       const userSnap = await getDoc(doc(db,"users",u.uid));
       if(userSnap.exists()){
         const d:any = userSnap.data();
 
-        if(typeof d.address === "object"){
-          setCustomer({
-            name:d.address?.firstName || "",
-            phone:d.address?.phone || "",
-            address:d.address?.address || ""
-          });
-        }
+        setCustomer({
+          name:d?.address?.firstName || "",
+          phone:d?.address?.phone || "",
+          address:d?.address?.address || ""
+        });
       }
 
-      // SHIPPING
+      /* SHIPPING */
       const ship = await getDoc(doc(db,"config","shipping"));
       if(ship.exists()){
         setShippingConfig(ship.data() as any);
@@ -112,74 +124,59 @@ export default function CheckoutPage(){
 
   },[]);
 
-  /* 💰 TOTAL */
+  /* 💰 ITEMS TOTAL (after admin discount) */
   const itemsTotal = items.reduce(
-    (s,i)=> s + (getPrice(i)*i.quantity),
+    (s,i)=> s + (getDiscountedPrice(i)*i.quantity),
     0
   );
 
+  /* 🚚 SHIPPING */
   const shipping =
     itemsTotal >= shippingConfig.freeShippingAbove
       ? 0
       : payment==="cod"
-        ? shippingConfig.cod
-        : shippingConfig.prepaid;
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
+  /* 🎟️ COUPON */
+  const applyCoupon = async()=>{
+
+    const snap = await getDoc(
+      doc(db,"coupons",coupon.trim().toUpperCase())
+    );
+
+    if(!snap.exists()){
+      alert("Invalid coupon ❌");
+      return;
+    }
+
+    const d:any = snap.data();
+
+    let discount = 0;
+
+    if(d.type==="flat"){
+      discount = d.value;
+    }
+
+    if(d.type==="percent"){
+      discount = Math.round(itemsTotal * d.value / 100);
+    }
+
+    if(d.maxDiscount){
+      discount = Math.min(discount,d.maxDiscount);
+    }
+
+    setCouponDiscount(discount);
+    alert("Coupon Applied ✅");
+  };
+
+  /* 💸 FINAL TOTAL */
   const total =
     Math.max(0, itemsTotal - couponDiscount) + shipping;
 
-  /* 🎟️ COUPON FIXED */
-  const applyCoupon = async()=>{
-    try{
-
-      if(!coupon){
-        alert("Enter coupon ❌");
-        return;
-      }
-
-      const snap = await getDoc(
-        doc(db,"coupons",coupon.toUpperCase())
-      );
-
-      if(!snap.exists()){
-        alert("Invalid coupon ❌");
-        return;
-      }
-
-      const d:any = snap.data();
-
-      // 🔥 fresh total
-      const currentTotal = items.reduce(
-        (s,i)=> s + (getPrice(i)*i.quantity),
-        0
-      );
-
-      let discount = 0;
-
-      if(d.type === "flat"){
-        discount = Number(d.value) || 0;
-      }
-
-      if(d.type === "percent"){
-        discount = Math.round((currentTotal * d.value) / 100);
-      }
-
-      if(d.maxDiscount){
-        discount = Math.min(discount, d.maxDiscount);
-      }
-
-      setCouponDiscount(discount);
-
-      alert("Coupon Applied ✅");
-
-    }catch(err){
-      console.error(err);
-    }
-  };
-
-  /* 💸 SELLER COMMISSION */
-  const calcCommission = (i:any)=>{
-    const price = getPrice(i);
+  /* 💰 COMMISSION */
+  const calcCommission = (item:any)=>{
+    const price = getDiscountedPrice(item);
     const commission = price * 0.2;
 
     return {
@@ -216,12 +213,12 @@ export default function CheckoutPage(){
         return {
           id:i.id,
           name:i.name,
-          price:getPrice(i),
+          price:getDiscountedPrice(i),
           quantity:i.quantity,
           sellerId:i.sellerId,
           sellerAmount:c.sellerAmount,
           commission:c.commission,
-          image:i.image || ""
+          image:i.image
         };
       });
 
@@ -230,9 +227,6 @@ export default function CheckoutPage(){
         {
           userId:user.uid,
           items:cleanItems,
-          itemsTotal,
-          discount:couponDiscount,
-          shipping,
           total,
           paymentMethod:payment,
           paymentStatus:"pending",
@@ -244,7 +238,7 @@ export default function CheckoutPage(){
 
       await clearCart();
 
-      window.open(`https://wa.me/?text=Order ₹${total}`);
+      window.open(`https://wa.me/?text=Order%20₹${total}`);
 
       router.push(`/order-success/${ref.id}`);
 
@@ -273,9 +267,15 @@ className="w-20 h-20 rounded-xl"/>
 
 <div>
 <p className="font-medium">{i.name}</p>
+
 <p className="text-green-600 font-bold">
-₹{getPrice(i)}
+₹{getDiscountedPrice(i)}
 </p>
+
+<p className="text-xs line-through text-gray-400">
+₹{getBasePrice(i)}
+</p>
+
 <p className="text-xs">Qty: {i.quantity}</p>
 </div>
 
@@ -341,7 +341,7 @@ Online Payment (+₹{shippingConfig.prepaid})
 </div>
 
 <div className="flex justify-between text-green-600">
-<span>Discount</span>
+<span>Coupon</span>
 <span>-₹{couponDiscount}</span>
 </div>
 
@@ -357,7 +357,7 @@ Online Payment (+₹{shippingConfig.prepaid})
 {/* BUTTON */}
 <div className="fixed bottom-0 left-0 w-full p-3">
 <button onClick={placeOrder}
-className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl shadow-xl">
+className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl">
 {loading ? "Processing..." : "Place Order 🚀"}
 </button>
 </div>
