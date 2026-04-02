@@ -1,166 +1,209 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import Link from "next/link";
 
-export default function OffersPage() {
+import {
+  collection,
+  getDocs,
+  setDoc,
+  doc,
+  deleteDoc,
+  Timestamp
+} from "firebase/firestore";
 
-  const [products, setProducts] = useState<any[]>([]);
+export default function OfferPage(){
 
-  useEffect(() => {
+  const [products,setProducts] = useState<any[]>([]);
+  const [offers,setOffers] = useState<any[]>([]);
 
-    const fetchData = async () => {
+  const [selectedProduct,setSelectedProduct] = useState("");
+  const [discount,setDiscount] = useState(0);
 
-      try {
+  const [startDate,setStartDate] = useState("");
+  const [startTime,setStartTime] = useState("");
 
-        const productSnap = await getDocs(collection(db, "products"));
-        const offerSnap = await getDocs(collection(db, "offers"));
+  const [endDate,setEndDate] = useState("");
+  const [endTime,setEndTime] = useState("");
 
-        const allProducts = productSnap.docs.map(d => ({
-          id: d.id,
-          ...d.data()
-        }));
+  /* 🔄 LOAD PRODUCTS + OFFERS */
+  useEffect(()=>{
+    loadData();
+  },[]);
 
-        // 🔥 ACTIVE OFFERS
-        const activeOffers = offerSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter((o: any) =>
-            o.active &&
-            new Date(o.endDate).getTime() > Date.now()
-          );
+  const loadData = async()=>{
 
-        const result = allProducts.map((product: any) => {
+    const pSnap = await getDocs(collection(db,"products"));
+    const arr:any[] = [];
 
-          // ✅ SAFE PRICE (MAIN FIX)
-          const basePrice = Number(
-            product?.price ||
-            product?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            0
-          );
+    pSnap.forEach(d=>{
+      arr.push({ id:d.id, ...d.data() });
+    });
 
-          // ❌ अगर price ही नहीं तो skip
-          if (basePrice <= 0) return null;
+    setProducts(arr);
 
-          // ✅ SAFE OFFER MATCH
-          let matchedOffer = activeOffers.find((o: any) => {
+    const oSnap = await getDocs(collection(db,"offers"));
+    const off:any[] = [];
 
-            // product based offer
-            if (
-              o.type === "product" &&
-              o.productId?.trim() === product.id?.trim()
-            ) return true;
+    oSnap.forEach(d=>{
+      off.push({ id:d.id, ...d.data() });
+    });
 
-            // category based offer
-            if (
-              o.type === "category" &&
-              o.category?.toLowerCase().trim() ===
-              product.category?.toLowerCase().trim()
-            ) return true;
+    setOffers(off);
+  };
 
-            return false;
-          });
+  /* 🕒 CREATE TIMESTAMP */
+  const makeTimestamp = (date:string,time:string)=>{
+    const full = new Date(`${date}T${time}`);
+    return Timestamp.fromDate(full);
+  };
 
-          if (!matchedOffer) return null;
+  /* ➕ ADD OFFER */
+  const addOffer = async()=>{
 
-          const discount = Number(matchedOffer.discount || 0);
+    if(!selectedProduct) return alert("Select product");
+    if(!discount) return alert("Enter discount");
 
-          // ✅ FINAL PRICE (₹0 FIXED)
-          const finalPrice = Math.max(
-            1,
-            Math.round(basePrice - (basePrice * discount) / 100)
-          );
+    try{
 
-          return {
-            ...product,
-            discount,
-            finalPrice,
-            basePrice
-          };
+      const startAt = makeTimestamp(startDate,startTime);
+      const endAt = makeTimestamp(endDate,endTime);
 
-        }).filter(Boolean);
+      await setDoc(
+        doc(db,"offers",selectedProduct), // ✅ SAME ID
+        {
+          discount:Number(discount),
+          startAt,
+          endAt,
+          active:true
+        }
+      );
 
-        setProducts(result);
+      alert("Offer Added ✅");
+      loadData();
 
-      } catch (err) {
-        console.log("❌ Offer load error:", err);
-      }
+    }catch(err){
+      alert("Error adding offer");
+    }
+  };
 
-    };
+  /* ❌ DELETE */
+  const deleteOffer = async(id:string)=>{
+    await deleteDoc(doc(db,"offers",id));
+    loadData();
+  };
 
-    fetchData();
+  /* 🔥 CHECK ACTIVE */
+  const isActive = (o:any)=>{
+    const now = new Date();
 
-  }, []);
+    const start = o.startAt?.toDate();
+    const end = o.endAt?.toDate();
 
-  return (
+    return now >= start && now <= end;
+  };
 
-    <div className="p-4 pt-[96px]">
+  return(
+<div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4">
 
-      {/* 🔥 TITLE */}
-      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        🔥 Hot Offers
-      </h1>
+<h1 className="text-2xl font-bold text-center mb-4">
+🔥 Offer Management
+</h1>
 
-      {/* ❌ NO DATA */}
-      {products.length === 0 && (
-        <p className="text-gray-400 text-center mt-10">
-          No offers available 😢
-        </p>
-      )}
+{/* FORM */}
+<div className="backdrop-blur bg-white/60 p-4 rounded-3xl shadow-xl space-y-3">
 
-      {/* 🛒 GRID */}
-      <div className="grid grid-cols-2 gap-4">
+<select
+value={selectedProduct}
+onChange={e=>setSelectedProduct(e.target.value)}
+className="w-full p-3 rounded-xl border">
+<option value="">Select Product</option>
+{products.map(p=>(
+<option key={p.id} value={p.id}>
+{p.name}
+</option>
+))}
+</select>
 
-        {products.map((p: any) => (
+<input
+type="number"
+placeholder="Discount %"
+value={discount}
+onChange={e=>setDiscount(Number(e.target.value))}
+className="w-full p-3 rounded-xl border"
+/>
 
-          <Link
-            key={p.id}
-            href={`/product/${p.id}`}
-            className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-2 relative hover:scale-105 transition"
-          >
+{/* START */}
+<div>
+<p className="text-sm">Start Time</p>
+<input type="date" onChange={e=>setStartDate(e.target.value)}
+className="w-full p-2 rounded border"/>
+<input type="time" onChange={e=>setStartTime(e.target.value)}
+className="w-full p-2 rounded border mt-1"/>
+</div>
 
-            {/* 🔥 DISCOUNT TAG */}
-            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-              {p.discount}% OFF
-            </span>
+{/* END */}
+<div>
+<p className="text-sm">End Time</p>
+<input type="date" onChange={e=>setEndDate(e.target.value)}
+className="w-full p-2 rounded border"/>
+<input type="time" onChange={e=>setEndTime(e.target.value)}
+className="w-full p-2 rounded border mt-1"/>
+</div>
 
-            {/* 🖼 IMAGE FIX */}
-            <img
-              src={
-                p?.image ||
-                p?.variations?.[0]?.images?.front ||
-                "https://via.placeholder.com/300"
-              }
-              className="w-full h-40 object-cover rounded"
-            />
+<button
+onClick={addOffer}
+className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl">
+Add Offer 🚀
+</button>
 
-            {/* 📝 NAME */}
-            <div className="mt-2 text-sm font-medium truncate">
-              {p.name}
-            </div>
+</div>
 
-            {/* 💰 PRICE */}
-            <div className="flex gap-2 items-center mt-1">
+{/* OFFERS LIST */}
+<div className="mt-6 space-y-3">
 
-              <span className="font-bold text-red-600">
-                ₹{p.finalPrice}
-              </span>
+{offers.map(o=>{
+  const active = isActive(o);
 
-              <span className="text-gray-400 line-through text-xs">
-                ₹{p.basePrice}
-              </span>
+  return(
+<div key={o.id}
+className="backdrop-blur bg-white/70 p-4 rounded-2xl shadow">
 
-            </div>
+<p className="text-sm text-gray-500">Product ID</p>
+<p className="font-bold">{o.id}</p>
 
-          </Link>
+<p className="text-pink-600 font-bold text-lg">
+{ o.discount }% OFF
+</p>
 
-        ))}
+<p className="text-xs">
+Start: {o.startAt?.toDate().toLocaleString()}
+</p>
 
-      </div>
+<p className="text-xs">
+End: {o.endAt?.toDate().toLocaleString()}
+</p>
 
-    </div>
+<div className="flex gap-2 mt-2">
+<span className={`px-3 py-1 text-white rounded ${
+active ? "bg-green-500" : "bg-gray-400"
+}`}>
+{active ? "Active" : "Expired"}
+</span>
 
+<button
+onClick={()=>deleteOffer(o.id)}
+className="bg-red-500 text-white px-3 rounded">
+Delete
+</button>
+</div>
+
+</div>
   );
+})}
 
+</div>
+
+</div>
+  );
 }
