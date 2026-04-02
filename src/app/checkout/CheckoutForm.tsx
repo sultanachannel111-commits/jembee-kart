@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { load } from "@cashfreepayments/cashfree-js";
+import { useRouter } from "next/navigation";
 
 import {
   collection,
@@ -40,15 +39,15 @@ export default function CheckoutPage(){
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  /* 🔥 PRICE */
-  const getPrice = (i:any)=>{
+  /* 🔥 SAFE PRICE */
+  const getPrice = (item:any)=>{
     return Number(
-      i?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      i?.price || 0
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item?.price || 0
     );
   };
 
-  /* 🔄 LOAD */
+  /* 🔄 LOAD DATA */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async(u)=>{
@@ -56,7 +55,6 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // 🛒 CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -69,7 +67,10 @@ export default function CheckoutPage(){
         arr.push({
           id:doc.id,
           name:d.name || "",
-          price:getPrice(d),
+          price:
+            Number(d?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+            Number(d?.price) ||
+            0,
           quantity:d.quantity || 1,
           image:d.image || "",
           sellerId:d.sellerId || "",
@@ -79,7 +80,6 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      // 👤 PROFILE
       const userSnap = await getDoc(doc(db,"users",u.uid));
 
       if(userSnap.exists()){
@@ -94,7 +94,6 @@ export default function CheckoutPage(){
         }
       }
 
-      // 🚚 SHIPPING
       const ship = await getDoc(doc(db,"config","shipping"));
       if(ship.exists()){
         setShippingConfig(ship.data() as any);
@@ -122,9 +121,6 @@ export default function CheckoutPage(){
 
   /* 🎟️ COUPON */
   const applyCoupon = async()=>{
-
-    if(!coupon) return;
-
     const snap = await getDoc(
       doc(db,"coupons",coupon.toUpperCase())
     );
@@ -136,27 +132,21 @@ export default function CheckoutPage(){
 
     const d:any = snap.data();
 
-    if(d.type==="flat"){
-      setCouponDiscount(d.value);
-    }
-
-    if(d.type==="percent"){
-      setCouponDiscount(
-        Math.round(itemsTotal*d.value/100)
-      );
-    }
+    if(d.type==="flat") setCouponDiscount(d.value);
+    if(d.type==="percent")
+      setCouponDiscount(Math.round(itemsTotal*d.value/100));
 
     alert("Applied ✅");
   };
 
-  /* 💸 SELLER COMMISSION */
+  /* 💸 COMMISSION */
   const calcCommission = (i:any)=>{
     const price = getPrice(i);
-    const commission = price * 0.2;
+    const com = price * 0.2;
 
     return {
-      sellerAmount: price - commission,
-      commission
+      sellerAmount: price - com,
+      commission: com
     };
   };
 
@@ -178,8 +168,6 @@ export default function CheckoutPage(){
 
     if(!user) return alert("Login first");
     if(items.length===0) return alert("Cart empty");
-    if(!customer.name || !customer.phone)
-      return alert("Fill details");
 
     try{
       setLoading(true);
@@ -197,8 +185,7 @@ export default function CheckoutPage(){
           sellerAmount:c.sellerAmount,
           commission:c.commission,
 
-          image:i.image || "",
-          variations:i.variations || []
+          image:i.image || ""
         };
       });
 
@@ -211,37 +198,11 @@ export default function CheckoutPage(){
           paymentMethod:payment,
           paymentStatus:"pending",
           address:customer,
-          status:"Pending",
+          status:"Placed",
           createdAt:serverTimestamp()
         }
       );
 
-      // 💳 ONLINE
-      if(payment==="online"){
-
-        const res = await fetch("/api/create-order",{
-          method:"POST",
-          body:JSON.stringify({
-            amount: total,
-            userId:user.uid,
-            name:customer.name,
-            phone:customer.phone
-          })
-        });
-
-        const data = await res.json();
-
-        const cashfree = await load({mode:"sandbox"});
-
-        await cashfree.checkout({
-          paymentSessionId:data.paymentSessionId,
-          returnUrl:`${window.location.origin}/order-success/${ref.id}`
-        });
-
-        return;
-      }
-
-      // 🟢 COD
       await clearCart();
 
       // 📤 WhatsApp
@@ -259,21 +220,23 @@ export default function CheckoutPage(){
   };
 
   return(
-<div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4 pb-28">
+<div className="min-h-screen bg-gradient-to-br from-pink-200 via-white to-purple-200 p-4 pb-28">
 
-<h1 className="text-xl font-bold mb-3">Checkout</h1>
+<h1 className="text-2xl font-bold mb-4 text-center">
+Checkout 🛍️
+</h1>
 
 {/* ITEMS */}
 <div className="space-y-3">
 {items.map(i=>(
 <div key={i.id}
-className="bg-white/70 backdrop-blur p-3 rounded-xl shadow flex gap-3">
+className="backdrop-blur bg-white/60 p-3 rounded-2xl shadow flex gap-3">
 
 <img src={i.image || "/no.png"}
-className="w-20 h-20 rounded"/>
+className="w-20 h-20 rounded-xl"/>
 
-<div className="flex-1">
-<p>{i.name}</p>
+<div>
+<p className="font-medium">{i.name}</p>
 <p className="text-green-600 font-bold">
 ₹{getPrice(i)}
 </p>
@@ -285,54 +248,55 @@ className="w-20 h-20 rounded"/>
 </div>
 
 {/* COUPON */}
-<div className="bg-white p-3 mt-4 rounded-xl flex gap-2">
+<div className="backdrop-blur bg-white/60 p-3 mt-4 rounded-2xl flex gap-2">
 <input
 value={coupon}
 onChange={e=>setCoupon(e.target.value)}
-placeholder="Coupon"
-className="flex-1 border p-2 rounded"
+placeholder="Enter coupon"
+className="flex-1 p-2 rounded border"
 />
 <button onClick={applyCoupon}
-className="bg-black text-white px-4 rounded">
+className="bg-black text-white px-4 rounded-xl">
 Apply
 </button>
 </div>
 
 {/* ADDRESS */}
-<div className="bg-white p-3 mt-4 rounded-xl space-y-2">
+<div className="backdrop-blur bg-white/60 p-3 mt-4 rounded-2xl space-y-2">
 <input value={customer.name}
 onChange={e=>setCustomer({...customer,name:e.target.value})}
-placeholder="Name"
-className="w-full border p-2 rounded"/>
+className="w-full p-2 rounded border"/>
 
 <input value={customer.phone}
 onChange={e=>setCustomer({...customer,phone:e.target.value})}
-placeholder="Phone"
-className="w-full border p-2 rounded"/>
+className="w-full p-2 rounded border"/>
 
 <textarea value={customer.address}
 onChange={e=>setCustomer({...customer,address:e.target.value})}
-placeholder="Address"
-className="w-full border p-2 rounded"/>
+className="w-full p-2 rounded border"/>
 </div>
 
 {/* PAYMENT */}
-<div className="bg-white p-3 mt-4 rounded-xl space-y-2">
+<div className="backdrop-blur bg-white/60 p-3 mt-4 rounded-2xl space-y-2">
 
 <div onClick={()=>setPayment("cod")}
-className={`p-3 border rounded ${payment==="cod"&&"border-pink-500"}`}>
+className={`p-3 rounded-xl border ${
+payment==="cod" && "border-pink-500"
+}`}>
 Cash on Delivery (+₹{shippingConfig.cod})
 </div>
 
 <div onClick={()=>setPayment("online")}
-className={`p-3 border rounded ${payment==="online"&&"border-pink-500"}`}>
+className={`p-3 rounded-xl border ${
+payment==="online" && "border-pink-500"
+}`}>
 Online Payment (+₹{shippingConfig.prepaid})
 </div>
 
 </div>
 
 {/* SUMMARY */}
-<div className="bg-white p-3 mt-4 rounded-xl text-sm">
+<div className="backdrop-blur bg-white/60 p-3 mt-4 rounded-2xl">
 
 <div className="flex justify-between">
 <span>Items</span>
@@ -349,7 +313,7 @@ Online Payment (+₹{shippingConfig.prepaid})
 <span>-₹{couponDiscount}</span>
 </div>
 
-<hr/>
+<hr className="my-2"/>
 
 <div className="flex justify-between font-bold text-lg">
 <span>Total</span>
@@ -359,10 +323,10 @@ Online Payment (+₹{shippingConfig.prepaid})
 </div>
 
 {/* BUTTON */}
-<div className="fixed bottom-0 left-0 w-full bg-white p-3">
+<div className="fixed bottom-0 left-0 w-full p-3">
 <button onClick={placeOrder}
-className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-xl">
-{loading ? "Processing..." : "Place Order"}
+className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl shadow-xl">
+{loading ? "Processing..." : "Place Order 🚀"}
 </button>
 </div>
 
