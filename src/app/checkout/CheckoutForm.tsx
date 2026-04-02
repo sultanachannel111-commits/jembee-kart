@@ -40,19 +40,19 @@ export default function CheckoutPage(){
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  /* 🔥 SAFE PRICE */
+  /* 🔥 PRICE (ADMIN DISCOUNT ALREADY INCLUDED) */
   const getPrice = (item:any)=>{
     try{
-      const v = item?.variations?.[0]?.sizes?.[0]?.sellPrice;
-      if(v && v > 0) return Number(v);
-      if(item.price && item.price > 0) return Number(item.price);
-      return 0;
+      return Number(
+        item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+        item?.price || 0
+      );
     }catch{
       return 0;
     }
   };
 
-  /* 🔄 LOAD */
+  /* 🔄 LOAD DATA */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async(u)=>{
@@ -60,7 +60,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // 🛒 CART
+      // CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -86,7 +86,7 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      // 👤 ADDRESS
+      // USER ADDRESS
       const userSnap = await getDoc(doc(db,"users",u.uid));
       if(userSnap.exists()){
         const d:any = userSnap.data();
@@ -100,7 +100,7 @@ export default function CheckoutPage(){
         }
       }
 
-      // 🚚 SHIPPING
+      // SHIPPING
       const ship = await getDoc(doc(db,"config","shipping"));
       if(ship.exists()){
         setShippingConfig(ship.data() as any);
@@ -148,6 +148,12 @@ export default function CheckoutPage(){
 
       const d:any = snap.data();
 
+      // 🔥 fresh total
+      const currentTotal = items.reduce(
+        (s,i)=> s + (getPrice(i)*i.quantity),
+        0
+      );
+
       let discount = 0;
 
       if(d.type === "flat"){
@@ -155,7 +161,7 @@ export default function CheckoutPage(){
       }
 
       if(d.type === "percent"){
-        discount = Math.round((itemsTotal * d.value) / 100);
+        discount = Math.round((currentTotal * d.value) / 100);
       }
 
       if(d.maxDiscount){
@@ -266,7 +272,7 @@ className="bg-white/60 backdrop-blur p-3 rounded-2xl shadow flex gap-3">
 className="w-20 h-20 rounded-xl"/>
 
 <div>
-<p>{i.name}</p>
+<p className="font-medium">{i.name}</p>
 <p className="text-green-600 font-bold">
 ₹{getPrice(i)}
 </p>
@@ -351,7 +357,7 @@ Online Payment (+₹{shippingConfig.prepaid})
 {/* BUTTON */}
 <div className="fixed bottom-0 left-0 w-full p-3">
 <button onClick={placeOrder}
-className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl">
+className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl shadow-xl">
 {loading ? "Processing..." : "Place Order 🚀"}
 </button>
 </div>
