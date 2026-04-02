@@ -33,58 +33,44 @@ export default function CheckoutPage(){
 
   const [shippingConfig,setShippingConfig] = useState({
     cod:60,
-    prepaid:40
+    prepaid:40,
+    freeShippingAbove:999
   });
 
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  /* 🔥 SAFE PRICE + DEBUG */
+  /* 🔥 SAFE PRICE */
   const getPrice = (item:any)=>{
     try{
-      const vPrice = item?.variations?.[0]?.sizes?.[0]?.sellPrice;
-
-      console.log("🔍 PRICE CHECK:", {
-        name:item.name,
-        vPrice,
-        base:item.price
-      });
-
-      if(vPrice && vPrice > 0) return Number(vPrice);
+      const v = item?.variations?.[0]?.sizes?.[0]?.sellPrice;
+      if(v && v > 0) return Number(v);
       if(item.price && item.price > 0) return Number(item.price);
-
-      console.warn("⚠️ PRICE ZERO ITEM:", item);
       return 0;
-
-    }catch(err){
-      console.error("PRICE ERROR:", err);
+    }catch{
       return 0;
     }
   };
 
-  /* 🔄 LOAD DATA */
+  /* 🔄 LOAD */
   useEffect(()=>{
 
     const unsub = onAuthStateChanged(auth, async(u)=>{
       if(!u) return;
 
-      console.log("👤 USER:", u.uid);
       setUser(u);
 
+      // 🛒 CART
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
-
-      console.log("🛒 CART COUNT:", snap.docs.length);
 
       const arr:any[] = [];
 
       snap.forEach(doc=>{
         const d:any = doc.data();
 
-        console.log("📦 RAW ITEM:", d);
-
-        const item = {
+        arr.push({
           id:doc.id,
           name:d.name || "",
           price:
@@ -95,21 +81,15 @@ export default function CheckoutPage(){
           image:d.image || "",
           sellerId:d.sellerId || "",
           variations:d.variations || []
-        };
-
-        console.log("✅ FINAL ITEM:", item);
-
-        arr.push(item);
+        });
       });
 
       setItems(arr);
 
+      // 👤 ADDRESS
       const userSnap = await getDoc(doc(db,"users",u.uid));
-
       if(userSnap.exists()){
         const d:any = userSnap.data();
-
-        console.log("👤 USER DATA:", d);
 
         if(typeof d.address === "object"){
           setCustomer({
@@ -120,9 +100,9 @@ export default function CheckoutPage(){
         }
       }
 
+      // 🚚 SHIPPING
       const ship = await getDoc(doc(db,"config","shipping"));
       if(ship.exists()){
-        console.log("🚚 SHIPPING CONFIG:", ship.data());
         setShippingConfig(ship.data() as any);
       }
 
@@ -139,53 +119,59 @@ export default function CheckoutPage(){
   );
 
   const shipping =
-    payment==="cod"
-      ? shippingConfig.cod
-      : shippingConfig.prepaid;
+    itemsTotal >= shippingConfig.freeShippingAbove
+      ? 0
+      : payment==="cod"
+        ? shippingConfig.cod
+        : shippingConfig.prepaid;
 
   const total =
     Math.max(0, itemsTotal - couponDiscount) + shipping;
 
-  /* 🔍 TOTAL DEBUG */
-  useEffect(()=>{
-    console.log("💰 TOTAL DEBUG:", {
-      itemsTotal,
-      couponDiscount,
-      shipping,
-      total
-    });
-
-    if(itemsTotal === 0 && items.length > 0){
-      alert("⚠️ PRICE BUG DETECTED");
-    }
-
-  },[items, couponDiscount, payment]);
-
-  /* 🎟️ COUPON */
+  /* 🎟️ COUPON FIXED */
   const applyCoupon = async()=>{
-    console.log("🎟️ APPLY:", coupon);
+    try{
 
-    const snap = await getDoc(
-      doc(db,"coupons",coupon.toUpperCase())
-    );
+      if(!coupon){
+        alert("Enter coupon ❌");
+        return;
+      }
 
-    if(!snap.exists()){
-      console.error("❌ INVALID COUPON");
-      alert("Invalid coupon ❌");
-      return;
+      const snap = await getDoc(
+        doc(db,"coupons",coupon.toUpperCase())
+      );
+
+      if(!snap.exists()){
+        alert("Invalid coupon ❌");
+        return;
+      }
+
+      const d:any = snap.data();
+
+      let discount = 0;
+
+      if(d.type === "flat"){
+        discount = Number(d.value) || 0;
+      }
+
+      if(d.type === "percent"){
+        discount = Math.round((itemsTotal * d.value) / 100);
+      }
+
+      if(d.maxDiscount){
+        discount = Math.min(discount, d.maxDiscount);
+      }
+
+      setCouponDiscount(discount);
+
+      alert("Coupon Applied ✅");
+
+    }catch(err){
+      console.error(err);
     }
-
-    const d:any = snap.data();
-    console.log("✅ COUPON DATA:", d);
-
-    if(d.type==="flat") setCouponDiscount(d.value);
-    if(d.type==="percent")
-      setCouponDiscount(Math.round(itemsTotal*d.value/100));
-
-    alert("Coupon Applied ✅");
   };
 
-  /* 💸 COMMISSION */
+  /* 💸 SELLER COMMISSION */
   const calcCommission = (i:any)=>{
     const price = getPrice(i);
     const commission = price * 0.2;
@@ -207,8 +193,6 @@ export default function CheckoutPage(){
         doc(db,"carts",user.uid,"items",d.id)
       );
     }
-
-    console.log("🧹 CART CLEARED");
   };
 
   /* 📦 PLACE ORDER */
@@ -235,17 +219,14 @@ export default function CheckoutPage(){
         };
       });
 
-      console.log("📦 ORDER DATA:", {
-        items:cleanItems,
-        total,
-        customer
-      });
-
       const ref = await addDoc(
         collection(db,"orders"),
         {
           userId:user.uid,
           items:cleanItems,
+          itemsTotal,
+          discount:couponDiscount,
+          shipping,
           total,
           paymentMethod:payment,
           paymentStatus:"pending",
@@ -257,12 +238,11 @@ export default function CheckoutPage(){
 
       await clearCart();
 
-      window.open(`https://wa.me/?text=Order%20₹${total}`);
+      window.open(`https://wa.me/?text=Order ₹${total}`);
 
       router.push(`/order-success/${ref.id}`);
 
     }catch(err:any){
-      console.error("❌ ORDER ERROR:", err);
       alert(err.message);
     }finally{
       setLoading(false);
