@@ -9,23 +9,24 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
+  doc,
+  getDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
 
-/* ✅ PRICE LOGIC (CORRECT) */
-const getPrices = (item:any) => {
+/* 🔥 PRICE FIX (NO AUTO FAKE DISCOUNT) */
+const getFinalPrice = (item:any) => {
+  const price =
+    Number(item?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+    Number(item?.price) ||
+    0;
 
-  const size = item?.variations?.[0]?.sizes?.[0] || {};
+  const discount = Number(item?.discount) || 0;
 
-  const original = Number(size?.basePrice) || Number(item.price) || 0;
-  const final = Number(size?.sellPrice) || original;
-
-  const discount = original > 0
-    ? Math.round(((original - final) / original) * 100)
-    : 0;
-
-  return { original, final, discount };
+  return discount > 0
+    ? Math.round(price - (price * discount) / 100)
+    : price;
 };
 
 export default function CheckoutPage(){
@@ -38,10 +39,10 @@ export default function CheckoutPage(){
 
   const [payment,setPayment] = useState("online");
 
-  const shippingConfig = {
+  const [shippingConfig,setShippingConfig] = useState({
     prepaid: 40,
     cod: 60
-  };
+  });
 
   const [customer,setCustomer] = useState({
     firstName:"",
@@ -59,36 +60,49 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+      try{
+        const snap = await getDocs(collection(db,"carts",u.uid,"items"));
 
-      const arr:any[] = [];
+        const arr:any[] = [];
 
-      snap.forEach(doc=>{
-        const d = doc.data();
+        snap.forEach(doc=>{
+          const d = doc.data();
 
-        arr.push({
-          id: doc.id,
-          name: d.name,
-          price: d.price,
-          quantity: d.quantity || 1,
-          image: d.image || "",
-          variations: d.variations || []
+          arr.push({
+            id: doc.id,
+            name: d.name,
+            price: d.price,
+            discount: d.discount || 0,
+            quantity: d.quantity || 1,
+            image: d.image || "",
+            variations: d.variations || []
+          });
         });
-      });
 
-      console.log("CART ITEMS:", arr);
+        console.log("CART DATA:", arr);
 
-      setItems(arr);
+        setItems(arr);
+
+      }catch(err){
+        console.error("CART ERROR:", err);
+      }
+
+      // shipping config load
+      const shipDoc = await getDoc(doc(db,"config","shipping"));
+      if(shipDoc.exists()){
+        setShippingConfig(shipDoc.data() as any);
+      }
+
     });
 
     return ()=>unsub();
   },[]);
 
   /* 💰 TOTAL */
-  const total = items.reduce((sum,i)=>{
-    const { final } = getPrices(i);
-    return sum + final * (i.quantity || 1);
-  },0);
+  const total = items.reduce(
+    (sum,i)=> sum + getFinalPrice(i)*(i.quantity||1),
+    0
+  );
 
   /* 💸 DISCOUNT */
   const onlineDiscount = payment === "online" ? 10 : 0;
@@ -110,7 +124,7 @@ export default function CheckoutPage(){
     } else if(coupon.toUpperCase() === "FLAT50"){
       setCouponDiscount(50);
     } else {
-      alert("Invalid coupon");
+      alert("Invalid coupon ❌");
     }
   };
 
@@ -135,21 +149,24 @@ export default function CheckoutPage(){
     try{
       setLoading(true);
 
-      await addDoc(collection(db,"orders"),{
+      const ref = await addDoc(collection(db,"orders"),{
         userId: user.uid,
         items,
         total: grandTotal,
         paymentMethod: payment,
+        address: customer,
         createdAt: serverTimestamp()
       });
 
-      alert("Order Placed ✅");
+      console.log("ORDER SUCCESS:", ref.id);
+
+      alert("Order placed ✅");
 
       router.push("/order-success");
 
-    }catch(err){
-      console.error(err);
-      alert("Order failed ❌");
+    }catch(err:any){
+      console.error("ORDER ERROR:", err);
+      alert("Error: " + err.message); // 🔥 REAL ERROR
     }finally{
       setLoading(false);
     }
@@ -168,9 +185,16 @@ export default function CheckoutPage(){
 
 {/* CART ITEMS */}
 <div className="p-4 space-y-3">
+{items.length === 0 && (
+  <p className="text-center text-red-500">Cart empty ❌</p>
+)}
+
 {items.map((i,index)=>{
 
-  const { original, final, discount } = getPrices(i);
+  const price = getFinalPrice(i);
+  const original =
+    Number(i?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+    Number(i.price);
 
   return(
   <div key={index} className="bg-white p-3 rounded-xl flex gap-3 shadow">
@@ -185,45 +209,13 @@ export default function CheckoutPage(){
       <p className="font-medium">{i.name}</p>
 
       <div className="flex gap-2 items-center">
-        <p className="text-green-600 font-bold">₹{final}</p>
+        <p className="text-green-600 font-bold">₹{price}</p>
 
-        {original > final && (
+        {price !== original && (
           <p className="line-through text-gray-400 text-sm">
             ₹{original}
           </p>
         )}
-
-        {discount > 0 && (
-          <span className="text-xs bg-red-500 text-white px-2 rounded">
-            {discount}% OFF
-          </span>
-        )}
-      </div>
-
-      {/* QTY */}
-      <div className="flex gap-2 mt-2">
-
-        <button
-          onClick={()=>{
-            const updated=[...items];
-            updated[index].quantity--;
-            if(updated[index].quantity<1) updated[index].quantity=1;
-            setItems(updated);
-          }}
-          className="px-2 bg-gray-200 rounded"
-        >-</button>
-
-        <span>{i.quantity}</span>
-
-        <button
-          onClick={()=>{
-            const updated=[...items];
-            updated[index].quantity++;
-            setItems(updated);
-          }}
-          className="px-2 bg-gray-200 rounded"
-        >+</button>
-
       </div>
 
     </div>
