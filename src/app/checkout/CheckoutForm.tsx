@@ -156,7 +156,26 @@ export default function CheckoutPage(){
   discount: Number(i.discount) || 0,
   quantity: Number(i.quantity) || 1,
   image: i.image || "",
-  variations: i.variations || []
+  variations: Array.isArray(i.variations)
+  ? i.variations.map((v:any)=>({
+      color: v?.color || "",
+      images: {
+        main: v?.images?.main || "",
+        front: v?.images?.front || "",
+        back: v?.images?.back || "",
+        side: v?.images?.side || "",
+        model: v?.images?.model || ""
+      },
+      sizes: Array.isArray(v?.sizes)
+        ? v.sizes.map((s:any)=>({
+            size: s?.size || "",
+            sellPrice: Number(s?.sellPrice) || 0,
+            basePrice: Number(s?.basePrice) || 0,
+            stock: Number(s?.stock) || 0
+          }))
+        : []
+    }))
+  : []
 }));
 
 const cleanCustomer = {
