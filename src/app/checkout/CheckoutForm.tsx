@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { load } from "@cashfreepayments/cashfree-js";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
@@ -12,24 +11,25 @@ import {
   serverTimestamp,
   doc,
   getDoc,
-  setDoc,
-  updateDoc
+  setDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
 
-/* 🔥 PRICE */
+/* 🔥 PRICE (AUTO 50% FIX) */
 const getFinalPrice = (item:any) => {
+
   const price =
     Number(item?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
     Number(item?.price) ||
     0;
 
-  const discount = Number(item?.discount) || 0;
+  // 👉 AUTO 50% IF NO DISCOUNT
+  const discount = item?.discount > 0 ? item.discount : 50;
 
-  return discount > 0
-    ? Math.round(price - (price * discount) / 100)
-    : price;
+  const final = price - (price * discount) / 100;
+
+  return Math.round(final);
 };
 
 export default function CheckoutPage(){
@@ -63,14 +63,6 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      // USER ADDRESS
-      const userDoc = await getDoc(doc(db, "users", u.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.address) setCustomer(data.address);
-      }
-
-      // CART LOAD
       const snap = await getDocs(collection(db,"carts",u.uid,"items"));
 
       const arr:any[] = [];
@@ -91,12 +83,6 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      // SHIPPING CONFIG
-      const shipDoc = await getDoc(doc(db,"config","shipping"));
-      if(shipDoc.exists()){
-        setShippingConfig(shipDoc.data());
-      }
-
     });
 
     return ()=>unsub();
@@ -116,8 +102,8 @@ export default function CheckoutPage(){
   /* 🚚 SHIPPING */
   const shippingCharge =
     payment === "cod"
-      ? Number(shippingConfig.cod || 0)
-      : Number(shippingConfig.prepaid || 0);
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
   const grandTotal = finalPay + shippingCharge;
 
@@ -130,21 +116,6 @@ export default function CheckoutPage(){
     } else {
       alert("Invalid coupon");
     }
-  };
-
-  /* 📦 DELIVERY */
-  const getDeliveryDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 5);
-    return d.toDateString();
-  };
-
-  /* 💾 SAVE ADDRESS */
-  const saveAddress = async ()=>{
-    if (!user) return;
-    await setDoc(doc(db, "users", user.uid), {
-      address: customer
-    }, { merge: true });
   };
 
   /* 🛒 ORDER */
@@ -160,7 +131,6 @@ export default function CheckoutPage(){
       return;
     }
 
-    await saveAddress();
     setLoading(true);
 
     await addDoc(collection(db,"orders"),{
@@ -179,11 +149,6 @@ export default function CheckoutPage(){
 
 <div className="min-h-screen bg-gray-100 pb-32">
 
-{/* 🔥 DEBUG */}
-<div className="bg-black text-green-400 text-xs p-2">
-{JSON.stringify({items, total, shippingCharge, grandTotal}, null, 2)}
-</div>
-
 <div className="max-w-xl mx-auto">
 
 {/* HEADER */}
@@ -191,19 +156,14 @@ export default function CheckoutPage(){
   <h1 className="font-semibold">Checkout</h1>
 </div>
 
-{/* EMPTY CART */}
-{items.length === 0 && (
-  <div className="p-4 text-red-500 font-semibold">
-    ❌ Cart Empty (Firestore issue)
-  </div>
-)}
-
 {/* CART ITEMS */}
 <div className="p-4 space-y-3">
 {items.map((i,index)=>{
 
   const price = getFinalPrice(i);
-  const original = i.price;
+  const original =
+    Number(i?.variations?.[0]?.sizes?.[0]?.sellPrice) ||
+    Number(i.price);
 
   return(
   <div key={index} className="bg-white p-3 rounded-xl flex gap-3 shadow">
@@ -220,11 +180,9 @@ export default function CheckoutPage(){
       <div className="flex gap-2 items-center">
         <p className="text-green-600 font-bold">₹{price}</p>
 
-        {original > price && (
-          <p className="line-through text-gray-400 text-sm">
-            ₹{original}
-          </p>
-        )}
+        <p className="line-through text-gray-400 text-sm">
+          ₹{original}
+        </p>
       </div>
 
       {/* QTY */}
@@ -257,13 +215,6 @@ export default function CheckoutPage(){
 
   </div>
 )})}
-</div>
-
-{/* DELIVERY */}
-<div className="px-4">
-  <div className="bg-white p-4 rounded-xl shadow text-sm">
-    🚚 Delivery by <b>{getDeliveryDate()}</b>
-  </div>
 </div>
 
 {/* PAYMENT */}
