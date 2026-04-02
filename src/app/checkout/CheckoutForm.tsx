@@ -149,14 +149,30 @@ export default function CheckoutPage(){
     try{
       setLoading(true);
 
-      const ref = await addDoc(collection(db,"orders"),{
-        userId: user.uid,
-        items,
-        total: grandTotal,
-        paymentMethod: payment,
-        address: customer,
-        createdAt: serverTimestamp()
-      });
+      const cleanItems = items.map((i)=>({
+  id: i.id || "",
+  name: i.name || "",
+  price: Number(i.price) || 0,
+  discount: Number(i.discount) || 0,
+  quantity: Number(i.quantity) || 1,
+  image: i.image || "",
+  variations: i.variations || []
+}));
+
+const cleanCustomer = {
+  firstName: customer.firstName || "",
+  phone: customer.phone || "",
+  address: customer.address || ""
+};
+
+const ref = await addDoc(collection(db,"orders"),{
+  userId: user?.uid || "",
+  items: cleanItems,
+  total: Number(grandTotal) || 0,
+  paymentMethod: payment || "cod",
+  address: cleanCustomer,
+  createdAt: serverTimestamp()
+});
 
       console.log("ORDER SUCCESS:", ref.id);
 
