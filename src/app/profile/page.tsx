@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
-  collection,
-  query,
-  where,
   doc,
   setDoc,
   getDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
   writeBatch,
-  increment,
-  onSnapshot
+  increment
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -31,85 +31,94 @@ export default function ProfilePage(){
   const [wallet,setWallet] = useState(0);
   const [referralCode,setReferralCode] = useState("");
 
-  const [editProfile,setEditProfile] = useState(false);
-  const [editAddress,setEditAddress] = useState(false);
+  const [edit,setEdit] = useState(false);
 
   const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
 
-  /* 🔥 SAFE ADDRESS FIX */
+  /* 🔥 SAFE ADDRESS */
   const fixAddress = (addr:any)=>{
     try{
       if(typeof addr === "string") return addr;
-      if(typeof addr === "object") return Object.values(addr).join("");
+      if(typeof addr === "object") return addr?.address || "";
       return "";
     }catch{
       return "";
     }
   };
 
-  /* 🔐 AUTH + DATA */
+  /* 🔐 AUTH + LOAD */
   useEffect(()=>{
+
     let unsubOrders:any;
 
     const unsubAuth = onAuthStateChanged(auth, async(u)=>{
-      try{
-        if(!u){
-          router.push("/login");
-          return;
-        }
 
-        setUser(u);
+      if(!u){
+        router.push("/login");
+        return;
+      }
 
-        const userRef = doc(db,"users",u.uid);
-        const snap = await getDoc(userRef);
+      setUser(u);
 
-        if(!snap.exists()){
-          const code =
-            (u.email?.slice(0,4) || "USER").toUpperCase() +
-            Math.floor(1000 + Math.random()*9000);
+      const userRef = doc(db,"users",u.uid);
+      const snap = await getDoc(userRef);
 
-          await setDoc(userRef,{
-            name:"",
+      // 🆕 FIRST TIME USER
+      if(!snap.exists()){
+        const code =
+          (u.email?.slice(0,4) || "USER").toUpperCase() +
+          Math.floor(1000 + Math.random()*9000);
+
+        await setDoc(userRef,{
+          name:"",
+          phone:"",
+          address:{
+            firstName:"",
             phone:"",
-            address:"",
-            wallet:0,
-            referralCode:code
-          });
+            address:""
+          },
+          wallet:0,
+          referralCode:code
+        });
 
-          setReferralCode(code);
-        }
+        setReferralCode(code);
+      }
 
-        // 🔄 REALTIME USER
-        onSnapshot(userRef,(snap)=>{
-          if(snap.exists()){
-            const d:any = snap.data() || {};
+      // 🔄 REALTIME USER
+      onSnapshot(userRef,(snap)=>{
+        if(snap.exists()){
+          const d:any = snap.data();
+
+          if(typeof d.address === "object"){
+            setName(d.address?.firstName || "");
+            setPhone(d.address?.phone || "");
+            setAddress(d.address?.address || "");
+          }else{
             setName(d.name || "");
             setPhone(d.phone || "");
             setAddress(d.address || "");
-            setWallet(d.wallet || 0);
-            setReferralCode(d.referralCode || "");
           }
+
+          setWallet(d.wallet || 0);
+          setReferralCode(d.referralCode || "");
+        }
+      });
+
+      // 🔄 REALTIME ORDERS
+      const q = query(
+        collection(db,"orders"),
+        where("userId","==",u.uid)
+      );
+
+      unsubOrders = onSnapshot(q,(snap)=>{
+        const arr:any[] = [];
+        snap.forEach(doc=>{
+          arr.push({ id:doc.id, ...doc.data() });
         });
+        setOrders(arr);
+        setLoading(false);
+      });
 
-        // 🔄 REALTIME ORDERS
-        const q = query(
-          collection(db,"orders"),
-          where("userId","==",u.uid)
-        );
-
-        unsubOrders = onSnapshot(q,(snap)=>{
-          const arr:any[] = [];
-          snap.forEach(doc=>{
-            arr.push({ id:doc.id, ...doc.data() });
-          });
-          setOrders(arr);
-          setLoading(false);
-        });
-
-      }catch(err){
-        console.log("🔥 PROFILE ERROR:", err);
-        alert("Profile load error");
-      }
     });
 
     return ()=>{
@@ -119,11 +128,28 @@ export default function ProfilePage(){
 
   },[]);
 
-  /* 🔴 CANCEL */
+  /* 💾 SAVE PROFILE + ADDRESS */
+  const saveProfile = async()=>{
+    if(!user) return;
+
+    await setDoc(doc(db,"users",user.uid),{
+      address:{
+        firstName:name,
+        phone:phone,
+        address:address
+      }
+    },{merge:true});
+
+    setEdit(false);
+    alert("Saved ✅");
+  };
+
+  /* ❌ CANCEL ORDER */
   const cancelOrder = async(id:string)=>{
     try{
       const ref = doc(db,"orders",id);
       const snap = await getDoc(ref);
+
       if(!snap.exists()) return;
 
       const data:any = snap.data();
@@ -141,33 +167,11 @@ export default function ProfilePage(){
       await batch.commit();
 
     }catch(err){
-      console.log("🔥 CANCEL ERROR:", err);
+      console.log("Cancel error", err);
     }
   };
 
-  /* 💾 SAVE */
-  const saveProfile = async()=>{
-    await setDoc(doc(db,"users",user.uid),{name,phone},{merge:true});
-    setEditProfile(false);
-  };
-
-  const saveAddress = async()=>{
-    await setDoc(doc(db,"users",user.uid),{
-      address:{
-        firstName:name,
-        phone:phone,
-        address:address
-      }
-    },{merge:true});
-    setEditAddress(false);
-  };
-
-  const logout = async()=>{
-    await signOut(auth);
-    router.push("/");
-  };
-
-  /* 📦 STATUS */
+  /* 📦 STEP */
   const getStep = (status:any)=>{
     const s = String(status || "").toLowerCase();
     if(s==="placed") return 0;
@@ -179,19 +183,7 @@ export default function ProfilePage(){
 
   /* 💰 PRICE */
   const getPrice = (order:any)=>{
-    try{
-      if(order?.total) return order.total;
-      if(order?.totalAmount) return order.totalAmount;
-
-      if(Array.isArray(order?.items)){
-        return order.items.reduce((sum:number,i:any)=>
-          sum + (Number(i?.sellPrice)||Number(i?.price)||0)
-        ,0);
-      }
-      return 0;
-    }catch{
-      return 0;
-    }
+    return Number(order?.total) || 0;
   };
 
   /* 📤 SHARE */
@@ -201,64 +193,79 @@ export default function ProfilePage(){
   };
 
   if(loading) return <div className="p-5">Loading...</div>;
-  if(!user) return <div className="p-5">User not found</div>;
 
   return(
-<div className="min-h-screen bg-gray-100">
+<div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white">
 
 {/* 🔝 HEADER */}
-<div className="bg-pink-600 text-white p-4 text-lg font-semibold">
-My Account
+<div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-5 rounded-b-3xl shadow-lg">
+  <h1 className="text-xl font-bold">My Account</h1>
 </div>
 
 <div className="p-4 space-y-4">
 
 {/* 👤 PROFILE */}
-<div className="bg-white p-4 rounded-xl shadow flex items-center gap-3">
-<div className="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center">
-{user?.email?.charAt(0)?.toUpperCase()}
+<div className="bg-white/80 backdrop-blur p-4 rounded-2xl shadow flex items-center gap-3">
+  <div className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center">
+    {user?.email?.charAt(0)?.toUpperCase()}
+  </div>
+
+  <div className="flex-1">
+    <p className="font-semibold">{name || "User"}</p>
+    <p className="text-xs text-gray-500">{user.email}</p>
+  </div>
+
+  <button onClick={()=>setEdit(!edit)}
+    className="text-purple-600 text-sm">
+    Edit
+  </button>
 </div>
 
-<div className="flex-1">
-<p className="font-semibold">{name || "User"}</p>
-<p className="text-xs text-gray-500">{user.email}</p>
-</div>
+{/* ✏️ EDIT */}
+{edit && (
+<div className="bg-white p-4 rounded-xl shadow space-y-2">
+  <input value={name} onChange={(e)=>setName(e.target.value)}
+    placeholder="Name" className="w-full border p-2 rounded"/>
 
-<button onClick={()=>setEditProfile(!editProfile)}
-className="text-pink-600 text-sm">
-Edit
-</button>
+  <input value={phone} onChange={(e)=>setPhone(e.target.value)}
+    placeholder="Phone" className="w-full border p-2 rounded"/>
+
+  <textarea value={address} onChange={(e)=>setAddress(e.target.value)}
+    placeholder="Address" className="w-full border p-2 rounded"/>
+
+  <button onClick={saveProfile}
+    className="w-full bg-purple-600 text-white py-2 rounded">
+    Save
+  </button>
 </div>
+)}
 
 {/* 🏠 ADDRESS */}
 <div className="bg-white p-4 rounded-xl shadow">
-<p className="font-semibold mb-2">Delivery Address</p>
-<p className="text-sm">{fixAddress(address) || "No address"}</p>
-
-<button onClick={()=>setEditAddress(!editAddress)}
-className="text-pink-600 text-sm mt-2">
-Edit
-</button>
+  <p className="font-semibold">Delivery Address</p>
+  <p className="text-sm text-gray-600">
+    {fixAddress({address}) || "No address"}
+  </p>
 </div>
 
 {/* 💰 WALLET */}
 <div className="bg-white p-4 rounded-xl shadow flex justify-between">
-<p>Wallet</p>
-<p className="text-green-600 font-bold">₹{wallet}</p>
+  <p>Wallet</p>
+  <p className="text-green-600 font-bold">₹{wallet}</p>
 </div>
 
 {/* 🎁 REFERRAL */}
 <div className="bg-white p-4 rounded-xl shadow">
-<p className="text-sm">Referral Code</p>
-<p className="font-bold">{referralCode}</p>
+  <p className="text-sm">Referral Code</p>
+  <p className="font-bold text-lg">{referralCode}</p>
 
-<div className="flex gap-3 mt-2">
-<button onClick={()=>navigator.clipboard.writeText(referralCode)}
-className="text-blue-600 text-sm">Copy</button>
+  <div className="flex gap-3 mt-2">
+    <button onClick={()=>navigator.clipboard.writeText(referralCode)}
+      className="text-blue-600 text-sm">Copy</button>
 
-<button onClick={shareReferral}
-className="text-green-600 text-sm">WhatsApp</button>
-</div>
+    <button onClick={shareReferral}
+      className="text-green-600 text-sm">WhatsApp</button>
+  </div>
 </div>
 
 {/* 📦 ORDERS */}
@@ -269,15 +276,14 @@ className="text-green-600 text-sm">WhatsApp</button>
 <div key={order.id}
 className="bg-white p-4 rounded-xl shadow mb-3">
 
-<p className="text-xs text-gray-500">
+<p className="text-xs text-gray-400">
 #{order.id.slice(0,8)}
 </p>
 
-{/* TRACK BAR */}
 <div className="flex mt-2">
 {steps.map((step,i)=>(
 <div key={i} className="flex-1 text-center text-xs">
-<div className={`h-2 ${
+<div className={`h-2 rounded ${
 getStep(order.status)>=i
 ? "bg-green-500"
 : "bg-gray-300"
@@ -293,7 +299,7 @@ getStep(order.status)>=i
 <button
 onClick={()=>cancelOrder(order.id)}
 className="text-red-500 text-xs mt-2">
-Cancel
+Cancel Order
 </button>
 )}
 
@@ -301,12 +307,16 @@ Cancel
 ))}
 </div>
 
-<button onClick={logout}
+{/* 🚪 LOGOUT */}
+<button onClick={async()=>{
+  await signOut(auth);
+  router.push("/");
+}}
 className="w-full bg-red-500 text-white py-3 rounded-xl">
 Logout
 </button>
 
 </div>
 </div>
-);
+  );
 }
