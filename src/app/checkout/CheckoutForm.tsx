@@ -197,7 +197,7 @@ const ref = await addDoc(collection(db,"orders"),{
 
       alert("Order placed ✅");
 
-      router.push("/order-success");
+      router.push(`/order-success/${ref.id}`);
 
     }catch(err:any){
       console.error("ORDER ERROR:", err);
