@@ -159,6 +159,10 @@ export default function ProfilePage() {
       {/* 📦 ORDERS */}
       <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
 
+      {orders.length === 0 && (
+        <p>No orders found ❌</p>
+      )}
+
       {orders.map(o => {
 
         const total =
@@ -200,7 +204,7 @@ export default function ProfilePage() {
 
             {/* DELIVERY */}
             <p className="text-xs mt-1">
-              🚚 {getDeliveryDate(o)}
+              🚚 Expected Delivery: {getDeliveryDate(o)}
             </p>
 
             {/* TRACK BAR */}
@@ -220,17 +224,8 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* 📍 MAP */}
-            <div className="mt-4">
-              <iframe
-                src="https://maps.google.com/maps?q=Jamshedpur&z=13&output=embed"
-                className="w-full h-40 rounded-xl"
-              />
-            </div>
-
-            {/* 🔥 STATUS TEXT */}
+            {/* 🚚 LIVE STATUS */}
             <div className="mt-3 bg-gray-50 p-3 rounded-xl">
-
               <p className="text-green-600 font-semibold">
                 {getTrackingText(o.status)}
               </p>
@@ -320,6 +315,7 @@ export default function ProfilePage() {
 
                 await addDoc(collection(db, "returns"), {
                   orderId: selectedOrder.id,
+                  userId: selectedOrder.userId,
                   reason,
                   issue,
                   status: "Requested",
