@@ -24,7 +24,8 @@ export default function CheckoutPage(){
   const [offers,setOffers] = useState<any>({});
   const [loading,setLoading] = useState(false);
 
-  const [debug,setDebug] = useState<any>({});
+  const [coupon,setCoupon] = useState("");
+  const [couponDiscount,setCouponDiscount] = useState(0);
 
   const [customer,setCustomer] = useState({
     name:"",
@@ -40,8 +41,7 @@ export default function CheckoutPage(){
     freeShippingAbove:999
   });
 
-  const [coupon,setCoupon] = useState("");
-  const [couponDiscount,setCouponDiscount] = useState(0);
+  const [debug,setDebug] = useState<any>({});
 
   /* 🔥 BASE PRICE */
   const getBasePrice = (item:any)=>{
@@ -51,13 +51,26 @@ export default function CheckoutPage(){
     );
   };
 
-  /* 🔥 ADMIN DISCOUNT */
-  const getDiscountedPrice = (item:any)=>{
+  /* 🔥 OFFER APPLY (TIME BASED) */
+  const getOfferPrice = (item:any)=>{
+
     const base = getBasePrice(item);
-    const discount = offers?.[item.id] || 0;
+    const offer = offers?.[item.id];
 
-    const final = Math.round(base - (base * discount / 100));
+    if(!offer) return base;
 
+    const now = new Date();
+
+    const start = offer.startAt?.toDate?.();
+    const end = offer.endAt?.toDate?.();
+
+    if(start && end){
+      if(now < start || now > end){
+        return base; // expired
+      }
+    }
+
+    const final = Math.round(base - (base * offer.discount / 100));
     return final > 0 ? final : base;
   };
 
@@ -69,7 +82,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      /* CART LOAD */
+      /* CART */
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -80,7 +93,7 @@ export default function CheckoutPage(){
         const d:any = docSnap.data();
 
         arr.push({
-          id: d.productId || docSnap.id, // ✅ FIX
+          id: d.productId || docSnap.id, // ✅ IMPORTANT
           name:d.name,
           quantity:d.quantity || 1,
           image:d.image || "",
@@ -92,17 +105,17 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      /* OFFERS LOAD */
+      /* OFFERS */
       const offerSnap = await getDocs(collection(db,"offers"));
       const off:any = {};
 
       offerSnap.forEach(o=>{
-        off[o.id] = o.data().discount || 0;
+        off[o.id] = o.data(); // full object
       });
 
       setOffers(off);
 
-      /* USER ADDRESS */
+      /* USER */
       const userSnap = await getDoc(doc(db,"users",u.uid));
       if(userSnap.exists()){
         const d:any = userSnap.data();
@@ -126,12 +139,13 @@ export default function CheckoutPage(){
 
   },[]);
 
-  /* 💰 TOTAL */
+  /* 💰 TOTAL AFTER OFFER */
   const itemsTotal = items.reduce(
-    (s,i)=> s + (getDiscountedPrice(i)*i.quantity),
+    (s,i)=> s + (getOfferPrice(i)*i.quantity),
     0
   );
 
+  /* 🚚 SHIPPING */
   const shipping =
     itemsTotal >= shippingConfig.freeShippingAbove
       ? 0
@@ -139,8 +153,9 @@ export default function CheckoutPage(){
       ? shippingConfig.cod
       : shippingConfig.prepaid;
 
-  /* 🎟️ COUPON */
+  /* 🎟️ COUPON APPLY (ON DISCOUNTED PRICE) */
   const applyCoupon = async()=>{
+
     const snap = await getDoc(
       doc(db,"coupons",coupon.trim().toUpperCase())
     );
@@ -174,7 +189,7 @@ export default function CheckoutPage(){
 
   /* 💸 COMMISSION */
   const calcCommission = (item:any)=>{
-    const price = getDiscountedPrice(item);
+    const price = getOfferPrice(item);
     const commission = price * 0.2;
 
     return {
@@ -211,7 +226,7 @@ export default function CheckoutPage(){
         return {
           id:i.id,
           name:i.name,
-          price:getDiscountedPrice(i),
+          price:getOfferPrice(i),
           quantity:i.quantity,
           sellerId:i.sellerId,
           sellerAmount:c.sellerAmount,
@@ -225,8 +240,10 @@ export default function CheckoutPage(){
         {
           userId:user.uid,
           items:cleanItems,
-          total,
+          itemsTotal,
           couponDiscount,
+          shipping,
+          total,
           paymentMethod:payment,
           paymentStatus:"pending",
           address:customer,
@@ -278,7 +295,7 @@ className="w-20 h-20 rounded-xl"/>
 <p className="font-medium">{i.name}</p>
 
 <p className="text-green-600 font-bold">
-₹{getDiscountedPrice(i)}
+₹{getOfferPrice(i)}
 </p>
 
 <p className="text-xs line-through text-gray-400">
@@ -333,7 +350,7 @@ Apply
 
 </div>
 
-{/* DEBUG PANEL */}
+{/* DEBUG */}
 <div className="bg-black text-green-400 text-xs p-3 mt-4 rounded-xl overflow-auto">
 <pre>{JSON.stringify(debug,null,2)}</pre>
 </div>
