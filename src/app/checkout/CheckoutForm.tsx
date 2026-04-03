@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+import { addLog } from "@/lib/debugStore";
 
 import {
   collection,
@@ -16,14 +17,13 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-
 import { getOfferPrice } from "@/utils/pricing";
 
 export default function CheckoutPage() {
 
-  const [items, setItems] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any>({});
-  const [user, setUser] = useState<any>(null);
+  const [items, setItems] = useState([]);
+  const [offers, setOffers] = useState({});
+  const [user, setUser] = useState(null);
 
   const [payment, setPayment] = useState("COD");
   const [loading, setLoading] = useState(false);
@@ -33,24 +33,23 @@ export default function CheckoutPage() {
   // 🔥 LOAD DATA
   useEffect(() => {
 
-    let unsubscribe:any;
+    let unsubscribe;
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
 
       if (!u) return;
       setUser(u);
 
-      // BUY NOW
       const buyNow = localStorage.getItem("buy-now");
+
       if (buyNow) {
         setItems([JSON.parse(buyNow)]);
       }
 
-      // CART
       const ref = collection(db, "carts", u.uid, "items");
 
       unsubscribe = onSnapshot(ref, (snap) => {
-        const arr:any[] = [];
+        const arr = [];
 
         snap.forEach(d=>{
           arr.push({ ...d.data(), cartId: d.id });
@@ -59,9 +58,8 @@ export default function CheckoutPage() {
         if (!buyNow) setItems(arr);
       });
 
-      // OFFERS
       const offSnap = await getDocs(collection(db, "offers"));
-      const off:any = {};
+      const off = {};
       offSnap.forEach(d=> off[d.id] = d.data());
 
       setOffers(off);
@@ -100,7 +98,7 @@ export default function CheckoutPage() {
 
     try {
 
-      const orderRef = await addDoc(collection(db, "orders"), {
+      const orderData = {
         userId: user.uid,
         items,
         itemsTotal,
@@ -109,31 +107,41 @@ export default function CheckoutPage() {
         paymentMethod: payment,
         status: "Pending",
         createdAt: serverTimestamp()
-      });
+      };
+
+      addLog("info", orderData, "🟡 Order send ho raha hai");
+
+      const orderRef = await addDoc(collection(db, "orders"), orderData);
 
       // 💳 ONLINE PAYMENT
       if (payment === "ONLINE") {
+
+        const payload = {
+          orderId: orderRef.id,
+          amount: Number(total),
+          customer: {
+            uid: user.uid,
+            email: user.email || "test@gmail.com",
+            phone: "9999999999",
+            firstName: user.displayName || "User"
+          }
+        };
+
+        addLog("info", payload, "🟡 Cashfree request ja raha hai");
 
         const res = await fetch("/api/cashfree", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            orderId: orderRef.id,
-            amount: total,
-            customer: {
-              uid: user.uid,
-              email: user.email,
-              phone: "9999999999",
-              firstName: user.displayName || "User"
-            }
-          })
+          body: JSON.stringify(payload)
         });
+
+        addLog("info", res.status, "🟡 API status aaya");
 
         const data = await res.json();
 
-        console.log("CASHFREE:", data);
+        addLog("response", data, "🟢 API response aaya");
 
         if (data.payment_session_id) {
 
@@ -149,7 +157,8 @@ export default function CheckoutPage() {
           return;
 
         } else {
-          alert(data?.message || "Payment failed ❌");
+          addLog("error", data, "🔴 Payment fail hua");
+          alert(JSON.stringify(data, null, 2));
           setLoading(false);
           return;
         }
@@ -166,11 +175,17 @@ export default function CheckoutPage() {
 
       localStorage.removeItem("buy-now");
 
+      addLog("success", { orderId: orderRef.id }, "✅ COD Order placed");
+
       router.push(`/payment-success?orderId=${orderRef.id}`);
 
     } catch (err) {
+
       console.log(err);
-      alert("Something went wrong ❌");
+
+      addLog("error", err.message, "🔴 Frontend crash");
+
+      alert("Error: " + err.message);
     }
 
     setLoading(false);
@@ -183,7 +198,6 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* ITEMS */}
       {items.map((item,i)=>{
 
         const price =
@@ -250,9 +264,9 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* DEBUG */}
+      {/* DEBUG SCREEN */}
       <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl">
-        <pre>{JSON.stringify({items,total},null,2)}</pre>
+        <pre>{JSON.stringify({items,total,payment},null,2)}</pre>
       </div>
 
     </div>
