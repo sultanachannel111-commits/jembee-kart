@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function CheckoutPage() {
@@ -19,7 +24,7 @@ export default function CheckoutPage() {
     freeShippingAbove: 500
   });
 
-  // 🛒 DEMO ITEMS (replace with cart later)
+  // 🛒 DEMO ITEMS (later cart se connect karna)
   const items = [
     {
       name: "Orange T-shirt",
@@ -29,21 +34,36 @@ export default function CheckoutPage() {
     }
   ];
 
-  // 🔐 LOAD USER + ADDRESS
+  // 🔐 LOAD USER + ADDRESS (MEESHO STYLE)
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+
       if (!u) return;
 
       setUser(u);
 
-      // ✅ ADDRESS LOAD (MAIN FIX)
-      const snap = await getDoc(doc(db, "users", u.uid));
+      // 📍 GET ALL ADDRESSES
+      const addrSnap = await getDocs(
+        collection(db, "users", u.uid, "address")
+      );
 
-      if (snap.exists()) {
-        const data = snap.data();
-        setAddress(data.address || null);
+      let defaultAddress = null;
+
+      addrSnap.forEach(doc => {
+        const data = doc.data();
+
+        if (data.isDefault) {
+          defaultAddress = data;
+        }
+      });
+
+      // ❗ fallback
+      if (!defaultAddress && addrSnap.docs.length > 0) {
+        defaultAddress = addrSnap.docs[0].data();
       }
+
+      setAddress(defaultAddress);
     });
 
     return () => unsub();
@@ -54,6 +74,7 @@ export default function CheckoutPage() {
   useEffect(() => {
 
     const loadShipping = async () => {
+
       const snap = await getDoc(doc(db, "config", "shipping"));
 
       if (snap.exists()) {
@@ -65,17 +86,21 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 TOTAL CALCULATION
-  const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  // 💰 CALCULATE
+  const itemsTotal = items.reduce(
+    (sum, i) => sum + i.price * i.qty,
+    0
+  );
 
   let shipping = 0;
 
   if (itemsTotal >= shippingConfig.freeShippingAbove) {
     shipping = payment === "COD" ? shippingConfig.cod : 0;
   } else {
-    shipping = payment === "COD"
-      ? shippingConfig.cod
-      : shippingConfig.prepaid;
+    shipping =
+      payment === "COD"
+        ? shippingConfig.cod
+        : shippingConfig.prepaid;
   }
 
   const total = itemsTotal + shipping;
@@ -84,7 +109,7 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
 
     if (!address) {
-      alert("Please add address ❌");
+      alert("Add address first ❌");
       return;
     }
 
@@ -120,7 +145,7 @@ export default function CheckoutPage() {
       const { load } = await import("@cashfreepayments/cashfree-js");
 
       const cashfree = await load({
-        mode: "production" // 🔥 LIVE
+        mode: "production"
       });
 
       cashfree.checkout({
@@ -146,10 +171,10 @@ export default function CheckoutPage() {
       {/* 📍 ADDRESS */}
       <div className="bg-white p-4 rounded-2xl shadow mb-4">
 
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between mb-2">
           <h2 className="font-bold">Delivery Address</h2>
           <button
-            onClick={()=>location.href="/profile"}
+            onClick={() => location.href = "/profile"}
             className="text-pink-500 text-sm"
           >
             Change
@@ -160,8 +185,10 @@ export default function CheckoutPage() {
           <div className="text-sm space-y-1">
             <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
-            <p>{address.city}, {address.state}</p>
-            <p>{address.pincode}</p>
+            <p>{address.address}</p>
+            <p>
+              {address.city}, {address.state} - {address.pincode}
+            </p>
           </div>
         ) : (
           <p className="text-red-500 text-sm">
@@ -175,12 +202,19 @@ export default function CheckoutPage() {
       {items.map((item, i) => (
         <div key={i} className="flex gap-3 bg-white p-3 rounded-2xl shadow mb-3">
 
-          <img src={item.image} className="w-16 h-16 rounded-lg" />
+          <img
+            src={item.image}
+            className="w-16 h-16 rounded-lg"
+          />
 
           <div className="flex-1">
             <p className="font-semibold">{item.name}</p>
-            <p className="text-gray-500 text-sm">Qty: {item.qty}</p>
-            <p className="text-green-600 font-bold">₹{item.price}</p>
+            <p className="text-gray-500 text-sm">
+              Qty: {item.qty}
+            </p>
+            <p className="text-green-600 font-bold">
+              ₹{item.price}
+            </p>
           </div>
 
         </div>
@@ -190,9 +224,9 @@ export default function CheckoutPage() {
       <div className="mt-4 space-y-3">
 
         <div
-          onClick={()=>setPayment("ONLINE")}
+          onClick={() => setPayment("ONLINE")}
           className={`p-3 rounded-xl border cursor-pointer ${
-            payment==="ONLINE"
+            payment === "ONLINE"
               ? "border-pink-500 bg-pink-50"
               : ""
           }`}
@@ -201,9 +235,9 @@ export default function CheckoutPage() {
         </div>
 
         <div
-          onClick={()=>setPayment("COD")}
+          onClick={() => setPayment("COD")}
           className={`p-3 rounded-xl border cursor-pointer ${
-            payment==="COD"
+            payment === "COD"
               ? "border-pink-500 bg-pink-50"
               : ""
           }`}
@@ -247,7 +281,9 @@ export default function CheckoutPage() {
               : "bg-gradient-to-r from-purple-600 to-pink-500"
           }`}
         >
-          {loading ? "Processing..." : `Pay ₹${total} 🚀`}
+          {loading
+            ? "Processing..."
+            : `Pay ₹${total} 🚀`}
         </button>
 
       </div>
