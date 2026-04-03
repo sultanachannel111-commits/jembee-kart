@@ -2,110 +2,207 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-  doc,
-  deleteDoc
-} from "firebase/firestore";
+import { getOfferPrice, getCartTotal } from "@/utils/pricing";
 
-import { getOfferPrice } from "@/utils/pricing";
-import { getActiveOffers } from "@/services/offerService";
+export default function CheckoutPage() {
 
-export default function CheckoutPage(){
+  const [items, setItems] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any>({});
+  const [user, setUser] = useState<any>(null);
 
-  const [items,setItems] = useState<any[]>([]);
-  const [offers,setOffers] = useState({});
-  const [user,setUser] = useState<any>(null);
+  const [coupon, setCoupon] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+
+  const [payment, setPayment] = useState("COD");
 
   const router = useRouter();
 
-  useEffect(()=>{
+  // 🔥 LOAD USER + CART
+  useEffect(() => {
 
-    const unsub = onAuthStateChanged(auth, async(u)=>{
-      if(!u) return;
+    let unsubscribe:any;
 
-      setUser(u);
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
 
-      const snap = await getDocs(collection(db,"carts",u.uid,"items"));
+      if (u) {
 
-      const arr:any[] = [];
-      snap.forEach(d=>arr.push({id:d.id,...d.data()}));
+        setUser(u);
 
-      setItems(arr);
+        const itemsRef = collection(db, "carts", u.uid, "items");
 
-      const off = await getActiveOffers();
-      setOffers(off);
+        unsubscribe = onSnapshot(itemsRef, (snap) => {
+
+          const arr:any[] = [];
+
+          snap.forEach(doc => {
+            const d:any = doc.data();
+
+            arr.push({
+              ...d,
+              cartId: doc.id
+            });
+          });
+
+          setItems(arr);
+        });
+
+        // 🔥 FETCH OFFERS
+        const offSnap = await getDocs(collection(db, "offers"));
+        const off:any = {};
+
+        offSnap.forEach(d=>{
+          off[d.id] = d.data();
+        });
+
+        setOffers(off);
+      }
+
     });
 
-    return ()=>unsub();
+    return ()=>{
+      unsubAuth();
+      if(unsubscribe) unsubscribe();
+    };
 
-  },[]);
+  }, []);
 
-  const total = items.reduce((s,i)=>
-    s + getOfferPrice(i,offers)*(i.quantity||1)
-  ,0);
+  // 💰 TOTALS
+  const itemsTotal = getCartTotal(items, offers);
 
-  const placeOrder = async()=>{
+  const shipping = payment === "COD" ? 60 : 40;
 
-    const cleanItems = items.map(i=>({
-      id: i.productId,
-      productId: i.productId,
-      name: i.name,
-      image: i.image,
-      quantity: i.quantity,
-      price: getOfferPrice(i,offers),
-      category: i.category || "",
-      variations: i.variations || []
-    }));
+  const total = Math.max(0, itemsTotal + shipping - couponDiscount);
 
-    const ref = await addDoc(collection(db,"orders"),{
-      userId:user.uid,
-      items:cleanItems,
-      total,
-      status:"Pending",
-      createdAt:serverTimestamp()
-    });
+  // 🎟 COUPON APPLY
+  const applyCoupon = () => {
 
-    const snap = await getDocs(collection(db,"carts",user.uid,"items"));
-
-    for(const d of snap.docs){
-      await deleteDoc(doc(db,"carts",user.uid,"items",d.id));
+    if (coupon === "SAVE50") {
+      setCouponDiscount(50);
+    } else if (coupon === "SAVE10") {
+      setCouponDiscount(itemsTotal * 0.1);
+    } else {
+      alert("Invalid coupon ❌");
+      setCouponDiscount(0);
     }
-
-    router.push(`/order-success/${ref.id}`);
   };
 
-  return(
-    <div className="p-4">
+  // 🚀 PLACE ORDER
+  const placeOrder = async () => {
 
-      <h1 className="text-xl font-bold">Checkout</h1>
+    if(items.length === 0){
+      alert("Cart empty ❌");
+      return;
+    }
 
-      {items.map(i=>(
+    if(payment === "ONLINE"){
+      alert("Online payment integration next step 🔥");
+      return;
+    }
 
-        <div key={i.id} className="border p-3 mt-2 rounded">
+    alert("Order placed (COD) ✅");
 
-          {i.name} - ₹{getOfferPrice(i,offers)}
+    router.push("/success");
+  };
+
+  return (
+    <div className="min-h-screen p-4 pb-32 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
+
+      <h1 className="text-3xl font-bold text-center mb-6">
+        Checkout 🛍
+      </h1>
+
+      {/* ITEMS */}
+      {items.map((item,i)=>(
+        <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
+
+          <p className="font-semibold">{item.name}</p>
+
+          <p className="text-green-600 font-bold">
+            ₹{getOfferPrice(item, offers)}
+          </p>
 
         </div>
-
       ))}
 
-      <h2 className="mt-4 font-bold">
-        Total ₹{total}
-      </h2>
+      {/* COUPON */}
+      <div className="flex gap-2 mt-4">
+        <input
+          value={coupon}
+          onChange={(e)=>setCoupon(e.target.value)}
+          placeholder="Enter coupon"
+          className="flex-1 border p-2 rounded-xl"
+        />
+        <button
+          onClick={applyCoupon}
+          className="bg-black text-white px-4 rounded-xl"
+        >
+          Apply
+        </button>
+      </div>
 
-      <button
-        onClick={placeOrder}
-        className="bg-black text-white p-3 w-full mt-4 rounded"
-      >
-        Place Order
-      </button>
+      {/* PAYMENT */}
+      <div className="mt-4 space-y-2">
+        <button
+          onClick={()=>setPayment("COD")}
+          className={`w-full p-3 rounded-xl border ${
+            payment==="COD" ? "border-pink-500" : ""
+          }`}
+        >
+          Cash on Delivery (+₹60)
+        </button>
+
+        <button
+          onClick={()=>setPayment("ONLINE")}
+          className={`w-full p-3 rounded-xl border ${
+            payment==="ONLINE" ? "border-pink-500" : ""
+          }`}
+        >
+          Online Payment (+₹40)
+        </button>
+      </div>
+
+      {/* SUMMARY */}
+      <div className="mt-6 bg-white p-4 rounded-2xl shadow">
+
+        <div className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </div>
+
+        <div className="flex justify-between text-green-600">
+          <span>Coupon</span>
+          <span>-₹{couponDiscount}</span>
+        </div>
+
+        <hr className="my-2"/>
+
+        <div className="flex justify-between font-bold text-xl">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </div>
+
+      </div>
+
+      {/* BUTTON */}
+      <div className="fixed bottom-0 left-0 w-full p-3">
+
+        <button
+          onClick={placeOrder}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-4 rounded-2xl font-bold"
+        >
+          Place Order 🚀
+        </button>
+
+      </div>
 
     </div>
   );
