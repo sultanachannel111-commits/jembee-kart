@@ -221,6 +221,7 @@ const stock = Number(selectedSize?.stock) || 0;
   name: product.name,
   image: images?.[0] || "",
   quantity: 1,
+    category: product.category,
 
   // 🔥 MAIN FIX
   variations: [
