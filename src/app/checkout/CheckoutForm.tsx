@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, getDocs } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -38,19 +46,19 @@ export default function CheckoutPage() {
 
           const arr:any[] = [];
 
-          snap.forEach(doc => {
-            const d:any = doc.data();
+          snap.forEach(docSnap => {
+            const d:any = docSnap.data();
 
             arr.push({
               ...d,
-              cartId: doc.id
+              cartId: docSnap.id
             });
           });
 
           setItems(arr);
         });
 
-        // 🔥 OFFERS
+        // 🔥 OFFERS LOAD
         const offSnap = await getDocs(collection(db, "offers"));
         const off:any = {};
 
@@ -70,7 +78,7 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 SAFE TOTAL (FIXED)
+  // 💰 TOTAL CALCULATION
   const itemsTotal = items.reduce((sum, item) => {
 
     const base =
@@ -93,25 +101,45 @@ export default function CheckoutPage() {
 
     if (coupon === "SAVE50") {
       setCouponDiscount(50);
-    } else if (coupon === "FLAT100") {
+    }
+    else if (coupon === "FLAT100") {
       setCouponDiscount(100);
-    } else {
+    }
+    else {
       alert("Invalid coupon ❌");
       setCouponDiscount(0);
     }
   };
 
-  // 🚀 PLACE ORDER
+  // 🚀 PLACE ORDER (REAL)
   const placeOrder = async () => {
 
-    if(items.length === 0){
-      alert("Cart empty ❌");
-      return;
+    if (!user) return alert("Login required");
+    if (items.length === 0) return alert("Cart empty");
+
+    // 🔥 ORDER DATA
+    const orderData = {
+      userId: user.uid,
+      items,
+      itemsTotal,
+      shipping,
+      couponDiscount,
+      total,
+      paymentMethod: payment,
+      status: "Placed",
+      createdAt: serverTimestamp()
+    };
+
+    // 🔥 SAVE ORDER
+    const ref = await addDoc(collection(db, "orders"), orderData);
+
+    // 🔥 CLEAR CART
+    for (const item of items) {
+      await deleteDoc(doc(db, "carts", user.uid, "items", item.cartId));
     }
 
-    alert("Order placed ✅");
-
-    router.push("/success");
+    // 🔥 REDIRECT
+    router.push(`/success?orderId=${ref.id}&total=${total}`);
   };
 
   return (
@@ -121,7 +149,7 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* 🛒 ITEMS */}
+      {/* ITEMS */}
       {items.map((item,i)=>(
         <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
 
@@ -134,7 +162,7 @@ export default function CheckoutPage() {
         </div>
       ))}
 
-      {/* 🎟 COUPON */}
+      {/* COUPON */}
       <div className="flex gap-2 mt-4">
         <input
           value={coupon}
@@ -150,7 +178,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* 💳 PAYMENT */}
+      {/* PAYMENT */}
       <div className="mt-4 space-y-2">
         <button
           onClick={()=>setPayment("COD")}
@@ -171,7 +199,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* 💰 SUMMARY */}
+      {/* SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-2xl shadow">
 
         <div className="flex justify-between">
@@ -198,7 +226,7 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* 🚀 BUTTON */}
+      {/* BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3">
 
         <button
@@ -208,13 +236,6 @@ export default function CheckoutPage() {
           Place Order 🚀
         </button>
 
-      </div>
-
-      {/* 🐞 DEBUG (YAHI ADD KARNA THA) */}
-      <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
-        <pre>
-{JSON.stringify(items, null, 2)}
-        </pre>
       </div>
 
     </div>
