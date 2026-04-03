@@ -6,41 +6,46 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 
+/* 🔥 SAFE PRICE */
+const getFinalPrice = (item:any)=>{
+  return Number(item.price || 0);
+};
+
 export default function OrderDetailsPage() {
+
   const { id } = useParams();
   const [order, setOrder] = useState<any>(null);
 
-  /* =========================
-     REALTIME FIRESTORE LISTENER
-  ========================= */
+  /* 🔄 REALTIME */
   useEffect(() => {
     if (!id) return;
 
     const unsub = onSnapshot(doc(db, "orders", id as string), (snap) => {
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() };
 
-        // total calculate
+      if (snap.exists()) {
+
+        const data:any = { id: snap.id, ...snap.data() };
+
         let total = 0;
         data.items?.forEach((item: any) => {
-          total += getFinalPrice(item) * Number(item.quantity);
+          total += getFinalPrice(item) * (item.quantity || 1);
         });
 
         setOrder({ ...data, total });
 
-        // 🔔 notification
-        toast.success(`Order ${data.status} 🚚`);
+        toast.success(`Order ${data.status || "Updated"} 🚚`);
       }
+
     });
 
     return () => unsub();
+
   }, [id]);
 
-  if (!order) return <p className="p-4">Loading...</p>;
+  if (!order)
+    return <div className="p-5 text-center">Loading...</div>;
 
-  /* =========================
-     STEPS
-  ========================= */
+  /* 🔥 TRACK STEPS */
   const steps = [
     "Pending",
     "Confirmed",
@@ -54,121 +59,140 @@ export default function OrderDetailsPage() {
   const progress =
     (currentStep / (steps.length - 1)) * 100;
 
-  /* =========================
-     WHATSAPP
-  ========================= */
+  /* 📲 WHATSAPP */
   const whatsappLink = `https://wa.me/917061369212?text=${encodeURIComponent(
     `Order Update\nID: ${order.id}\nStatus: ${order.status}`
   )}`;
 
-  /* =========================
-     MAP LOCATION
-  ========================= */
   const lat = order.location?.lat || 28.6139;
   const lng = order.location?.lng || 77.2090;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow p-5">
+<div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-pink-100 p-4">
 
-        {/* HEADER */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">Order Details</h1>
+<div className="max-w-xl mx-auto space-y-4">
 
-          <button
-            onClick={() => toast.success("Notifications 🔔")}
-            className="text-xl"
-          >
-            🔔
-          </button>
-        </div>
+{/* 🔝 HEADER */}
+<div className="backdrop-blur-xl bg-white/70 p-5 rounded-3xl shadow-xl flex justify-between items-center">
+  <h1 className="text-xl font-bold">Order Tracking</h1>
 
-        {/* PRICE */}
-        <div className="mt-2 text-green-600 font-bold text-lg">
-          ₹{order.total}
-        </div>
+  <button
+    onClick={() => toast.success("Notifications 🔔")}
+    className="text-xl"
+  >
+    🔔
+  </button>
+</div>
 
-        {/* ITEMS */}
-        <div className="mt-4 space-y-2">
-          {order.items?.map((item: any, i: number) => (
-            <div key={i} className="flex justify-between bg-gray-50 p-2 rounded-lg">
-              <span>{item.name} × {item.quantity}</span>
-              <span>₹{getFinalPrice(item) * (item.quantity || 1)}</span>
-            </div>
-          ))}
-        </div>
+{/* 💰 PRICE */}
+<div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow text-center">
+  <p className="text-gray-500 text-sm">Total Amount</p>
+  <p className="text-2xl font-bold text-green-600">
+    ₹{order.total}
+  </p>
+</div>
 
-        {/* ================= TRACKING */}
-        <div className="mt-8">
+{/* 📦 ITEMS */}
+<div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow space-y-3">
 
-          <div className="relative">
+<h3 className="font-semibold">Items</h3>
 
-            <div className="w-full h-2 bg-gray-300 rounded-full" />
+{order.items?.map((item: any, i: number) => (
 
-            <div
-              className="h-2 bg-green-500 absolute top-0 rounded-full"
-              style={{ width: `${progress}%` }}
-            />
+<div key={i}
+className="flex justify-between bg-white/60 p-3 rounded-xl">
 
-            {/* 🚚 REAL TRUCK */}
-            <div
-              className="absolute -top-4 text-2xl transition-all duration-500"
-              style={{ left: `${progress}%` }}
-            >
-              🚚
-            </div>
+<span className="text-sm">
+{item.name} × {item.quantity}
+</span>
 
-          </div>
+<span className="font-bold text-green-600">
+₹{getFinalPrice(item) * (item.quantity || 1)}
+</span>
 
-          <div className="flex justify-between mt-4 text-xs">
-            {steps.map((step, i) => (
-              <span
-                key={i}
-                className={
-                  i <= currentStep
-                    ? "text-green-600 font-bold"
-                    : "text-gray-400"
-                }
-              >
-                {step}
-              </span>
-            ))}
-          </div>
+</div>
 
-        </div>
+))}
 
-        {/* ================= LIVE MAP */}
-        <div className="mt-6">
-          <h3 className="font-semibold mb-2">📍 Live Location</h3>
+</div>
 
-          <iframe
-            className="w-full h-52 rounded-xl border"
-            src={`https://www.google.com/maps/embed/v1/view?key=AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ&center=${lat},${lng}&zoom=14`}
-          />
-        </div>
+{/* 🚚 TRACKING */}
+<div className="backdrop-blur-xl bg-white/70 p-5 rounded-2xl shadow">
 
-        {/* DELIVERY BOY */}
-        <div className="mt-6 text-center">
-          <div className="text-5xl animate-bounce">
-            🧍‍♂️📦
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Delivery partner live tracking
-          </p>
-        </div>
+<h3 className="font-semibold mb-4">Tracking</h3>
 
-        {/* WHATSAPP */}
-        <div className="mt-6">
-          <a
-            href={whatsappLink}
-            target="_blank"
-            className="w-full block text-center bg-green-500 text-white py-3 rounded-xl font-semibold"
-          >
-            Chat on WhatsApp 📲
-          </a>
-        </div>
+<div className="relative">
 
-      </div>
-    </div>
+<div className="w-full h-2 bg-gray-300 rounded-full" />
+
+<div
+className="h-2 bg-gradient-to-r from-green-400 to-green-600 absolute top-0 rounded-full transition-all duration-700"
+style={{ width: `${progress}%` }}
+/>
+
+{/* 🚚 TRUCK */}
+<div
+className="absolute -top-5 text-2xl transition-all duration-700"
+style={{ left: `${progress}%` }}
+>
+🚚
+</div>
+
+</div>
+
+<div className="flex justify-between mt-4 text-xs">
+{steps.map((step, i) => (
+<span
+key={i}
+className={
+i <= currentStep
+? "text-green-600 font-bold"
+: "text-gray-400"
+}
+>
+{step}
+</span>
+))}
+</div>
+
+</div>
+
+{/* 📍 MAP */}
+<div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow">
+
+<h3 className="font-semibold mb-2">📍 Live Location</h3>
+
+<iframe
+className="w-full h-52 rounded-xl border"
+src={`https://www.google.com/maps/embed/v1/view?key=AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ&center=${lat},${lng}&zoom=14`}
+/>
+
+</div>
+
+{/* 🚶 DELIVERY */}
+<div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow text-center">
+
+<div className="text-5xl animate-bounce">
+🧍‍♂️📦
+</div>
+
+<p className="text-sm text-gray-600 mt-2">
+Delivery partner is on the way 🚀
+</p>
+
+</div>
+
+{/* 📲 WHATSAPP */}
+<a
+href={whatsappLink}
+target="_blank"
+className="block text-center bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-2xl font-bold shadow-lg"
+>
+Chat on WhatsApp 📲
+</a>
+
+</div>
+
+</div>
   );
 }
