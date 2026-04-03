@@ -17,8 +17,8 @@ import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
 
-  const [user, setUser] = useState(null);
-  const [address, setAddress] = useState(null);
+  const [user, setUser] = useState<any>(null);
+  const [address, setAddress] = useState<any>(null);
 
   const [payment, setPayment] = useState("COD");
   const [loading, setLoading] = useState(false);
@@ -32,25 +32,37 @@ export default function CheckoutPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
 
+  // ✅ FIXED (localStorage safe)
+  const [refSeller, setRefSeller] = useState<string | null>(null);
+
   const router = useRouter();
 
-  // 🛒 DEMO ITEMS (🔥 basePrice added)
+  // 🛒 DEMO ITEMS
   const items = [
     {
       name: "Orange T-shirt",
       price: 500,
-      basePrice: 300, // 🔥 IMPORTANT
+      basePrice: 300, // 🔥 hidden profit base
       qty: 1,
       image: "https://via.placeholder.com/100"
     }
   ];
 
-  // 🔥 LOAD USER + ADDRESS + SHIPPING
+  // 🔥 LOAD USER + ADDRESS + SHIPPING + SELLER REF
   useEffect(() => {
+
+    // ✅ LOCAL STORAGE SAFE
+    if (typeof window !== "undefined") {
+      const seller = localStorage.getItem("refSeller");
+      setRefSeller(seller);
+    }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
-      if (!u) return router.push("/login");
+      if (!u) {
+        router.push("/login");
+        return;
+      }
 
       setUser(u);
 
@@ -59,7 +71,7 @@ export default function CheckoutPage() {
         collection(db, "users", u.uid, "addresses")
       );
 
-      let defaultAddr = null;
+      let defaultAddr: any = null;
 
       addrSnap.forEach(d => {
         if (d.data().isDefault) defaultAddr = d.data();
@@ -71,7 +83,7 @@ export default function CheckoutPage() {
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
-        setShippingConfig(shipSnap.data());
+        setShippingConfig(shipSnap.data() as any);
       }
 
     });
@@ -97,9 +109,7 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // 🔥 AFFILIATE + COMMISSION
-  const refSeller = localStorage.getItem("refSeller");
-
+  // 🔥 PROFIT CALCULATION
   const totalProfit = items.reduce((sum, item) => {
     const base = Number(item.basePrice || 0);
     const sell = Number(item.price || 0);
@@ -108,8 +118,9 @@ export default function CheckoutPage() {
     return sum + (sell - base) * qty;
   }, 0);
 
+  // 🔥 COMMISSION (50% PROFIT)
   const commission = refSeller
-    ? Math.floor(totalProfit * 0.5) // 🔥 50% profit
+    ? Math.floor(totalProfit * 0.5)
     : 0;
 
   // 🚀 PLACE ORDER
@@ -124,7 +135,7 @@ export default function CheckoutPage() {
       setLoading(true);
 
       const orderData = {
-        userId: user.uid,
+        userId: user?.uid || null,
         items,
         itemsTotal,
         shipping,
@@ -133,7 +144,7 @@ export default function CheckoutPage() {
         status: "Pending",
         address,
 
-        // 🔥 AFFILIATE DATA
+        // 🔥 AFFILIATE
         sellerRef: refSeller || null,
         totalProfit,
         commission,
@@ -150,8 +161,8 @@ export default function CheckoutPage() {
           orderId: ref.id,
           amount: total,
           customer: {
-            uid: user.uid,
-            email: address.email || user.email,
+            uid: user?.uid,
+            email: address.email || user?.email,
             phone: address.phone,
             firstName: address.name
           }
@@ -165,7 +176,7 @@ export default function CheckoutPage() {
 
         const data = await res.json();
 
-        if (!data.payment_session_id) {
+        if (!data?.payment_session_id) {
           alert("Payment failed ❌");
           setLoading(false);
           return;
@@ -183,7 +194,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // ✅ SUCCESS
+      // ✅ COD SUCCESS
       setOrderId(ref.id);
       setShowSuccess(true);
 
@@ -191,7 +202,7 @@ export default function CheckoutPage() {
         router.push("/profile");
       }, 2000);
 
-    } catch (err:any) {
+    } catch (err: any) {
       alert("Error: " + err.message);
     }
 
