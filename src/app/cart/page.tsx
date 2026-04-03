@@ -22,35 +22,32 @@ import { getActiveOffers } from "@/services/offerService";
 export default function CartPage() {
 
   const [items, setItems] = useState<any[]>([]);
-  const [offers, setOffers] = useState({});
+  const [offers, setOffers] = useState<any>({});
   const [user, setUser] = useState<any>(null);
 
   const router = useRouter();
 
-  /* 🔄 LOAD CART */
+  /* 🔄 LOAD CART + OFFERS */
   useEffect(() => {
 
-    let unsubscribe:any;
+    let unsubscribe: any;
 
-    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
 
       if (u) {
 
         setUser(u);
 
-        // 🔥 LOAD OFFERS
-        const off = await getActiveOffers();
-        setOffers(off);
-
+        // 🔥 REALTIME CART
         const itemsRef = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(itemsRef, (snapshot) => {
 
-          const data:any[] = [];
+          const data: any[] = [];
 
           snapshot.forEach((docSnap) => {
 
-            const d:any = docSnap.data();
+            const d: any = docSnap.data();
 
             data.push({
               id: d.productId || docSnap.id,
@@ -59,6 +56,7 @@ export default function CartPage() {
 
               name: d.name,
               image: d.image || "",
+
               price: d.price || 0,
               quantity: d.quantity || 1,
 
@@ -69,8 +67,10 @@ export default function CartPage() {
           });
 
           setItems(data);
-
         });
+
+        // 🔥 OFFERS LOAD (SEPARATE)
+        loadOffers();
 
       }
 
@@ -83,8 +83,19 @@ export default function CartPage() {
 
   }, []);
 
+  // 🔥 LOAD OFFERS FUNCTION
+  const loadOffers = async () => {
+    try {
+      const off = await getActiveOffers();
+      setOffers(off || {});
+    } catch (e) {
+      console.log("Offer load error", e);
+      setOffers({});
+    }
+  };
+
   /* ➕ INCREASE */
-  const increase = async (item:any) => {
+  const increase = async (item: any) => {
     await updateDoc(
       doc(db, "carts", user.uid, "items", item.cartId),
       {
@@ -94,7 +105,7 @@ export default function CartPage() {
   };
 
   /* ➖ DECREASE */
-  const decrease = async (item:any) => {
+  const decrease = async (item: any) => {
 
     if (item.quantity <= 1) return;
 
@@ -107,7 +118,7 @@ export default function CartPage() {
   };
 
   /* ❌ REMOVE */
-  const remove = async (cartId:string) => {
+  const remove = async (cartId: string) => {
 
     if (!confirm("Remove item?")) return;
 
@@ -140,7 +151,11 @@ export default function CartPage() {
 
           {items.map((item) => {
 
-            const price = getOfferPrice(item, offers);
+            // 🔥 SAFE PRICE (FIX)
+            const price =
+              getOfferPrice(item, offers) ||
+              item.price ||
+              0;
 
             return (
               <div
@@ -233,7 +248,7 @@ export default function CartPage() {
 
         </div>
 
-        {/* ❌ REMOVE IN PRODUCTION */}
+        {/* 🐞 DEBUG */}
         <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
           <pre>
 {JSON.stringify(items, null, 2)}
