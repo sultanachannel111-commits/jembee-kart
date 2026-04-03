@@ -156,7 +156,30 @@ export default function CheckoutPage() {
 
         addLog("response", data, "🟢 API response aaya");
 
-        if (data.payment_session_id) {
+        console.log("🔥 FULL API RESPONSE:", data);
+
+// ✅ SAFE SESSION ID
+const sessionId =
+  data?.payment_session_id ||
+  data?.data?.payment_session_id;
+
+if (sessionId) {
+
+  const { load } = await import("@cashfreepayments/cashfree-js");
+
+  const cashfree = await load({ mode: "sandbox" });
+
+  cashfree.checkout({
+    paymentSessionId: sessionId,
+    redirectTarget: "_self"
+  });
+
+} else {
+  console.log("❌ SESSION ERROR:", data);
+  alert(JSON.stringify(data, null, 2));
+  setLoading(false);
+  return;
+}
 
           const { load } = await import("@cashfreepayments/cashfree-js");
 
