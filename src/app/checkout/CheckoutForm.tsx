@@ -29,17 +29,17 @@ export default function CheckoutPage() {
     freeShippingAbove: 0
   });
 
-  // ✅ SUCCESS MODAL
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
 
   const router = useRouter();
 
-  // 🛒 DEMO ITEMS (later cart se replace karna)
+  // 🛒 DEMO ITEMS (🔥 basePrice added)
   const items = [
     {
       name: "Orange T-shirt",
       price: 500,
+      basePrice: 300, // 🔥 IMPORTANT
       qty: 1,
       image: "https://via.placeholder.com/100"
     }
@@ -67,7 +67,7 @@ export default function CheckoutPage() {
 
       setAddress(defaultAddr);
 
-      // SHIPPING CONFIG
+      // SHIPPING
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -80,7 +80,7 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 CALCULATION
+  // 💰 TOTAL
   const itemsTotal = items.reduce(
     (sum, i) => sum + i.price * i.qty,
     0
@@ -97,6 +97,21 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
+  // 🔥 AFFILIATE + COMMISSION
+  const refSeller = localStorage.getItem("refSeller");
+
+  const totalProfit = items.reduce((sum, item) => {
+    const base = Number(item.basePrice || 0);
+    const sell = Number(item.price || 0);
+    const qty = Number(item.qty || 1);
+
+    return sum + (sell - base) * qty;
+  }, 0);
+
+  const commission = refSeller
+    ? Math.floor(totalProfit * 0.5) // 🔥 50% profit
+    : 0;
+
   // 🚀 PLACE ORDER
   const placeOrder = async () => {
 
@@ -108,7 +123,6 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      // ✅ SAVE ORDER IN FIRESTORE
       const orderData = {
         userId: user.uid,
         items,
@@ -118,6 +132,12 @@ export default function CheckoutPage() {
         paymentMethod: payment,
         status: "Pending",
         address,
+
+        // 🔥 AFFILIATE DATA
+        sellerRef: refSeller || null,
+        totalProfit,
+        commission,
+
         createdAt: serverTimestamp()
       };
 
@@ -163,7 +183,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // ✅ COD SUCCESS (NO ALERT 🔥)
+      // ✅ SUCCESS
       setOrderId(ref.id);
       setShowSuccess(true);
 
@@ -171,7 +191,7 @@ export default function CheckoutPage() {
         router.push("/profile");
       }, 2000);
 
-    } catch (err) {
+    } catch (err:any) {
       alert("Error: " + err.message);
     }
 
@@ -202,7 +222,6 @@ export default function CheckoutPage() {
           <div className="mt-2 text-sm space-y-1">
             <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
-            <p>{address.email}</p>
             <p>{address.address}</p>
             <p>{address.city} - {address.pincode}</p>
           </div>
@@ -291,7 +310,7 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* ✅ SUCCESS MODAL */}
+      {/* SUCCESS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
@@ -305,10 +324,6 @@ export default function CheckoutPage() {
 
             <p className="text-sm text-gray-500 mt-2">
               Order ID: {orderId}
-            </p>
-
-            <p className="text-xs text-gray-400 mt-1">
-              Redirecting to profile...
             </p>
 
           </div>
