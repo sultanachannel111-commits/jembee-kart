@@ -7,70 +7,82 @@ import { useParams } from "next/navigation";
 
 export default function StorePage(){
 
-  const { sellerId } = useParams();
+  const params = useParams();
+  const sellerId = String(params?.sellerId || "");
+
   const [products,setProducts] = useState<any[]>([]);
   const [loading,setLoading] = useState(true);
 
-  // 🔥 LOAD PRODUCTS
   useEffect(()=>{
+
     const load = async ()=>{
 
-      const snap = await getDocs(collection(db,"products"));
-      const arr:any = [];
+      try{
+        const snap = await getDocs(collection(db,"products"));
 
-      snap.forEach(d=>{
-        const data = d.data();
+        const arr:any = [];
 
-        if(data.sellerId === sellerId){
-          arr.push({ id:d.id,...data });
+        snap.forEach(d=>{
+          const data:any = d.data();
+
+          // 🔥 DEBUG
+          console.log("CHECK:", {
+            productSeller: data.sellerId,
+            urlSeller: sellerId
+          });
+
+          // ✅ SAFE MATCH (string convert)
+          if(String(data?.sellerId) === sellerId){
+            arr.push({
+              id:d.id,
+              ...data
+            });
+          }
+        });
+
+        setProducts(arr);
+
+        // 🔥 affiliate save (safe)
+        if(typeof window !== "undefined"){
+          localStorage.setItem("refSeller", sellerId);
         }
-      });
 
-      setProducts(arr);
+      }catch(err){
+        console.log("❌ STORE ERROR:", err);
+      }
+
       setLoading(false);
-
-      // 🔥 SAVE REF (affiliate)
-      localStorage.setItem("refSeller", String(sellerId));
-
     };
 
-    load();
-  },[]);
+    if(sellerId){
+      load();
+    }
+
+  },[sellerId]);
 
 
-  const shareLink = `${typeof window !== "undefined" ? window.location.origin : ""}/store/${sellerId}`;
-
+  const shareLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/store/${sellerId}`
+      : "";
 
   return(
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4">
 
-      {/* 🔥 HEADER */}
-      <div className="glass p-5 rounded-2xl mb-5 text-center shadow-lg backdrop-blur-lg bg-white/40">
-
-        <h1 className="text-2xl font-bold">
-          🛍 Seller Store
-        </h1>
-
+      {/* HEADER */}
+      <div className="p-5 rounded-2xl mb-5 text-center shadow bg-white/40 backdrop-blur-lg">
+        <h1 className="text-2xl font-bold">🛍 Seller Store</h1>
         <p className="text-sm text-gray-600 mt-1">
           Best deals just for you 🔥
         </p>
-
       </div>
 
+      {/* SHARE */}
+      <div className="p-4 rounded-2xl mb-5 shadow bg-gradient-to-r from-green-400 to-emerald-500 text-white">
 
-      {/* 🔥 SHARE BANNER */}
-      <div className="glass p-4 rounded-2xl mb-5 shadow backdrop-blur-lg bg-gradient-to-r from-green-400/80 to-emerald-500/80 text-white">
-
-        <h2 className="font-bold text-lg">
-          🚀 Share & Earn
-        </h2>
-
-        <p className="text-sm opacity-90">
-          Share this store & earn commission 💰
-        </p>
+        <h2 className="font-bold text-lg">🚀 Share & Earn</h2>
 
         <div className="flex gap-2 mt-3">
-
           <input
             value={shareLink}
             readOnly
@@ -80,78 +92,81 @@ export default function StorePage(){
           <button
             onClick={()=>{
               navigator.clipboard.writeText(shareLink);
-              alert("Link copied ✅");
+              alert("Copied ✅");
             }}
             className="bg-white text-black px-3 rounded"
           >
             Copy
           </button>
-
         </div>
 
         <button
           onClick={()=>{
-            const text = `🛍 Shop amazing products 🔥\n\n${shareLink}`;
+            const text = `🛍 Shop now 🔥\n\n${shareLink}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
           }}
-          className="w-full mt-3 bg-white text-green-600 py-2 rounded-xl font-semibold"
+          className="w-full mt-3 bg-white text-green-600 py-2 rounded-xl"
         >
-          📲 Share Store
+          Share Store 📲
         </button>
 
       </div>
 
-
-      {/* 🔥 LOADING */}
+      {/* LOADING */}
       {loading && (
         <p className="text-center text-gray-500">
-          Loading products...
+          Loading...
         </p>
       )}
 
-
-      {/* ❌ NO PRODUCTS */}
+      {/* EMPTY */}
       {!loading && products.length === 0 && (
-        <p className="text-center text-gray-500">
+        <p className="text-center text-red-500">
           No products found ❌
         </p>
       )}
 
-
-      {/* 🔥 PRODUCTS GRID */}
+      {/* PRODUCTS */}
       <div className="grid grid-cols-2 gap-4">
 
-        {products.map((p)=>(
-          <div
-            key={p.id}
-            className="glass p-3 rounded-2xl shadow-lg backdrop-blur-lg bg-white/50"
-          >
+        {products.map((p)=>{
 
-            <img
-              src={p.image}
-              className="h-32 w-full object-cover rounded-xl"
-            />
+          const price =
+            p?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            p.price ||
+            0;
 
-            <p className="font-semibold mt-2 text-sm line-clamp-2">
-              {p.name}
-            </p>
+          const image =
+            p?.variations?.[0]?.images?.main ||
+            p.image ||
+            "/no-image.png";
 
-            <p className="text-green-600 font-bold mt-1">
-              ₹{p.price}
-            </p>
+          return(
+            <div key={p.id} className="bg-white p-3 rounded-2xl shadow">
 
-            {/* 🔥 ACTION BUTTON */}
-            <button
-              onClick={()=>{
-                window.location.href = `/product/${p.id}`;
-              }}
-              className="w-full mt-2 bg-blue-600 text-white py-2 rounded-xl text-sm"
-            >
-              View Product
-            </button>
+              <img
+                src={image}
+                className="h-32 w-full object-cover rounded-xl"
+              />
 
-          </div>
-        ))}
+              <p className="font-semibold mt-2 text-sm line-clamp-2">
+                {p.name}
+              </p>
+
+              <p className="text-green-600 font-bold mt-1">
+                ₹{price}
+              </p>
+
+              <button
+                onClick={()=>window.location.href=`/product/${p.id}`}
+                className="w-full mt-2 bg-blue-600 text-white py-2 rounded-xl text-sm"
+              >
+                View Product
+              </button>
+
+            </div>
+          );
+        })}
 
       </div>
 
