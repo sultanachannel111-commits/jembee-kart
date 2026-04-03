@@ -1,402 +1,158 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 import {
-Package,
-ShoppingCart,
-Users,
-Store,
-Tag,
-Image,
-ImagePlus,
-Gift,
-Settings,
-Bell,
-Truck,
-RefreshCcw,
-HelpCircle,
-Monitor,
-DollarSign,
-Flame,
-Cpu,
-Bug,
-Palette,
-Sparkles,
-Home
+  Package,
+  ShoppingCart,
+  Users,
+  Store,
+  Tag,
+  Image,
+  Truck,
+  Settings,
+  DollarSign,
+  Palette,
+  Home
 } from "lucide-react";
 
-export default function AdminDashboard(){
+export default function AdminDashboard() {
 
-return(
+  const [stats, setStats] = useState({
+    orders: 0,
+    users: 0,
+    revenue: 0
+  });
 
-<div className="p-8 bg-gray-100 min-h-screen">
+  /* 🔥 LOAD STATS */
+  useEffect(() => {
 
-<h1 className="text-4xl font-bold mb-10">
-JembeeKart Admin Panel
-</h1>
+    const loadStats = async () => {
 
+      const orderSnap = await getDocs(collection(db, "orders"));
+      const userSnap = await getDocs(collection(db, "users"));
 
-<div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+      let revenue = 0;
 
+      orderSnap.forEach(d => {
+        revenue += d.data().total || 0;
+      });
 
-{/* PRODUCTS */}
+      setStats({
+        orders: orderSnap.size,
+        users: userSnap.size,
+        revenue
+      });
 
-<Link href="/admin/products">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Package className="text-purple-600 mb-2"/>
-<h3 className="font-bold">Products</h3>
-<p className="text-sm text-gray-500">Manage products</p>
-</div>
-</Link>
+    };
 
+    loadStats();
 
-  {/* SHIPPING */}
-<Link href="/admin/shipping">
-  <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-    <Truck className="text-green-600 mb-2"/>
-    <h3 className="font-bold">Shipping</h3>
-    <p className="text-sm text-gray-500">
-      Manage shipping charges
-    </p>
-  </div>
-</Link>
-  
+  }, []);
 
-{/* ADD QIKINK PRODUCTS */}
+  return (
 
-<Link href="/admin/qikink-products">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Package className="text-purple-700 mb-2"/>
-<h3 className="font-bold">Add Qikink Product</h3>
-<p className="text-sm text-gray-500">Add POD product</p>
-</div>
-</Link>
+    <div className="min-h-screen p-6 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
+      {/* 🔥 HEADER */}
+      <h1 className="text-3xl font-bold mb-6">
+        🚀 JembeeKart Admin
+      </h1>
 
-{/* ORDERS */}
+      {/* 🔥 STATS */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
 
-<Link href="/admin/orders">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<ShoppingCart className="text-green-600 mb-2"/>
-<h3 className="font-bold">Orders</h3>
-<p className="text-sm text-gray-500">Manage orders</p>
-</div>
-</Link>
+        <div className="glass p-4 text-center">
+          <ShoppingCart className="mx-auto mb-2 text-purple-600"/>
+          <p className="text-lg font-bold">{stats.orders}</p>
+          <p className="text-xs text-gray-500">Orders</p>
+        </div>
 
+        <div className="glass p-4 text-center">
+          <Users className="mx-auto mb-2 text-blue-600"/>
+          <p className="text-lg font-bold">{stats.users}</p>
+          <p className="text-xs text-gray-500">Users</p>
+        </div>
 
-{/* USERS */}
+        <div className="glass p-4 text-center">
+          <DollarSign className="mx-auto mb-2 text-green-600"/>
+          <p className="text-lg font-bold">₹{stats.revenue}</p>
+          <p className="text-xs text-gray-500">Revenue</p>
+        </div>
 
-<Link href="/admin/users">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Users className="text-blue-600 mb-2"/>
-<h3 className="font-bold">Users</h3>
-<p className="text-sm text-gray-500">Manage users</p>
-</div>
-</Link>
+      </div>
 
+      {/* ================== ECOMMERCE ================== */}
 
-{/* SELLERS */}
+      <h2 className="font-bold mb-3 text-lg">🛒 Ecommerce</h2>
 
-<Link href="/admin/sellers">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Store className="text-orange-600 mb-2"/>
-<h3 className="font-bold">Sellers</h3>
-<p className="text-sm text-gray-500">Manage sellers</p>
-</div>
-</Link>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
+        <Card href="/admin/products" icon={<Package/>} title="Products"/>
+        <Card href="/admin/orders" icon={<ShoppingCart/>} title="Orders"/>
+        <Card href="/admin/users" icon={<Users/>} title="Users"/>
+        <Card href="/admin/sellers" icon={<Store/>} title="Sellers"/>
 
-{/* CATEGORIES */}
+      </div>
 
-<Link href="/admin/categories">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Tag className="text-indigo-600 mb-2"/>
-<h3 className="font-bold">Categories</h3>
-<p className="text-sm text-gray-500">Manage categories</p>
-</div>
-</Link>
+      {/* ================== STORE ================== */}
 
+      <h2 className="font-bold mb-3 text-lg">🏪 Store</h2>
 
-{/* BANNERS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
-<Link href="/admin/banners">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Image className="text-pink-600 mb-2"/>
-<h3 className="font-bold">Banners</h3>
-<p className="text-sm text-gray-500">Homepage banners</p>
-</div>
-</Link>
-  
+        <Card href="/admin/categories" icon={<Tag/>} title="Categories"/>
+        <Card href="/admin/banners" icon={<Image/>} title="Banners"/>
+        <Card href="/admin/homepage" icon={<Home/>} title="Homepage"/>
+        <Card href="/admin/shipping" icon={<Truck/>} title="Shipping"/>
 
-{/* IMAGE UPLOAD */}
+      </div>
 
-<Link href="/admin/upload-image">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<ImagePlus className="text-blue-600 mb-2"/>
-<h3 className="font-bold">Upload Image</h3>
-<p className="text-sm text-gray-500">Upload image to public folder</p>
-</div>
-</Link>
+      {/* ================== MARKETING ================== */}
 
-{/* IMAGE GALLERY */}
+      <h2 className="font-bold mb-3 text-lg">🔥 Marketing</h2>
 
-<Link href="/admin/image-gallery">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Image className="text-blue-600 mb-2"/>
-<h3 className="font-bold">Image Gallery</h3>
-<p className="text-sm text-gray-500">Copy uploaded image links</p>
-</div>
-</Link>
-  
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
-{/* HOMEPAGE */}
+        <Card href="/admin/offers" icon={<Tag/>} title="Offers"/>
+        <Card href="/admin/flash-sale" icon={<Tag/>} title="Flash Sale"/>
+        <Card href="/admin/festival" icon={<Tag/>} title="Festival"/>
 
-<Link href="/admin/homepage">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Home className="text-blue-500 mb-2"/>
-<h3 className="font-bold">Homepage</h3>
-<p className="text-sm text-gray-500">Edit homepage layout</p>
-</div>
-</Link>
+      </div>
 
+      {/* ================== SYSTEM ================== */}
 
-{/* OFFERS */}
+      <h2 className="font-bold mb-3 text-lg">⚙️ System</h2>
 
-<Link href="/admin/offers">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Tag className="text-red-500 mb-2"/>
-<h3 className="font-bold">Offers</h3>
-<p className="text-sm text-gray-500">Discount offers</p>
-</div>
-</Link>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
+        <Card href="/admin/settings" icon={<Settings/>} title="Settings"/>
+        <Card href="/admin/theme" icon={<Palette/>} title="Theme"/>
+        <Card href="/admin/payments" icon={<DollarSign/>} title="Payments"/>
 
-{/* AI OFFERS */}
+      </div>
 
-<Link href="/admin/ai-offers">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Sparkles className="text-purple-500 mb-2"/>
-<h3 className="font-bold">AI Offers</h3>
-<p className="text-sm text-gray-500">AI generated offers</p>
-</div>
-</Link>
-
-
-{/* FLASH SALE */}
-
-<Link href="/admin/flash-sale">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Flame className="text-red-500 mb-2"/>
-<h3 className="font-bold">Flash Sale</h3>
-<p className="text-sm text-gray-500">Flash sale control</p>
-</div>
-</Link>
-
-
-{/* FESTIVAL */}
-
-<Link href="/admin/festival">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Gift className="text-yellow-600 mb-2"/>
-<h3 className="font-bold">Festival Banner</h3>
-<p className="text-sm text-gray-500">Festival promotions</p>
-</div>
-</Link>
-
-
-{/* PAYMENTS */}
-
-<Link href="/admin/payments">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<DollarSign className="text-green-600 mb-2"/>
-<h3 className="font-bold">Payments</h3>
-<p className="text-sm text-gray-500">Manage payments</p>
-</div>
-</Link>
-
-
-{/* RETURNS */}
-
-<Link href="/admin/returns">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<RefreshCcw className="text-red-600 mb-2"/>
-<h3 className="font-bold">Returns</h3>
-<p className="text-sm text-gray-500">Manage returns</p>
-</div>
-</Link>
-
-
-{/* CUSTOMER QUESTIONS */}
-
-<Link href="/admin/questions">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<HelpCircle className="text-blue-500 mb-2"/>
-<h3 className="font-bold">Customer Questions</h3>
-<p className="text-sm text-gray-500">Customer support</p>
-</div>
-</Link>
-
-
-{/* NOTIFICATIONS */}
-
-<Link href="/admin/notifications">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Bell className="text-orange-500 mb-2"/>
-<h3 className="font-bold">Notifications</h3>
-<p className="text-sm text-gray-500">Admin alerts</p>
-</div>
-</Link>
-
-
-{/* QIKINK ORDERS */}
-
-<Link href="/admin/qikink">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Truck className="text-purple-600 mb-2"/>
-<h3 className="font-bold">Qikink Orders</h3>
-<p className="text-sm text-gray-500">Print on demand</p>
-</div>
-</Link>
-
-
-{/* QIKINK TEST */}
-
-<Link href="/admin/qikink-test">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Truck className="text-gray-600 mb-2"/>
-<h3 className="font-bold">Qikink Test</h3>
-<p className="text-sm text-gray-500">API testing</p>
-</div>
-</Link>
-
-
-{/* SYSTEM */}
-
-<Link href="/admin/system">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Cpu className="text-gray-700 mb-2"/>
-<h3 className="font-bold">System</h3>
-<p className="text-sm text-gray-500">System control</p>
-</div>
-</Link>
-
-
-{/* DEBUG */}
-
-<Link href="/admin/debug">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Bug className="text-red-600 mb-2"/>
-<h3 className="font-bold">Debug</h3>
-<p className="text-sm text-gray-500">Debug tools</p>
-</div>
-</Link>
-
-  
-{/* 🚀 PRO DEBUG */}
-<Link href="/admin/pro-debug">
-  <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-    <h3 className="font-bold text-lg">Pro Debug</h3>
-    <p className="text-sm text-gray-500">
-      Live logs + redirect tracking
-    </p>
-  </div>
-</Link>
-
-
-{/* DIAGNOSTICS */}
-
-<Link href="/admin/diagnostics">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Monitor className="text-gray-600 mb-2"/>
-<h3 className="font-bold">Diagnostics</h3>
-<p className="text-sm text-gray-500">System diagnostics</p>
-</div>
-</Link>
-
-  <Link
-href="/admin/search-monitor"
-className="bg-purple-600 text-white px-4 py-2 rounded"
->
-Search Monitor
-</Link>
-
-<Link
-href="/admin/runtime-check"
-className="bg-purple-600 text-white px-4 py-2 rounded"
->
-Runtime System Check
-</Link>
-
-<Link
-href="/admin/runtime-monitor"
-className="bg-purple-600 text-white px-4 py-2 rounded"
->
-Runtime Monitor
-</Link>
-  
-
-{/* THEME */}
-
-<Link href="/admin/theme">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Palette className="text-pink-500 mb-2"/>
-<h3 className="font-bold">Theme</h3>
-<p className="text-sm text-gray-500">Change theme</p>
-</div>
-</Link>
-
-  <Link
-href="/admin/auto-fix"
-className="bg-red-600 text-white px-4 py-2 rounded"
->
-AI Auto Bug Fixer
-</Link>
-
-<Link
-href="/admin/project-scanner"
-className="bg-blue-600 text-white px-4 py-2 rounded"
->
-Project Scanner
-</Link>
-
-<Link
-href="/admin/speed-optimizer"
-className="bg-green-600 text-white px-4 py-2 rounded"
->
-Speed Optimizer
-</Link>
-
-
-{/* SETTINGS */}
-
-<Link href="/admin/settings">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-<Settings className="text-gray-700 mb-2"/>
-<h3 className="font-bold">Settings</h3>
-<p className="text-sm text-gray-500">System settings</p>
-</div>
-</Link>
-
-{/* DATABASE CONTROL */}
-
-<Link href="/admin/database">
-<div className="bg-white p-6 rounded-xl shadow hover:shadow-lg">
-
-<h3 className="font-bold">Database Control</h3>
-
-<p className="text-sm text-gray-500">
-View edit delete firestore data
-</p>
-
-</div>
-</Link>
-  
-</div>
-
-</div>
-
-);
-
+    </div>
+  );
 }
 
+
+/* 🔥 CARD COMPONENT */
+function Card({ href, icon, title }) {
+  return (
+    <Link href={href}>
+      <div className="glass p-4 rounded-xl text-center hover:scale-105 transition cursor-pointer">
+
+        <div className="text-purple-600 mb-2 flex justify-center">
+          {icon}
+        </div>
+
+        <p className="font-semibold">{title}</p>
+
+      </div>
+    </Link>
+  );
+}
