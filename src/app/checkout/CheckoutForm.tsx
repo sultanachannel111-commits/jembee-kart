@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+
 import {
   collection,
   onSnapshot,
@@ -12,10 +13,11 @@ import {
   serverTimestamp,
   updateDoc
 } from "firebase/firestore";
+
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-import { getOfferPrice } from "@/utils/pricing";
+import { getOfferPrice, getCartTotal } from "@/utils/pricing";
 
 export default function CheckoutPage() {
 
@@ -30,7 +32,7 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // 🔥 LOAD USER + CART
+  // 🔥 LOAD USER + CART + OFFERS
   useEffect(() => {
 
     let unsubscribe:any;
@@ -48,10 +50,8 @@ export default function CheckoutPage() {
           const arr:any[] = [];
 
           snap.forEach(docSnap => {
-            const d:any = docSnap.data();
-
             arr.push({
-              ...d,
+              ...docSnap.data(),
               cartId: docSnap.id
             });
           });
@@ -59,14 +59,10 @@ export default function CheckoutPage() {
           setItems(arr);
         });
 
-        // 🔥 OFFERS
+        // 🔥 OFFERS LOAD
         const offSnap = await getDocs(collection(db, "offers"));
         const off:any = {};
-
-        offSnap.forEach(d=>{
-          off[d.id] = d.data();
-        });
-
+        offSnap.forEach(d => off[d.id] = d.data());
         setOffers(off);
       }
 
@@ -79,20 +75,16 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 TOTAL FIX (MAIN)
-  const itemsTotal = items.reduce((sum, item) => {
+  // 💰 ITEMS TOTAL
+  const itemsTotal = getCartTotal(items, offers);
 
-    const final = getOfferPrice(item, offers);
-
-    return sum + (final || 0) * (item.quantity || 1);
-
-  }, 0);
-
+  // 🚚 SHIPPING
   const shipping = payment === "COD" ? 60 : 40;
 
+  // 🧾 TOTAL
   const total = Math.max(0, itemsTotal + shipping - couponDiscount);
 
-  // 🎟 COUPON
+  // 🎟 COUPON SYSTEM
   const applyCoupon = () => {
 
     if (coupon === "SAVE50") {
@@ -107,7 +99,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // 🚀 FINAL PLACE ORDER (CASHFREE + COD)
+  // 🚀 PLACE ORDER
   const placeOrder = async () => {
 
     if (!user) return alert("Login required");
@@ -148,7 +140,7 @@ export default function CheckoutPage() {
         const { load } = await import("@cashfreepayments/cashfree-js");
 
         const cashfree = await load({
-          mode: "sandbox" // 🔥 production me "production"
+          mode: "sandbox" // production me "production"
         });
 
         cashfree.checkout({
@@ -183,17 +175,22 @@ export default function CheckoutPage() {
       </h1>
 
       {/* 🛒 ITEMS */}
-      {items.map((item,i)=>(
-        <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
+      {items.map((item,i)=>{
 
-          <p className="font-semibold">{item.name}</p>
+        const price = getOfferPrice(item, offers);
 
-          <p className="text-green-600 font-bold">
-            ₹{getOfferPrice(item, offers)}
-          </p>
+        return (
+          <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
 
-        </div>
-      ))}
+            <p className="font-semibold">{item.name}</p>
+
+            <p className="text-green-600 font-bold">
+              ₹{price} × {item.quantity}
+            </p>
+
+          </div>
+        );
+      })}
 
       {/* 🎟 COUPON */}
       <div className="flex gap-2 mt-4">
