@@ -1,30 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+
 import {
-  doc,
-  getDoc,
   collection,
-  getDocs
+  getDocs,
+  doc,
+  getDoc
 } from "firebase/firestore";
+
 import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
 
   const [user, setUser] = useState(null);
-  const [address, setAddress] = useState(null);
-
-  const [payment, setPayment] = useState("ONLINE");
   const [loading, setLoading] = useState(false);
+  const [payment, setPayment] = useState("ONLINE");
 
+  const [address, setAddress] = useState(null);
   const [shippingConfig, setShippingConfig] = useState({
-    prepaid: 40,
-    cod: 60,
-    freeShippingAbove: 500
+    prepaid: 0,
+    cod: 0,
+    freeShippingAbove: 0
   });
 
-  // 🛒 DEMO ITEMS (later cart se connect karna)
+  const router = useRouter();
+
+  // 🛒 DEMO ITEMS (later cart se replace karna)
   const items = [
     {
       name: "Orange T-shirt",
@@ -34,73 +38,57 @@ export default function CheckoutPage() {
     }
   ];
 
-  // 🔐 LOAD USER + ADDRESS (MEESHO STYLE)
+  // 🔥 LOAD USER + ADDRESS + SHIPPING
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
-      if (!u) return;
+      if (!u) return router.push("/login");
 
       setUser(u);
 
-      // 📍 GET ALL ADDRESSES
+      // 📍 ADDRESS LOAD (IMPORTANT FIX)
       const addrSnap = await getDocs(
-        collection(db, "users", u.uid, "address")
+        collection(db, "users", u.uid, "addresses")
       );
 
-      let defaultAddress = null;
+      let defaultAddr = null;
 
-      addrSnap.forEach(doc => {
-        const data = doc.data();
-
+      addrSnap.forEach(d => {
+        const data = d.data();
         if (data.isDefault) {
-          defaultAddress = data;
+          defaultAddr = data;
         }
       });
 
-      // ❗ fallback
-      if (!defaultAddress && addrSnap.docs.length > 0) {
-        defaultAddress = addrSnap.docs[0].data();
+      setAddress(defaultAddr);
+
+      // 🚚 SHIPPING LOAD (IMPORTANT FIX)
+      const shipSnap = await getDoc(doc(db, "config", "shipping"));
+
+      if (shipSnap.exists()) {
+        setShippingConfig(shipSnap.data());
       }
 
-      setAddress(defaultAddress);
     });
 
     return () => unsub();
 
   }, []);
 
-  // 🚚 LOAD SHIPPING CONFIG
-  useEffect(() => {
-
-    const loadShipping = async () => {
-
-      const snap = await getDoc(doc(db, "config", "shipping"));
-
-      if (snap.exists()) {
-        setShippingConfig(snap.data());
-      }
-    };
-
-    loadShipping();
-
-  }, []);
-
-  // 💰 CALCULATE
+  // 💰 CALCULATION
   const itemsTotal = items.reduce(
     (sum, i) => sum + i.price * i.qty,
     0
   );
 
-  let shipping = 0;
+  let shipping = payment === "COD"
+    ? shippingConfig.cod
+    : shippingConfig.prepaid;
 
+  // 🚀 FREE SHIPPING LOGIC
   if (itemsTotal >= shippingConfig.freeShippingAbove) {
-    shipping = payment === "COD" ? shippingConfig.cod : 0;
-  } else {
-    shipping =
-      payment === "COD"
-        ? shippingConfig.cod
-        : shippingConfig.prepaid;
+    shipping = 0;
   }
 
   const total = itemsTotal + shipping;
@@ -109,7 +97,7 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
 
     if (!address) {
-      alert("Add address first ❌");
+      alert("Please add address first ❌");
       return;
     }
 
@@ -122,39 +110,51 @@ export default function CheckoutPage() {
         customer: {
           uid: user.uid,
           email: user.email,
-          phone: address.phone || "9999999999",
-          firstName: address.name || "User"
+          phone: "9999999999",
+          firstName: user.displayName || "User"
         }
       };
 
-      const res = await fetch("/api/cashfree", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+      // 💳 ONLINE PAYMENT
+      if (payment === "ONLINE") {
 
-      const data = await res.json();
+        const res = await fetch("/api/cashfree", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
 
-      if (!data.payment_session_id) {
-        alert("Payment failed ❌");
+        const data = await res.json();
+
+        if (!data.payment_session_id) {
+          alert("Payment failed ❌");
+          setLoading(false);
+          return;
+        }
+
+        const { load } = await import("@cashfreepayments/cashfree-js");
+
+        const cashfree = await load({
+          mode: "production" // LIVE
+        });
+
+        await cashfree.checkout({
+          paymentSessionId: data.payment_session_id,
+          redirectTarget: "_self"
+        });
+
         return;
       }
 
-      const { load } = await import("@cashfreepayments/cashfree-js");
+      // 📦 COD FLOW
+      alert("Order placed successfully ✅");
 
-      const cashfree = await load({
-        mode: "production"
-      });
-
-      cashfree.checkout({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
-      });
+      router.push("/orders");
 
     } catch (err) {
-      alert(err.message);
+      alert("Error: " + err.message);
     }
 
     setLoading(false);
@@ -163,35 +163,30 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4 pb-28">
 
-      {/* HEADER */}
       <h1 className="text-3xl font-bold text-center mb-6">
         Checkout 🛍
       </h1>
 
       {/* 📍 ADDRESS */}
-      <div className="bg-white p-4 rounded-2xl shadow mb-4">
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
 
-        <div className="flex justify-between mb-2">
+        <div className="flex justify-between">
           <h2 className="font-bold">Delivery Address</h2>
           <button
-            onClick={() => location.href = "/profile"}
-            className="text-pink-500 text-sm"
+            onClick={() => router.push("/profile")}
+            className="text-pink-500"
           >
             Change
           </button>
         </div>
 
         {address ? (
-          <div className="text-sm space-y-1">
-            <p className="font-semibold">{address.name}</p>
-            <p>{address.phone}</p>
+          <div className="mt-2 text-sm">
             <p>{address.address}</p>
-            <p>
-              {address.city}, {address.state} - {address.pincode}
-            </p>
+            <p>{address.city} - {address.pincode}</p>
           </div>
         ) : (
-          <p className="text-red-500 text-sm">
+          <p className="text-red-500 mt-2">
             No address found ❌
           </p>
         )}
@@ -199,36 +194,29 @@ export default function CheckoutPage() {
       </div>
 
       {/* 🛒 ITEMS */}
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-3 bg-white p-3 rounded-2xl shadow mb-3">
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-3 bg-white p-3 rounded-xl shadow">
 
-          <img
-            src={item.image}
-            className="w-16 h-16 rounded-lg"
-          />
+            <img src={item.image} className="w-16 h-16 rounded-lg" />
 
-          <div className="flex-1">
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-gray-500 text-sm">
-              Qty: {item.qty}
-            </p>
-            <p className="text-green-600 font-bold">
-              ₹{item.price}
-            </p>
+            <div className="flex-1">
+              <p className="font-semibold">{item.name}</p>
+              <p className="text-sm text-gray-500">Qty: {item.qty}</p>
+              <p className="text-green-600 font-bold">₹{item.price}</p>
+            </div>
+
           </div>
-
-        </div>
-      ))}
+        ))}
+      </div>
 
       {/* 💳 PAYMENT */}
-      <div className="mt-4 space-y-3">
+      <div className="mt-6 space-y-3">
 
         <div
           onClick={() => setPayment("ONLINE")}
           className={`p-3 rounded-xl border cursor-pointer ${
-            payment === "ONLINE"
-              ? "border-pink-500 bg-pink-50"
-              : ""
+            payment === "ONLINE" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
           💳 Online Payment (+₹{shippingConfig.prepaid})
@@ -237,9 +225,7 @@ export default function CheckoutPage() {
         <div
           onClick={() => setPayment("COD")}
           className={`p-3 rounded-xl border cursor-pointer ${
-            payment === "COD"
-              ? "border-pink-500 bg-pink-50"
-              : ""
+            payment === "COD" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
           📦 Cash on Delivery (+₹{shippingConfig.cod})
@@ -248,7 +234,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* 💰 SUMMARY */}
-      <div className="mt-6 bg-white p-4 rounded-2xl shadow">
+      <div className="mt-6 bg-white p-4 rounded-xl shadow">
 
         <div className="flex justify-between">
           <span>Items</span>
@@ -262,7 +248,7 @@ export default function CheckoutPage() {
 
         <hr className="my-2"/>
 
-        <div className="flex justify-between font-bold text-xl">
+        <div className="flex justify-between font-bold text-lg">
           <span>Total</span>
           <span>₹{total}</span>
         </div>
@@ -270,20 +256,18 @@ export default function CheckoutPage() {
       </div>
 
       {/* 🚀 BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-3">
+      <div className="fixed bottom-0 left-0 w-full p-3 bg-white shadow-lg">
 
         <button
           onClick={placeOrder}
           disabled={loading}
-          className={`w-full py-4 rounded-2xl text-white font-bold ${
+          className={`w-full py-4 rounded-xl text-white font-bold ${
             loading
               ? "bg-gray-400"
               : "bg-gradient-to-r from-purple-600 to-pink-500"
           }`}
         >
-          {loading
-            ? "Processing..."
-            : `Pay ₹${total} 🚀`}
+          {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
 
       </div>
