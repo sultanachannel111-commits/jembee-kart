@@ -10,8 +10,7 @@ export const addLog = (type, data, message) => {
     type,
     data,
     message,
-    fix: analysis.fix,
-    hindi: analysis.hindi,
+    ...analysis,
   });
 };
 
