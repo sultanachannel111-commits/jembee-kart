@@ -2,191 +2,273 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import {
   doc,
   getDoc,
+  setDoc,
+  updateDoc,
   collection,
-  query,
-  where,
-  onSnapshot
+  getDocs,
+  addDoc,
+  deleteDoc
 } from "firebase/firestore";
+
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-export default function ProfilePage(){
+export default function ProfilePage() {
+
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>({
+    name: "",
+    phone: ""
+  });
+
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [newAddress, setNewAddress] = useState<any>({
+    label: "Home",
+    address: "",
+    city: "",
+    pincode: ""
+  });
+
+  const [orders, setOrders] = useState<any[]>([]);
 
   const router = useRouter();
 
-  const [user,setUser] = useState<any>(null);
-  const [orders,setOrders] = useState<any[]>([]);
-  const [loading,setLoading] = useState(true);
+  // 🔥 LOAD USER
+  useEffect(() => {
 
-  const [name,setName] = useState("");
-  const [wallet,setWallet] = useState(0);
+    onAuthStateChanged(auth, async (u) => {
 
-  /* 🔐 AUTH + LOAD */
-  useEffect(()=>{
-
-    let unsubOrders:any;
-
-    const unsub = onAuthStateChanged(auth, async(u)=>{
-
-      if(!u){
-        router.push("/login");
-        return;
-      }
+      if (!u) return router.push("/login");
 
       setUser(u);
 
-      // 👤 USER DATA
-      const userSnap = await getDoc(doc(db,"users",u.uid));
-
-      if(userSnap.exists()){
-        const d:any = userSnap.data();
-        setName(d?.name || d?.address?.firstName || "User");
-        setWallet(d?.wallet || 0);
+      // 🔥 PROFILE
+      const snap = await getDoc(doc(db, "users", u.uid));
+      if (snap.exists()) {
+        setProfile(snap.data());
       }
 
-      // 📦 ORDERS
-      const q = query(
-        collection(db,"orders"),
-        where("userId","==",u.uid)
-      );
+      // 🔥 ADDRESSES
+      const addrSnap = await getDocs(collection(db, "users", u.uid, "addresses"));
+      const addrArr:any[] = [];
+      addrSnap.forEach(d=>addrArr.push({ id:d.id, ...d.data() }));
+      setAddresses(addrArr);
 
-      unsubOrders = onSnapshot(q,(snap)=>{
+      // 🔥 ORDERS
+      const orderSnap = await getDocs(collection(db, "orders"));
+      const orderArr:any[] = [];
 
-        const arr:any[] = [];
-
-        snap.forEach(doc=>{
-          arr.push({
-            id:doc.id,
-            ...doc.data()
-          });
-        });
-
-        setOrders(arr);
-        setLoading(false);
-
+      orderSnap.forEach(d=>{
+        const data:any = d.data();
+        if (data.userId === u.uid) {
+          orderArr.push({ id:d.id, ...data });
+        }
       });
+
+      setOrders(orderArr);
 
     });
 
-    return ()=>{
-      unsub();
-      if(unsubOrders) unsubOrders();
-    };
+  }, []);
 
-  },[]);
+  // 💾 SAVE PROFILE
+  const saveProfile = async () => {
+    await setDoc(doc(db, "users", user.uid), profile, { merge: true });
+    alert("Profile updated ✅");
+  };
 
-  if(loading) return <div className="p-5">Loading...</div>;
+  // 📦 ADD ADDRESS
+  const addAddress = async () => {
 
-  return(
-<div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white">
+    if (!newAddress.address) return alert("Enter address");
 
-{/* 🔝 HEADER */}
-<div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-5 rounded-b-3xl shadow-lg">
-  <h1 className="text-xl font-bold">My Profile</h1>
-</div>
+    const ref = await addDoc(
+      collection(db, "users", user.uid, "addresses"),
+      {
+        ...newAddress,
+        isDefault: addresses.length === 0
+      }
+    );
 
-<div className="p-4 space-y-4">
+    setAddresses([...addresses, { id: ref.id, ...newAddress }]);
 
-{/* 👤 USER */}
-<div className="bg-white/70 backdrop-blur p-4 rounded-2xl shadow flex items-center gap-3">
+    setNewAddress({
+      label: "Home",
+      address: "",
+      city: "",
+      pincode: ""
+    });
+  };
 
-  <div className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center">
-    {user?.email?.charAt(0)?.toUpperCase()}
-  </div>
+  // ❌ DELETE ADDRESS
+  const deleteAddress = async (id:string) => {
 
-  <div>
-    <p className="font-semibold">{name}</p>
-    <p className="text-xs text-gray-500">{user?.email}</p>
-  </div>
+    await deleteDoc(doc(db, "users", user.uid, "addresses", id));
 
-</div>
+    setAddresses(addresses.filter(a=>a.id!==id));
+  };
 
-{/* 💰 WALLET */}
-<div className="bg-white/70 backdrop-blur p-4 rounded-xl shadow flex justify-between">
-  <p>Wallet</p>
-  <p className="text-green-600 font-bold">₹{wallet}</p>
-</div>
+  // ⭐ SET DEFAULT
+  const setDefault = async (id:string) => {
 
-{/* 📦 ORDERS */}
-<div>
+    for (const a of addresses) {
+      await updateDoc(
+        doc(db, "users", user.uid, "addresses", a.id),
+        { isDefault: a.id === id }
+      );
+    }
 
-<h3 className="font-semibold mb-2">My Orders</h3>
+    const updated = addresses.map(a=>({
+      ...a,
+      isDefault: a.id === id
+    }));
 
-{orders.length === 0 && (
-  <p className="text-gray-500">No orders yet</p>
-)}
+    setAddresses(updated);
+  };
 
-{orders.map(order=>(
-<div key={order.id}
-className="bg-white/80 backdrop-blur p-4 rounded-xl shadow mb-3">
+  // 🚪 LOGOUT
+  const logout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
-<p className="text-xs text-gray-400">
-Order ID: {order.id.slice(0,8)}
-</p>
+  return (
+    <div className="p-4 space-y-6 pb-24">
 
-{/* ITEMS */}
-{order.items?.map((item:any,i:number)=>(
-<div key={i}
-className="flex gap-3 mt-3 border-t pt-3">
+      <h1 className="text-2xl font-bold">My Profile</h1>
 
-<img
-src={item.image || "/no.png"}
-className="w-16 h-16 rounded-lg"
-/>
+      {/* 👤 PROFILE */}
+      <div className="bg-white p-4 rounded-2xl shadow space-y-2">
 
-<div className="flex-1">
+        <input
+          placeholder="Name"
+          value={profile.name}
+          onChange={(e)=>setProfile({...profile,name:e.target.value})}
+          className="w-full border p-2 rounded"
+        />
 
-<p className="font-medium text-sm">
-{item.name}
-</p>
+        <input
+          placeholder="Phone"
+          value={profile.phone}
+          onChange={(e)=>setProfile({...profile,phone:e.target.value})}
+          className="w-full border p-2 rounded"
+        />
 
-<p className="text-green-600 font-bold">
-₹{item.price}
-</p>
+        <input
+          value={user?.email}
+          disabled
+          className="w-full border p-2 rounded bg-gray-100"
+        />
 
-<p className="text-xs">
-Qty: {item.quantity}
-</p>
+        <button onClick={saveProfile} className="bg-black text-white w-full p-2 rounded">
+          Save Profile
+        </button>
 
-{/* 🔥 IMPORTANT FIX */}
-<button
-onClick={()=>
-router.push(`/product/${item.productId || item.id}`)
-}
-className="text-blue-600 text-xs mt-1"
->
-View Product
-</button>
+      </div>
 
-</div>
+      {/* 📍 ADD ADDRESS */}
+      <div className="bg-white p-4 rounded-2xl shadow space-y-2">
 
-</div>
-))}
+        <h2 className="font-bold">Add Address</h2>
 
-<p className="font-bold mt-3">
-Total: ₹{order.total}
-</p>
+        <select
+          value={newAddress.label}
+          onChange={(e)=>setNewAddress({...newAddress,label:e.target.value})}
+          className="w-full border p-2 rounded"
+        >
+          <option>Home</option>
+          <option>Work</option>
+        </select>
 
-</div>
-))}
+        <input
+          placeholder="Address"
+          value={newAddress.address}
+          onChange={(e)=>setNewAddress({...newAddress,address:e.target.value})}
+          className="w-full border p-2 rounded"
+        />
 
-</div>
+        <input
+          placeholder="City"
+          value={newAddress.city}
+          onChange={(e)=>setNewAddress({...newAddress,city:e.target.value})}
+          className="w-full border p-2 rounded"
+        />
 
-{/* 🚪 LOGOUT */}
-<button
-onClick={async()=>{
-  await signOut(auth);
-  router.push("/");
-}}
-className="w-full bg-red-500 text-white py-3 rounded-xl"
->
-Logout
-</button>
+        <input
+          placeholder="Pincode"
+          value={newAddress.pincode}
+          onChange={(e)=>setNewAddress({...newAddress,pincode:e.target.value})}
+          className="w-full border p-2 rounded"
+        />
 
-</div>
-</div>
+        <button onClick={addAddress} className="bg-blue-600 text-white w-full p-2 rounded">
+          Add Address
+        </button>
+
+      </div>
+
+      {/* 📦 ADDRESS LIST */}
+      <div className="space-y-2">
+
+        {addresses.map(a=>(
+          <div key={a.id} className="bg-white p-3 rounded-xl shadow">
+
+            <p className="font-semibold">{a.label}</p>
+            <p>{a.address}</p>
+            <p>{a.city} - {a.pincode}</p>
+
+            {a.isDefault && <p className="text-green-600 text-sm">Default</p>}
+
+            <div className="flex gap-3 mt-2">
+
+              <button onClick={()=>setDefault(a.id)} className="text-blue-600 text-sm">
+                Set Default
+              </button>
+
+              <button onClick={()=>deleteAddress(a.id)} className="text-red-500 text-sm">
+                Delete
+              </button>
+
+            </div>
+
+          </div>
+        ))}
+
+      </div>
+
+      {/* 📦 ORDERS */}
+      <div>
+
+        <h2 className="font-bold mb-2">My Orders</h2>
+
+        {orders.map(o=>(
+          <div key={o.id} className="bg-white p-3 mb-2 rounded-xl shadow">
+
+            <p>Order ID: {o.id}</p>
+            <p>Total: ₹{o.total}</p>
+            <p>Status: {o.status}</p>
+
+            <button
+              onClick={()=>router.push(`/track/${o.id}`)}
+              className="text-blue-600 text-sm"
+            >
+              Track Order
+            </button>
+
+          </div>
+        ))}
+
+      </div>
+
+      {/* 🚪 LOGOUT */}
+      <button onClick={logout} className="bg-red-500 text-white w-full p-3 rounded-xl">
+        Logout
+      </button>
+
+    </div>
   );
 }
