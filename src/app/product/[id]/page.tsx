@@ -216,14 +216,22 @@ const stock = Number(selectedSize?.stock) || 0;
   if (!user) return router.push(`/login?redirect=/product/${id}`);
   if (!selectedSize) return alert("Select size");
 
-  await addDoc(collection(db, "carts", user.uid, "items"), {
+const basePrice =
+  selectedSize?.sellPrice ||
+  selectedSize?.price ||
+  product?.price ||
+  0;
+
+await addDoc(collection(db, "carts", user.uid, "items"), {
+
   productId: product.id,
   name: product.name,
   image: images?.[0] || "",
   quantity: 1,
-    category: product.category,
+  category: product.category,
 
-  // 🔥 MAIN FIX
+  price: basePrice, // 🔥 MAIN FIX
+
   variations: [
     {
       ...variant,
@@ -231,7 +239,7 @@ const stock = Number(selectedSize?.stock) || 0;
     }
   ],
 
-  discount: discount
+  discount: discount || 0
 });
 
   // ✅ YAHI LIKHNA HAI (IMPORTANT)
@@ -249,19 +257,23 @@ const handleBuyNow = async () => {
   if (!selectedSize) return alert("Select size");
 
   const buyNowData = {
-    id: product.id,
-    name: product.name,
-    image: images?.[0] || "",
-    quantity: 1,
+  id: product.id,
+  productId: product.id, // 🔥 ADD THIS
+  name: product.name,
+  image: images?.[0] || "",
+  quantity: 1,
 
-    // ✅ FULL STRUCTURE (IMPORTANT)
-    variations: [
-      {
-        ...variant,
-        sizes: [selectedSize]
-      }
-    ]
-  };
+  price: finalPrice, // 🔥 ADD THIS
+
+  category: product.category,
+
+  variations: [
+    {
+      ...variant,
+      sizes: [selectedSize]
+    }
+  ]
+};
 
   console.log("🔥 BUY NOW SAVE:", buyNowData);
 
