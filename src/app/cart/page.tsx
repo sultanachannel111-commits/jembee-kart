@@ -23,6 +23,7 @@ export default function CartPage() {
 
   const router = useRouter();
 
+  /* 🔄 LOAD CART */
   useEffect(() => {
 
     let unsubscribe:any;
@@ -39,11 +40,20 @@ export default function CartPage() {
 
           const data:any[] = [];
 
-          snapshot.forEach((doc) => {
+          snapshot.forEach((docSnap) => {
+
+            const d:any = docSnap.data();
+
             data.push({
-              id: doc.id,
-              ...doc.data()
+              id: d.productId || docSnap.id,   // 🔥 productId (offer match)
+              cartId: docSnap.id,              // 🔥 cart doc id
+              name: d.name,
+              image: d.image || "",
+              price: d.price || 0,
+              quantity: d.quantity || 1,
+              variations: d.variations || []
             });
+
           });
 
           setItems(data);
@@ -61,156 +71,174 @@ export default function CartPage() {
 
   }, []);
 
-  /* 🔥 FINAL PRICE FUNCTION */
+  /* 💰 PRICE */
   const getPrice = (item:any) => {
 
-  const sellPrice =
-    item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-    item.price ||
-    0;
+    const sellPrice =
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item.price ||
+      0;
 
-  const discount = item.discount || 0;
+    return sellPrice;
+  };
 
-  return discount > 0
-    ? Math.round(sellPrice - (sellPrice * discount) / 100)
-    : sellPrice;
-};
-
-  /* INCREASE */
+  /* ➕ INCREASE */
   const increase = async (item:any) => {
     await updateDoc(
-      doc(db, "carts", user.uid, "items", item.id),
+      doc(db, "carts", user.uid, "items", item.cartId),
       {
         quantity: increment(1)
       }
     );
   };
 
-  /* DECREASE */
+  /* ➖ DECREASE */
   const decrease = async (item:any) => {
+
     if (item.quantity <= 1) return;
 
     await updateDoc(
-      doc(db, "carts", user.uid, "items", item.id),
+      doc(db, "carts", user.uid, "items", item.cartId),
       {
         quantity: increment(-1)
       }
     );
   };
 
-  /* REMOVE */
-  const remove = async (id:string) => {
-    if (!confirm("Remove this item?")) return;
+  /* ❌ REMOVE */
+  const remove = async (cartId:string) => {
+
+    if (!confirm("Remove item?")) return;
 
     await deleteDoc(
-      doc(db, "carts", user.uid, "items", id)
+      doc(db, "carts", user.uid, "items", cartId)
     );
   };
 
-  /* TOTAL */
+  /* 💵 TOTAL */
   const total = items.reduce(
-    (sum, i) =>
-      sum + getPrice(i) * (i.quantity || 1),
+    (sum, i) => sum + getPrice(i) * i.quantity,
     0
   );
 
   return (
-
     <>
-    
-    <Header />
+      <Header />
 
-    <div className="p-6 pt-[110px]">
+      <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4 pt-[110px] pb-28">
 
-      <h1 className="text-2xl font-bold mb-6">
-        🛒 Cart
-      </h1>
+        <h1 className="text-3xl font-bold text-center mb-6">
+          🛒 Your Cart
+        </h1>
 
-      {items.length === 0 && (
-        <p className="text-gray-500">Your cart is empty</p>
-      )}
+        {items.length === 0 && (
+          <div className="text-center text-gray-500">
+            Cart is empty 😢
+          </div>
+        )}
 
-      {items.map((item) => (
+        {/* ITEMS */}
+        <div className="space-y-4">
 
-        <div
-          key={item.id}
-          className="mb-4 border p-4 rounded-xl flex gap-4 items-center shadow-sm"
-        >
+          {items.map((item) => (
 
-          <img
-            src={item.image || ""}
-            className="w-20 h-20 object-cover rounded-lg"
-          />
+            <div
+              key={item.cartId}
+              className="flex gap-4 p-4 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/30 shadow-xl"
+            >
 
-          <div className="flex-1">
+              <img
+                src={item.image || "/no.png"}
+                className="w-24 h-24 rounded-2xl object-cover"
+              />
 
-            <p className="font-medium">
-              {item.name}
-            </p>
+              <div className="flex-1">
 
-            {/* ✅ FIXED PRICE */}
-            <p className="font-bold text-lg text-green-600">
-              ₹{getPrice(item)}
-            </p>
+                <p className="font-semibold text-lg">
+                  {item.name}
+                </p>
 
-            <div className="flex gap-3 mt-2 items-center">
+                <p className="text-green-600 font-bold text-xl mt-1">
+                  ₹{getPrice(item)}
+                </p>
 
-              <button
-                onClick={() => decrease(item)}
-                className="px-3 py-1 bg-gray-200 rounded"
-              >
-                -
-              </button>
+                {/* QTY */}
+                <div className="flex items-center gap-3 mt-3">
 
-              <span className="font-medium">
-                {item.quantity}
-              </span>
+                  <button
+                    onClick={() => decrease(item)}
+                    className="w-8 h-8 bg-gray-200 rounded-full"
+                  >
+                    -
+                  </button>
 
-              <button
-                onClick={() => increase(item)}
-                className="px-3 py-1 bg-gray-200 rounded"
-              >
-                +
-              </button>
+                  <span className="font-bold">
+                    {item.quantity}
+                  </span>
 
-              <button
-                onClick={() => remove(item.id)}
-                className="text-red-500 ml-4"
-              >
-                Remove
-              </button>
+                  <button
+                    onClick={() => increase(item)}
+                    className="w-8 h-8 bg-gray-200 rounded-full"
+                  >
+                    +
+                  </button>
+
+                  <button
+                    onClick={() => remove(item.cartId)}
+                    className="ml-4 text-red-500 text-sm"
+                  >
+                    Remove
+                  </button>
+
+                </div>
+
+              </div>
 
             </div>
 
+          ))}
+
+        </div>
+
+        {/* SUMMARY */}
+        <div className="mt-6 backdrop-blur-xl bg-white/60 p-4 rounded-3xl shadow-xl">
+
+          <div className="flex justify-between text-lg">
+            <span>Items Total</span>
+            <span>₹{total}</span>
           </div>
 
         </div>
 
-      ))}
+        {/* BUTTON */}
+        <div className="fixed bottom-0 left-0 w-full p-3">
 
-      {/* TOTAL */}
-      <div className="mt-6 text-xl font-bold">
-        Total : ₹{total}
+          <button
+            onClick={() => {
+
+              if (items.length === 0) {
+                alert("Cart empty ❌");
+                return;
+              }
+
+              router.push("/checkout");
+
+            }}
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-4 rounded-2xl font-bold shadow-lg"
+          >
+            Checkout 🚀
+          </button>
+
+        </div>
+
+        {/* 🐞 DEBUG (optional) */}
+        <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
+          <pre>
+{JSON.stringify(items, null, 2)}
+          </pre>
+        </div>
+
       </div>
-
-      <button
-        onClick={() => {
-
-          if (items.length === 0) {
-            alert("Cart is empty");
-            return;
-          }
-
-          router.push("/checkout");
-
-        }}
-        className="bg-black text-white px-6 py-3 rounded-xl mt-6 w-full"
-      >
-        Checkout
-      </button>
-
-    </div>
-
     </>
   );
 }
