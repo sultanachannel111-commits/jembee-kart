@@ -6,54 +6,28 @@ export async function POST(req) {
 
     const { orderId, amount, customer } = body;
 
-    // 🔍 DEBUG OBJECT
-    let debug = {
-      step: "start",
-      env: {},
-      payload: {},
-      cashfree: {},
-      error: null
-    };
-
-    // ✅ VALIDATION
+    // ❌ validation
     if (!orderId || !amount) {
       return NextResponse.json({
         success: false,
-        reason: "INVALID INPUT",
-        message: "orderId or amount missing",
-        debug
+        message: "Missing orderId or amount",
       });
     }
 
-    // ✅ ENV CHECK
-    debug.env = {
-      CLIENT_ID: process.env.CASHFREE_CLIENT_ID ? "OK" : "MISSING",
-      SECRET: process.env.CASHFREE_CLIENT_SECRET ? "OK" : "MISSING",
-      SITE: process.env.NEXT_PUBLIC_SITE_URL || "MISSING"
-    };
-
-    if (!process.env.CASHFREE_CLIENT_ID || !process.env.CASHFREE_CLIENT_SECRET) {
-      return NextResponse.json({
-        success: false,
-        reason: "ENV MISSING",
-        debug
-      });
-    }
-
-    // 🌐 CASHFREE URL
+    // 🌐 URL
     const CASHFREE_URL =
       process.env.NODE_ENV === "production"
         ? "https://api.cashfree.com/pg/orders"
         : "https://sandbox.cashfree.com/pg/orders";
 
-    // 📦 PAYLOAD
+    // 📦 payload
     const payload = {
       order_id: orderId,
       order_amount: Number(amount),
       order_currency: "INR",
 
       customer_details: {
-        customer_id: customer?.uid || "guest_" + Date.now(),
+        customer_id: customer?.uid || "guest",
         customer_name: customer?.firstName || "User",
         customer_email: customer?.email || "test@test.com",
         customer_phone: customer?.phone || "9999999999"
@@ -61,14 +35,12 @@ export async function POST(req) {
 
       order_meta: {
         return_url:
-          (process.env.NEXT_PUBLIC_SITE_URL || "") +
+          process.env.NEXT_PUBLIC_SITE_URL +
           `/payment-success?order_id=${orderId}`
       }
     };
 
-    debug.payload = payload;
-
-    // 🔥 CALL CASHFREE
+    // 🔥 API CALL
     const response = await fetch(CASHFREE_URL, {
       method: "POST",
       headers: {
@@ -80,57 +52,28 @@ export async function POST(req) {
       body: JSON.stringify(payload)
     });
 
-    let data;
+    const data = await response.json();
 
-    // ✅ SAFE JSON PARSE
-    try {
-      data = await response.json();
-    } catch (err) {
-      const text = await response.text();
+    console.log("💳 CASHFREE:", data);
 
-      debug.error = "INVALID JSON RESPONSE";
-      debug.cashfree = text;
-
-      return NextResponse.json({
-        success: false,
-        reason: "INVALID JSON",
-        debug
-      });
-    }
-
-    debug.cashfree = data;
-
-    // ❌ CASHFREE ERROR
+    // ❌ error
     if (!response.ok) {
       return NextResponse.json({
         success: false,
-        reason: "CASHFREE ERROR",
-        message: data?.message || "Unknown error",
-        debug
+        ...data
       });
     }
 
-    // ❌ NO SESSION ID
-    if (!data.payment_session_id) {
-      return NextResponse.json({
-        success: false,
-        reason: "NO SESSION ID",
-        debug
-      });
-    }
-
-    // ✅ SUCCESS
+    // ✅ success (IMPORTANT)
     return NextResponse.json({
       success: true,
       payment_session_id: data.payment_session_id,
-      order_id: data.order_id,
-      debug
+      order_id: data.order_id
     });
 
   } catch (error) {
     return NextResponse.json({
       success: false,
-      reason: "SERVER CRASH",
       message: error.message
     });
   }
