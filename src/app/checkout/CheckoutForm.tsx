@@ -27,21 +27,12 @@ export default function CheckoutPage(){
   const [coupon,setCoupon] = useState("");
   const [couponDiscount,setCouponDiscount] = useState(0);
 
-  const [customer,setCustomer] = useState({
-    name:"",
-    phone:"",
-    address:""
-  });
-
   const [payment,setPayment] = useState("cod");
 
   const [shippingConfig,setShippingConfig] = useState({
     cod:60,
-    prepaid:40,
-    freeShippingAbove:999
+    prepaid:40
   });
-
-  const [debug,setDebug] = useState<any>({});
 
   /* 🔥 BASE PRICE */
   const getBasePrice = (item:any)=>{
@@ -51,26 +42,26 @@ export default function CheckoutPage(){
     );
   };
 
-  /* 🔥 OFFER APPLY (TIME BASED) */
+  /* 🔥 FINAL OFFER PRICE */
   const getOfferPrice = (item:any)=>{
 
     const base = getBasePrice(item);
-    const offer = offers?.[item.id];
+
+    const offer = Object.values(offers).find(
+      (o:any)=> o.productId === item.id && o.active
+    );
 
     if(!offer) return base;
 
     const now = new Date();
+    const end = offer.endDate ? new Date(offer.endDate) : null;
 
-    const start = offer.startAt?.toDate?.();
-    const end = offer.endAt?.toDate?.();
-
-    if(start && end){
-      if(now < start || now > end){
-        return base; // expired
-      }
+    if(end && now > end){
+      return base;
     }
 
     const final = Math.round(base - (base * offer.discount / 100));
+
     return final > 0 ? final : base;
   };
 
@@ -82,22 +73,20 @@ export default function CheckoutPage(){
 
       setUser(u);
 
-      /* CART */
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
 
       const arr:any[] = [];
 
-      snap.forEach(docSnap=>{
-        const d:any = docSnap.data();
+      snap.forEach(doc=>{
+        const d:any = doc.data();
 
         arr.push({
-          id: d.productId || docSnap.id, // ✅ IMPORTANT
+          id:doc.id,
           name:d.name,
           quantity:d.quantity || 1,
           image:d.image || "",
-          sellerId:d.sellerId || "",
           variations:d.variations || [],
           price:d.price || 0
         });
@@ -105,27 +94,15 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      /* OFFERS */
+      /* OFFERS LOAD */
       const offerSnap = await getDocs(collection(db,"offers"));
       const off:any = {};
 
-      offerSnap.forEach(o=>{
-        off[o.id] = o.data(); // full object
+      offerSnap.forEach(doc=>{
+        off[doc.id] = doc.data();
       });
 
       setOffers(off);
-
-      /* USER */
-      const userSnap = await getDoc(doc(db,"users",u.uid));
-      if(userSnap.exists()){
-        const d:any = userSnap.data();
-
-        setCustomer({
-          name:d?.address?.firstName || "",
-          phone:d?.address?.phone || "",
-          address:d?.address?.address || ""
-        });
-      }
 
       /* SHIPPING */
       const ship = await getDoc(doc(db,"config","shipping"));
@@ -139,25 +116,25 @@ export default function CheckoutPage(){
 
   },[]);
 
-  /* 💰 TOTAL AFTER OFFER */
+  /* 💰 TOTAL */
   const itemsTotal = items.reduce(
     (s,i)=> s + (getOfferPrice(i)*i.quantity),
     0
   );
 
-  /* 🚚 SHIPPING */
   const shipping =
-    itemsTotal >= shippingConfig.freeShippingAbove
-      ? 0
-      : payment==="cod"
+    payment==="cod"
       ? shippingConfig.cod
       : shippingConfig.prepaid;
 
-  /* 🎟️ COUPON APPLY (ON DISCOUNTED PRICE) */
+  const total =
+    Math.max(0, itemsTotal - couponDiscount) + shipping;
+
+  /* 🎟️ COUPON */
   const applyCoupon = async()=>{
 
     const snap = await getDoc(
-      doc(db,"coupons",coupon.trim().toUpperCase())
+      doc(db,"coupons",coupon.toUpperCase())
     );
 
     if(!snap.exists()){
@@ -169,33 +146,17 @@ export default function CheckoutPage(){
 
     let discount = 0;
 
-    if(d.type==="flat") discount = d.value;
+    if(d.type==="flat"){
+      discount = d.value;
+    }
 
     if(d.type==="percent"){
       discount = Math.round(itemsTotal * d.value / 100);
     }
 
-    if(d.maxDiscount){
-      discount = Math.min(discount,d.maxDiscount);
-    }
-
     setCouponDiscount(discount);
+
     alert("Coupon Applied ✅");
-  };
-
-  /* 💰 FINAL TOTAL */
-  const total =
-    Math.max(0, itemsTotal - couponDiscount) + shipping;
-
-  /* 💸 COMMISSION */
-  const calcCommission = (item:any)=>{
-    const price = getOfferPrice(item);
-    const commission = price * 0.2;
-
-    return {
-      sellerAmount: price - commission,
-      commission
-    };
   };
 
   /* 🧹 CLEAR CART */
@@ -215,44 +176,31 @@ export default function CheckoutPage(){
   const placeOrder = async()=>{
 
     if(!user) return alert("Login first");
-    if(items.length===0) return alert("Cart empty");
 
     try{
       setLoading(true);
 
-      const cleanItems = items.map(i=>{
-        const c = calcCommission(i);
-
-        return {
-          id:i.id,
-          name:i.name,
-          price:getOfferPrice(i),
-          quantity:i.quantity,
-          sellerId:i.sellerId,
-          sellerAmount:c.sellerAmount,
-          commission:c.commission,
-          image:i.image
-        };
-      });
+      const cleanItems = items.map(i=>({
+        id:i.id,
+        name:i.name,
+        price:getOfferPrice(i),
+        quantity:i.quantity
+      }));
 
       const ref = await addDoc(
         collection(db,"orders"),
         {
           userId:user.uid,
           items:cleanItems,
-          itemsTotal,
-          couponDiscount,
-          shipping,
           total,
           paymentMethod:payment,
-          paymentStatus:"pending",
-          address:customer,
-          status:"Placed",
           createdAt:serverTimestamp()
         }
       );
 
       await clearCart();
+
+      window.open(`https://wa.me/?text=Order ₹${total}`);
 
       router.push(`/order-success/${ref.id}`);
 
@@ -262,18 +210,6 @@ export default function CheckoutPage(){
       setLoading(false);
     }
   };
-
-  /* 🧠 DEBUG PANEL */
-  useEffect(()=>{
-    setDebug({
-      items,
-      offers,
-      itemsTotal,
-      couponDiscount,
-      shipping,
-      total
-    });
-  },[items,offers,couponDiscount,payment]);
 
   return(
 <div className="min-h-screen bg-gradient-to-br from-pink-200 via-white to-purple-200 p-4 pb-28">
@@ -292,7 +228,7 @@ className="bg-white/60 backdrop-blur p-3 rounded-2xl shadow flex gap-3">
 className="w-20 h-20 rounded-xl"/>
 
 <div>
-<p className="font-medium">{i.name}</p>
+<p>{i.name}</p>
 
 <p className="text-green-600 font-bold">
 ₹{getOfferPrice(i)}
@@ -323,6 +259,21 @@ Apply
 </button>
 </div>
 
+{/* PAYMENT */}
+<div className="bg-white/60 backdrop-blur p-3 mt-4 rounded-2xl space-y-2">
+
+<div onClick={()=>setPayment("cod")}
+className={`p-3 rounded-xl border ${payment==="cod" && "border-pink-500"}`}>
+Cash on Delivery (+₹{shippingConfig.cod})
+</div>
+
+<div onClick={()=>setPayment("online")}
+className={`p-3 rounded-xl border ${payment==="online" && "border-pink-500"}`}>
+Online Payment (+₹{shippingConfig.prepaid})
+</div>
+
+</div>
+
 {/* SUMMARY */}
 <div className="bg-white/60 backdrop-blur p-3 mt-4 rounded-2xl">
 
@@ -350,9 +301,17 @@ Apply
 
 </div>
 
-{/* DEBUG */}
-<div className="bg-black text-green-400 text-xs p-3 mt-4 rounded-xl overflow-auto">
-<pre>{JSON.stringify(debug,null,2)}</pre>
+{/* 🐞 DEBUG PANEL */}
+<div className="mt-4 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
+<pre>
+{JSON.stringify({
+  items,
+  offers,
+  itemsTotal,
+  couponDiscount,
+  total
+},null,2)}
+</pre>
 </div>
 
 {/* BUTTON */}
