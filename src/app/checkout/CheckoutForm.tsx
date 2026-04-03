@@ -16,10 +16,11 @@ import { useRouter } from "next/navigation";
 export default function CheckoutPage() {
 
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [payment, setPayment] = useState("ONLINE");
-
   const [address, setAddress] = useState(null);
+
+  const [payment, setPayment] = useState("ONLINE");
+  const [loading, setLoading] = useState(false);
+
   const [shippingConfig, setShippingConfig] = useState({
     prepaid: 0,
     cod: 0,
@@ -47,7 +48,7 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // 📍 ADDRESS LOAD (IMPORTANT FIX)
+      // 📍 ADDRESS LOAD
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -63,7 +64,7 @@ export default function CheckoutPage() {
 
       setAddress(defaultAddr);
 
-      // 🚚 SHIPPING LOAD (IMPORTANT FIX)
+      // 🚚 SHIPPING LOAD
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -86,7 +87,6 @@ export default function CheckoutPage() {
     ? shippingConfig.cod
     : shippingConfig.prepaid;
 
-  // 🚀 FREE SHIPPING LOGIC
   if (itemsTotal >= shippingConfig.freeShippingAbove) {
     shipping = 0;
   }
@@ -97,7 +97,7 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
 
     if (!address) {
-      alert("Please add address first ❌");
+      alert("Please add address ❌");
       return;
     }
 
@@ -109,9 +109,9 @@ export default function CheckoutPage() {
         amount: total,
         customer: {
           uid: user.uid,
-          email: user.email,
-          phone: "9999999999",
-          firstName: user.displayName || "User"
+          email: address.email || user.email,
+          phone: address.phone,
+          firstName: address.name
         }
       };
 
@@ -137,7 +137,7 @@ export default function CheckoutPage() {
         const { load } = await import("@cashfreepayments/cashfree-js");
 
         const cashfree = await load({
-          mode: "production" // LIVE
+          mode: "production"
         });
 
         await cashfree.checkout({
@@ -151,7 +151,7 @@ export default function CheckoutPage() {
       // 📦 COD FLOW
       alert("Order placed successfully ✅");
 
-      router.push("/orders");
+      router.push(`/payment-success?orderId=${payload.orderId}`);
 
     } catch (err) {
       alert("Error: " + err.message);
@@ -181,7 +181,10 @@ export default function CheckoutPage() {
         </div>
 
         {address ? (
-          <div className="mt-2 text-sm">
+          <div className="mt-2 text-sm space-y-1">
+            <p className="font-semibold">{address.name}</p>
+            <p>{address.phone}</p>
+            <p className="text-gray-500">{address.email}</p>
             <p>{address.address}</p>
             <p>{address.city} - {address.pincode}</p>
           </div>
