@@ -22,6 +22,7 @@ export default function OrdersPage() {
 
   const router = useRouter();
 
+  // 🔥 LOAD ORDERS
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -72,7 +73,10 @@ export default function OrdersPage() {
 
       {orders.map(o => {
 
-        const total = o.total || o.amount || o.itemsTotal || 0;
+        // 🔥 FIXED TOTAL (MAIN BUG FIX)
+        const total =
+          Number(o.total) ||
+          (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
 
         return (
 
@@ -81,11 +85,40 @@ export default function OrdersPage() {
             className="glass p-4 rounded-2xl mb-4 shadow"
           >
 
+            {/* 🖼 PRODUCT PREVIEW */}
+            {o.items?.length > 0 && (
+              <div className="flex gap-3 mb-3">
+
+                <img
+                  src={o.items[0]?.image}
+                  alt=""
+                  className="w-16 h-16 rounded-lg object-cover border"
+                />
+
+                <div className="flex-1 text-sm">
+                  <p className="font-semibold line-clamp-1">
+                    {o.items[0]?.name}
+                  </p>
+
+                  <p className="text-gray-500">
+                    Qty: {o.items[0]?.qty}
+                  </p>
+
+                  {o.items.length > 1 && (
+                    <p className="text-xs text-gray-400">
+                      +{o.items.length - 1} more item(s)
+                    </p>
+                  )}
+                </div>
+
+              </div>
+            )}
+
             {/* ORDER ID */}
             <p className="text-sm text-gray-500">Order ID</p>
             <p className="font-bold break-all">{o.id}</p>
 
-            {/* 💰 PRICE FIXED */}
+            {/* 💰 TOTAL */}
             <p className="mt-2 text-lg font-bold text-green-600">
               ₹{total}
             </p>
@@ -105,24 +138,24 @@ export default function OrdersPage() {
 
               <div className="flex justify-between">
                 <span>Items</span>
-                <span>₹{o.itemsTotal || 0}</span>
+                <span>₹{Number(o.itemsTotal || 0)}</span>
               </div>
 
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <span>₹{o.shipping || 0}</span>
+                <span>₹{Number(o.shipping || 0)}</span>
               </div>
 
-              {o.discount > 0 && (
+              {Number(o.discount) > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Discount</span>
-                  <span>-₹{o.discount}</span>
+                  <span>-₹{Number(o.discount)}</span>
                 </div>
               )}
 
             </div>
 
-            {/* BUTTONS */}
+            {/* 🔥 BUTTONS */}
             <div className="flex justify-between mt-3">
 
               <button
@@ -145,6 +178,7 @@ export default function OrdersPage() {
             </div>
 
           </div>
+
         );
 
       })}
@@ -154,7 +188,7 @@ export default function OrdersPage() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-          <div className="glass p-5 w-[90%] max-w-md animate-slideUp">
+          <div className="glass p-5 w-[90%] max-w-md">
 
             <h2 className="font-bold text-lg mb-3">
               Help - Order
@@ -164,7 +198,7 @@ export default function OrdersPage() {
             <button
               onClick={async () => {
 
-                // COD → always cancel allowed
+                // COD → always allowed
                 if (selectedOrder.paymentMethod === "COD") {
 
                   await updateDoc(doc(db, "orders", selectedOrder.id), {
