@@ -2,321 +2,326 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  writeBatch,
-  increment
-} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-export default function ProfilePage(){
+import {
+  collection,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  deleteDoc
+} from "firebase/firestore";
+
+export default function CheckoutPage(){
 
   const router = useRouter();
 
   const [user,setUser] = useState<any>(null);
-  const [orders,setOrders] = useState<any[]>([]);
-  const [loading,setLoading] = useState(true);
+  const [items,setItems] = useState<any[]>([]);
+  const [offers,setOffers] = useState<any>({});
+  const [loading,setLoading] = useState(false);
 
-  const [name,setName] = useState("");
-  const [phone,setPhone] = useState("");
-  const [address,setAddress] = useState("");
+  const [coupon,setCoupon] = useState("");
+  const [couponDiscount,setCouponDiscount] = useState(0);
 
-  const [wallet,setWallet] = useState(0);
-  const [referralCode,setReferralCode] = useState("");
+  const [payment,setPayment] = useState("cod");
 
-  const [edit,setEdit] = useState(false);
+  const [shippingConfig,setShippingConfig] = useState({
+    cod:60,
+    prepaid:40
+  });
 
-  const steps = ["Placed","Shipped","Out for Delivery","Delivered"];
-
-  /* 🔥 SAFE ADDRESS */
-  const fixAddress = (addr:any)=>{
-    try{
-      if(typeof addr === "string") return addr;
-      if(typeof addr === "object") return addr?.address || "";
-      return "";
-    }catch{
-      return "";
-    }
+  /* 🔥 BASE PRICE */
+  const getBasePrice = (item:any)=>{
+    return Number(
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item?.price || 0
+    );
   };
 
-  /* 🔐 AUTH + LOAD */
+  /* 🔥 FINAL OFFER PRICE */
+  const getOfferPrice = (item:any)=>{
+
+    const base = getBasePrice(item);
+
+    const offer = Object.values(offers).find(
+      (o:any)=> o.productId === item.id && o.active
+    );
+
+    if(!offer) return base;
+
+    const now = new Date();
+    const end = offer.endDate ? new Date(offer.endDate) : null;
+
+    if(end && now > end){
+      return base;
+    }
+
+    const final = Math.round(base - (base * offer.discount / 100));
+
+    return final > 0 ? final : base;
+  };
+
+  /* 🔄 LOAD DATA */
   useEffect(()=>{
 
-    let unsubOrders:any;
-
-    const unsubAuth = onAuthStateChanged(auth, async(u)=>{
-
-      if(!u){
-        router.push("/login");
-        return;
-      }
+    const unsub = onAuthStateChanged(auth, async(u)=>{
+      if(!u) return;
 
       setUser(u);
 
-      const userRef = doc(db,"users",u.uid);
-      const snap = await getDoc(userRef);
-
-      // 🆕 FIRST TIME USER
-      if(!snap.exists()){
-        const code =
-          (u.email?.slice(0,4) || "USER").toUpperCase() +
-          Math.floor(1000 + Math.random()*9000);
-
-        await setDoc(userRef,{
-          name:"",
-          phone:"",
-          address:{
-            firstName:"",
-            phone:"",
-            address:""
-          },
-          wallet:0,
-          referralCode:code
-        });
-
-        setReferralCode(code);
-      }
-
-      // 🔄 REALTIME USER
-      onSnapshot(userRef,(snap)=>{
-        if(snap.exists()){
-          const d:any = snap.data();
-
-          if(typeof d.address === "object"){
-            setName(d.address?.firstName || "");
-            setPhone(d.address?.phone || "");
-            setAddress(d.address?.address || "");
-          }else{
-            setName(d.name || "");
-            setPhone(d.phone || "");
-            setAddress(d.address || "");
-          }
-
-          setWallet(d.wallet || 0);
-          setReferralCode(d.referralCode || "");
-        }
-      });
-
-      // 🔄 REALTIME ORDERS
-      const q = query(
-        collection(db,"orders"),
-        where("userId","==",u.uid)
+      const snap = await getDocs(
+        collection(db,"carts",u.uid,"items")
       );
 
-      unsubOrders = onSnapshot(q,(snap)=>{
-        const arr:any[] = [];
-        snap.forEach(doc=>{
-          arr.push({ id:doc.id, ...doc.data() });
+      const arr:any[] = [];
+
+      snap.forEach(doc=>{
+        const d:any = doc.data();
+
+        arr.push({
+          id:doc.id,
+          name:d.name,
+          quantity:d.quantity || 1,
+          image:d.image || "",
+          variations:d.variations || [],
+          price:d.price || 0
         });
-        setOrders(arr);
-        setLoading(false);
       });
+
+      setItems(arr);
+
+      /* OFFERS LOAD */
+      const offerSnap = await getDocs(collection(db,"offers"));
+      const off:any = {};
+
+      offerSnap.forEach(doc=>{
+        off[doc.id] = doc.data();
+      });
+
+      setOffers(off);
+
+      /* SHIPPING */
+      const ship = await getDoc(doc(db,"config","shipping"));
+      if(ship.exists()){
+        setShippingConfig(ship.data() as any);
+      }
 
     });
 
-    return ()=>{
-      unsubAuth();
-      if(unsubOrders) unsubOrders();
-    };
+    return ()=>unsub();
 
   },[]);
 
-  /* 💾 SAVE PROFILE + ADDRESS */
-  const saveProfile = async()=>{
-    if(!user) return;
+  /* 💰 TOTAL */
+  const itemsTotal = items.reduce(
+    (s,i)=> s + (getOfferPrice(i)*i.quantity),
+    0
+  );
 
-    await setDoc(doc(db,"users",user.uid),{
-      address:{
-        firstName:name,
-        phone:phone,
-        address:address
-      }
-    },{merge:true});
+  const shipping =
+    payment==="cod"
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
-    setEdit(false);
-    alert("Saved ✅");
+  const total =
+    Math.max(0, itemsTotal - couponDiscount) + shipping;
+
+  /* 🎟️ COUPON */
+  const applyCoupon = async()=>{
+
+    const snap = await getDoc(
+      doc(db,"coupons",coupon.toUpperCase())
+    );
+
+    if(!snap.exists()){
+      alert("Invalid coupon ❌");
+      return;
+    }
+
+    const d:any = snap.data();
+
+    let discount = 0;
+
+    if(d.type==="flat"){
+      discount = d.value;
+    }
+
+    if(d.type==="percent"){
+      discount = Math.round(itemsTotal * d.value / 100);
+    }
+
+    setCouponDiscount(discount);
+
+    alert("Coupon Applied ✅");
   };
 
-  /* ❌ CANCEL ORDER */
-  const cancelOrder = async(id:string)=>{
-    try{
-      const ref = doc(db,"orders",id);
-      const snap = await getDoc(ref);
+  /* 🧹 CLEAR CART */
+  const clearCart = async()=>{
+    const snap = await getDocs(
+      collection(db,"carts",user.uid,"items")
+    );
 
-      if(!snap.exists()) return;
-
-      const data:any = snap.data();
-      const batch = writeBatch(db);
-
-      batch.update(ref,{status:"Cancelled"});
-
-      for(const item of data?.items || []){
-        const pRef = doc(db,"products",item.productId);
-        batch.update(pRef,{
-          stock: increment(item.quantity)
-        });
-      }
-
-      await batch.commit();
-
-    }catch(err){
-      console.log("Cancel error", err);
+    for(const d of snap.docs){
+      await deleteDoc(
+        doc(db,"carts",user.uid,"items",d.id)
+      );
     }
   };
 
-  /* 📦 STEP */
-  const getStep = (status:any)=>{
-    const s = String(status || "").toLowerCase();
-    if(s==="placed") return 0;
-    if(s==="shipped") return 1;
-    if(s==="out for delivery") return 2;
-    if(s==="delivered") return 3;
-    return 0;
-  };
+  /* 📦 PLACE ORDER */
+  const placeOrder = async()=>{
 
-  /* 💰 PRICE */
-  const getPrice = (order:any)=>{
-    return Number(order?.total) || 0;
-  };
+    if(!user) return alert("Login first");
 
-  /* 📤 SHARE */
-  const shareReferral = ()=>{
-    const msg = `Join JembeeKart 💰 Use code: ${referralCode}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
-  };
+    try{
+      setLoading(true);
 
-  if(loading) return <div className="p-5">Loading...</div>;
+      const cleanItems = items.map(i=>({
+        id:i.id,
+        name:i.name,
+        price:getOfferPrice(i),
+        quantity:i.quantity
+      }));
+
+      const ref = await addDoc(
+        collection(db,"orders"),
+        {
+          userId:user.uid,
+          items:cleanItems,
+          total,
+          paymentMethod:payment,
+          createdAt:serverTimestamp()
+        }
+      );
+
+      await clearCart();
+
+      window.open(`https://wa.me/?text=Order ₹${total}`);
+
+      router.push(`/order-success/${ref.id}`);
+
+    }catch(err:any){
+      alert(err.message);
+    }finally{
+      setLoading(false);
+    }
+  };
 
   return(
-<div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white">
+<div className="min-h-screen bg-gradient-to-br from-pink-200 via-white to-purple-200 p-4 pb-28">
 
-{/* 🔝 HEADER */}
-<div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-5 rounded-b-3xl shadow-lg">
-  <h1 className="text-xl font-bold">My Account</h1>
-</div>
+<h1 className="text-2xl font-bold text-center mb-4">
+Checkout 🛍️
+</h1>
 
-<div className="p-4 space-y-4">
+{/* ITEMS */}
+<div className="space-y-3">
+{items.map(i=>(
+<div key={i.id}
+className="bg-white/60 backdrop-blur p-3 rounded-2xl shadow flex gap-3">
 
-{/* 👤 PROFILE */}
-<div className="bg-white/80 backdrop-blur p-4 rounded-2xl shadow flex items-center gap-3">
-  <div className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center">
-    {user?.email?.charAt(0)?.toUpperCase()}
-  </div>
+<img src={i.image || "/no.png"}
+className="w-20 h-20 rounded-xl"/>
 
-  <div className="flex-1">
-    <p className="font-semibold">{name || "User"}</p>
-    <p className="text-xs text-gray-500">{user.email}</p>
-  </div>
-
-  <button onClick={()=>setEdit(!edit)}
-    className="text-purple-600 text-sm">
-    Edit
-  </button>
-</div>
-
-{/* ✏️ EDIT */}
-{edit && (
-<div className="bg-white p-4 rounded-xl shadow space-y-2">
-  <input value={name} onChange={(e)=>setName(e.target.value)}
-    placeholder="Name" className="w-full border p-2 rounded"/>
-
-  <input value={phone} onChange={(e)=>setPhone(e.target.value)}
-    placeholder="Phone" className="w-full border p-2 rounded"/>
-
-  <textarea value={address} onChange={(e)=>setAddress(e.target.value)}
-    placeholder="Address" className="w-full border p-2 rounded"/>
-
-  <button onClick={saveProfile}
-    className="w-full bg-purple-600 text-white py-2 rounded">
-    Save
-  </button>
-</div>
-)}
-
-{/* 🏠 ADDRESS */}
-<div className="bg-white p-4 rounded-xl shadow">
-  <p className="font-semibold">Delivery Address</p>
-  <p className="text-sm text-gray-600">
-    {fixAddress({address}) || "No address"}
-  </p>
-</div>
-
-{/* 💰 WALLET */}
-<div className="bg-white p-4 rounded-xl shadow flex justify-between">
-  <p>Wallet</p>
-  <p className="text-green-600 font-bold">₹{wallet}</p>
-</div>
-
-{/* 🎁 REFERRAL */}
-<div className="bg-white p-4 rounded-xl shadow">
-  <p className="text-sm">Referral Code</p>
-  <p className="font-bold text-lg">{referralCode}</p>
-
-  <div className="flex gap-3 mt-2">
-    <button onClick={()=>navigator.clipboard.writeText(referralCode)}
-      className="text-blue-600 text-sm">Copy</button>
-
-    <button onClick={shareReferral}
-      className="text-green-600 text-sm">WhatsApp</button>
-  </div>
-</div>
-
-{/* 📦 ORDERS */}
 <div>
-<h3 className="font-semibold mb-2">My Orders</h3>
+<p>{i.name}</p>
 
-{orders.map(order=>(
-<div key={order.id}
-className="bg-white p-4 rounded-xl shadow mb-3">
-
-<p className="text-xs text-gray-400">
-#{order.id.slice(0,8)}
+<p className="text-green-600 font-bold">
+₹{getOfferPrice(i)}
 </p>
 
-<div className="flex mt-2">
-{steps.map((step,i)=>(
-<div key={i} className="flex-1 text-center text-xs">
-<div className={`h-2 rounded ${
-getStep(order.status)>=i
-? "bg-green-500"
-: "bg-gray-300"
-}`} />
-<p>{step}</p>
-</div>
-))}
-</div>
+<p className="text-xs line-through text-gray-400">
+₹{getBasePrice(i)}
+</p>
 
-<p className="font-bold mt-2">₹{getPrice(order)}</p>
-
-{order.status !== "Delivered" && (
-<button
-onClick={()=>cancelOrder(order.id)}
-className="text-red-500 text-xs mt-2">
-Cancel Order
-</button>
-)}
+<p className="text-xs">Qty: {i.quantity}</p>
+</div>
 
 </div>
 ))}
 </div>
 
-{/* 🚪 LOGOUT */}
-<button onClick={async()=>{
-  await signOut(auth);
-  router.push("/");
-}}
-className="w-full bg-red-500 text-white py-3 rounded-xl">
-Logout
+{/* COUPON */}
+<div className="bg-white/60 backdrop-blur p-3 mt-4 rounded-2xl flex gap-2">
+<input
+value={coupon}
+onChange={e=>setCoupon(e.target.value)}
+placeholder="Enter coupon"
+className="flex-1 p-2 border rounded"
+/>
+<button onClick={applyCoupon}
+className="bg-black text-white px-4 rounded-xl">
+Apply
 </button>
+</div>
+
+{/* PAYMENT */}
+<div className="bg-white/60 backdrop-blur p-3 mt-4 rounded-2xl space-y-2">
+
+<div onClick={()=>setPayment("cod")}
+className={`p-3 rounded-xl border ${payment==="cod" && "border-pink-500"}`}>
+Cash on Delivery (+₹{shippingConfig.cod})
+</div>
+
+<div onClick={()=>setPayment("online")}
+className={`p-3 rounded-xl border ${payment==="online" && "border-pink-500"}`}>
+Online Payment (+₹{shippingConfig.prepaid})
+</div>
 
 </div>
+
+{/* SUMMARY */}
+<div className="bg-white/60 backdrop-blur p-3 mt-4 rounded-2xl">
+
+<div className="flex justify-between">
+<span>Items</span>
+<span>₹{itemsTotal}</span>
+</div>
+
+<div className="flex justify-between">
+<span>Shipping</span>
+<span>₹{shipping}</span>
+</div>
+
+<div className="flex justify-between text-green-600">
+<span>Coupon</span>
+<span>-₹{couponDiscount}</span>
+</div>
+
+<hr className="my-2"/>
+
+<div className="flex justify-between font-bold text-lg">
+<span>Total</span>
+<span>₹{total}</span>
+</div>
+
+</div>
+
+{/* 🐞 DEBUG PANEL */}
+<div className="mt-4 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
+<pre>
+{JSON.stringify({
+  items,
+  offers,
+  itemsTotal,
+  couponDiscount,
+  total
+},null,2)}
+</pre>
+</div>
+
+{/* BUTTON */}
+<div className="fixed bottom-0 left-0 w-full p-3">
+<button onClick={placeOrder}
+className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl">
+{loading ? "Processing..." : "Place Order 🚀"}
+</button>
+</div>
+
 </div>
   );
 }
