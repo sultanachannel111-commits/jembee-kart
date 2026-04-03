@@ -41,10 +41,7 @@ export default function ProfilePage() {
         const data = d.data();
 
         if (data.userId === u.uid) {
-          arr.push({
-            id: d.id,
-            ...data
-          });
+          arr.push({ id: d.id, ...data });
         }
       });
 
@@ -56,6 +53,12 @@ export default function ProfilePage() {
 
   }, []);
 
+  // 👤 NAME EXTRACT (email se)
+  const getName = () => {
+    if (!user?.email) return "User";
+    return user.email.split("@")[0].toUpperCase();
+  };
+
   // 🚚 DELIVERY DATE
   const getDeliveryDate = (order) => {
     if (!order.createdAt?.toDate) return "N/A";
@@ -64,23 +67,30 @@ export default function ProfilePage() {
     return d.toDateString();
   };
 
+  // 📊 TRACKING STEPS
+  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
+
   return (
     <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
 
-      {/* 👤 USER INFO */}
-      <div className="glass p-4 rounded-2xl mb-5">
-        <h1 className="text-xl font-bold">My Profile 👤</h1>
+      {/* 👤 USER */}
+      <div className="glass p-5 rounded-2xl mb-5 text-center">
 
-        <p className="mt-2 text-sm">
+        <h1 className="text-2xl font-bold">
+          👤 {getName()}
+        </h1>
+
+        <p className="text-sm text-gray-500 mt-1">
           {user?.email}
         </p>
 
         <button
           onClick={() => auth.signOut()}
-          className="mt-3 bg-red-500 text-white px-4 py-1 rounded"
+          className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl"
         >
           Logout
         </button>
+
       </div>
 
       {/* 📦 ORDERS */}
@@ -97,6 +107,13 @@ export default function ProfilePage() {
         const total =
           Number(o.total) ||
           (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
+
+        const current = steps.indexOf(o.status || "Pending");
+
+        const progress =
+          current <= 0
+            ? 5
+            : (current / (steps.length - 1)) * 100;
 
         return (
 
@@ -136,23 +153,43 @@ export default function ProfilePage() {
             </p>
 
             {/* STATUS */}
-            <p className="text-yellow-600">
+            <p className="text-yellow-600 font-semibold">
               {o.status || "Pending"}
             </p>
 
-            {/* DELIVERY */}
-            <p className="text-xs">
+            {/* 🚚 DELIVERY */}
+            <p className="text-xs mt-1">
               🚚 {getDeliveryDate(o)}
             </p>
+
+            {/* 📊 TRACKING BAR */}
+            <div className="mt-4">
+
+              <div className="h-2 bg-gray-300 rounded-full" />
+
+              <div
+                className="h-2 bg-green-500 rounded-full -mt-2"
+                style={{ width: `${progress}%` }}
+              />
+
+            </div>
+
+            <div className="flex justify-between text-[10px] mt-2">
+              {steps.map((s, i) => (
+                <span key={i} className={i <= current ? "text-green-600" : ""}>
+                  {s}
+                </span>
+              ))}
+            </div>
 
             {/* BUTTONS */}
             <div className="flex justify-between mt-3">
 
               <button
                 onClick={() => router.push(`/track/${o.id}`)}
-                className="text-blue-600"
+                className="text-blue-600 font-medium"
               >
-                Track
+                Full Track
               </button>
 
               <button
