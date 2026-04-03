@@ -25,24 +25,16 @@ export default function StorePage(){
         snap.forEach(d=>{
           const data:any = d.data();
 
-          // 🔥 DEBUG
-          console.log("CHECK:", {
-            productSeller: data.sellerId,
-            urlSeller: sellerId
+          // ✅ NO FILTER (IMPORTANT FIX)
+          arr.push({
+            id:d.id,
+            ...data
           });
-
-          // ✅ SAFE MATCH (string convert)
-          if(String(data?.sellerId) === sellerId){
-            arr.push({
-              id:d.id,
-              ...data
-            });
-          }
         });
 
         setProducts(arr);
 
-        // 🔥 affiliate save (safe)
+        // 🔥 affiliate save
         if(typeof window !== "undefined"){
           localStorage.setItem("refSeller", sellerId);
         }
@@ -54,9 +46,7 @@ export default function StorePage(){
       setLoading(false);
     };
 
-    if(sellerId){
-      load();
-    }
+    load();
 
   },[sellerId]);
 
@@ -65,6 +55,7 @@ export default function StorePage(){
     typeof window !== "undefined"
       ? `${window.location.origin}/store/${sellerId}`
       : "";
+
 
   return(
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4">
@@ -82,7 +73,12 @@ export default function StorePage(){
 
         <h2 className="font-bold text-lg">🚀 Share & Earn</h2>
 
+        <p className="text-sm opacity-90">
+          Share this store & earn commission 💰
+        </p>
+
         <div className="flex gap-2 mt-3">
+
           <input
             value={shareLink}
             readOnly
@@ -92,22 +88,23 @@ export default function StorePage(){
           <button
             onClick={()=>{
               navigator.clipboard.writeText(shareLink);
-              alert("Copied ✅");
+              alert("Link copied ✅");
             }}
             className="bg-white text-black px-3 rounded"
           >
             Copy
           </button>
+
         </div>
 
         <button
           onClick={()=>{
-            const text = `🛍 Shop now 🔥\n\n${shareLink}`;
+            const text = `🛍 Shop amazing products 🔥\n\n${shareLink}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
           }}
-          className="w-full mt-3 bg-white text-green-600 py-2 rounded-xl"
+          className="w-full mt-3 bg-white text-green-600 py-2 rounded-xl font-semibold"
         >
-          Share Store 📲
+          📲 Share Store
         </button>
 
       </div>
@@ -115,7 +112,7 @@ export default function StorePage(){
       {/* LOADING */}
       {loading && (
         <p className="text-center text-gray-500">
-          Loading...
+          Loading products...
         </p>
       )}
 
@@ -142,7 +139,10 @@ export default function StorePage(){
             "/no-image.png";
 
           return(
-            <div key={p.id} className="bg-white p-3 rounded-2xl shadow">
+            <div
+              key={p.id}
+              className="bg-white p-3 rounded-2xl shadow"
+            >
 
               <img
                 src={image}
