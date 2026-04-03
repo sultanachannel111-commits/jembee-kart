@@ -42,13 +42,13 @@ export default function CheckoutPage(){
     );
   };
 
-  /* 🔥 FINAL OFFER PRICE */
-  const getOfferPrice = (item:any)=>{
+  /* 🔥 FINAL PRICE (OFFER + TIME FIX) */
+  const getFinalPrice = (item:any)=>{
 
     const base = getBasePrice(item);
 
     const offer = Object.values(offers).find(
-      (o:any)=> o.productId === item.id && o.active
+      (o:any)=> o.productId === item.id && o.active === true
     );
 
     if(!offer) return base;
@@ -57,7 +57,7 @@ export default function CheckoutPage(){
     const end = offer.endDate ? new Date(offer.endDate) : null;
 
     if(end && now > end){
-      return base;
+      return base; // expired
     }
 
     const final = Math.round(base - (base * offer.discount / 100));
@@ -73,6 +73,7 @@ export default function CheckoutPage(){
 
       setUser(u);
 
+      /* CART */
       const snap = await getDocs(
         collection(db,"carts",u.uid,"items")
       );
@@ -94,7 +95,7 @@ export default function CheckoutPage(){
 
       setItems(arr);
 
-      /* OFFERS LOAD */
+      /* OFFERS */
       const offerSnap = await getDocs(collection(db,"offers"));
       const off:any = {};
 
@@ -118,7 +119,7 @@ export default function CheckoutPage(){
 
   /* 💰 TOTAL */
   const itemsTotal = items.reduce(
-    (s,i)=> s + (getOfferPrice(i)*i.quantity),
+    (s,i)=> s + (getFinalPrice(i)*i.quantity),
     0
   );
 
@@ -183,7 +184,7 @@ export default function CheckoutPage(){
       const cleanItems = items.map(i=>({
         id:i.id,
         name:i.name,
-        price:getOfferPrice(i),
+        price:getFinalPrice(i),
         quantity:i.quantity
       }));
 
@@ -220,18 +221,24 @@ Checkout 🛍️
 
 {/* ITEMS */}
 <div className="space-y-3">
-{items.map(i=>(
+{items.map(i=>{
+
+  const offer = Object.values(offers).find(
+    (o:any)=>o.productId === i.id
+  );
+
+  return(
 <div key={i.id}
 className="bg-white/60 backdrop-blur p-3 rounded-2xl shadow flex gap-3">
 
 <img src={i.image || "/no.png"}
 className="w-20 h-20 rounded-xl"/>
 
-<div>
+<div className="flex-1">
 <p>{i.name}</p>
 
 <p className="text-green-600 font-bold">
-₹{getOfferPrice(i)}
+₹{getFinalPrice(i)}
 </p>
 
 <p className="text-xs line-through text-gray-400">
@@ -239,10 +246,20 @@ className="w-20 h-20 rounded-xl"/>
 </p>
 
 <p className="text-xs">Qty: {i.quantity}</p>
+
+{/* 🔥 PER ITEM DEBUG */}
+<pre className="bg-black text-green-400 text-[10px] mt-2 p-2 rounded overflow-auto">
+{JSON.stringify({
+  productId:i.id,
+  offer,
+  final:getFinalPrice(i)
+},null,2)}
+</pre>
+
 </div>
 
 </div>
-))}
+)})}
 </div>
 
 {/* COUPON */}
@@ -301,7 +318,7 @@ Online Payment (+₹{shippingConfig.prepaid})
 
 </div>
 
-{/* 🐞 DEBUG PANEL */}
+{/* 🔥 FULL DEBUG */}
 <div className="mt-4 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
 <pre>
 {JSON.stringify({
