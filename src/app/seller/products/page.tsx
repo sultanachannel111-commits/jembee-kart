@@ -32,8 +32,6 @@ export default function SellerProductsPage() {
           ...doc.data(),
         }));
 
-        console.log("🔥 PRODUCTS:", data);
-
         setProducts(data);
       } catch (err) {
         console.log("❌ PRODUCT ERROR:", err);
@@ -45,7 +43,7 @@ export default function SellerProductsPage() {
     fetchProducts();
   }, []);
 
-  // 🔥 FETCH OFFERS (FIXED)
+  // 🔥 FETCH OFFERS
   useEffect(() => {
     const fetchOffers = async () => {
       try {
@@ -56,13 +54,10 @@ export default function SellerProductsPage() {
         snap.docs.forEach((doc) => {
           const d: any = doc.data();
 
-          // ✅ productId use karo (IMPORTANT FIX)
           if (d.productId && d.active) {
             data[d.productId] = d.discount || 0;
           }
         });
-
-        console.log("🔥 OFFERS MAP:", data);
 
         setOffers(data);
       } catch (err) {
@@ -73,10 +68,58 @@ export default function SellerProductsPage() {
     fetchOffers();
   }, []);
 
+  // 🔥 STORE SHARE LINK
+  const storeLink =
+    typeof window !== "undefined" && user
+      ? `${window.location.origin}/store/${user.uid}`
+      : "";
+
+  const shareStore = () => {
+    if (!user) return alert("Login required ❌");
+
+    const text = `🔥 Check all my products & earn money\n${storeLink}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+  };
+
+  const copyStore = () => {
+    navigator.clipboard.writeText(storeLink);
+    alert("Store link copied ✅");
+  };
+
   if (loading) return <div className="p-5">Loading...</div>;
 
   return (
     <div className="p-4">
+
+      {/* 🔥 ALL STORE SHARE (TOP) */}
+      {user && (
+        <div className="bg-white/80 backdrop-blur-lg p-4 rounded-2xl shadow mb-5">
+
+          <h2 className="text-lg font-bold mb-2">
+            🚀 Share Full Store
+          </h2>
+
+          <div className="flex gap-2">
+
+            <button
+              onClick={shareStore}
+              className="flex-1 bg-green-500 text-white py-2 rounded-xl"
+            >
+              WhatsApp
+            </button>
+
+            <button
+              onClick={copyStore}
+              className="flex-1 bg-black text-white py-2 rounded-xl"
+            >
+              Copy Link
+            </button>
+
+          </div>
+
+        </div>
+      )}
 
       <h1 className="text-2xl font-bold mb-4">
         All Products
@@ -90,22 +133,21 @@ export default function SellerProductsPage() {
 
           {products.map((p: any) => {
 
-            // 🔥 BASE PRICE
+            // 🔥 BASE PRICE (hidden)
             const basePrice =
-              p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0;
+              p?.variations?.[0]?.sizes?.[0]?.price || 0;
 
-            // 🔥 OFFER (FIXED)
+            // 🔥 SELL PRICE
+            const sellPrice =
+              p?.variations?.[0]?.sizes?.[0]?.sellPrice || basePrice;
+
+            // 🔥 OFFER
             const discount = offers[p.id] ?? 0;
 
             // 🔥 FINAL PRICE
             const finalPrice = Math.round(
-              basePrice - (basePrice * discount) / 100
+              sellPrice - (sellPrice * discount) / 100
             );
-
-            console.log("🧪 CHECK:", {
-              productId: p.id,
-              discount,
-            });
 
             return (
               <div
@@ -124,26 +166,26 @@ export default function SellerProductsPage() {
                   {p.name}
                 </p>
 
-                {/* PRICE */}
+                {/* FINAL PRICE */}
                 <p className="text-green-600 font-bold">
                   ₹{finalPrice}
                 </p>
 
-                {/* 🔥 OLD PRICE */}
+                {/* OLD PRICE */}
                 {discount > 0 && (
                   <p className="text-xs text-gray-400 line-through">
-                    ₹{basePrice}
+                    ₹{sellPrice}
                   </p>
                 )}
 
-                {/* 🔥 DISCOUNT TAG */}
+                {/* DISCOUNT */}
                 {discount > 0 && (
                   <p className="text-xs text-red-500 font-semibold">
                     {discount}% OFF 🔥
                   </p>
                 )}
 
-                {/* 🔗 SHARE */}
+                {/* SHARE */}
                 <button
                   onClick={() => {
 
@@ -154,10 +196,11 @@ export default function SellerProductsPage() {
 
                     const link = `${window.location.origin}/product/${p.id}?ref=${user.uid}`;
 
-                    navigator.share?.({
-                      title: p.name,
-                      url: link,
-                    });
+                    window.open(
+                      `https://wa.me/?text=${encodeURIComponent(
+                        p.name + " 🔥\n" + link
+                      )}`
+                    );
 
                   }}
                   className="mt-2 w-full bg-blue-600 text-white py-1 rounded"
@@ -165,7 +208,7 @@ export default function SellerProductsPage() {
                   Share & Earn 💰
                 </button>
 
-                {/* 👀 VIEW */}
+                {/* VIEW */}
                 <button
                   onClick={() => router.push(`/product/${p.id}`)}
                   className="mt-2 w-full border py-1 rounded"
