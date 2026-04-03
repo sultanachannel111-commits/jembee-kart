@@ -20,20 +20,20 @@ import { useRouter } from "next/navigation";
 export default function ProfilePage() {
 
   const [user, setUser] = useState(null);
+
   const [profile, setProfile] = useState({
     name: "",
     phone: ""
   });
 
   const [addresses, setAddresses] = useState([]);
+
   const [newAddress, setNewAddress] = useState({
     label: "Home",
     address: "",
     city: "",
     pincode: ""
   });
-
-  const [orders, setOrders] = useState([]);
 
   const router = useRouter();
 
@@ -46,30 +46,20 @@ export default function ProfilePage() {
 
       setUser(u);
 
-      // 👤 PROFILE
+      // 👤 PROFILE LOAD
       const snap = await getDoc(doc(db, "users", u.uid));
-      if (snap.exists()) setProfile(snap.data());
 
-      // 📍 ADDRESSES
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
+
+      // 📍 ADDRESS LOAD
       const addrSnap = await getDocs(collection(db, "users", u.uid, "addresses"));
 
-      const addrArr = [];
-      addrSnap.forEach(d => addrArr.push({ id: d.id, ...d.data() }));
+      const arr = [];
+      addrSnap.forEach(d => arr.push({ id: d.id, ...d.data() }));
 
-      setAddresses(addrArr);
-
-      // 📦 ORDERS
-      const orderSnap = await getDocs(collection(db, "orders"));
-
-      const orderArr = [];
-      orderSnap.forEach(d => {
-        const data = d.data();
-        if (data.userId === u.uid) {
-          orderArr.push({ id: d.id, ...data });
-        }
-      });
-
-      setOrders(orderArr);
+      setAddresses(arr);
     });
 
     return () => unsub();
@@ -78,18 +68,24 @@ export default function ProfilePage() {
 
   // 💾 SAVE PROFILE
   const saveProfile = async () => {
-    await setDoc(doc(db, "users", user.uid), profile, { merge: true });
+
+    await setDoc(
+      doc(db, "users", user.uid),
+      profile,
+      { merge: true }
+    );
+
     alert("Profile updated ✅");
   };
 
-  // 📦 ADD ADDRESS (FIXED)
+  // 📦 ADD ADDRESS (🔥 IMPORTANT FIX)
   const addAddress = async () => {
 
     if (!newAddress.address) return alert("Enter address");
 
     const addrRef = collection(db, "users", user.uid, "addresses");
 
-    // 🔥 sabko non-default karo
+    // ❌ remove old default
     const snap = await getDocs(addrRef);
 
     await Promise.all(
@@ -98,19 +94,24 @@ export default function ProfilePage() {
       )
     );
 
-    // ✅ new default address
-    const ref = await addDoc(addrRef, {
+    // ✅ ADD NEW ADDRESS WITH PROFILE DATA
+    const dataToSave = {
       ...newAddress,
-      isDefault: true
-    });
+      name: profile.name || "User",
+      phone: profile.phone || "0000000000",
+      email: user.email || "",
+      isDefault: true,
+      createdAt: new Date()
+    };
 
-    const updated = [
+    const ref = await addDoc(addrRef, dataToSave);
+
+    setAddresses([
       ...addresses.map(a => ({ ...a, isDefault: false })),
-      { id: ref.id, ...newAddress, isDefault: true }
-    ];
+      { id: ref.id, ...dataToSave }
+    ]);
 
-    setAddresses(updated);
-
+    // reset
     setNewAddress({
       label: "Home",
       address: "",
@@ -124,20 +125,20 @@ export default function ProfilePage() {
 
     await deleteDoc(doc(db, "users", user.uid, "addresses", id));
 
-    const filtered = addresses.filter(a => a.id !== id);
+    let updated = addresses.filter(a => a.id !== id);
 
-    // 🔥 agar default delete ho gaya → first ko default banao
-    if (!filtered.some(a => a.isDefault) && filtered.length > 0) {
+    // 🔥 ensure one default always
+    if (!updated.some(a => a.isDefault) && updated.length > 0) {
 
       await updateDoc(
-        doc(db, "users", user.uid, "addresses", filtered[0].id),
+        doc(db, "users", user.uid, "addresses", updated[0].id),
         { isDefault: true }
       );
 
-      filtered[0].isDefault = true;
+      updated[0].isDefault = true;
     }
 
-    setAddresses(filtered);
+    setAddresses(updated);
   };
 
   // ⭐ SET DEFAULT
@@ -153,12 +154,12 @@ export default function ProfilePage() {
       )
     );
 
-    const updated = addresses.map(a => ({
-      ...a,
-      isDefault: a.id === id
-    }));
-
-    setAddresses(updated);
+    setAddresses(
+      addresses.map(a => ({
+        ...a,
+        isDefault: a.id === id
+      }))
+    );
   };
 
   // 🚪 LOGOUT
@@ -170,9 +171,9 @@ export default function ProfilePage() {
   return (
     <div className="p-4 space-y-6 pb-24">
 
-      <h1 className="text-2xl font-bold">My Profile</h1>
+      <h1 className="text-2xl font-bold">My Profile 👤</h1>
 
-      {/* PROFILE */}
+      {/* 👤 PROFILE */}
       <div className="bg-white p-4 rounded-2xl shadow space-y-2">
 
         <input
@@ -195,19 +196,31 @@ export default function ProfilePage() {
           className="w-full border p-2 rounded bg-gray-100"
         />
 
-        <button onClick={saveProfile} className="bg-black text-white w-full p-2 rounded">
+        <button
+          onClick={saveProfile}
+          className="bg-black text-white w-full p-2 rounded"
+        >
           Save Profile
         </button>
 
       </div>
 
-      {/* ADD ADDRESS */}
+      {/* 📍 ADD ADDRESS */}
       <div className="bg-white p-4 rounded-2xl shadow space-y-2">
 
-        <h2 className="font-bold">Add Address</h2>
+        <h2 className="font-bold">Add Address 📍</h2>
+
+        <select
+          value={newAddress.label}
+          onChange={(e)=>setNewAddress({...newAddress,label:e.target.value})}
+          className="w-full border p-2 rounded"
+        >
+          <option>Home</option>
+          <option>Work</option>
+        </select>
 
         <input
-          placeholder="Address"
+          placeholder="Full Address"
           value={newAddress.address}
           onChange={(e)=>setNewAddress({...newAddress,address:e.target.value})}
           className="w-full border p-2 rounded"
@@ -227,32 +240,47 @@ export default function ProfilePage() {
           className="w-full border p-2 rounded"
         />
 
-        <button onClick={addAddress} className="bg-blue-600 text-white w-full p-2 rounded">
+        <button
+          onClick={addAddress}
+          className="bg-blue-600 text-white w-full p-2 rounded"
+        >
           Add Address
         </button>
 
       </div>
 
-      {/* ADDRESS LIST */}
-      <div className="space-y-2">
+      {/* 📦 ADDRESS LIST */}
+      <div className="space-y-3">
 
         {addresses.map(a=>(
-          <div key={a.id} className="bg-white p-3 rounded-xl shadow">
+          <div key={a.id} className="bg-white p-4 rounded-xl shadow">
 
-            <p>{a.address}</p>
+            <p className="font-semibold">{a.name}</p>
+            <p>{a.phone}</p>
+            <p className="text-sm text-gray-500">{a.email}</p>
+
+            <p className="mt-2">{a.address}</p>
             <p>{a.city} - {a.pincode}</p>
 
-            {a.isDefault && <p className="text-green-600 text-sm">Default</p>}
+            {a.isDefault && (
+              <p className="text-green-600 text-sm mt-1">Default</p>
+            )}
 
-            <div className="flex gap-3 mt-2">
+            <div className="flex gap-3 mt-3">
 
               {!a.isDefault && (
-                <button onClick={()=>setDefault(a.id)} className="text-blue-600 text-sm">
+                <button
+                  onClick={()=>setDefault(a.id)}
+                  className="text-blue-600 text-sm"
+                >
                   Set Default
                 </button>
               )}
 
-              <button onClick={()=>deleteAddress(a.id)} className="text-red-500 text-sm">
+              <button
+                onClick={()=>deleteAddress(a.id)}
+                className="text-red-500 text-sm"
+              >
                 Delete
               </button>
 
@@ -263,8 +291,11 @@ export default function ProfilePage() {
 
       </div>
 
-      {/* LOGOUT */}
-      <button onClick={logout} className="bg-red-500 text-white w-full p-3 rounded-xl">
+      {/* 🚪 LOGOUT */}
+      <button
+        onClick={logout}
+        className="bg-red-500 text-white w-full p-3 rounded-xl"
+      >
         Logout
       </button>
 
