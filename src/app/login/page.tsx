@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-signInWithEmailAndPassword,
-GoogleAuthProvider,
-signInWithPopup,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged
 } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
-
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
@@ -17,194 +17,223 @@ import toast from "react-hot-toast";
 
 export default function LoginPage() {
 
-const router = useRouter();
+  const router = useRouter();
 
-const [email, setEmail] = useState("");
-const [password, setPassword] = useState("");
-const [show, setShow] = useState(false);
-const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-const createUserIfNotExist = async (user:any)=>{
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-const ref = doc(db,"users",user.uid);
-const snap = await getDoc(ref);
+  // 🔥 DEBUG AUTH STATE
+  useEffect(() => {
 
-if(!snap.exists()){
+    const unsub = onAuthStateChanged(auth, (user) => {
 
-await setDoc(ref,{
-email:user.email,
-role:"customer",
-createdAt:serverTimestamp()
-});
+      console.log("🔥 AUTH STATE:", user);
 
-}
+      if (user) {
+        console.log("✅ Already logged in → redirecting home");
+        router.replace("/");
+      }
 
-};
+      setCheckingAuth(false);
+    });
 
-const login = async (e:any) => {
+    return () => unsub();
 
-e.preventDefault();
+  }, []);
 
-setLoading(true);
+  // 🔥 CREATE USER
+  const createUserIfNotExist = async (user:any)=>{
 
-try {
+    const ref = doc(db,"users",user.uid);
+    const snap = await getDoc(ref);
 
-const res = await signInWithEmailAndPassword(auth,email,password);
+    if(!snap.exists()){
 
-await createUserIfNotExist(res.user);
+      console.log("🆕 Creating new user");
 
-toast.success("Login successful");
+      await setDoc(ref,{
+        email:user.email,
+        role:"customer",
+        createdAt:serverTimestamp()
+      });
 
-router.push("/");
+    }
 
-} catch {
+  };
 
-toast.error("Invalid email or password");
+  // 🔥 LOGIN
+  const login = async (e:any) => {
 
-}
+    e.preventDefault();
 
-setLoading(false);
+    setLoading(true);
 
-};
+    try {
 
-const googleLogin = async () => {
+      console.log("🚀 Login start");
 
-try {
+      const res = await signInWithEmailAndPassword(auth,email,password);
 
-const provider = new GoogleAuthProvider();
+      console.log("✅ LOGIN SUCCESS:", res.user.uid);
 
-const res = await signInWithPopup(auth, provider);
+      await createUserIfNotExist(res.user);
 
-await createUserIfNotExist(res.user);
+      toast.success("Login successful");
 
-toast.success("Logged in with Google");
+      // ✅ FIX (NO CONFLICT)
+      router.replace("/");
 
-router.push("/");
+    } catch (err:any) {
 
-} catch {
+      console.log("❌ LOGIN ERROR:", err);
 
-toast.error("Google login failed");
+      toast.error("Invalid email or password");
 
-}
+    }
 
-};
+    setLoading(false);
 
-return (
+  };
 
-<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 p-4">
+  // 🔥 GOOGLE LOGIN
+  const googleLogin = async () => {
 
-<div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+    try {
 
-<h1 className="text-3xl font-bold text-center text-pink-600">
-JembeeKart
-</h1>
+      console.log("🚀 Google login");
 
-<p className="text-center text-gray-500 mt-1 mb-6">
-Login
-</p>
+      const provider = new GoogleAuthProvider();
 
-<form onSubmit={login} className="space-y-4">
+      const res = await signInWithPopup(auth, provider);
 
-<div className="relative">
+      console.log("✅ GOOGLE LOGIN:", res.user.uid);
 
-<Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+      await createUserIfNotExist(res.user);
 
-<input
-type="email"
-placeholder="Email"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-className="w-full border rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
-/>
+      toast.success("Logged in with Google");
 
-</div>
+      router.replace("/");
 
-<div className="relative">
-
-<Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-
-<input
-type={show ? "text" : "password"}
-placeholder="Password"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-className="w-full border rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
-/>
-
-<button
-type="button"
-onClick={()=>setShow(!show)}
-className="absolute right-3 top-3 text-gray-500"
->
-{show ? <EyeOff size={20}/> : <Eye size={20}/>}
-</button>
-
-</div>
-
-<span
-onClick={()=>router.push("/forgot-password")}
-className="text-pink-600 text-sm cursor-pointer"
->
-Forgot password?
-</span>
-
-<button
-type="submit"
-className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow"
->
-{loading ? "Logging in..." : "Login"}
-</button>
-
-</form>
-
-<div className="flex items-center my-4">
-
-<div className="flex-1 border-t"></div>
-
-<p className="px-3 text-gray-400 text-sm">
-OR
-</p>
-
-<div className="flex-1 border-t"></div>
-
-</div>
-
-<button
-onClick={googleLogin}
-className="w-full border py-3 rounded-xl font-medium hover:bg-gray-100"
->
-
-<div className="flex items-center justify-center gap-2">
-
-<img
-src="https://www.svgrepo.com/show/475656/google-color.svg"
-alt="google"
-className="w-5 h-5"
-/>
-
-Continue with Google
-
-</div>
-
-</button>
-
-<p className="text-center text-sm text-gray-500 mt-5">
-
-New user?
-
-<span
-onClick={()=>router.push("/signup")}
-className="text-pink-600 cursor-pointer ml-1"
->
-Create account
-</span>
-
-</p>
-
-</div>
-
-</div>
-
-);
+    } catch (err) {
+
+      console.log("❌ GOOGLE ERROR:", err);
+
+      toast.error("Google login failed");
+
+    }
+
+  };
+
+  // 🔥 LOADING SCREEN (IMPORTANT)
+  if (checkingAuth) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-gray-500">Checking login...</p>
+      </div>
+    );
+  }
+
+  return (
+
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 p-4">
+
+      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+
+        <h1 className="text-3xl font-bold text-center text-pink-600">
+          JembeeKart
+        </h1>
+
+        <p className="text-center text-gray-500 mt-1 mb-6">
+          Login
+        </p>
+
+        <form onSubmit={login} className="space-y-4">
+
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e)=>setEmail(e.target.value)}
+              className="w-full border rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+
+            <input
+              type={show ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e)=>setPassword(e.target.value)}
+              className="w-full border rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+
+            <button
+              type="button"
+              onClick={()=>setShow(!show)}
+              className="absolute right-3 top-3 text-gray-500"
+            >
+              {show ? <EyeOff size={20}/> : <Eye size={20}/>}
+            </button>
+          </div>
+
+          <span
+            onClick={()=>router.push("/forgot-password")}
+            className="text-pink-600 text-sm cursor-pointer"
+          >
+            Forgot password?
+          </span>
+
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+        </form>
+
+        <div className="flex items-center my-4">
+          <div className="flex-1 border-t"></div>
+          <p className="px-3 text-gray-400 text-sm">OR</p>
+          <div className="flex-1 border-t"></div>
+        </div>
+
+        <button
+          onClick={googleLogin}
+          className="w-full border py-3 rounded-xl font-medium hover:bg-gray-100"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="google"
+              className="w-5 h-5"
+            />
+            Continue with Google
+          </div>
+        </button>
+
+        <p className="text-center text-sm text-gray-500 mt-5">
+          New user?
+          <span
+            onClick={()=>router.push("/signup")}
+            className="text-pink-600 cursor-pointer ml-1"
+          >
+            Create account
+          </span>
+        </p>
+
+      </div>
+
+    </div>
+  );
 
 }
