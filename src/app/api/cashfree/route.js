@@ -4,22 +4,49 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    console.log("📦 BODY:", body);
-
     const { orderId, amount, customer } = body;
 
+    // 🔍 DEBUG OBJECT
+    let debug = {
+      step: "start",
+      env: {},
+      payload: {},
+      cashfree: {},
+      error: null
+    };
+
+    // ✅ VALIDATION
     if (!orderId || !amount) {
       return NextResponse.json({
         success: false,
-        message: "Missing orderId or amount",
+        reason: "INVALID INPUT",
+        message: "orderId or amount missing",
+        debug
       });
     }
 
+    // ✅ ENV CHECK
+    debug.env = {
+      CLIENT_ID: process.env.CASHFREE_CLIENT_ID ? "OK" : "MISSING",
+      SECRET: process.env.CASHFREE_CLIENT_SECRET ? "OK" : "MISSING",
+      SITE: process.env.NEXT_PUBLIC_SITE_URL || "MISSING"
+    };
+
+    if (!process.env.CASHFREE_CLIENT_ID || !process.env.CASHFREE_CLIENT_SECRET) {
+      return NextResponse.json({
+        success: false,
+        reason: "ENV MISSING",
+        debug
+      });
+    }
+
+    // 🌐 CASHFREE URL
     const CASHFREE_URL =
       process.env.NODE_ENV === "production"
         ? "https://api.cashfree.com/pg/orders"
         : "https://sandbox.cashfree.com/pg/orders";
 
+    // 📦 PAYLOAD
     const payload = {
       order_id: orderId,
       order_amount: Number(amount),
@@ -29,52 +56,82 @@ export async function POST(req) {
         customer_id: customer?.uid || "guest_" + Date.now(),
         customer_name: customer?.firstName || "User",
         customer_email: customer?.email || "test@test.com",
-        customer_phone: customer?.phone || "9999999999",
+        customer_phone: customer?.phone || "9999999999"
       },
 
       order_meta: {
         return_url:
-          process.env.NEXT_PUBLIC_SITE_URL +
-          `/payment-success?order_id=${orderId}`,
-      },
+          (process.env.NEXT_PUBLIC_SITE_URL || "") +
+          `/payment-success?order_id=${orderId}`
+      }
     };
 
-    console.log("🚀 PAYLOAD:", payload);
+    debug.payload = payload;
 
+    // 🔥 CALL CASHFREE
     const response = await fetch(CASHFREE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-client-id": process.env.CASHFREE_CLIENT_ID,
         "x-client-secret": process.env.CASHFREE_CLIENT_SECRET,
-        "x-api-version": "2022-09-01",
+        "x-api-version": "2022-09-01"
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
+    let data;
 
-    console.log("💳 CASHFREE RESPONSE:", data);
+    // ✅ SAFE JSON PARSE
+    try {
+      data = await response.json();
+    } catch (err) {
+      const text = await response.text();
 
-    if (!response.ok) {
+      debug.error = "INVALID JSON RESPONSE";
+      debug.cashfree = text;
+
       return NextResponse.json({
         success: false,
-        ...data,
+        reason: "INVALID JSON",
+        debug
       });
     }
 
-    // ✅ FULL DATA RETURN (IMPORTANT)
+    debug.cashfree = data;
+
+    // ❌ CASHFREE ERROR
+    if (!response.ok) {
+      return NextResponse.json({
+        success: false,
+        reason: "CASHFREE ERROR",
+        message: data?.message || "Unknown error",
+        debug
+      });
+    }
+
+    // ❌ NO SESSION ID
+    if (!data.payment_session_id) {
+      return NextResponse.json({
+        success: false,
+        reason: "NO SESSION ID",
+        debug
+      });
+    }
+
+    // ✅ SUCCESS
     return NextResponse.json({
       success: true,
-      ...data,
+      payment_session_id: data.payment_session_id,
+      order_id: data.order_id,
+      debug
     });
 
   } catch (error) {
-    console.log("❌ SERVER ERROR:", error);
-
     return NextResponse.json({
       success: false,
-      message: error.message || "Server error",
+      reason: "SERVER CRASH",
+      message: error.message
     });
   }
 }
