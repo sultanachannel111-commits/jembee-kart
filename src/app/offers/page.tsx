@@ -26,14 +26,12 @@ export default function OfferPage(){
   const [endDate,setEndDate] = useState("");
   const [endTime,setEndTime] = useState("");
 
-  /* 🔄 LOAD DATA */
   useEffect(()=>{
     loadData();
   },[]);
 
   const loadData = async()=>{
 
-    // PRODUCTS
     const pSnap = await getDocs(collection(db,"products"));
     const arr:any[] = [];
 
@@ -43,7 +41,6 @@ export default function OfferPage(){
 
     setProducts(arr);
 
-    // OFFERS
     const oSnap = await getDocs(collection(db,"offers"));
     const off:any[] = [];
 
@@ -54,13 +51,11 @@ export default function OfferPage(){
     setOffers(off);
   };
 
-  /* 🕒 CREATE TIMESTAMP */
   const makeTimestamp = (date:string,time:string)=>{
     const full = new Date(`${date}T${time}`);
     return Timestamp.fromDate(full);
   };
 
-  /* ➕ ADD OFFER */
   const addOffer = async()=>{
 
     if(!selectedProduct) return alert("Select product ❌");
@@ -72,7 +67,6 @@ export default function OfferPage(){
 
     try{
 
-      // 🔥 DUPLICATE CHECK
       const existing = await getDocs(collection(db,"offers"));
 
       const already = existing.docs.find(
@@ -80,23 +74,21 @@ export default function OfferPage(){
       );
 
       if(already){
-        return alert("Offer already exists for this product ❌");
+        return alert("Offer already exists ❌");
       }
 
       const startAt = makeTimestamp(startDate,startTime);
       const endAt = makeTimestamp(endDate,endTime);
 
-      // 🔥 SAVE (FINAL FIXED STRUCTURE)
       await setDoc(
         doc(db,"offers",selectedProduct),
         {
-          productId: selectedProduct, // ✅ MATCH FIX
+          productId: selectedProduct, // 🔥 FIXED
           discount: Number(discount),
 
           startAt,
           endAt,
 
-          // 🔥 CHECKOUT USE करेगा
           endDate: endAt.toDate().toISOString(),
 
           active: true,
@@ -113,20 +105,17 @@ export default function OfferPage(){
       loadData();
 
     }catch(err){
-      alert("Error adding offer ❌");
+      alert("Error ❌");
     }
   };
 
-  /* ❌ DELETE */
   const deleteOffer = async(id:string)=>{
     await deleteDoc(doc(db,"offers",id));
     loadData();
   };
 
-  /* 🔥 ACTIVE CHECK */
   const isActive = (o:any)=>{
     const now = new Date();
-
     const start = o.startAt?.toDate();
     const end = o.endAt?.toDate();
 
@@ -158,9 +147,9 @@ className="w-full p-3 rounded-xl border bg-white/70">
 </select>
 
 {selectedProduct && (
-  <p className="text-xs text-green-600">
-    Selected ID: {selectedProduct}
-  </p>
+<p className="text-xs text-green-600">
+Selected ID: {selectedProduct}
+</p>
 )}
 
 <input
@@ -219,11 +208,15 @@ Add Offer 🚀
 <div key={o.id}
 className="backdrop-blur-xl bg-white/70 border border-white/30 p-4 rounded-2xl shadow">
 
-<p className="text-xs text-gray-500">Product ID</p>
+{/* 🔥 THIS YOU ASKED */}
+<p className="text-xs text-gray-500">
+Product ID: {o.productId}
+</p>
+
 <p className="font-bold text-sm">{o.productId}</p>
 
 <p className="text-pink-600 font-bold text-xl mt-1">
-{ o.discount }% OFF
+{o.discount}% OFF
 </p>
 
 <p className="text-xs mt-1">
