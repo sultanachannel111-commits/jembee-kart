@@ -31,14 +31,20 @@ export default function OrdersPage() {
       const snap = await getDocs(collection(db, "orders"));
 
       const arr = [];
+
       snap.forEach(d => {
         const data = d.data();
+
         if (data.userId === u.uid) {
-          arr.push({ id: d.id, ...data });
+          arr.push({
+            id: d.id,
+            ...data
+          });
         }
       });
 
       setOrders(arr);
+
     });
 
     return () => unsub();
@@ -60,52 +66,88 @@ export default function OrdersPage() {
         My Orders 📦
       </h1>
 
-      {orders.map(o => (
+      {orders.length === 0 && (
+        <p>No orders found ❌</p>
+      )}
 
-        <div
-          key={o.id}
-          className="glass p-4 rounded-2xl mb-4 shadow"
-        >
-          <p className="text-sm text-gray-500">Order ID</p>
-          <p className="font-bold break-all">{o.id}</p>
+      {orders.map(o => {
 
-          <p className="mt-2 font-semibold">
-            ₹{o.total}
-          </p>
+        const total = o.total || o.amount || o.itemsTotal || 0;
 
-          <p className="text-yellow-600 font-semibold">
-            {o.status || "Pending"}
-          </p>
+        return (
 
-          <p className="text-xs mt-1">
-            🚚 Delivery by: {getDeliveryDate(o)}
-          </p>
+          <div
+            key={o.id}
+            className="glass p-4 rounded-2xl mb-4 shadow"
+          >
 
-          {/* BUTTONS */}
-          <div className="flex justify-between mt-3">
+            {/* ORDER ID */}
+            <p className="text-sm text-gray-500">Order ID</p>
+            <p className="font-bold break-all">{o.id}</p>
 
-            <button
-              onClick={() => router.push(`/orders/${o.id}`)}
-              className="text-blue-600"
-            >
-              Track Order
-            </button>
+            {/* 💰 PRICE FIXED */}
+            <p className="mt-2 text-lg font-bold text-green-600">
+              ₹{total}
+            </p>
 
-            <button
-              onClick={() => {
-                setSelectedOrder(o);
-                setShowHelp(true);
-              }}
-              className="border px-4 py-1 rounded-full"
-            >
-              Help
-            </button>
+            {/* STATUS */}
+            <p className="text-yellow-600 font-semibold">
+              {o.status || "Pending"}
+            </p>
+
+            {/* 🚚 DELIVERY */}
+            <p className="text-xs mt-1">
+              🚚 Delivery by: {getDeliveryDate(o)}
+            </p>
+
+            {/* 🔥 PRICE BREAKDOWN */}
+            <div className="text-xs mt-2 text-gray-600 space-y-1">
+
+              <div className="flex justify-between">
+                <span>Items</span>
+                <span>₹{o.itemsTotal || 0}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>₹{o.shipping || 0}</span>
+              </div>
+
+              {o.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>-₹{o.discount}</span>
+                </div>
+              )}
+
+            </div>
+
+            {/* BUTTONS */}
+            <div className="flex justify-between mt-3">
+
+              <button
+                onClick={() => router.push(`/track/${o.id}`)}
+                className="text-blue-600 font-medium"
+              >
+                Track Order
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedOrder(o);
+                  setShowHelp(true);
+                }}
+                className="border px-4 py-1 rounded-full"
+              >
+                Help
+              </button>
+
+            </div>
 
           </div>
+        );
 
-        </div>
-
-      ))}
+      })}
 
       {/* 🔥 HELP MODAL */}
       {showHelp && selectedOrder && (
@@ -122,6 +164,19 @@ export default function OrdersPage() {
             <button
               onClick={async () => {
 
+                // COD → always cancel allowed
+                if (selectedOrder.paymentMethod === "COD") {
+
+                  await updateDoc(doc(db, "orders", selectedOrder.id), {
+                    status: "Cancelled"
+                  });
+
+                  alert("Order cancelled ✅");
+                  setShowHelp(false);
+                  return;
+                }
+
+                // ONLINE RULE
                 if (
                   selectedOrder.paymentMethod === "ONLINE" &&
                   selectedOrder.status !== "Pending"
@@ -143,7 +198,9 @@ export default function OrdersPage() {
             </button>
 
             {/* 🔁 RETURN */}
-            <h3 className="font-semibold mb-2">Return Reason</h3>
+            <h3 className="font-semibold mb-2">
+              Return Reason
+            </h3>
 
             <select
               className="w-full border p-2 rounded mb-2"
@@ -154,6 +211,7 @@ export default function OrdersPage() {
               <option>Wrong Product</option>
               <option>Damaged Product</option>
               <option>Size Issue</option>
+              <option>Quality Issue</option>
               <option>Other</option>
             </select>
 
@@ -169,10 +227,11 @@ export default function OrdersPage() {
             <button
               onClick={async () => {
 
-                if (!reason) return alert("Select reason");
+                if (!reason) return alert("Select reason ❌");
 
                 await addDoc(collection(db, "returns"), {
                   orderId: selectedOrder.id,
+                  userId: selectedOrder.userId,
                   reason,
                   issue,
                   status: "Requested",
