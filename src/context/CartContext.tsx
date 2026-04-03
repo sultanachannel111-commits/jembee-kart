@@ -13,7 +13,7 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-import { getFinalPrice } from "@/utils/getFinalPrice";
+import { getOfferPrice, getCartTotal } from "@/utils/pricing";
 
 const CartContext = createContext<any>(null);
 
