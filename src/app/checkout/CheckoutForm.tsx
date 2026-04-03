@@ -6,7 +6,7 @@ import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-import { getOfferPrice, getCartTotal } from "@/utils/pricing";
+import { getOfferPrice } from "@/utils/pricing";
 
 export default function CheckoutPage() {
 
@@ -50,7 +50,7 @@ export default function CheckoutPage() {
           setItems(arr);
         });
 
-        // 🔥 FETCH OFFERS
+        // 🔥 OFFERS
         const offSnap = await getDocs(collection(db, "offers"));
         const off:any = {};
 
@@ -70,20 +70,31 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 TOTALS
-  const itemsTotal = getCartTotal(items, offers);
+  // 💰 SAFE TOTAL (FIXED)
+  const itemsTotal = items.reduce((sum, item) => {
+
+    const base =
+      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+      item.price ||
+      0;
+
+    const final = getOfferPrice(item, offers);
+
+    return sum + (final || base) * (item.quantity || 1);
+
+  }, 0);
 
   const shipping = payment === "COD" ? 60 : 40;
 
   const total = Math.max(0, itemsTotal + shipping - couponDiscount);
 
-  // 🎟 COUPON APPLY
+  // 🎟 COUPON
   const applyCoupon = () => {
 
     if (coupon === "SAVE50") {
       setCouponDiscount(50);
-    } else if (coupon === "SAVE10") {
-      setCouponDiscount(itemsTotal * 0.1);
+    } else if (coupon === "FLAT100") {
+      setCouponDiscount(100);
     } else {
       alert("Invalid coupon ❌");
       setCouponDiscount(0);
@@ -98,12 +109,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if(payment === "ONLINE"){
-      alert("Online payment integration next step 🔥");
-      return;
-    }
-
-    alert("Order placed (COD) ✅");
+    alert("Order placed ✅");
 
     router.push("/success");
   };
@@ -115,7 +121,7 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* ITEMS */}
+      {/* 🛒 ITEMS */}
       {items.map((item,i)=>(
         <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
 
@@ -128,7 +134,7 @@ export default function CheckoutPage() {
         </div>
       ))}
 
-      {/* COUPON */}
+      {/* 🎟 COUPON */}
       <div className="flex gap-2 mt-4">
         <input
           value={coupon}
@@ -144,7 +150,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* PAYMENT */}
+      {/* 💳 PAYMENT */}
       <div className="mt-4 space-y-2">
         <button
           onClick={()=>setPayment("COD")}
@@ -165,7 +171,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* SUMMARY */}
+      {/* 💰 SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-2xl shadow">
 
         <div className="flex justify-between">
@@ -192,7 +198,7 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* BUTTON */}
+      {/* 🚀 BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3">
 
         <button
@@ -202,6 +208,13 @@ export default function CheckoutPage() {
           Place Order 🚀
         </button>
 
+      </div>
+
+      {/* 🐞 DEBUG (YAHI ADD KARNA THA) */}
+      <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
+        <pre>
+{JSON.stringify(items, null, 2)}
+        </pre>
       </div>
 
     </div>
