@@ -7,7 +7,9 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc
+  getDoc,
+  addDoc,
+  serverTimestamp
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -29,7 +31,7 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // 🛒 DEMO ITEMS (later cart se replace karna)
+  // 🛒 DEMO ITEMS (replace with cart later)
   const items = [
     {
       name: "Orange T-shirt",
@@ -48,7 +50,7 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // 📍 ADDRESS LOAD
+      // 📍 ADDRESS
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -57,14 +59,12 @@ export default function CheckoutPage() {
 
       addrSnap.forEach(d => {
         const data = d.data();
-        if (data.isDefault) {
-          defaultAddr = data;
-        }
+        if (data.isDefault) defaultAddr = data;
       });
 
       setAddress(defaultAddr);
 
-      // 🚚 SHIPPING LOAD
+      // 🚚 SHIPPING
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -79,15 +79,16 @@ export default function CheckoutPage() {
 
   // 💰 CALCULATION
   const itemsTotal = items.reduce(
-    (sum, i) => sum + i.price * i.qty,
+    (sum, i) => sum + Number(i.price) * Number(i.qty),
     0
   );
 
-  let shipping = payment === "COD"
-    ? shippingConfig.cod
-    : shippingConfig.prepaid;
+  let shipping =
+    payment === "COD"
+      ? Number(shippingConfig.cod)
+      : Number(shippingConfig.prepaid);
 
-  if (itemsTotal >= shippingConfig.freeShippingAbove) {
+  if (itemsTotal >= Number(shippingConfig.freeShippingAbove)) {
     shipping = 0;
   }
 
@@ -104,19 +105,34 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      const payload = {
-        orderId: "order_" + Date.now(),
-        amount: total,
-        customer: {
-          uid: user.uid,
-          email: address.email || user.email,
-          phone: address.phone,
-          firstName: address.name
-        }
+      // 🔥 ORDER SAVE
+      const orderData = {
+        userId: user.uid,
+        items,
+        itemsTotal,
+        shipping,
+        total,
+        paymentMethod: payment,
+        status: "Pending",
+        address,
+        createdAt: serverTimestamp()
       };
+
+      const orderRef = await addDoc(collection(db, "orders"), orderData);
 
       // 💳 ONLINE PAYMENT
       if (payment === "ONLINE") {
+
+        const payload = {
+          orderId: orderRef.id,
+          amount: total,
+          customer: {
+            uid: user.uid,
+            email: address.email || user.email,
+            phone: address.phone,
+            firstName: address.name
+          }
+        };
 
         const res = await fetch("/api/cashfree", {
           method: "POST",
@@ -150,8 +166,7 @@ export default function CheckoutPage() {
 
       // 📦 COD FLOW
       alert("Order placed successfully ✅");
-
-      router.push(`/payment-success?orderId=${payload.orderId}`);
+      router.push(`/orders/${orderRef.id}`);
 
     } catch (err) {
       alert("Error: " + err.message);
@@ -168,10 +183,11 @@ export default function CheckoutPage() {
       </h1>
 
       {/* 📍 ADDRESS */}
-      <div className="bg-white p-4 rounded-xl shadow mb-4">
+      <div className="glass p-4 mb-4">
 
         <div className="flex justify-between">
           <h2 className="font-bold">Delivery Address</h2>
+
           <button
             onClick={() => router.push("/profile")}
             className="text-pink-500"
@@ -181,10 +197,10 @@ export default function CheckoutPage() {
         </div>
 
         {address ? (
-          <div className="mt-2 text-sm space-y-1">
+          <div className="mt-2 text-sm">
             <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
-            <p className="text-gray-500">{address.email}</p>
+            <p>{address.email}</p>
             <p>{address.address}</p>
             <p>{address.city} - {address.pincode}</p>
           </div>
@@ -198,19 +214,30 @@ export default function CheckoutPage() {
 
       {/* 🛒 ITEMS */}
       <div className="space-y-3">
+
         {items.map((item, i) => (
-          <div key={i} className="flex gap-3 bg-white p-3 rounded-xl shadow">
 
-            <img src={item.image} className="w-16 h-16 rounded-lg" />
+          <div key={i} className="glass p-3 flex gap-3">
 
-            <div className="flex-1">
+            <img
+              src={item.image}
+              className="w-16 h-16 rounded-lg"
+            />
+
+            <div>
               <p className="font-semibold">{item.name}</p>
-              <p className="text-sm text-gray-500">Qty: {item.qty}</p>
-              <p className="text-green-600 font-bold">₹{item.price}</p>
+              <p className="text-sm text-gray-500">
+                Qty: {item.qty}
+              </p>
+              <p className="text-green-600 font-bold">
+                ₹{item.price}
+              </p>
             </div>
 
           </div>
+
         ))}
+
       </div>
 
       {/* 💳 PAYMENT */}
@@ -218,7 +245,7 @@ export default function CheckoutPage() {
 
         <div
           onClick={() => setPayment("ONLINE")}
-          className={`p-3 rounded-xl border cursor-pointer ${
+          className={`p-3 rounded-xl border ${
             payment === "ONLINE" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
@@ -227,7 +254,7 @@ export default function CheckoutPage() {
 
         <div
           onClick={() => setPayment("COD")}
-          className={`p-3 rounded-xl border cursor-pointer ${
+          className={`p-3 rounded-xl border ${
             payment === "COD" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
@@ -237,7 +264,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* 💰 SUMMARY */}
-      <div className="mt-6 bg-white p-4 rounded-xl shadow">
+      <div className="glass p-4 mt-6">
 
         <div className="flex justify-between">
           <span>Items</span>
@@ -264,11 +291,7 @@ export default function CheckoutPage() {
         <button
           onClick={placeOrder}
           disabled={loading}
-          className={`w-full py-4 rounded-xl text-white font-bold ${
-            loading
-              ? "bg-gray-400"
-              : "bg-gradient-to-r from-purple-600 to-pink-500"
-          }`}
+          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-600 to-pink-500"
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
