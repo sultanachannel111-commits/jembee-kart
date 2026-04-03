@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+
 import {
   collection,
   onSnapshot,
@@ -10,7 +11,8 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  getDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -23,65 +25,75 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<any[]>([]);
   const [offers, setOffers] = useState<any>({});
   const [user, setUser] = useState<any>(null);
+  const [address, setAddress] = useState<any>(null);
 
   const [coupon, setCoupon] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
 
   const [payment, setPayment] = useState("COD");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
-  // 🔥 LOAD USER + CART + OFFERS
+  // 🔥 LOAD EVERYTHING
   useEffect(() => {
 
     let unsubscribe:any;
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
 
-      if (u) {
+      if (!u) return router.push("/login");
 
-        setUser(u);
+      setUser(u);
 
-        // 🔥 BUY NOW SUPPORT
-        const buyNow = localStorage.getItem("buy-now");
+      // 🔥 ADDRESS (default)
+      const addrSnap = await getDocs(collection(db, "users", u.uid, "addresses"));
+      let defaultAddr:any = null;
 
-        if (buyNow) {
-          try {
-            const parsed = JSON.parse(buyNow);
-            console.log("⚡ BUY NOW:", parsed);
-            setItems([parsed]);
-          } catch {}
-        }
+      addrSnap.forEach(d=>{
+        const data:any = d.data();
+        if(data.isDefault) defaultAddr = data;
+      });
 
-        // 🔥 CART LOAD
-        const itemsRef = collection(db, "carts", u.uid, "items");
+      setAddress(defaultAddr);
 
-        unsubscribe = onSnapshot(itemsRef, (snap) => {
+      // 🔥 BUY NOW
+      const buyNow = localStorage.getItem("buy-now");
 
-          const arr:any[] = [];
-
-          snap.forEach(docSnap => {
-            const d:any = docSnap.data();
-
-            arr.push({
-              ...d,
-              cartId: docSnap.id
-            });
-          });
-
-          if (!buyNow) setItems(arr);
-        });
-
-        // 🔥 OFFERS
-        const offSnap = await getDocs(collection(db, "offers"));
-        const off:any = {};
-
-        offSnap.forEach(d=>{
-          off[d.id] = d.data();
-        });
-
-        setOffers(off);
+      if (buyNow) {
+        try {
+          setItems([JSON.parse(buyNow)]);
+        } catch {}
       }
+
+      // 🔥 CART
+      const itemsRef = collection(db, "carts", u.uid, "items");
+
+      unsubscribe = onSnapshot(itemsRef, (snap) => {
+
+        if (buyNow) return;
+
+        const arr:any[] = [];
+
+        snap.forEach(docSnap => {
+          arr.push({
+            ...docSnap.data(),
+            cartId: docSnap.id
+          });
+        });
+
+        setItems(arr);
+      });
+
+      // 🔥 OFFERS
+      const offSnap = await getDocs(collection(db, "offers"));
+      const off:any = {};
+
+      offSnap.forEach(d=>{
+        off[d.id] = d.data();
+      });
+
+      setOffers(off);
 
     });
 
@@ -93,12 +105,11 @@ export default function CheckoutPage() {
   }, []);
 
   // 💰 TOTAL
-  const itemsTotal = items.reduce((sum, item) => {
-    const price = getOfferPrice(item, offers);
-    return sum + (price || 0) * (item.quantity || 1);
-  }, 0);
+  const itemsTotal = items.reduce((sum,item)=>{
+    return sum + getOfferPrice(item,offers)*(item.quantity||1);
+  },0);
 
-  const shipping = payment === "COD" ? 60 : 40;
+  const shipping = payment==="COD" ? 60 : 40;
 
   const total = Math.max(0, itemsTotal + shipping - couponDiscount);
 
@@ -113,89 +124,86 @@ export default function CheckoutPage() {
     }
   };
 
-  // 🚀 PLACE ORDER
+  // 🚀 PLACE ORDER (FINAL)
   const placeOrder = async () => {
 
     if (!user) return alert("Login required");
+    if (!address) return alert("Add address first");
     if (items.length === 0) return alert("Cart empty");
 
-    console.log("🔥 ORDER DATA:", { items, total });
+    setLoading(true);
 
-    // 🔥 CREATE ORDER
-    const orderRef = await addDoc(collection(db, "orders"), {
-      userId: user.uid,
-      items,
-      itemsTotal,
-      shipping,
-      couponDiscount,
-      total,
-      paymentMethod: payment,
-      status: "Pending",
-      createdAt: serverTimestamp()
-    });
+    try {
 
-    // 💳 ONLINE PAYMENT (CASHFREE)
-    if (payment === "ONLINE") {
+      // 🔥 CREATE ORDER
+      const orderRef = await addDoc(collection(db,"orders"),{
+        userId:user.uid,
+        items,
+        address,
+        itemsTotal,
+        shipping,
+        couponDiscount,
+        total,
+        paymentMethod:payment,
+        status:"Pending",
+        createdAt:serverTimestamp()
+      });
 
-      try {
+      // 💳 ONLINE PAYMENT
+      if(payment==="ONLINE"){
 
-        const res = await fetch("/api/cashfree", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            orderId: orderRef.id,
-            amount: total,
-            customer: user
+        const res = await fetch("/api/cashfree",{
+          method:"POST",
+          headers:{ "Content-Type":"application/json"},
+          body:JSON.stringify({
+            orderId:orderRef.id,
+            amount:total,
+            customer:user
           })
         });
 
         const data = await res.json();
 
-        console.log("💳 CASHFREE:", data);
-
-        if (data.payment_session_id) {
+        if(data.payment_session_id){
 
           const { load } = await import("@cashfreepayments/cashfree-js");
 
           const cashfree = await load({
-            mode: "sandbox" // 🔥 production me change karna
+            mode:"sandbox" // 🔥 production me change
           });
 
           cashfree.checkout({
-            paymentSessionId: data.payment_session_id,
-            redirectTarget: "_self"
+            paymentSessionId:data.payment_session_id,
+            redirectTarget:"_self"
           });
 
           return;
-
-        } else {
-          alert("Payment init failed ❌");
-          return;
         }
 
-      } catch (err) {
-        console.log(err);
-        alert("Payment error ❌");
+        alert("Payment failed ❌");
+        setLoading(false);
         return;
       }
-    }
 
-    // 📦 COD FLOW
-    for (const item of items) {
-      if (item.cartId) {
-        await deleteDoc(doc(db, "carts", user.uid, "items", item.cartId));
+      // 📦 COD FLOW
+      for(const item of items){
+        if(item.cartId){
+          await deleteDoc(doc(db,"carts",user.uid,"items",item.cartId));
+        }
       }
+
+      await updateDoc(orderRef,{status:"Placed"});
+
+      localStorage.removeItem("buy-now");
+
+      router.push(`/success?orderId=${orderRef.id}&total=${total}`);
+
+    } catch (err) {
+      console.log(err);
+      alert("Something went wrong ❌");
+      setLoading(false);
     }
 
-    await updateDoc(orderRef, {
-      status: "Placed"
-    });
-
-    localStorage.removeItem("buy-now");
-
-    router.push(`/success?orderId=${orderRef.id}&total=${total}`);
   };
 
   return (
@@ -205,12 +213,28 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
+      {/* 📍 ADDRESS */}
+      {address ? (
+        <div className="bg-white p-4 rounded-2xl mb-3 shadow">
+          <p className="font-semibold">{address.label}</p>
+          <p>{address.address}</p>
+          <p>{address.city} - {address.pincode}</p>
+        </div>
+      ):(
+        <button
+          onClick={()=>router.push("/profile")}
+          className="bg-red-500 text-white p-3 rounded-xl w-full mb-3"
+        >
+          Add Address
+        </button>
+      )}
+
       {/* 🛒 ITEMS */}
       {items.map((item,i)=>(
         <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
           <p className="font-semibold">{item.name}</p>
           <p className="text-green-600 font-bold">
-            ₹{getOfferPrice(item, offers)}
+            ₹{getOfferPrice(item,offers)}
           </p>
         </div>
       ))}
@@ -286,9 +310,10 @@ export default function CheckoutPage() {
 
         <button
           onClick={placeOrder}
+          disabled={loading}
           className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-4 rounded-2xl font-bold"
         >
-          Place Order 🚀
+          {loading ? "Processing..." : "Place Order 🚀"}
         </button>
 
       </div>
@@ -296,7 +321,7 @@ export default function CheckoutPage() {
       {/* 🐞 DEBUG */}
       <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
         <pre>
-{JSON.stringify({ items, itemsTotal, total }, null, 2)}
+{JSON.stringify({items,address,total},null,2)}
         </pre>
       </div>
 
