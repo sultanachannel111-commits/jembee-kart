@@ -5,157 +5,201 @@ import { auth, db } from "@/lib/firebase";
 import {
   collection,
   getDocs,
-  query,
-  orderBy
+  doc,
+  updateDoc,
+  addDoc
 } from "firebase/firestore";
-
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function OrdersPage() {
 
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [reason, setReason] = useState("");
+  const [issue, setIssue] = useState("");
 
   const router = useRouter();
 
-  // 🔥 LOAD ORDERS
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
       if (!u) return router.push("/login");
 
-      const q = query(
-        collection(db, "orders"),
-        orderBy("createdAt", "desc")
-      );
-
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "orders"));
 
       const arr = [];
-
       snap.forEach(d => {
         const data = d.data();
-
         if (data.userId === u.uid) {
-
-          // 🚚 DELIVERY DATE AUTO
-          let deliveryDate = "N/A";
-
-          if (data.createdAt?.toDate) {
-            const date = data.createdAt.toDate();
-
-            date.setDate(date.getDate() + 5);
-
-            deliveryDate = date.toDateString();
-          }
-
-          arr.push({
-            id: d.id,
-            ...data,
-            deliveryDate
-          });
+          arr.push({ id: d.id, ...data });
         }
       });
 
       setOrders(arr);
-      setLoading(false);
     });
 
     return () => unsub();
 
   }, []);
 
-  // 🔥 STATUS COLOR
-  const getStatusColor = (status) => {
-    if (status === "Delivered") return "text-green-600";
-    if (status === "Shipped") return "text-blue-600";
-    return "text-yellow-600";
+  // 🚚 DELIVERY DATE
+  const getDeliveryDate = (order) => {
+    if (!order.createdAt?.toDate) return "N/A";
+    const d = order.createdAt.toDate();
+    d.setDate(d.getDate() + 5);
+    return d.toDateString();
   };
 
-  // 🔥 LOADING
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading Orders...
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
+    <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
 
-      <h1 className="text-3xl font-bold text-center mb-6">
+      <h1 className="text-2xl font-bold mb-4">
         My Orders 📦
       </h1>
 
-      {/* ❌ EMPTY */}
-      {orders.length === 0 && (
-        <p className="text-center text-gray-500">
-          No orders found 😢
-        </p>
-      )}
+      {orders.map(o => (
 
-      {/* 📦 LIST */}
-      <div className="space-y-4">
+        <div
+          key={o.id}
+          className="glass p-4 rounded-2xl mb-4 shadow"
+        >
+          <p className="text-sm text-gray-500">Order ID</p>
+          <p className="font-bold break-all">{o.id}</p>
 
-        {orders.map(o => (
+          <p className="mt-2 font-semibold">
+            ₹{o.total}
+          </p>
 
-          <div
-            key={o.id}
-            className="glass p-4 animate-fadeIn"
-          >
+          <p className="text-yellow-600 font-semibold">
+            {o.status || "Pending"}
+          </p>
 
-            <p className="text-xs text-gray-500">
-              Order ID
-            </p>
+          <p className="text-xs mt-1">
+            🚚 Delivery by: {getDeliveryDate(o)}
+          </p>
 
-            <p className="font-bold text-sm break-all">
-              {o.id}
-            </p>
+          {/* BUTTONS */}
+          <div className="flex justify-between mt-3">
 
-            <div className="flex justify-between mt-2">
+            <button
+              onClick={() => router.push(`/orders/${o.id}`)}
+              className="text-blue-600"
+            >
+              Track Order
+            </button>
 
-              <p className="font-semibold">
-                ₹{o.total}
-              </p>
-
-              <p className={`text-sm font-semibold ${getStatusColor(o.status)}`}>
-                {o.status || "Pending"}
-              </p>
-
-            </div>
-
-            {/* 🚚 DELIVERY DATE */}
-            <p className="text-xs text-gray-500 mt-2">
-              🚚 Delivery by: {o.deliveryDate}
-            </p>
-
-            {/* 🔥 ACTIONS */}
-            <div className="flex gap-2 mt-3">
-
-              <button
-                onClick={() => router.push(`/track/${o.id}`)}
-                className="flex-1 btn-primary text-sm"
-              >
-                Track Order
-              </button>
-
-              <button
-                onClick={() => alert("Return/Support coming soon")}
-                className="flex-1 border rounded-xl text-sm"
-              >
-                Help
-              </button>
-
-            </div>
+            <button
+              onClick={() => {
+                setSelectedOrder(o);
+                setShowHelp(true);
+              }}
+              className="border px-4 py-1 rounded-full"
+            >
+              Help
+            </button>
 
           </div>
 
-        ))}
+        </div>
 
-      </div>
+      ))}
+
+      {/* 🔥 HELP MODAL */}
+      {showHelp && selectedOrder && (
+
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+          <div className="glass p-5 w-[90%] max-w-md animate-slideUp">
+
+            <h2 className="font-bold text-lg mb-3">
+              Help - Order
+            </h2>
+
+            {/* ❌ CANCEL */}
+            <button
+              onClick={async () => {
+
+                if (
+                  selectedOrder.paymentMethod === "ONLINE" &&
+                  selectedOrder.status !== "Pending"
+                ) {
+                  return alert("Prepaid order shipped hone ke baad cancel nahi hoga ❌");
+                }
+
+                await updateDoc(doc(db, "orders", selectedOrder.id), {
+                  status: "Cancelled"
+                });
+
+                alert("Order cancelled ✅");
+                setShowHelp(false);
+
+              }}
+              className="w-full bg-red-500 text-white p-2 rounded mb-3"
+            >
+              Cancel Order ❌
+            </button>
+
+            {/* 🔁 RETURN */}
+            <h3 className="font-semibold mb-2">Return Reason</h3>
+
+            <select
+              className="w-full border p-2 rounded mb-2"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            >
+              <option value="">Select Reason</option>
+              <option>Wrong Product</option>
+              <option>Damaged Product</option>
+              <option>Size Issue</option>
+              <option>Other</option>
+            </select>
+
+            {reason === "Other" && (
+              <textarea
+                placeholder="Describe problem..."
+                className="w-full border p-2 rounded mb-2"
+                value={issue}
+                onChange={(e) => setIssue(e.target.value)}
+              />
+            )}
+
+            <button
+              onClick={async () => {
+
+                if (!reason) return alert("Select reason");
+
+                await addDoc(collection(db, "returns"), {
+                  orderId: selectedOrder.id,
+                  reason,
+                  issue,
+                  status: "Requested",
+                  createdAt: new Date()
+                });
+
+                alert("Return request sent ✅");
+                setShowHelp(false);
+
+              }}
+              className="w-full bg-green-600 text-white p-2 rounded"
+            >
+              Request Return 🔁
+            </button>
+
+            <button
+              onClick={() => setShowHelp(false)}
+              className="mt-3 text-sm text-gray-500 w-full"
+            >
+              Close
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );
