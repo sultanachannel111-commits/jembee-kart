@@ -1,229 +1,80 @@
 "use client";
 
-import { useEffect,useState } from "react";
 import { useParams } from "next/navigation";
-import { doc,getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function TrackOrder(){
+export default function TrackPage() {
 
-const {id} = useParams();
+  const { id } = useParams();
+  const [order,setOrder] = useState<any>(null);
 
-const [order,setOrder] = useState<any>(null);
+  useEffect(()=>{
+    if(!id) return;
 
-useEffect(()=>{
+    const unsub = onSnapshot(doc(db,"orders",id as string),(snap)=>{
+      if(snap.exists()){
+        setOrder({id:snap.id,...snap.data()});
+      }
+    });
 
-const fetchOrder = async()=>{
+    return ()=>unsub();
+  },[id]);
 
-const snap = await getDoc(doc(db,"orders",id as string));
+  if(!order) return <div className="p-5">Loading...</div>;
 
-if(snap.exists()){
+  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
+  const current = steps.indexOf(order.status || "Pending");
+  const progress = (current/(steps.length-1))*100;
 
-setOrder(snap.data());
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4">
 
-}
+      <div className="max-w-xl mx-auto backdrop-blur-xl bg-white/60 border border-white/30 p-5 rounded-3xl shadow-xl">
 
-};
+        <h1 className="text-2xl font-bold mb-4 text-center">
+          🚚 Order Tracking
+        </h1>
 
-fetchOrder();
+        <p className="text-sm text-gray-500">Order ID</p>
+        <p className="font-bold">{order.id}</p>
 
-},[id]);
+        <p className="mt-2">
+          Status: <span className="text-green-600 font-bold">{order.status}</span>
+        </p>
 
+        {/* PROGRESS BAR */}
+        <div className="mt-6 relative">
 
-if(!order){
+          <div className="h-2 bg-gray-300 rounded-full"/>
 
-return(
+          <div
+            className="h-2 bg-gradient-to-r from-green-400 to-green-600 absolute top-0 rounded-full transition-all duration-500"
+            style={{width:`${progress}%`}}
+          />
 
-<div className="min-h-screen flex items-center justify-center">
+          <div
+            className="absolute -top-5 text-2xl transition-all duration-500"
+            style={{left:`${progress}%`}}
+          >
+            🚚
+          </div>
 
-Loading...
+        </div>
 
-</div>
+        <div className="flex justify-between mt-4 text-xs">
+          {steps.map((s,i)=>(
+            <span
+              key={i}
+              className={i<=current?"text-green-600 font-bold":"text-gray-400"}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
 
-);
-
-}
-
-
-/* ========================
-PROGRESS BAR
-======================== */
-
-let progress = 25;
-
-if(order.status==="Processing") progress=50;
-if(order.status==="Shipped") progress=75;
-if(order.status==="Delivered") progress=100;
-
-
-return(
-
-<div className="min-h-screen p-6 max-w-xl mx-auto">
-
-<h1 className="text-2xl font-bold mb-6">
-
-Track Your Order
-
-</h1>
-
-<div className="bg-white p-6 rounded-xl shadow">
-
-<p className="font-semibold">
-Order ID
-</p>
-
-<p className="mb-4">
-{id}
-</p>
-
-<p className="font-semibold">
-Product
-</p>
-
-<p className="mb-4">
-{order.productName || order.product?.name}
-</p>
-
-<p className="font-semibold">
-Status
-</p>
-
-<p className="mb-4 text-purple-600 font-bold">
-{order.status}
-</p>
-
-
-{/* PROGRESS BAR */}
-
-<div className="w-full bg-gray-200 h-4 rounded-full mb-6">
-
-<div
-className="bg-green-500 h-4 rounded-full"
-style={{width:progress+"%"}}
-/>
-
-</div>
-
-
-{/* ORDER TIMELINE */}
-
-<div className="mt-6 space-y-3">
-
-<div className={`flex items-center gap-3 ${order.status ? "text-green-600" : ""}`}>
-✔ Ordered
-</div>
-
-<div className={`flex items-center gap-3 ${
-order.status==="Processing" ||
-order.status==="Shipped" ||
-order.status==="Delivered"
-? "text-green-600"
-: "text-gray-400"
-}`}>
-✔ Packed
-</div>
-
-<div className={`flex items-center gap-3 ${
-order.status==="Shipped" ||
-order.status==="Delivered"
-? "text-green-600"
-: "text-gray-400"
-}`}>
-✔ Shipped
-</div>
-
-<div className={`flex items-center gap-3 ${
-order.status==="Delivered"
-? "text-green-600"
-: "text-gray-400"
-}`}>
-✔ Out for delivery
-</div>
-
-<div className={`flex items-center gap-3 ${
-order.status==="Delivered"
-? "text-green-600"
-: "text-gray-400"
-}`}>
-✔ Delivered
-</div>
-
-</div>
-
-
-{/* TRACKING INFO */}
-
-{order.trackingId && (
-
-<div className="mt-6">
-
-<p className="font-semibold">
-Tracking ID
-</p>
-
-<p>
-{order.trackingId}
-</p>
-
-</div>
-
-)}
-
-
-{order.courier && (
-
-<div className="mt-3">
-
-<p className="font-semibold">
-Courier
-</p>
-
-<p>
-{order.courier}
-</p>
-
-</div>
-
-)}
-
-
-{order.estimatedDelivery && (
-
-<div className="mt-3">
-
-<p className="font-semibold">
-Estimated Delivery
-</p>
-
-<p>
-{order.estimatedDelivery}
-</p>
-
-</div>
-
-)}
-
-
-{/* COURIER TRACK LINK */}
-
-{order.trackingId && (
-
-<a
-href={`https://www.google.com/search?q=${order.courier}+tracking+${order.trackingId}`}
-target="_blank"
-className="text-blue-600 underline mt-4 block"
->
-
-Track Shipment
-
-</a>
-
-)}
-
-</div>
-
-</div>
-
-);
-
+      </div>
+    </div>
+  );
 }
