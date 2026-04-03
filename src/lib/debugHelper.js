@@ -1,33 +1,39 @@
 export const analyzeError = (log) => {
   let fix = "";
   let hindi = "";
+  let where = "";
 
   const data = JSON.stringify(log.data || "");
 
-  if (data.includes("order_amount")) {
-    fix = "order_amount: Number(totalAmount)";
-    hindi = "Amount string me ja raha hai, use number me convert karo";
-  }
-
-  if (data.includes("customer_phone") === false) {
-    fix = `customer_phone: address.phone || "9999999999"`;
-    hindi = "Phone number missing hai";
-  }
-
   if (data.includes('"image":""')) {
     fix = `image: item.image || "https://via.placeholder.com/150"`;
-    hindi = "Image empty hai, default image do";
+    hindi = "Product image empty hai";
+    where = "Checkout / Cart code";
   }
 
-  if (data.includes("CASHFREE")) {
-    fix = `Vercel me CASHFREE_CLIENT_ID aur SECRET add karo`;
-    hindi = "Cashfree env variable missing hai";
+  else if (data.includes("order_amount")) {
+    fix = `order_amount: Number(totalAmount)`;
+    hindi = "Amount string me ja raha hai";
+    where = "Checkout payment code";
   }
 
-  if (!fix) {
-    fix = "Check console logs properly";
-    hindi = "Error generic hai, detail check karo";
+  else if (!data.includes("customer_phone")) {
+    fix = `customer_phone: address.phone || "9999999999"`;
+    hindi = "Phone number missing hai";
+    where = "Customer details object";
   }
 
-  return { fix, hindi };
+  else if (data.includes("CASHFREE")) {
+    fix = `Vercel → Settings → Env Variables add karo`;
+    hindi = "Cashfree key missing hai";
+    where = "Vercel settings";
+  }
+
+  else {
+    fix = "console.log check karo ya data validate karo";
+    hindi = "Generic error hai";
+    where = "Frontend/API";
+  }
+
+  return { fix, hindi, where };
 };
