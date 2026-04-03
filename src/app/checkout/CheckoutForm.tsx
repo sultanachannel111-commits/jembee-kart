@@ -139,7 +139,20 @@ export default function CheckoutPage() {
 
         addLog("info", res.status, "🟡 API status aaya");
 
-        const data = await res.json();
+        let data;
+
+        // ✅ SAFE JSON PARSE (IMPORTANT FIX)
+        try {
+          data = await res.json();
+        } catch (err) {
+          const text = await res.text();
+
+          addLog("error", text, "❌ HTML aaya JSON nahi");
+
+          alert("Server error: API JSON nahi de raha");
+          setLoading(false);
+          return;
+        }
 
         addLog("response", data, "🟢 API response aaya");
 
@@ -213,7 +226,6 @@ export default function CheckoutPage() {
         );
       })}
 
-      {/* PAYMENT */}
       <div className="mt-4 space-y-2">
 
         <button onClick={()=>setPayment("COD")}
@@ -234,7 +246,6 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-2xl shadow">
         <div className="flex justify-between">
           <span>Items</span>
@@ -254,7 +265,6 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3">
         <button
           onClick={placeOrder}
@@ -264,7 +274,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* DEBUG SCREEN */}
+      {/* DEBUG */}
       <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl">
         <pre>{JSON.stringify({items,total,payment},null,2)}</pre>
       </div>
