@@ -141,7 +141,6 @@ export default function CheckoutPage() {
 
         let data;
 
-        // ✅ SAFE JSON PARSE (IMPORTANT FIX)
         try {
           data = await res.json();
         } catch (err) {
@@ -149,53 +148,33 @@ export default function CheckoutPage() {
 
           addLog("error", text, "❌ HTML aaya JSON nahi");
 
-          alert("Server error: API JSON nahi de raha");
-          setLoading(false);
+          alert("Server error: JSON nahi mila");
           return;
         }
 
         addLog("response", data, "🟢 API response aaya");
 
-        console.log("🔥 FULL API RESPONSE:", data);
+        // ✅ SAFE SESSION ID FIX
+        const sessionId =
+          data?.payment_session_id ||
+          data?.data?.payment_session_id;
 
-// ✅ SAFE SESSION ID
-const sessionId =
-  data?.payment_session_id ||
-  data?.data?.payment_session_id;
-
-if (sessionId) {
-
-  const { load } = await import("@cashfreepayments/cashfree-js");
-
-  const cashfree = await load({ mode: "sandbox" });
-
-  cashfree.checkout({
-    paymentSessionId: sessionId,
-    redirectTarget: "_self"
-  });
-
-} else {
-  console.log("❌ SESSION ERROR:", data);
-  alert(JSON.stringify(data, null, 2));
-  setLoading(false);
-  return;
-}
+        if (sessionId) {
 
           const { load } = await import("@cashfreepayments/cashfree-js");
 
           const cashfree = await load({ mode: "sandbox" });
 
           cashfree.checkout({
-            paymentSessionId: data.payment_session_id,
+            paymentSessionId: sessionId,
             redirectTarget: "_self"
           });
 
           return;
 
         } else {
-          addLog("error", data, "🔴 Payment fail hua");
+          addLog("error", data, "🔴 Payment fail");
           alert(JSON.stringify(data, null, 2));
-          setLoading(false);
           return;
         }
       }
@@ -219,12 +198,14 @@ if (sessionId) {
 
       console.log(err);
 
-      addLog("error", err.message, "🔴 Frontend crash");
+      addLog("error", err?.message || err, "🔴 Frontend crash");
 
-      alert("Error: " + err.message);
+      alert("Error: " + (err?.message || "Unknown error"));
+
+    } finally {
+      // ✅ ALWAYS STOP LOADING
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
