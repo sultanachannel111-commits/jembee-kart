@@ -7,7 +7,9 @@ import {
   getDocs,
   doc,
   updateDoc,
-  addDoc
+  addDoc,
+  getDoc,
+  setDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -17,6 +19,9 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
 
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(false);
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [reason, setReason] = useState("");
@@ -24,7 +29,7 @@ export default function ProfilePage() {
 
   const router = useRouter();
 
-  // 🔥 LOAD USER + ORDERS
+  // 🔥 LOAD USER + NAME + ORDERS
   useEffect(() => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -33,13 +38,22 @@ export default function ProfilePage() {
 
       setUser(u);
 
-      const snap = await getDocs(collection(db, "orders"));
+      // 👤 NAME LOAD
+      const userRef = doc(db, "users", u.uid);
+      const snap = await getDoc(userRef);
+
+      if (snap.exists()) {
+        setName(snap.data().name);
+      } else {
+        setName(u.email.split("@")[0]);
+      }
+
+      // 📦 ORDERS LOAD
+      const snapOrders = await getDocs(collection(db, "orders"));
 
       const arr = [];
-
-      snap.forEach(d => {
+      snapOrders.forEach(d => {
         const data = d.data();
-
         if (data.userId === u.uid) {
           arr.push({ id: d.id, ...data });
         }
@@ -52,12 +66,6 @@ export default function ProfilePage() {
     return () => unsub();
 
   }, []);
-
-  // 👤 NAME EXTRACT (email se)
-  const getName = () => {
-    if (!user?.email) return "User";
-    return user.email.split("@")[0].toUpperCase();
-  };
 
   // 🚚 DELIVERY DATE
   const getDeliveryDate = (order) => {
@@ -73,14 +81,41 @@ export default function ProfilePage() {
   return (
     <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
 
-      {/* 👤 USER */}
-      <div className="glass p-5 rounded-2xl mb-5 text-center">
+      {/* 👤 PROFILE */}
+      <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
 
-        <h1 className="text-2xl font-bold">
-          👤 {getName()}
-        </h1>
+        {!editing ? (
+          <>
+            <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-        <p className="text-sm text-gray-500 mt-1">
+            <button
+              onClick={() => setEditing(true)}
+              className="text-blue-600 text-sm mt-1"
+            >
+              Edit Name
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="border p-2 rounded w-full"
+            />
+
+            <button
+              onClick={async () => {
+                await setDoc(doc(db, "users", user.uid), { name });
+                setEditing(false);
+              }}
+              className="bg-green-600 text-white px-4 py-1 rounded mt-2"
+            >
+              Save
+            </button>
+          </>
+        )}
+
+        <p className="text-sm text-gray-500 mt-2">
           {user?.email}
         </p>
 
@@ -109,18 +144,12 @@ export default function ProfilePage() {
           (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
 
         const current = steps.indexOf(o.status || "Pending");
-
         const progress =
-          current <= 0
-            ? 5
-            : (current / (steps.length - 1)) * 100;
+          current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
 
         return (
 
-          <div
-            key={o.id}
-            className="glass p-4 rounded-2xl mb-4 shadow"
-          >
+          <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
 
             {/* 🖼 PRODUCT */}
             {o.items?.length > 0 && (
@@ -157,13 +186,13 @@ export default function ProfilePage() {
               {o.status || "Pending"}
             </p>
 
-            {/* 🚚 DELIVERY */}
+            {/* DELIVERY */}
             <p className="text-xs mt-1">
               🚚 {getDeliveryDate(o)}
             </p>
 
-            {/* 📊 TRACKING BAR */}
-            <div className="mt-4">
+            {/* 📊 TRACK BAR */}
+            <div className="mt-3">
 
               <div className="h-2 bg-gray-300 rounded-full" />
 
@@ -180,6 +209,14 @@ export default function ProfilePage() {
                   {s}
                 </span>
               ))}
+            </div>
+
+            {/* 📍 LIVE MAP */}
+            <div className="mt-4">
+              <iframe
+                src="https://maps.google.com/maps?q=Jamshedpur&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                className="w-full h-40 rounded-xl"
+              />
             </div>
 
             {/* BUTTONS */}
@@ -205,6 +242,7 @@ export default function ProfilePage() {
             </div>
 
           </div>
+
         );
 
       })}
@@ -222,18 +260,9 @@ export default function ProfilePage() {
             <button
               onClick={async () => {
 
-                if (selectedOrder.paymentMethod === "COD") {
-                  await updateDoc(doc(db, "orders", selectedOrder.id), {
-                    status: "Cancelled"
-                  });
-                } else {
-                  if (selectedOrder.status !== "Pending") {
-                    return alert("Cannot cancel ❌");
-                  }
-                  await updateDoc(doc(db, "orders", selectedOrder.id), {
-                    status: "Cancelled"
-                  });
-                }
+                await updateDoc(doc(db, "orders", selectedOrder.id), {
+                  status: "Cancelled"
+                });
 
                 alert("Cancelled ✅");
                 setShowHelp(false);
@@ -273,6 +302,7 @@ export default function ProfilePage() {
 
                 await addDoc(collection(db, "returns"), {
                   orderId: selectedOrder.id,
+                  userId: selectedOrder.userId,
                   reason,
                   issue,
                   status: "Requested",
