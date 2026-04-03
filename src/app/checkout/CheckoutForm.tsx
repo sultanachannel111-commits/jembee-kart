@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-
 import {
   collection,
   onSnapshot,
@@ -32,7 +31,7 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  /* 🔥 LOAD USER + CART */
+  // 🔥 LOAD USER + CART + OFFERS
   useEffect(() => {
 
     let unsubscribe:any;
@@ -43,6 +42,18 @@ export default function CheckoutPage() {
 
         setUser(u);
 
+        // 🔥 BUY NOW SUPPORT
+        const buyNow = localStorage.getItem("buy-now");
+
+        if (buyNow) {
+          try {
+            const parsed = JSON.parse(buyNow);
+            console.log("⚡ BUY NOW:", parsed);
+            setItems([parsed]);
+          } catch {}
+        }
+
+        // 🔥 CART LOAD
         const itemsRef = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(itemsRef, (snap) => {
@@ -58,9 +69,7 @@ export default function CheckoutPage() {
             });
           });
 
-          console.log("🛒 CART ITEMS:", arr);
-
-          setItems(arr);
+          if (!buyNow) setItems(arr);
         });
 
         // 🔥 OFFERS
@@ -70,8 +79,6 @@ export default function CheckoutPage() {
         offSnap.forEach(d=>{
           off[d.id] = d.data();
         });
-
-        console.log("🔥 OFFERS:", off);
 
         setOffers(off);
       }
@@ -85,54 +92,36 @@ export default function CheckoutPage() {
 
   }, []);
 
-  /* 💰 TOTAL FIX */
+  // 💰 TOTAL
   const itemsTotal = items.reduce((sum, item) => {
-
     const price = getOfferPrice(item, offers);
-
-    console.log("🧾 ITEM PRICE:", {
-      name: item.name,
-      base: item.price,
-      final: price,
-      qty: item.quantity
-    });
-
     return sum + (price || 0) * (item.quantity || 1);
-
   }, 0);
 
   const shipping = payment === "COD" ? 60 : 40;
 
   const total = Math.max(0, itemsTotal + shipping - couponDiscount);
 
-  console.log("💰 TOTAL:", {
-    itemsTotal,
-    shipping,
-    couponDiscount,
-    total
-  });
-
-  /* 🎟 COUPON */
+  // 🎟 COUPON
   const applyCoupon = () => {
 
-    if (coupon === "SAVE50") {
-      setCouponDiscount(50);
-    }
-    else if (coupon === "FLAT100") {
-      setCouponDiscount(100);
-    }
+    if (coupon === "SAVE50") setCouponDiscount(50);
+    else if (coupon === "FLAT100") setCouponDiscount(100);
     else {
       alert("Invalid coupon ❌");
       setCouponDiscount(0);
     }
   };
 
-  /* 🚀 PLACE ORDER */
+  // 🚀 PLACE ORDER
   const placeOrder = async () => {
 
     if (!user) return alert("Login required");
     if (items.length === 0) return alert("Cart empty");
 
+    console.log("🔥 ORDER DATA:", { items, total });
+
+    // 🔥 CREATE ORDER
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
       items,
@@ -145,14 +134,66 @@ export default function CheckoutPage() {
       createdAt: serverTimestamp()
     });
 
-    // COD
+    // 💳 ONLINE PAYMENT (CASHFREE)
+    if (payment === "ONLINE") {
+
+      try {
+
+        const res = await fetch("/api/cashfree", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            orderId: orderRef.id,
+            amount: total,
+            customer: user
+          })
+        });
+
+        const data = await res.json();
+
+        console.log("💳 CASHFREE:", data);
+
+        if (data.payment_session_id) {
+
+          const { load } = await import("@cashfreepayments/cashfree-js");
+
+          const cashfree = await load({
+            mode: "sandbox" // 🔥 production me change karna
+          });
+
+          cashfree.checkout({
+            paymentSessionId: data.payment_session_id,
+            redirectTarget: "_self"
+          });
+
+          return;
+
+        } else {
+          alert("Payment init failed ❌");
+          return;
+        }
+
+      } catch (err) {
+        console.log(err);
+        alert("Payment error ❌");
+        return;
+      }
+    }
+
+    // 📦 COD FLOW
     for (const item of items) {
-      await deleteDoc(doc(db, "carts", user.uid, "items", item.cartId));
+      if (item.cartId) {
+        await deleteDoc(doc(db, "carts", user.uid, "items", item.cartId));
+      }
     }
 
     await updateDoc(orderRef, {
       status: "Placed"
     });
+
+    localStorage.removeItem("buy-now");
 
     router.push(`/success?orderId=${orderRef.id}&total=${total}`);
   };
@@ -165,22 +206,14 @@ export default function CheckoutPage() {
       </h1>
 
       {/* 🛒 ITEMS */}
-      {items.map((item,i)=>{
-
-        const price = getOfferPrice(item, offers);
-
-        return (
-          <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
-
-            <p className="font-semibold">{item.name}</p>
-
-            <p className="text-green-600 font-bold">
-              ₹{price} × {item.quantity}
-            </p>
-
-          </div>
-        );
-      })}
+      {items.map((item,i)=>(
+        <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
+          <p className="font-semibold">{item.name}</p>
+          <p className="text-green-600 font-bold">
+            ₹{getOfferPrice(item, offers)}
+          </p>
+        </div>
+      ))}
 
       {/* 🎟 COUPON */}
       <div className="flex gap-2 mt-4">
@@ -260,15 +293,10 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* 🐞 DEBUG PANEL */}
+      {/* 🐞 DEBUG */}
       <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
         <pre>
-{JSON.stringify({
-  items,
-  offers,
-  itemsTotal,
-  total
-}, null, 2)}
+{JSON.stringify({ items, itemsTotal, total }, null, 2)}
         </pre>
       </div>
 
