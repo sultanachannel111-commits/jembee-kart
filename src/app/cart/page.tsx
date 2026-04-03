@@ -16,9 +16,13 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
+import { getOfferPrice, getCartTotal } from "@/utils/pricing";
+import { getActiveOffers } from "@/services/offerService";
+
 export default function CartPage() {
 
   const [items, setItems] = useState<any[]>([]);
+  const [offers, setOffers] = useState({});
   const [user, setUser] = useState<any>(null);
 
   const router = useRouter();
@@ -28,11 +32,15 @@ export default function CartPage() {
 
     let unsubscribe:any;
 
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
 
       if (u) {
 
         setUser(u);
+
+        // 🔥 LOAD OFFERS
+        const off = await getActiveOffers();
+        setOffers(off);
 
         const itemsRef = collection(db, "carts", u.uid, "items");
 
@@ -45,12 +53,16 @@ export default function CartPage() {
             const d:any = docSnap.data();
 
             data.push({
-              id: d.productId || docSnap.id,   // 🔥 productId (offer match)
-              cartId: docSnap.id,              // 🔥 cart doc id
+              id: d.productId || docSnap.id,
+              productId: d.productId || docSnap.id,
+              cartId: docSnap.id,
+
               name: d.name,
               image: d.image || "",
               price: d.price || 0,
               quantity: d.quantity || 1,
+
+              category: d.category || "",
               variations: d.variations || []
             });
 
@@ -70,17 +82,6 @@ export default function CartPage() {
     };
 
   }, []);
-
-  /* 💰 PRICE */
-  const getPrice = (item:any) => {
-
-    const sellPrice =
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      item.price ||
-      0;
-
-    return sellPrice;
-  };
 
   /* ➕ INCREASE */
   const increase = async (item:any) => {
@@ -116,10 +117,7 @@ export default function CartPage() {
   };
 
   /* 💵 TOTAL */
-  const total = items.reduce(
-    (sum, i) => sum + getPrice(i) * i.quantity,
-    0
-  );
+  const total = getCartTotal(items, offers);
 
   return (
     <>
@@ -140,63 +138,67 @@ export default function CartPage() {
         {/* ITEMS */}
         <div className="space-y-4">
 
-          {items.map((item) => (
+          {items.map((item) => {
 
-            <div
-              key={item.cartId}
-              className="flex gap-4 p-4 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/30 shadow-xl"
-            >
+            const price = getOfferPrice(item, offers);
 
-              <img
-                src={item.image || "/no.png"}
-                className="w-24 h-24 rounded-2xl object-cover"
-              />
+            return (
+              <div
+                key={item.cartId}
+                className="flex gap-4 p-4 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/30 shadow-xl"
+              >
 
-              <div className="flex-1">
+                <img
+                  src={item.image || "/no.png"}
+                  className="w-24 h-24 rounded-2xl object-cover"
+                />
 
-                <p className="font-semibold text-lg">
-                  {item.name}
-                </p>
+                <div className="flex-1">
 
-                <p className="text-green-600 font-bold text-xl mt-1">
-                  ₹{getPrice(item)}
-                </p>
+                  <p className="font-semibold text-lg">
+                    {item.name}
+                  </p>
 
-                {/* QTY */}
-                <div className="flex items-center gap-3 mt-3">
+                  <p className="text-green-600 font-bold text-xl mt-1">
+                    ₹{price}
+                  </p>
 
-                  <button
-                    onClick={() => decrease(item)}
-                    className="w-8 h-8 bg-gray-200 rounded-full"
-                  >
-                    -
-                  </button>
+                  {/* QTY */}
+                  <div className="flex items-center gap-3 mt-3">
 
-                  <span className="font-bold">
-                    {item.quantity}
-                  </span>
+                    <button
+                      onClick={() => decrease(item)}
+                      className="w-8 h-8 bg-gray-200 rounded-full"
+                    >
+                      -
+                    </button>
 
-                  <button
-                    onClick={() => increase(item)}
-                    className="w-8 h-8 bg-gray-200 rounded-full"
-                  >
-                    +
-                  </button>
+                    <span className="font-bold">
+                      {item.quantity}
+                    </span>
 
-                  <button
-                    onClick={() => remove(item.cartId)}
-                    className="ml-4 text-red-500 text-sm"
-                  >
-                    Remove
-                  </button>
+                    <button
+                      onClick={() => increase(item)}
+                      className="w-8 h-8 bg-gray-200 rounded-full"
+                    >
+                      +
+                    </button>
+
+                    <button
+                      onClick={() => remove(item.cartId)}
+                      className="ml-4 text-red-500 text-sm"
+                    >
+                      Remove
+                    </button>
+
+                  </div>
 
                 </div>
 
               </div>
+            );
 
-            </div>
-
-          ))}
+          })}
 
         </div>
 
@@ -231,7 +233,7 @@ export default function CartPage() {
 
         </div>
 
-        {/* 🐞 DEBUG (optional) */}
+        {/* ❌ REMOVE IN PRODUCTION */}
         <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
           <pre>
 {JSON.stringify(items, null, 2)}
