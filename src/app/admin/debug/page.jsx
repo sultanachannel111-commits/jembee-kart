@@ -7,22 +7,19 @@ export default function DebugPage() {
 
   return (
     <div style={{ padding: 15 }}>
-      <h2>🧠 Smart Debug Panel</h2>
+      <h1>🧠 Debug Panel</h1>
 
       {logs.length === 0 && <p>No logs yet...</p>}
 
       {logs.map((log, i) => (
-        <div
-          key={i}
-          style={{
-            border: "2px solid red",
-            marginBottom: 15,
-            padding: 10,
-            borderRadius: 10,
-            background: "#111",
-            color: "#fff",
-          }}
-        >
+        <div key={i} style={{
+          border: "2px solid red",
+          marginBottom: 15,
+          padding: 10,
+          borderRadius: 10,
+          background: "#111",
+          color: "#fff"
+        }}>
           <p>⏰ {log.time}</p>
           <p>📌 {log.type}</p>
           <p>💬 {log.message}</p>
@@ -36,25 +33,17 @@ export default function DebugPage() {
           <p>📍 Kaha fix karna hai:</p>
           <b>{log.where}</b>
 
-          <p>🧠 Problem kya hai:</p>
+          <p>🧠 Problem:</p>
           <span>{log.hindi}</span>
 
-          <p>✅ Kya likhna hai:</p>
+          <p>✅ Fix:</p>
           <code style={{ color: "lightgreen" }}>{log.fix}</code>
 
           <br />
 
-          <button
-            onClick={() =>
-              navigator.clipboard.writeText(log.fix)
-            }
-            style={{
-              marginTop: 10,
-              padding: 5,
-              background: "green",
-              color: "white",
-            }}
-          >
+          <button onClick={() =>
+            navigator.clipboard.writeText(log.fix)
+          }>
             📋 Copy Fix
           </button>
         </div>
