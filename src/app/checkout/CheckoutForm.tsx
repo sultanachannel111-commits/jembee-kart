@@ -10,6 +10,7 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  updateDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -58,7 +59,7 @@ export default function CheckoutPage() {
           setItems(arr);
         });
 
-        // 🔥 OFFERS LOAD
+        // 🔥 OFFERS
         const offSnap = await getDocs(collection(db, "offers"));
         const off:any = {};
 
@@ -78,17 +79,12 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 TOTAL CALCULATION
+  // 💰 TOTAL FIX (MAIN)
   const itemsTotal = items.reduce((sum, item) => {
-
-    const base =
-      item?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-      item.price ||
-      0;
 
     const final = getOfferPrice(item, offers);
 
-    return sum + (final || base) * (item.quantity || 1);
+    return sum + (final || 0) * (item.quantity || 1);
 
   }, 0);
 
@@ -111,14 +107,14 @@ export default function CheckoutPage() {
     }
   };
 
-  // 🚀 PLACE ORDER (REAL)
+  // 🚀 FINAL PLACE ORDER (CASHFREE + COD)
   const placeOrder = async () => {
 
     if (!user) return alert("Login required");
     if (items.length === 0) return alert("Cart empty");
 
-    // 🔥 ORDER DATA
-    const orderData = {
+    // 🔥 ORDER CREATE
+    const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
       items,
       itemsTotal,
@@ -126,20 +122,57 @@ export default function CheckoutPage() {
       couponDiscount,
       total,
       paymentMethod: payment,
-      status: "Placed",
+      status: "Pending",
       createdAt: serverTimestamp()
-    };
+    });
 
-    // 🔥 SAVE ORDER
-    const ref = await addDoc(collection(db, "orders"), orderData);
+    // 💳 ONLINE PAYMENT
+    if (payment === "ONLINE") {
 
-    // 🔥 CLEAR CART
+      const res = await fetch("/api/cashfree", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          orderId: orderRef.id,
+          amount: total,
+          customer: user
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.payment_session_id) {
+
+        const { load } = await import("@cashfreepayments/cashfree-js");
+
+        const cashfree = await load({
+          mode: "sandbox" // 🔥 production me "production"
+        });
+
+        cashfree.checkout({
+          paymentSessionId: data.payment_session_id,
+          redirectTarget: "_self"
+        });
+
+        return;
+      } else {
+        alert("Payment init failed ❌");
+        return;
+      }
+    }
+
+    // 📦 COD FLOW
     for (const item of items) {
       await deleteDoc(doc(db, "carts", user.uid, "items", item.cartId));
     }
 
-    // 🔥 REDIRECT
-    router.push(`/success?orderId=${ref.id}&total=${total}`);
+    await updateDoc(orderRef, {
+      status: "Placed"
+    });
+
+    router.push(`/success?orderId=${orderRef.id}&total=${total}`);
   };
 
   return (
@@ -149,7 +182,7 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* ITEMS */}
+      {/* 🛒 ITEMS */}
       {items.map((item,i)=>(
         <div key={i} className="bg-white p-4 rounded-2xl mb-3 shadow">
 
@@ -162,7 +195,7 @@ export default function CheckoutPage() {
         </div>
       ))}
 
-      {/* COUPON */}
+      {/* 🎟 COUPON */}
       <div className="flex gap-2 mt-4">
         <input
           value={coupon}
@@ -178,12 +211,13 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* PAYMENT */}
+      {/* 💳 PAYMENT */}
       <div className="mt-4 space-y-2">
+
         <button
           onClick={()=>setPayment("COD")}
           className={`w-full p-3 rounded-xl border ${
-            payment==="COD" ? "border-pink-500" : ""
+            payment==="COD" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
           Cash on Delivery (+₹60)
@@ -192,14 +226,15 @@ export default function CheckoutPage() {
         <button
           onClick={()=>setPayment("ONLINE")}
           className={`w-full p-3 rounded-xl border ${
-            payment==="ONLINE" ? "border-pink-500" : ""
+            payment==="ONLINE" ? "border-pink-500 bg-pink-50" : ""
           }`}
         >
           Online Payment (+₹40)
         </button>
+
       </div>
 
-      {/* SUMMARY */}
+      {/* 💰 SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-2xl shadow">
 
         <div className="flex justify-between">
@@ -226,7 +261,7 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* BUTTON */}
+      {/* 🚀 BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3">
 
         <button
@@ -236,6 +271,11 @@ export default function CheckoutPage() {
           Place Order 🚀
         </button>
 
+      </div>
+
+      {/* 🐞 DEBUG */}
+      <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
+        <pre>{JSON.stringify(items,null,2)}</pre>
       </div>
 
     </div>
