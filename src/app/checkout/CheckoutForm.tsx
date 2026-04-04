@@ -43,7 +43,6 @@ export default function CheckoutPage() {
   useEffect(() => {
 
     if (typeof window !== "undefined") {
-
       const seller = localStorage.getItem("refSeller");
       setRefSeller(seller);
 
@@ -133,7 +132,7 @@ export default function CheckoutPage() {
     ? Math.floor(totalProfit * 0.5)
     : 0;
 
-  // 🚀 CASHFREE PAYMENT
+  // 🚀 ONLINE PAYMENT (FINAL FIXED)
   const handleOnlinePayment = async () => {
 
     if (!address) {
@@ -142,37 +141,95 @@ export default function CheckoutPage() {
     }
 
     try {
-
       setLoading(true);
 
-      const res = await fetch("/api/cashfree/create-order", {
+      // 🔥 create order
+      const res = await fetch("/api/create-order", {
         method: "POST",
         body: JSON.stringify({
           amount: total,
-          userId: user.uid,
-          email: user.email,
-          phone: address.phone
+          customer: {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+            phone: address.phone
+          }
         })
       });
 
       const data = await res.json();
 
+      if (!data.payment_session_id) {
+        alert("Payment init failed ❌");
+        setLoading(false);
+        return;
+      }
+
       const cashfree = await load({
-        mode: "sandbox" // 👉 production me change karna
+        mode: process.env.NODE_ENV === "production" ? "production" : "sandbox"
       });
 
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
+        redirectTarget: "_modal"
       });
 
+      // ✅ VERIFY PAYMENT
+      const verifyRes = await fetch("/api/verify-payment", {
+        method: "POST",
+        body: JSON.stringify({ orderId: data.order_id })
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (!verifyData.success) {
+        alert("Payment failed ❌");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ SAVE ORDER AFTER SUCCESS
+      const ref = await addDoc(collection(db, "orders"), {
+        userId: user.uid,
+        items,
+        itemsTotal,
+        shipping,
+        total,
+        paymentMethod: "ONLINE",
+        address,
+        sellerRef: refSeller || null,
+        totalProfit,
+        commission,
+        status: "Paid",
+        createdAt: serverTimestamp()
+      });
+
+      // commission
+      if (refSeller && commission > 0) {
+        await addDoc(collection(db, "commissions"), {
+          sellerId: refSeller,
+          orderId: ref.id,
+          amount: commission,
+          createdAt: serverTimestamp(),
+          status: "pending"
+        });
+      }
+
+      setOrderId(ref.id);
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        router.push("/profile");
+      }, 2000);
+
     } catch (err) {
-      alert("Payment failed ❌");
-      setLoading(false);
+      alert("Payment error ❌");
     }
+
+    setLoading(false);
   };
 
-  // 🚀 COD ORDER
+  // 🚀 COD
   const placeOrder = async () => {
 
     if (!address) {
@@ -189,7 +246,7 @@ export default function CheckoutPage() {
         itemsTotal,
         shipping,
         total,
-        paymentMethod: payment,
+        paymentMethod: "COD",
         address,
         sellerRef: refSeller || null,
         totalProfit,
@@ -197,16 +254,6 @@ export default function CheckoutPage() {
         status: "Pending",
         createdAt: serverTimestamp()
       });
-
-      if (refSeller && commission > 0) {
-        await addDoc(collection(db, "commissions"), {
-          sellerId: refSeller,
-          orderId: ref.id,
-          amount: commission,
-          createdAt: serverTimestamp(),
-          status: "pending"
-        });
-      }
 
       setOrderId(ref.id);
       setShowSuccess(true);
@@ -231,7 +278,6 @@ export default function CheckoutPage() {
 
       {/* ADDRESS */}
       <div className="backdrop-blur-2xl bg-white/20 border border-white/30 p-4 rounded-2xl shadow-xl mb-4 text-white">
-
         <div className="flex justify-between">
           <h2 className="font-semibold">Delivery Address</h2>
           <button onClick={() => router.push("/profile")} className="underline text-sm">
@@ -249,54 +295,10 @@ export default function CheckoutPage() {
         ) : (
           <p className="text-red-200 mt-2">No address found ❌</p>
         )}
-
-      </div>
-
-      {/* ITEMS */}
-      {items.map((item, i) => (
-        <div key={i} className="backdrop-blur-2xl bg-white/20 border border-white/30 p-3 rounded-xl shadow mb-3 flex gap-3 text-white">
-
-          <img src={item.image} className="w-16 h-16 rounded-lg object-cover"/>
-
-          <div className="flex-1">
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-sm opacity-80">Qty: {item.qty}</p>
-            <p className="font-bold text-green-300">₹{item.price}</p>
-          </div>
-
-        </div>
-      ))}
-
-      {/* PAYMENT */}
-      <div className="mt-6 space-y-3">
-
-        <div
-          onClick={() => setPayment("ONLINE")}
-          className={`p-3 rounded-xl cursor-pointer ${
-            payment === "ONLINE"
-              ? "bg-white text-black shadow-lg"
-              : "bg-white/20 text-white border border-white/30"
-          }`}
-        >
-          💳 Online Payment (+₹{shippingConfig.prepaid})
-        </div>
-
-        <div
-          onClick={() => setPayment("COD")}
-          className={`p-3 rounded-xl cursor-pointer ${
-            payment === "COD"
-              ? "bg-white text-black shadow-lg"
-              : "bg-white/20 text-white border border-white/30"
-          }`}
-        >
-          📦 Cash on Delivery (+₹{shippingConfig.cod})
-        </div>
-
       </div>
 
       {/* SUMMARY */}
       <div className="mt-6 backdrop-blur-2xl bg-white/20 border border-white/30 p-4 rounded-2xl text-white">
-
         <div className="flex justify-between">
           <span>Items</span>
           <span>₹{itemsTotal}</span>
@@ -313,46 +315,35 @@ export default function CheckoutPage() {
           <span>Total</span>
           <span>₹{total}</span>
         </div>
-
       </div>
 
       {/* BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3 backdrop-blur-xl bg-white/20 border-t border-white/30">
-
         <button
           onClick={() => {
-            if (payment === "ONLINE") {
-              handleOnlinePayment();
-            } else {
-              placeOrder();
-            }
+            payment === "ONLINE"
+              ? handleOnlinePayment()
+              : placeOrder();
           }}
           disabled={loading}
           className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600 shadow-xl"
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
-
       </div>
 
       {/* SUCCESS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-
           <div className="backdrop-blur-2xl bg-white/20 border border-white/30 p-6 rounded-2xl text-center text-white w-[90%] max-w-sm">
-
             <div className="text-5xl mb-3">🎉</div>
-
             <h2 className="text-xl font-bold">
               Order Placed Successfully
             </h2>
-
             <p className="text-sm mt-2">
               Order ID: {orderId}
             </p>
-
           </div>
-
         </div>
       )}
 
