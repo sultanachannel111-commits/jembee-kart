@@ -17,6 +17,11 @@ import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
 
+  const DEBUG = true;
+  const log = (...args: any[]) => {
+    if (DEBUG) console.log("🧪 DEBUG:", ...args);
+  };
+
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
 
@@ -34,27 +39,41 @@ export default function CheckoutPage() {
 
   const [refSeller, setRefSeller] = useState<string | null>(null);
 
-  const router = useRouter();
+  const [items, setItems] = useState<any[]>([]);
 
-  const items = [
-    {
-      name: "Orange T-shirt",
-      price: 500,
-      basePrice: 300,
-      qty: 1,
-      image: "https://via.placeholder.com/100"
-    }
-  ];
+  const router = useRouter();
 
   // 🔥 LOAD DATA
   useEffect(() => {
 
     if (typeof window !== "undefined") {
+
       const seller = localStorage.getItem("refSeller");
+      log("refSeller:", seller);
       setRefSeller(seller);
+
+      const buyNow = localStorage.getItem("buy-now");
+      log("buy-now raw:", buyNow);
+
+      if (buyNow) {
+        const parsed = JSON.parse(buyNow);
+        log("buy-now parsed:", parsed);
+
+        setItems([
+          {
+            ...parsed,
+            qty: parsed.quantity || 1,
+            basePrice: parsed.basePrice || parsed.price || 0
+          }
+        ]);
+      } else {
+        log("❌ No buy-now data found");
+      }
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+
+      log("Auth user:", u);
 
       if (!u) {
         router.push("/login");
@@ -73,11 +92,13 @@ export default function CheckoutPage() {
         if (d.data().isDefault) defaultAddr = d.data();
       });
 
+      log("Default address:", defaultAddr);
       setAddress(defaultAddr);
 
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
+        log("Shipping config:", shipSnap.data());
         setShippingConfig(shipSnap.data() as any);
       }
 
@@ -89,7 +110,7 @@ export default function CheckoutPage() {
 
   // 💰 TOTAL
   const itemsTotal = items.reduce(
-    (sum, i) => sum + i.price * i.qty,
+    (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 1),
     0
   );
 
@@ -104,14 +125,23 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
+  log("Items:", items);
+  log("Items Total:", itemsTotal);
+  log("Shipping:", shipping);
+  log("Total:", total);
+
   // 🔥 PROFIT
   const totalProfit = items.reduce((sum, item) => {
-    return sum + (item.price - item.basePrice) * item.qty;
+    return sum + ((item.price || 0) - (item.basePrice || 0)) * (item.qty || 1);
   }, 0);
 
   const commission = refSeller
     ? Math.floor(totalProfit * 0.5)
     : 0;
+
+  log("Total Profit:", totalProfit);
+  log("Ref Seller:", refSeller);
+  log("Commission:", commission);
 
   // 🚀 PLACE ORDER
   const placeOrder = async () => {
@@ -137,12 +167,11 @@ export default function CheckoutPage() {
         commission
       };
 
-      // =========================
-      // 💳 ONLINE PAYMENT FIRST
-      // =========================
+      log("Order Data:", orderData);
+
+      // 💳 ONLINE PAYMENT
       if (payment === "ONLINE") {
 
-        // 🔥 save temp data
         localStorage.setItem("pendingOrder", JSON.stringify(orderData));
 
         const payload = {
@@ -179,27 +208,26 @@ export default function CheckoutPage() {
           redirectTarget: "_self"
         });
 
-        return; // ❗ STOP HERE
+        return;
       }
 
-      // =========================
-      // 📦 COD DIRECT SAVE
-      // =========================
+      // 📦 COD SAVE
       const ref = await addDoc(collection(db, "orders"), {
         ...orderData,
         status: "Pending",
         createdAt: serverTimestamp()
       });
-      // 💰 SAVE SELLER COMMISSION
-if (refSeller && commission > 0) {
-  await addDoc(collection(db, "commissions"), {
-    sellerId: refSeller,
-    orderId: ref.id,
-    amount: commission,
-    createdAt: serverTimestamp(),
-    status: "pending"
-  });
-}
+
+      // 💰 COMMISSION SAVE
+      if (refSeller && commission > 0) {
+        await addDoc(collection(db, "commissions"), {
+          sellerId: refSeller,
+          orderId: ref.id,
+          amount: commission,
+          createdAt: serverTimestamp(),
+          status: "pending"
+        });
+      }
 
       setOrderId(ref.id);
       setShowSuccess(true);
