@@ -380,7 +380,29 @@ className="w-full h-[320px] object-contain"
 
     <div className="mt-2 text-3xl font-bold text-green-600">  
       ₹{finalPrice}  
-    </div>  
+    </div>
+      {/* 🔥 STOCK */}
+<div className="mt-2">
+
+  {stock > 5 && (
+    <p className="text-green-600 text-sm font-medium">
+      In Stock ✅
+    </p>
+  )}
+
+  {stock <= 5 && stock > 0 && (
+    <p className="text-red-500 text-sm font-semibold animate-pulse">
+      ⚡ Only {stock} left
+    </p>
+  )}
+
+  {stock === 0 && (
+    <p className="text-red-600 font-bold">
+      Out of Stock ❌
+    </p>
+  )}
+
+</div>
 
     {/* ⭐ TRUST LINE */}  
     <div className="mt-2 text-sm text-gray-600 font-medium">
