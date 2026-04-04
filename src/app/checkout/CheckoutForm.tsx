@@ -1,3 +1,5 @@
+*Checkout page* 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,6 +18,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
+
+  const DEBUG = true;
+  const log = (...args: any[]) => {
+    if (DEBUG) console.log("🧪 DEBUG:", ...args);
+  };
 
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
@@ -43,13 +50,16 @@ export default function CheckoutPage() {
     if (typeof window !== "undefined") {
 
       const seller = localStorage.getItem("refSeller");
+      log("👤 refSeller:", seller);
       setRefSeller(seller);
 
       const buyNow = localStorage.getItem("buy-now");
+      log("🛒 buy-now raw:", buyNow);
 
       if (buyNow) {
         try {
           const parsed = JSON.parse(buyNow);
+          log("✅ buy-now parsed:", parsed);
 
           setItems([
             {
@@ -59,11 +69,17 @@ export default function CheckoutPage() {
               basePrice: Number(parsed.basePrice || parsed.price) || 0
             }
           ]);
-        } catch (e) {}
+        } catch (e) {
+          log("❌ JSON parse error:", e);
+        }
+      } else {
+        log("❌ No buy-now data found");
       }
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+
+      log("👤 Auth user:", u);
 
       if (!u) {
         router.push("/login");
@@ -82,12 +98,14 @@ export default function CheckoutPage() {
         if (d.data().isDefault) defaultAddr = d.data();
       });
 
+      log("📍 Address:", defaultAddr);
       setAddress(defaultAddr);
 
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
         const data = shipSnap.data();
+        log("🚚 Shipping config:", data);
 
         setShippingConfig({
           prepaid: Number(data.prepaid) || 0,
@@ -113,6 +131,7 @@ export default function CheckoutPage() {
       ? shippingConfig.cod
       : shippingConfig.prepaid;
 
+  // ✅ FIXED FREE SHIPPING
   if (
     shippingConfig.freeShippingAbove > 0 &&
     itemsTotal >= shippingConfig.freeShippingAbove
@@ -122,14 +141,32 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // 💰 PROFIT
+  log("💰 ItemsTotal:", itemsTotal);
+  log("🚚 Shipping:", shipping);
+  log("🧾 Total:", total);
+
+  // 💰 PROFIT + COMMISSION
   const totalProfit = items.reduce((sum, item) => {
-    return sum + ((item.price - item.basePrice) * item.qty);
+    const profit = (item.price - item.basePrice) * item.qty;
+    return sum + profit;
   }, 0);
 
   const commission = refSeller
     ? Math.floor(totalProfit * 0.5)
     : 0;
+
+  log("💵 Total Profit:", totalProfit);
+  log("👤 Seller:", refSeller);
+  log("💸 Commission:", commission);
+
+  items.forEach((item, i) => {
+    log(`Item ${i + 1}`, {
+      price: item.price,
+      basePrice: item.basePrice,
+      qty: item.qty,
+      profit: (item.price - item.basePrice) * item.qty
+    });
+  });
 
   // 🚀 PLACE ORDER
   const placeOrder = async () => {
@@ -142,7 +179,7 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      const ref = await addDoc(collection(db, "orders"), {
+      const orderData = {
         userId: user.uid,
         items,
         itemsTotal,
@@ -152,12 +189,25 @@ export default function CheckoutPage() {
         address,
         sellerRef: refSeller || null,
         totalProfit,
-        commission,
+        commission
+      };
+
+      log("🔥 ORDER DATA:", orderData);
+
+      const ref = await addDoc(collection(db, "orders"), {
+        ...orderData,
         status: "Pending",
         createdAt: serverTimestamp()
       });
 
+      // 💰 COMMISSION SAVE
       if (refSeller && commission > 0) {
+
+        log("✅ Saving commission...", {
+          sellerId: refSeller,
+          amount: commission
+        });
+
         await addDoc(collection(db, "commissions"), {
           sellerId: refSeller,
           orderId: ref.id,
@@ -165,6 +215,9 @@ export default function CheckoutPage() {
           createdAt: serverTimestamp(),
           status: "pending"
         });
+
+      } else {
+        log("❌ Commission not saved", { refSeller, commission });
       }
 
       setOrderId(ref.id);
@@ -187,6 +240,19 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold text-center mb-6">
         Checkout 🛍
       </h1>
+
+      {/* DEBUG UI */}
+      {DEBUG && (
+        <div className="bg-yellow-100 p-2 text-xs rounded mb-3 space-y-1">
+          <p>ItemsTotal: {itemsTotal}</p>
+          <p>Shipping: {shipping}</p>
+          <p>Total: {total}</p>
+          <hr />
+          <p>Profit: {totalProfit}</p>
+          <p>Seller: {refSeller || "No Seller"}</p>
+          <p>Commission: {commission}</p>
+        </div>
+      )}
 
       {/* ADDRESS */}
       <div className="bg-white p-4 rounded-xl shadow mb-4">
@@ -226,6 +292,27 @@ export default function CheckoutPage() {
         </div>
       ))}
 
+      {/* PAYMENT */}
+      <div className="mt-6 space-y-3">
+        <div
+          onClick={() => setPayment("ONLINE")}
+          className={`p-3 rounded-xl border cursor-pointer ${
+            payment === "ONLINE" ? "border-pink-500 bg-pink-50" : ""
+          }`}
+        >
+          💳 Online Payment (+₹{shippingConfig.prepaid})
+        </div>
+
+        <div
+          onClick={() => setPayment("COD")}
+          className={`p-3 rounded-xl border cursor-pointer ${
+            payment === "COD" ? "border-pink-500 bg-pink-50" : ""
+          }`}
+        >
+          📦 Cash on Delivery (+₹{shippingConfig.cod})
+        </div>
+      </div>
+
       {/* SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-xl shadow">
         <div className="flex justify-between">
@@ -251,7 +338,11 @@ export default function CheckoutPage() {
         <button
           onClick={placeOrder}
           disabled={loading}
-          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-600 to-pink-500"
+          className={`w-full py-4 rounded-xl text-white font-bold ${
+            loading
+              ? "bg-gray-400"
+              : "bg-gradient-to-r from-purple-600 to-pink-500"
+          }`}
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
@@ -259,12 +350,13 @@ export default function CheckoutPage() {
 
       {/* SUCCESS */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl text-center">
-            <h2 className="text-lg font-bold text-green-600">
-              Order Placed 🎉
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl text-center w-[90%] max-w-sm shadow-xl">
+            <div className="text-5xl mb-3">🎉</div>
+            <h2 className="text-xl font-bold text-green-600">
+              Order Placed Successfully
             </h2>
-            <p className="text-sm mt-2">
+            <p className="text-sm text-gray-500 mt-2">
               Order ID: {orderId}
             </p>
           </div>
