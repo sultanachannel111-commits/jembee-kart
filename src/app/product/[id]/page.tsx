@@ -48,6 +48,23 @@ useEffect(() => {
 const unsub = onAuthStateChanged(auth, (u) => setUser(u));
 return () => unsub();
 }, []);
+// 🔥 AFFILIATE STORE (IMPORTANT)
+useEffect(() => {
+  try {
+    const path = window.location.pathname;
+
+    if (path.includes("/store/")) {
+      const sellerId = path.split("/store/")[1];
+
+      if (sellerId) {
+        localStorage.setItem("affiliate", sellerId);
+        console.log("✅ Affiliate saved:", sellerId);
+      }
+    }
+  } catch (err) {
+    console.log("Affiliate error", err);
+  }
+}, []);
 
 // 🔥 FETCH PRODUCT
 useEffect(() => {
