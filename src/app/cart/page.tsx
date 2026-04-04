@@ -16,7 +16,7 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
-import { getOfferPrice, getCartTotal } from "@/utils/pricing";
+import { getOfferPrice } from "@/utils/pricing";
 import { getActiveOffers } from "@/services/offerService";
 
 export default function CartPage() {
@@ -38,7 +38,6 @@ export default function CartPage() {
 
         setUser(u);
 
-        // 🔥 REALTIME CART
         const itemsRef = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(itemsRef, (snapshot) => {
@@ -49,6 +48,16 @@ export default function CartPage() {
 
             const d: any = docSnap.data();
 
+            const sellPrice =
+              d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+              d.sellPrice ||
+              0;
+
+            const basePrice =
+              d?.variations?.[0]?.sizes?.[0]?.basePrice ||
+              d.basePrice ||
+              sellPrice;
+
             data.push({
               id: d.productId || docSnap.id,
               productId: d.productId || docSnap.id,
@@ -57,9 +66,10 @@ export default function CartPage() {
               name: d.name,
               image: d.image || "",
 
-              price: d.price || 0,
-              quantity: d.quantity || 1,
+              sellPrice,
+              basePrice,
 
+              quantity: d.quantity || 1,
               category: d.category || "",
               variations: d.variations || []
             });
@@ -69,9 +79,7 @@ export default function CartPage() {
           setItems(data);
         });
 
-        // 🔥 OFFERS LOAD (SEPARATE)
         loadOffers();
-
       }
 
     });
@@ -83,7 +91,7 @@ export default function CartPage() {
 
   }, []);
 
-  // 🔥 LOAD OFFERS FUNCTION
+  // 🔥 LOAD OFFERS
   const loadOffers = async () => {
     try {
       const off = await getActiveOffers();
@@ -98,28 +106,22 @@ export default function CartPage() {
   const increase = async (item: any) => {
     await updateDoc(
       doc(db, "carts", user.uid, "items", item.cartId),
-      {
-        quantity: increment(1)
-      }
+      { quantity: increment(1) }
     );
   };
 
   /* ➖ DECREASE */
   const decrease = async (item: any) => {
-
     if (item.quantity <= 1) return;
 
     await updateDoc(
       doc(db, "carts", user.uid, "items", item.cartId),
-      {
-        quantity: increment(-1)
-      }
+      { quantity: increment(-1) }
     );
   };
 
   /* ❌ REMOVE */
   const remove = async (cartId: string) => {
-
     if (!confirm("Remove item?")) return;
 
     await deleteDoc(
@@ -127,8 +129,15 @@ export default function CartPage() {
     );
   };
 
-  /* 💵 TOTAL */
-  const total = getCartTotal(items, offers);
+  /* 💵 TOTAL CALCULATION (FIXED) */
+  const total = items.reduce((sum, item) => {
+    const final =
+      getOfferPrice(item, offers) ||
+      item.sellPrice ||
+      0;
+
+    return sum + final * item.quantity;
+  }, 0);
 
   return (
     <>
@@ -151,11 +160,17 @@ export default function CartPage() {
 
           {items.map((item) => {
 
-            // 🔥 SAFE PRICE (FIX)
-            const price =
+            const finalPrice =
               getOfferPrice(item, offers) ||
-              item.price ||
+              item.sellPrice ||
               0;
+
+            const discount =
+              item.basePrice > finalPrice
+                ? Math.round(
+                    ((item.basePrice - finalPrice) / item.basePrice) * 100
+                  )
+                : 0;
 
             return (
               <div
@@ -164,7 +179,7 @@ export default function CartPage() {
               >
 
                 <img
-                  src={item.image || "/no.png"}
+                  src={item.image || "/no-image.png"}
                   className="w-24 h-24 rounded-2xl object-cover"
                 />
 
@@ -174,9 +189,24 @@ export default function CartPage() {
                     {item.name}
                   </p>
 
+                  {/* PRICE */}
                   <p className="text-green-600 font-bold text-xl mt-1">
-                    ₹{price}
+                    ₹{finalPrice}
                   </p>
+
+                  {/* OLD PRICE */}
+                  {discount > 0 && (
+                    <p className="text-xs text-gray-400 line-through">
+                      ₹{item.basePrice}
+                    </p>
+                  )}
+
+                  {/* DISCOUNT */}
+                  {discount > 0 && (
+                    <p className="text-xs text-red-500 font-semibold">
+                      {discount}% OFF 🔥
+                    </p>
+                  )}
 
                   {/* QTY */}
                   <div className="flex items-center gap-3 mt-3">
@@ -212,7 +242,6 @@ export default function CartPage() {
 
               </div>
             );
-
           })}
 
         </div>
@@ -246,13 +275,6 @@ export default function CartPage() {
             Checkout 🚀
           </button>
 
-        </div>
-
-        {/* 🐞 DEBUG */}
-        <div className="mt-6 bg-black text-green-400 text-xs p-3 rounded-xl overflow-auto">
-          <pre>
-{JSON.stringify(items, null, 2)}
-          </pre>
         </div>
 
       </div>
