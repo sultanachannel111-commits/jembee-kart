@@ -218,7 +218,7 @@ const stock = Number(selectedSize?.stock) || 0;
 
 // 🛒 CART
 const handleAddToCart = async () => {
-if (!user) return router.push(/login?redirect=/product/${id});
+if (!user) return router.push(`/login?redirect=/product/${id}`);
 if (!selectedSize) return alert("Select size");
 
 const basePrice =
@@ -258,7 +258,7 @@ router.push("/cart");
 
 // ⚡ BUY (FIXED)
 const handleBuyNow = async () => {
-if (!user) return router.push(/login?redirect=/product/${id});
+if (!user) return router.push(`/login?redirect=/product/${id}`);
 if (!selectedSize) return alert("Select size");
 
 const buyNowData = {
