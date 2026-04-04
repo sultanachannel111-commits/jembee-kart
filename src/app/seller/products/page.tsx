@@ -43,7 +43,7 @@ export default function SellerProductsPage() {
     fetchProducts();
   }, []);
 
-  // 🔥 FETCH OFFERS
+  // 🔥 FETCH OFFERS (FIXED ✅)
   useEffect(() => {
     const fetchOffers = async () => {
       try {
@@ -54,12 +54,38 @@ export default function SellerProductsPage() {
         snap.docs.forEach((doc) => {
           const d: any = doc.data();
 
-          if (d.productId && d.active) {
+          let isValid = true;
+
+          // ❌ inactive
+          if (d.active === false) {
+            isValid = false;
+          }
+
+          // ❌ expired
+          if (d.endDate) {
+            let endTime;
+
+            if (d.endDate?.seconds) {
+              endTime = d.endDate.toDate().getTime();
+            } else {
+              endTime = new Date(d.endDate).getTime();
+            }
+
+            if (endTime < Date.now()) {
+              isValid = false;
+            }
+          }
+
+          // ✅ only valid offers
+          if (isValid && d.productId) {
             data[d.productId] = d.discount || 0;
           }
         });
 
+        console.log("🔥 VALID OFFERS:", data);
+
         setOffers(data);
+
       } catch (err) {
         console.log("❌ OFFER ERROR:", err);
       }
@@ -92,7 +118,7 @@ export default function SellerProductsPage() {
   return (
     <div className="p-4">
 
-      {/* 🔥 ALL STORE SHARE (TOP) */}
+      {/* 🔥 ALL STORE SHARE */}
       {user && (
         <div className="bg-white/80 backdrop-blur-lg p-4 rounded-2xl shadow mb-5">
 
@@ -133,7 +159,7 @@ export default function SellerProductsPage() {
 
           {products.map((p: any) => {
 
-            // 🔥 BASE PRICE (hidden)
+            // 🔥 BASE PRICE
             const basePrice =
               p?.variations?.[0]?.sizes?.[0]?.price || 0;
 
@@ -148,6 +174,10 @@ export default function SellerProductsPage() {
             const finalPrice = Math.round(
               sellPrice - (sellPrice * discount) / 100
             );
+
+            // 🔥 SAFE CHECK
+            const showDiscount =
+              discount > 0 && finalPrice < sellPrice;
 
             return (
               <div
@@ -168,18 +198,18 @@ export default function SellerProductsPage() {
 
                 {/* FINAL PRICE */}
                 <p className="text-green-600 font-bold">
-                  ₹{finalPrice}
+                  ₹{showDiscount ? finalPrice : sellPrice}
                 </p>
 
                 {/* OLD PRICE */}
-                {discount > 0 && (
+                {showDiscount && (
                   <p className="text-xs text-gray-400 line-through">
                     ₹{sellPrice}
                   </p>
                 )}
 
                 {/* DISCOUNT */}
-                {discount > 0 && (
+                {showDiscount && (
                   <p className="text-xs text-red-500 font-semibold">
                     {discount}% OFF 🔥
                   </p>
