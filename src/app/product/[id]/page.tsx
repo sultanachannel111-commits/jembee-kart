@@ -496,19 +496,29 @@ className="w-full h-[320px] object-contain"
 
   {/* BUTTONS */}  
   <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">  
-    <button  
-      onClick={handleAddToCart}  
-      className="w-1/2 py-3 rounded-xl border border-blue-600 text-blue-600"  
-    >  
-      Add to Cart  
-    </button>  
+    <button
+  disabled={stock === 0}
+  onClick={handleAddToCart}
+  className={`w-1/2 py-3 rounded-xl font-semibold transition ${
+    stock === 0
+      ? "bg-gray-300 text-gray-500"
+      : "border border-blue-600 text-blue-600 active:scale-95"
+  }`}
+>
+  Add to Cart
+</button>
 
-    <button  
-      onClick={handleBuyNow}  
-      className="w-1/2 py-3 rounded-xl bg-blue-600 text-white"  
-    >  
-      Buy Now  
-    </button>  
+<button
+  disabled={stock === 0}
+  onClick={handleBuyNow}
+  className={`w-1/2 py-3 rounded-xl font-semibold transition ${
+    stock === 0
+      ? "bg-gray-400 text-white"
+      : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg active:scale-95"
+  }`}
+>
+  {stock === 0 ? "Out of Stock ❌" : "Buy Now ⚡"}
+</button>  
   </div>  
 </div>
 
