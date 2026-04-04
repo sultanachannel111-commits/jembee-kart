@@ -14,6 +14,7 @@ import { getTrendingProducts } from "@/services/trendingService";
 import { getClearanceProducts } from "@/services/clearanceService";
 import { getRecommendedProducts } from "@/services/recommendService";
 import { getLightningDeals } from "@/services/lightningService";
+
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -35,6 +36,7 @@ export default function HomePage() {
   const [recommended,setRecommended] = useState<any[]>([]);
   const [lightning,setLightning] = useState<any[]>([]);
   const [offers, setOffers] = useState<any>({});
+
   // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
   useEffect(()=>{
 
@@ -68,19 +70,52 @@ export default function HomePage() {
       localStorage.setItem("home-cache", JSON.stringify(data));
 
       console.log("⚡ Fresh data loaded");
-      // 🔥 FETCH OFFERS
-const offerSnap = await getDocs(collection(db, "offers"));
 
-const offerMap:any = {};
+      // 🔥 FETCH OFFERS (FIXED WITHOUT BREAKING FLOW)
+      const offerSnap = await getDocs(collection(db, "offers"));
 
-offerSnap.forEach(doc => {
-  const data = doc.data();
-  offerMap[data.productId] = data.discount;
-});
+      const offerMap:any = {};
 
-setOffers(offerMap);
+      offerSnap.forEach(doc => {
+        const data:any = doc.data();
 
-console.log("🔥 OFFERS:", offerMap);
+        console.log("🧪 OFFER CHECK:", data);
+
+        let isValid = true;
+
+        // ❌ inactive check
+        if (data.active === false) {
+          isValid = false;
+        }
+
+        // ❌ expiry check (safe for both string + timestamp)
+        if (data.endDate) {
+          let endTime;
+
+          if (data.endDate?.seconds) {
+            // firestore timestamp
+            endTime = data.endDate.toDate().getTime();
+          } else {
+            // string date
+            endTime = new Date(data.endDate).getTime();
+          }
+
+          if (endTime < Date.now()) {
+            isValid = false;
+          }
+        }
+
+        // ✅ only valid offer
+        if (isValid) {
+          offerMap[data.productId] = data.discount;
+        }
+
+      });
+
+      setOffers(offerMap);
+
+      console.log("🔥 FINAL OFFERS:", offerMap);
+
       // 🔥 EXTRA SERVICES (parallel)
       const [t,c,r,l] = await Promise.all([
         getTrendingProducts(),
@@ -110,10 +145,10 @@ console.log("🔥 OFFERS:", offerMap);
     return matchSearch && matchCategory;
   });
 
-  // 🎨 BACKGROUND (NO FLASH)
+  // 🎨 BACKGROUND
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
-    : theme?.background || "#0f172a"; // dark fallback (premium feel)
+    : theme?.background || "#0f172a";
 
   return(
     <div
@@ -121,12 +156,10 @@ console.log("🔥 OFFERS:", offerMap);
       className="min-h-screen pb-[80px] transition-all duration-300"
     >
 
-      {/* 🔥 HEADER */}
       <Header theme={theme}/>
 
       <div className="pt-[80px] px-4 space-y-4">
 
-        {/* 🔍 SEARCH */}
         <div
           style={{
             background: theme?.searchBg || "#ffffff10",
@@ -138,7 +171,6 @@ console.log("🔥 OFFERS:", offerMap);
           <SearchBar search={search} setSearch={setSearch}/>
         </div>
 
-        {/* 🔥 TRENDING */}
         <div
           style={{
             background: theme?.trendingBg || "#ffffff10",
@@ -164,36 +196,31 @@ console.log("🔥 OFFERS:", offerMap);
           </div>
         </div>
 
-        {/* CATEGORY */}
         <CategoryList
           categories={categories}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
         />
 
-        {/* BANNER */}
-        {/* 🔥 BANNER */}
-{Array.isArray(banners) && banners.length > 0 && (
-  <BannerSlider banners={banners} />
-)}
+        {Array.isArray(banners) && banners.length > 0 && (
+          <BannerSlider banners={banners} />
+        )}
 
-        {/* FLASH */}
         <FlashSale/>
 
         {festival?.active && (
           <FestivalBanner festival={festival}/>
         )}
 
-        {/* PRODUCTS */}
+        {/* ✅ OFFERS FIX APPLIED */}
         <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
-<ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
-<ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
-<ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
-<ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
+        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
+        <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
+        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
+        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
 
       </div>
 
-      {/* 🔥 BOTTOM NAV */}
       <BottomNav theme={theme}/>
 
     </div>
