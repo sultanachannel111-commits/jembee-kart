@@ -1,113 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-
+export async function POST(req: Request) {
   try {
-
     const body = await req.json();
 
-    const { product, customer, paymentMethod } = body;
+    const orderId = "order_" + Date.now();
 
-    /* ==========================
-       VALIDATE DATA
-    ========================== */
-
-    if (!product || !customer) {
-
-      return NextResponse.json(
-        { success:false, error:"Missing product or customer data" },
-        { status:400 }
-      );
-
-    }
-
-    /* ==========================
-       GENERATE ORDER ID
-    ========================== */
-
-    const orderNumber = "JB" + Date.now().toString().slice(-8);
-
-
-    /* ==========================
-       SAVE ORDER IN FIRESTORE
-    ========================== */
-
-    await setDoc(
-      doc(db,"orders",orderNumber),
+    const response = await fetch(
+      process.env.NODE_ENV === "production"
+        ? "https://api.cashfree.com/pg/orders"
+        : "https://sandbox.cashfree.com/pg/orders",
       {
-        orderNumber,
-        product,
-        customer,
-        paymentMethod,
-        status:"Pending",
-        trackingId:null,
-        courier:null,
-        estimatedDelivery:null,
-        createdAt:new Date()
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-client-id": process.env.CASHFREE_CLIENT_ID!,
+          "x-client-secret": process.env.CASHFREE_CLIENT_SECRET!,
+          "x-api-version": "2022-09-01"
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          order_amount: Number(body.amount),
+          order_currency: "INR",
+
+          customer_details: {
+            customer_id: body.customer?.uid || "guest",
+            customer_name: body.customer?.name || "User",
+            customer_email: body.customer?.email || "test@gmail.com",
+            customer_phone: body.customer?.phone || "9999999999"
+          },
+
+          order_meta: {
+            return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-success?order_id=${orderId}`
+          }
+        })
       }
     );
 
+    const data = await response.json();
 
-    /* ==========================
-       SEND CUSTOMER SMS
-    ========================== */
-
-    try{
-
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/send-sms`,{
-
-        method:"POST",
-
-        headers:{
-          "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
-
-          phone:customer.phone,
-
-          orderId:orderNumber
-
-        })
-
-      });
-
-    }catch(smsError){
-
-      console.log("SMS error:",smsError);
-
+    if (!data.payment_session_id) {
+      return NextResponse.json({ success: false, data });
     }
 
-
-    /* ==========================
-       SUCCESS RESPONSE
-    ========================== */
-
     return NextResponse.json({
-
-      success:true,
-
-      message:"Order created successfully",
-
-      orderNumber
-
+      success: true,
+      payment_session_id: data.payment_session_id,
+      order_id: orderId
     });
 
-
-  } catch(error:any){
-
-    console.log("Order Create Error:",error);
-
-    return NextResponse.json({
-
-      success:false,
-
-      error:error.message
-
-    });
-
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message });
   }
-
 }
