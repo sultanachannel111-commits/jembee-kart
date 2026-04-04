@@ -32,26 +32,23 @@ export default function CheckoutPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
 
-  // ✅ FIXED (localStorage safe)
   const [refSeller, setRefSeller] = useState<string | null>(null);
 
   const router = useRouter();
 
-  // 🛒 DEMO ITEMS
   const items = [
     {
       name: "Orange T-shirt",
       price: 500,
-      basePrice: 300, // 🔥 hidden profit base
+      basePrice: 300,
       qty: 1,
       image: "https://via.placeholder.com/100"
     }
   ];
 
-  // 🔥 LOAD USER + ADDRESS + SHIPPING + SELLER REF
+  // 🔥 LOAD DATA
   useEffect(() => {
 
-    // ✅ LOCAL STORAGE SAFE
     if (typeof window !== "undefined") {
       const seller = localStorage.getItem("refSeller");
       setRefSeller(seller);
@@ -66,7 +63,6 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // ADDRESS
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -79,7 +75,6 @@ export default function CheckoutPage() {
 
       setAddress(defaultAddr);
 
-      // SHIPPING
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -109,16 +104,11 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // 🔥 PROFIT CALCULATION
+  // 🔥 PROFIT
   const totalProfit = items.reduce((sum, item) => {
-    const base = Number(item.basePrice || 0);
-    const sell = Number(item.price || 0);
-    const qty = Number(item.qty || 1);
-
-    return sum + (sell - base) * qty;
+    return sum + (item.price - item.basePrice) * item.qty;
   }, 0);
 
-  // 🔥 COMMISSION (50% PROFIT)
   const commission = refSeller
     ? Math.floor(totalProfit * 0.5)
     : 0;
@@ -135,34 +125,32 @@ export default function CheckoutPage() {
       setLoading(true);
 
       const orderData = {
-        userId: user?.uid || null,
+        userId: user.uid,
         items,
         itemsTotal,
         shipping,
         total,
         paymentMethod: payment,
-        status: "Pending",
         address,
-
-        // 🔥 AFFILIATE
         sellerRef: refSeller || null,
         totalProfit,
-        commission,
-
-        createdAt: serverTimestamp()
+        commission
       };
 
-      const ref = await addDoc(collection(db, "orders"), orderData);
-
-      // 💳 ONLINE PAYMENT
+      // =========================
+      // 💳 ONLINE PAYMENT FIRST
+      // =========================
       if (payment === "ONLINE") {
 
+        // 🔥 save temp data
+        localStorage.setItem("pendingOrder", JSON.stringify(orderData));
+
         const payload = {
-          orderId: ref.id,
+          orderId: "temp_" + Date.now(),
           amount: total,
           customer: {
-            uid: user?.uid,
-            email: address.email || user?.email,
+            uid: user.uid,
+            email: address.email || user.email,
             phone: address.phone,
             firstName: address.name
           }
@@ -176,7 +164,7 @@ export default function CheckoutPage() {
 
         const data = await res.json();
 
-        if (!data?.payment_session_id) {
+        if (!data.payment_session_id) {
           alert("Payment failed ❌");
           setLoading(false);
           return;
@@ -191,10 +179,18 @@ export default function CheckoutPage() {
           redirectTarget: "_self"
         });
 
-        return;
+        return; // ❗ STOP HERE
       }
 
-      // ✅ COD SUCCESS
+      // =========================
+      // 📦 COD DIRECT SAVE
+      // =========================
+      const ref = await addDoc(collection(db, "orders"), {
+        ...orderData,
+        status: "Pending",
+        createdAt: serverTimestamp()
+      });
+
       setOrderId(ref.id);
       setShowSuccess(true);
 
@@ -247,15 +243,12 @@ export default function CheckoutPage() {
       {/* ITEMS */}
       {items.map((item, i) => (
         <div key={i} className="flex gap-3 bg-white p-3 rounded-xl shadow mb-3">
-
           <img src={item.image} className="w-16 h-16 rounded-lg" />
-
           <div className="flex-1">
             <p className="font-semibold">{item.name}</p>
             <p className="text-sm text-gray-500">Qty: {item.qty}</p>
             <p className="text-green-600 font-bold">₹{item.price}</p>
           </div>
-
         </div>
       ))}
 
@@ -306,7 +299,6 @@ export default function CheckoutPage() {
 
       {/* BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3 bg-white shadow-lg">
-
         <button
           onClick={placeOrder}
           disabled={loading}
@@ -318,27 +310,20 @@ export default function CheckoutPage() {
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
-
       </div>
 
       {/* SUCCESS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-
           <div className="bg-white p-6 rounded-2xl text-center w-[90%] max-w-sm shadow-xl">
-
             <div className="text-5xl mb-3">🎉</div>
-
             <h2 className="text-xl font-bold text-green-600">
               Order Placed Successfully
             </h2>
-
             <p className="text-sm text-gray-500 mt-2">
               Order ID: {orderId}
             </p>
-
           </div>
-
         </div>
       )}
 
