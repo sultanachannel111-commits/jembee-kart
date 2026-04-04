@@ -276,7 +276,11 @@ image: images?.[0] || "",
 quantity: 1,
 
 price: finalPrice, // 🔥 ADD THIS
-
+  basePrice:
+  Number(selectedSize?.basePrice) ||
+  Number(product?.basePrice) ||
+  Number(selectedSize?.price) ||
+  0,
 category: product.category,
 
 variations: [
