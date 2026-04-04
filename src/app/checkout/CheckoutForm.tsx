@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { load } from "@cashfreepayments/cashfree-js";
 
 import {
   collection,
@@ -18,7 +17,10 @@ import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
 
-  const [cashfree, setCashfree] = useState<any>(null);
+  const DEBUG = true;
+  const log = (...args: any[]) => {
+    if (DEBUG) console.log("🧪 DEBUG:", ...args);
+  };
 
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
@@ -40,31 +42,33 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // 🔥 INIT CASHFREE
-  useEffect(() => {
-    load({ mode: "sandbox" }).then(setCashfree);
-  }, []);
-
   // 🔥 LOAD DATA
   useEffect(() => {
 
     if (typeof window !== "undefined") {
 
-      setRefSeller(localStorage.getItem("refSeller"));
+      const seller = localStorage.getItem("refSeller");
+      log("👤 refSeller:", seller);
+      setRefSeller(seller);
 
       const buyNow = localStorage.getItem("buy-now");
+      log("🛒 buy-now raw:", buyNow);
 
       if (buyNow) {
-        const parsed = JSON.parse(buyNow);
+        try {
+          const parsed = JSON.parse(buyNow);
 
-        setItems([
-          {
-            ...parsed,
-            qty: Number(parsed.quantity) || 1,
-            price: Number(parsed.price) || 0,
-            basePrice: Number(parsed.basePrice || parsed.price) || 0
-          }
-        ]);
+          setItems([
+            {
+              ...parsed,
+              qty: Number(parsed.quantity) || 1,
+              price: Number(parsed.price) || 0,
+              basePrice: Number(parsed.basePrice || parsed.price) || 0
+            }
+          ]);
+        } catch (e) {
+          log("❌ JSON parse error:", e);
+        }
       }
     }
 
@@ -82,6 +86,7 @@ export default function CheckoutPage() {
       );
 
       let defaultAddr: any = null;
+
       addrSnap.forEach(d => {
         if (d.data().isDefault) defaultAddr = d.data();
       });
@@ -106,7 +111,7 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 CALC
+  // 💰 TOTAL
   const itemsTotal = items.reduce(
     (sum, i) => sum + (i.price * i.qty),
     0
@@ -126,6 +131,7 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
+  // 💰 PROFIT
   const totalProfit = items.reduce((sum, item) => {
     return sum + (item.price - item.basePrice) * item.qty;
   }, 0);
@@ -134,56 +140,20 @@ export default function CheckoutPage() {
     ? Math.floor(totalProfit * 0.5)
     : 0;
 
-  // =========================
-  // 💳 CASHFREE PAYMENT
-  // =========================
-  const handleOnlinePayment = async () => {
+  // ✅ FIXED ERROR
+  items.forEach((item, i) => {
+    log(`Item ${i + 1}`, {
+      price: item.price,
+      basePrice: item.basePrice,
+      qty: item.qty
+    });
+  });
+
+  // 🚀 ORDER
+  const placeOrder = async () => {
 
     if (!address) {
-      alert("Add address ❌");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // 🔥 call your backend
-      const res = await fetch("/api/cashfree", {
-        method: "POST",
-        body: JSON.stringify({
-          amount: total,
-          customer_id: user.uid,
-          customer_email: user.email,
-          customer_phone: address.phone
-        })
-      });
-
-      const data = await res.json();
-
-      if (!data.payment_session_id) {
-        alert("Payment error ❌");
-        return;
-      }
-
-      await cashfree.checkout({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
-      });
-
-    } catch (err: any) {
-      alert(err.message);
-    }
-
-    setLoading(false);
-  };
-
-  // =========================
-  // 🚀 PLACE ORDER (COD)
-  // =========================
-  const placeOrderCOD = async () => {
-
-    if (!address) {
-      alert("Add address ❌");
+      alert("Please add address ❌");
       return;
     }
 
@@ -196,7 +166,7 @@ export default function CheckoutPage() {
         itemsTotal,
         shipping,
         total,
-        paymentMethod: "COD",
+        paymentMethod: payment,
         address,
         sellerRef: refSeller || null,
         totalProfit,
@@ -218,6 +188,10 @@ export default function CheckoutPage() {
       setOrderId(ref.id);
       setShowSuccess(true);
 
+      setTimeout(() => {
+        router.push("/profile");
+      }, 2000);
+
     } catch (err: any) {
       alert(err.message);
     }
@@ -226,86 +200,129 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 via-pink-400 to-orange-300 p-4 pb-32">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-28">
 
-      <h1 className="text-3xl font-bold text-center text-white mb-6">
+      {/* TITLE */}
+      <h1 className="text-3xl font-bold text-center text-white mb-6 drop-shadow-lg">
         Checkout 🛍
       </h1>
 
+      {/* DEBUG */}
+      {DEBUG && (
+        <div className="backdrop-blur-xl bg-white/20 border border-white/30 p-3 rounded-xl text-xs text-white mb-4">
+          <p>ItemsTotal: {itemsTotal}</p>
+          <p>Shipping: {shipping}</p>
+          <p>Total: {total}</p>
+          <hr className="my-1 border-white/30"/>
+          <p>Profit: {totalProfit}</p>
+          <p>Seller: {refSeller || "No Seller"}</p>
+          <p>Commission: {commission}</p>
+        </div>
+      )}
+
       {/* ADDRESS */}
-      <div className="backdrop-blur-xl bg-white/20 p-4 rounded-2xl mb-4 text-white">
+      <div className="backdrop-blur-xl bg-white/20 border border-white/30 p-4 rounded-2xl shadow mb-4 text-white">
         <div className="flex justify-between">
-          <h2>Delivery Address</h2>
-          <button onClick={() => router.push("/profile")}>
+          <h2 className="font-semibold">Delivery Address</h2>
+          <button onClick={() => router.push("/profile")} className="text-sm underline">
             Change
           </button>
         </div>
 
-        {address && (
-          <div className="mt-2 text-sm">
-            <p>{address.name}</p>
+        {address ? (
+          <div className="mt-2 text-sm space-y-1">
+            <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
             <p>{address.address}</p>
+            <p>{address.city} - {address.pincode}</p>
           </div>
+        ) : (
+          <p className="text-red-200 mt-2">No address found ❌</p>
         )}
       </div>
 
       {/* ITEMS */}
       {items.map((item, i) => (
-        <div key={i} className="bg-white/20 p-3 rounded-xl mb-3 text-white">
-          <p>{item.name}</p>
-          <p>Qty: {item.qty}</p>
-          <p>₹{item.price}</p>
+        <div key={i} className="backdrop-blur-xl bg-white/20 border border-white/30 p-3 rounded-xl shadow mb-3 flex gap-3 text-white">
+          <img src={item.image} className="w-16 h-16 rounded-lg object-cover"/>
+          <div className="flex-1">
+            <p className="font-semibold">{item.name}</p>
+            <p className="text-sm opacity-80">Qty: {item.qty}</p>
+            <p className="font-bold">₹{item.price}</p>
+          </div>
         </div>
       ))}
 
       {/* PAYMENT */}
-      <div className="space-y-3">
-        <button
+      <div className="mt-6 space-y-3">
+        <div
           onClick={() => setPayment("ONLINE")}
-          className={`w-full p-3 rounded-xl ${
-            payment === "ONLINE" ? "bg-white text-black" : "bg-white/20 text-white"
+          className={`p-3 rounded-xl cursor-pointer transition ${
+            payment === "ONLINE"
+              ? "bg-white text-black shadow-lg"
+              : "bg-white/20 text-white border border-white/30"
           }`}
         >
-          💳 Online Payment
-        </button>
+          💳 Online Payment (+₹{shippingConfig.prepaid})
+        </div>
 
-        <button
+        <div
           onClick={() => setPayment("COD")}
-          className={`w-full p-3 rounded-xl ${
-            payment === "COD" ? "bg-white text-black" : "bg-white/20 text-white"
+          className={`p-3 rounded-xl cursor-pointer transition ${
+            payment === "COD"
+              ? "bg-white text-black shadow-lg"
+              : "bg-white/20 text-white border border-white/30"
           }`}
         >
-          📦 Cash on Delivery
-        </button>
+          📦 Cash on Delivery (+₹{shippingConfig.cod})
+        </div>
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-xl mt-5 text-white">
-        <p>Items: ₹{itemsTotal}</p>
-        <p>Shipping: ₹{shipping}</p>
-        <hr />
-        <p className="font-bold">Total: ₹{total}</p>
+      <div className="mt-6 backdrop-blur-xl bg-white/20 border border-white/30 p-4 rounded-2xl text-white">
+        <div className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </div>
+
+        <hr className="my-2 border-white/30"/>
+
+        <div className="flex justify-between font-bold text-lg">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </div>
       </div>
 
-      {/* PAY BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-3">
-        {payment === "ONLINE" ? (
-          <button
-            onClick={handleOnlinePayment}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold"
-          >
-            Pay Online ₹{total}
-          </button>
-        ) : (
-          <button
-            onClick={placeOrderCOD}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold"
-          >
-            Place COD Order ₹{total}
-          </button>
-        )}
+      {/* BUTTON */}
+      <div className="fixed bottom-0 left-0 w-full p-3 backdrop-blur-xl bg-white/20 border-t border-white/30">
+        <button
+          onClick={placeOrder}
+          disabled={loading}
+          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600 shadow-xl"
+        >
+          {loading ? "Processing..." : `Pay ₹${total} 🚀`}
+        </button>
       </div>
+
+      {/* SUCCESS */}
+      {showSuccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="backdrop-blur-xl bg-white/20 border border-white/30 p-6 rounded-2xl text-center text-white w-[90%] max-w-sm">
+            <div className="text-5xl mb-3">🎉</div>
+            <h2 className="text-xl font-bold">
+              Order Placed Successfully
+            </h2>
+            <p className="text-sm mt-2">
+              Order ID: {orderId}
+            </p>
+          </div>
+        </div>
+      )}
 
     </div>
   );
