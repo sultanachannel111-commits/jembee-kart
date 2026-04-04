@@ -38,7 +38,6 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState("");
 
   const [refSeller, setRefSeller] = useState<string | null>(null);
-
   const [items, setItems] = useState<any[]>([]);
 
   const router = useRouter();
@@ -56,16 +55,21 @@ export default function CheckoutPage() {
       log("buy-now raw:", buyNow);
 
       if (buyNow) {
-        const parsed = JSON.parse(buyNow);
-        log("buy-now parsed:", parsed);
+        try {
+          const parsed = JSON.parse(buyNow);
+          log("buy-now parsed:", parsed);
 
-        setItems([
-          {
-            ...parsed,
-            qty: parsed.quantity || 1,
-            basePrice: parsed.basePrice || parsed.price || 0
-          }
-        ]);
+          setItems([
+            {
+              ...parsed,
+              qty: Number(parsed.quantity) || 1,
+              price: Number(parsed.price) || 0,
+              basePrice: Number(parsed.basePrice || parsed.price) || 0
+            }
+          ]);
+        } catch (e) {
+          log("❌ JSON parse error:", e);
+        }
       } else {
         log("❌ No buy-now data found");
       }
@@ -98,8 +102,14 @@ export default function CheckoutPage() {
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
-        log("Shipping config:", shipSnap.data());
-        setShippingConfig(shipSnap.data() as any);
+        const data = shipSnap.data();
+        log("Shipping config:", data);
+
+        setShippingConfig({
+          prepaid: Number(data.prepaid) || 0,
+          cod: Number(data.cod) || 0,
+          freeShippingAbove: Number(data.freeShippingAbove) || 0
+        });
       }
 
     });
@@ -110,16 +120,20 @@ export default function CheckoutPage() {
 
   // 💰 TOTAL
   const itemsTotal = items.reduce(
-    (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 1),
+    (sum, i) => sum + (i.price * i.qty),
     0
   );
 
   let shipping =
     payment === "COD"
-      ? Number(shippingConfig.cod || 0)
-      : Number(shippingConfig.prepaid || 0);
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
-  if (itemsTotal >= Number(shippingConfig.freeShippingAbove || 0)) {
+  // ✅ FIXED FREE SHIPPING LOGIC
+  if (
+    shippingConfig.freeShippingAbove > 0 &&
+    itemsTotal >= shippingConfig.freeShippingAbove
+  ) {
     shipping = 0;
   }
 
@@ -130,17 +144,16 @@ export default function CheckoutPage() {
   log("Shipping:", shipping);
   log("Total:", total);
 
-  // 🔥 PROFIT
+  // 💰 PROFIT
   const totalProfit = items.reduce((sum, item) => {
-    return sum + ((item.price || 0) - (item.basePrice || 0)) * (item.qty || 1);
+    return sum + (item.price - item.basePrice) * item.qty;
   }, 0);
 
   const commission = refSeller
     ? Math.floor(totalProfit * 0.5)
     : 0;
 
-  log("Total Profit:", totalProfit);
-  log("Ref Seller:", refSeller);
+  log("Profit:", totalProfit);
   log("Commission:", commission);
 
   // 🚀 PLACE ORDER
@@ -168,48 +181,6 @@ export default function CheckoutPage() {
       };
 
       log("Order Data:", orderData);
-
-      // 💳 ONLINE PAYMENT
-      if (payment === "ONLINE") {
-
-        localStorage.setItem("pendingOrder", JSON.stringify(orderData));
-
-        const payload = {
-          orderId: "temp_" + Date.now(),
-          amount: total,
-          customer: {
-            uid: user.uid,
-            email: address.email || user.email,
-            phone: address.phone,
-            firstName: address.name
-          }
-        };
-
-        const res = await fetch("/api/cashfree", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-
-        if (!data.payment_session_id) {
-          alert("Payment failed ❌");
-          setLoading(false);
-          return;
-        }
-
-        const { load } = await import("@cashfreepayments/cashfree-js");
-
-        const cashfree = await load({ mode: "production" });
-
-        await cashfree.checkout({
-          paymentSessionId: data.payment_session_id,
-          redirectTarget: "_self"
-        });
-
-        return;
-      }
 
       // 📦 COD SAVE
       const ref = await addDoc(collection(db, "orders"), {
@@ -250,9 +221,18 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
+      {/* DEBUG UI */}
+      {DEBUG && (
+        <div className="bg-yellow-100 p-2 text-xs rounded mb-3">
+          <p>ItemsTotal: {itemsTotal}</p>
+          <p>FreeAbove: {shippingConfig.freeShippingAbove}</p>
+          <p>COD: {shippingConfig.cod}</p>
+          <p>Shipping: {shipping}</p>
+        </div>
+      )}
+
       {/* ADDRESS */}
       <div className="bg-white p-4 rounded-xl shadow mb-4">
-
         <div className="flex justify-between">
           <h2 className="font-bold">Delivery Address</h2>
           <button
@@ -275,7 +255,6 @@ export default function CheckoutPage() {
             No address found ❌
           </p>
         )}
-
       </div>
 
       {/* ITEMS */}
@@ -292,7 +271,6 @@ export default function CheckoutPage() {
 
       {/* PAYMENT */}
       <div className="mt-6 space-y-3">
-
         <div
           onClick={() => setPayment("ONLINE")}
           className={`p-3 rounded-xl border cursor-pointer ${
@@ -310,12 +288,10 @@ export default function CheckoutPage() {
         >
           📦 Cash on Delivery (+₹{shippingConfig.cod})
         </div>
-
       </div>
 
       {/* SUMMARY */}
       <div className="mt-6 bg-white p-4 rounded-xl shadow">
-
         <div className="flex justify-between">
           <span>Items</span>
           <span>₹{itemsTotal}</span>
@@ -332,7 +308,6 @@ export default function CheckoutPage() {
           <span>Total</span>
           <span>₹{total}</span>
         </div>
-
       </div>
 
       {/* BUTTON */}
