@@ -2,96 +2,78 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function AdminLogin() {
 
-const router = useRouter();
+  const router = useRouter();
 
-const [user,setUser] = useState("");
-const [pass,setPass] = useState("");
-const [error,setError] = useState("");
+  const [error, setError] = useState("");
 
-/* Admin credentials */
-const ADMIN_USER = "jembeeadmin";
-const ADMIN_PASS = "jembee@123";
+  // 🔥 GOOGLE LOGIN
+  const login = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
 
-const login = (e:any)=>{
+      const result = await signInWithPopup(auth, provider);
 
-e.preventDefault();
+      const user = result.user;
 
-/* check credentials */
+      console.log("✅ Logged in:", user.email);
 
-if(user === ADMIN_USER && pass === ADMIN_PASS){
+      // 🔐 ADMIN CHECK (YAHAN APNA EMAIL DALNA)
+      if (user.email === "sadiyabashar113@gmail.com") {
 
-/* set cookie for middleware */
+        // secure cookie set
+        document.cookie = "admin=true; path=/";
 
-document.cookie = "admin=true; path=/";
+        router.push("/admin");
 
-/* redirect to dashboard */
+      } else {
 
-router.push("/admin");
+        setError("Not an admin ❌");
 
-}else{
+      }
 
-setError("Wrong ID or Password");
+    } catch (err) {
+      console.log(err);
+      setError("Google login failed ❌");
+    }
+  };
 
-}
+  return (
 
-};
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 p-4">
 
-return(
+      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">
 
-<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 p-4">
+        <h1 className="text-3xl font-bold text-center text-gray-800">
+          Admin Login
+        </h1>
 
-<div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+        <p className="text-center text-gray-500 mt-1 mb-6">
+          JembeeKart Admin Panel
+        </p>
 
-<h1 className="text-3xl font-bold text-center text-gray-800">
-Admin Login
-</h1>
+        {/* 🔥 GOOGLE BUTTON */}
+        <button
+          onClick={login}
+          className="w-full bg-white text-black py-3 rounded-xl font-semibold shadow hover:opacity-90 flex items-center justify-center gap-2"
+        >
+          🔵 Login with Google
+        </button>
 
-<p className="text-center text-gray-500 mt-1 mb-6">
-JembeeKart Admin Panel
-</p>
+        {error && (
+          <p className="text-red-500 text-sm text-center mt-4">
+            {error}
+          </p>
+        )}
 
-<form onSubmit={login} className="space-y-4">
+      </div>
 
-<input
-type="text"
-placeholder="Admin ID"
-value={user}
-onChange={(e)=>setUser(e.target.value)}
-className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
-/>
+    </div>
 
-<input
-type="password"
-placeholder="Password"
-value={pass}
-onChange={(e)=>setPass(e.target.value)}
-className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500"
-/>
-
-{error && (
-
-<p className="text-red-500 text-sm text-center">
-{error}
-</p>
-
-)}
-
-<button
-type="submit"
-className="w-full bg-black text-white py-3 rounded-xl font-semibold hover:opacity-90"
->
-Login
-</button>
-
-</form>
-
-</div>
-
-</div>
-
-);
+  );
 
 }
