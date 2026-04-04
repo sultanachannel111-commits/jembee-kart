@@ -34,21 +34,12 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<any>(null);
 
-  const [currentImage, setCurrentImage] = useState(0);
-  const [showViewer, setShowViewer] = useState(false);
-
-  const [similar, setSimilar] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
-
-  const [pincode, setPincode] = useState("");
-  const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
-  const [checkingPin, setCheckingPin] = useState(false);
 
   // 🔥 NEW STATES
   const [rating, setRating] = useState(4.5);
-  const [viewers, setViewers] = useState(12);
-  const [sold, setSold] = useState(120);
-  const [timer, setTimer] = useState(600); // 10 min
+  const [viewers, setViewers] = useState(10);
+  const [sold, setSold] = useState(50);
 
   // 🔐 AUTH
   useEffect(() => {
@@ -56,40 +47,29 @@ export default function ProductPage() {
     return () => unsub();
   }, []);
 
-  // 🔥 FAKE LIVE SYSTEM
-  useEffect(() => {
-
-    setRating((Math.random() * 0.7 + 4.2).toFixed(1) as any);
-    setSold(Math.floor(Math.random() * 200 + 50));
-
-    const interval = setInterval(() => {
-      setViewers(Math.floor(Math.random() * 20 + 5));
-    }, 3000);
-
-    const timerInterval = setInterval(() => {
-      setTimer((t) => (t > 0 ? t - 1 : 600));
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(timerInterval);
-    };
-
-  }, []);
-
-  // 🔥 PRODUCT FETCH
+  // 🔥 PRODUCT FETCH (FIXED)
   useEffect(() => {
     const fetchProduct = async () => {
-      const snap = await getDoc(doc(db, "products", id));
 
-      if (snap.exists()) {
-        const data: any = { id: snap.id, ...snap.data() };
-        setProduct(data);
+      try {
+        const snap = await getDoc(doc(db, "products", id));
 
-        const first = data?.variations?.[0];
-        setSelectedSize(first?.sizes?.[0] || null);
+        if (snap.exists()) {
+          const data: any = { id: snap.id, ...snap.data() };
 
-        fetchSimilar(data.category);
+          console.log("🔥 PRODUCT DATA:", data);
+
+          setProduct(data);
+
+          // ✅ SAFE SIZE FIX
+          const firstVar = data?.variations?.[0];
+          const firstSize = firstVar?.sizes?.[0];
+
+          setSelectedSize(firstSize || null);
+        }
+
+      } catch (err) {
+        console.log("❌ PRODUCT ERROR:", err);
       }
 
       setLoading(false);
@@ -103,54 +83,56 @@ export default function ProductPage() {
     const fetchOffer = async () => {
       const snap = await getDocs(collection(db, "offers"));
 
-      const offers = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter((o: any) =>
-          o.active &&
-          new Date(o.endDate).getTime() > Date.now()
-        );
-
-      const matched = offers.find((o: any) =>
-        o.productId === product?.id
+      const match = snap.docs.find(
+        (d: any) => d.data()?.productId === product?.id
       );
 
-      if (matched) setDiscount(Number(matched.discount || 0));
+      if (match) {
+        setDiscount(Number(match.data()?.discount || 0));
+      }
     };
 
     if (product) fetchOffer();
   }, [product]);
 
-  // 🔥 SIMILAR
-  const fetchSimilar = async (category: string) => {
-    const snap = await getDocs(collection(db, "products"));
+  // 🔥 FAKE LIVE
+  useEffect(() => {
 
-    const data = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((p: any) => p.category === category && p.id !== id)
-      .slice(0, 6);
+    setRating((Math.random() * 0.7 + 4.2).toFixed(1) as any);
+    setSold(Math.floor(Math.random() * 200 + 50));
 
-    setSimilar(data);
-  };
+    const interval = setInterval(() => {
+      setViewers(Math.floor(Math.random() * 20 + 5));
+    }, 3000);
 
-  if (loading) return <>Loading...</>;
-  if (!product) return <>Product not found</>;
+    return () => clearInterval(interval);
 
+  }, []);
+
+  if (loading) return <div className="p-5">Loading...</div>;
+  if (!product) return <div className="p-5">Product not found ❌</div>;
+
+  // ✅ SAFE VARIANT
   const variant = product?.variations?.[selectedColor] || {};
 
+  // ✅ SAFE IMAGE FIX
+  const image =
+    variant?.images?.main ||
+    product?.image ||
+    "/no-image.png";
+
+  // 💰 PRICE FIX
   const price =
     Number(selectedSize?.sellPrice) ||
     Number(product?.price) ||
     0;
 
-  const finalPrice = Math.round(price - (price * discount) / 100);
+  const finalPrice = Math.max(
+    1,
+    Math.round(price - (price * discount) / 100)
+  );
 
   const stock = Number(selectedSize?.stock) || 0;
-
-  const formatTime = (t: number) => {
-    const m = Math.floor(t / 60);
-    const s = t % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
 
   // 🛒 ADD
   const handleAddToCart = async () => {
@@ -161,6 +143,7 @@ export default function ProductPage() {
     await addDoc(collection(db, "carts", user.uid, "items"), {
       productId: product.id,
       name: product.name,
+      image,
       price,
       quantity: 1
     });
@@ -175,7 +158,6 @@ export default function ProductPage() {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return alert("Select size");
 
-    // 🔥 STOCK -1 + SOLD +1
     await updateDoc(doc(db, "products", product.id), {
       sold: increment(1)
     });
@@ -191,41 +173,54 @@ export default function ProductPage() {
   return (
     <div className="p-4">
 
-      <h1 className="text-xl font-bold">{product.name}</h1>
+      {/* IMAGE */}
+      <img
+        src={image}
+        className="w-full h-[300px] object-cover rounded-xl"
+      />
+
+      <h1 className="text-xl font-bold mt-3">{product.name}</h1>
 
       {/* ⭐ RATING */}
-      <div className="flex items-center gap-2 mt-2">
-        <span className="text-yellow-500">⭐⭐⭐⭐⭐</span>
-        <span>{rating} rating</span>
-      </div>
+      <p className="mt-1">⭐⭐⭐⭐⭐ {rating}</p>
 
       {/* 👀 VIEWERS */}
-      <p className="text-sm text-red-500 mt-1">
-        👀 {viewers} people viewing now
+      <p className="text-red-500 text-sm">
+        👀 {viewers} people viewing
       </p>
 
       {/* 🔥 SOLD */}
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-gray-500">
         🔥 {sold}+ sold
-      </p>
-
-      {/* ⏱ TIMER */}
-      <p className="text-sm text-red-600 font-semibold">
-        ⏱ Offer ends in {formatTime(timer)}
       </p>
 
       {/* PRICE */}
       <div className="mt-2">
         <span className="text-2xl text-green-600">₹{finalPrice}</span>
         {discount > 0 && (
-          <span className="ml-2 line-through text-gray-400">₹{price}</span>
+          <span className="ml-2 line-through text-gray-400">
+            ₹{price}
+          </span>
         )}
       </div>
 
       {/* STOCK */}
-      <p className="text-red-500">
+      <p className="text-red-500 mt-1">
         Only {Math.max(1, stock)} left ⚡
       </p>
+
+      {/* SIZE */}
+      <div className="mt-4 flex gap-2">
+        {variant?.sizes?.map((s: any, i: number) => (
+          <button
+            key={i}
+            onClick={() => setSelectedSize(s)}
+            className="border px-3 py-1 rounded"
+          >
+            {s.size}
+          </button>
+        ))}
+      </div>
 
       {/* REVIEW */}
       <div className="mt-5">
