@@ -190,6 +190,16 @@ export default function CheckoutPage() {
         status: "Pending",
         createdAt: serverTimestamp()
       });
+      // 💰 SAVE SELLER COMMISSION
+if (refSeller && commission > 0) {
+  await addDoc(collection(db, "commissions"), {
+    sellerId: refSeller,
+    orderId: ref.id,
+    amount: commission,
+    createdAt: serverTimestamp(),
+    status: "pending"
+  });
+}
 
       setOrderId(ref.id);
       setShowSuccess(true);
