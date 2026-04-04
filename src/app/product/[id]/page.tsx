@@ -4,14 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import {
-  doc,
-  getDoc,
-  setDoc,
-  addDoc,
-  collection,
-  getDocs,
-  updateDoc,
-  increment
+doc,
+getDoc,
+setDoc,
+addDoc,
+collection,
+getDocs,
 } from "firebase/firestore";
 
 import { db, auth } from "@/lib/firebase";
@@ -20,223 +18,477 @@ import ReviewSection from "@/components/product/ReviewSection";
 import toast from "react-hot-toast";
 
 export default function ProductPage() {
+const params = useParams();
+const router = useRouter();
+const id = params?.id as string;
+const searchParams = useSearchParams();
+const ref = searchParams.get("ref");
 
-  const params = useParams();
-  const router = useRouter();
-  const id = params?.id as string;
-  const searchParams = useSearchParams();
-  const ref = searchParams.get("ref");
+const [product, setProduct] = useState(null);
+const [loading, setLoading] = useState(true);
+const [user, setUser] = useState(null);
 
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+const [selectedColor, setSelectedColor] = useState(0);
+const [selectedSize, setSelectedSize] = useState(null);
 
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [selectedSize, setSelectedSize] = useState<any>(null);
+const [currentImage, setCurrentImage] = useState(0);
+const [showViewer, setShowViewer] = useState(false);
 
-  const [discount, setDiscount] = useState(0);
+const [similar, setSimilar] = useState<any[]>([]);
+// ✅ LINE 38 (YAHAN ADD KARO)
+const [discount, setDiscount] = useState(0);
 
-  // 🔥 NEW STATES
-  const [rating, setRating] = useState(4.5);
-  const [viewers, setViewers] = useState(10);
-  const [sold, setSold] = useState(50);
+// 🔥 NEW STATES
+const [pincode, setPincode] = useState("");
+const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
+const [checkingPin, setCheckingPin] = useState(false);
 
-  // 🔐 AUTH
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
-  }, []);
+// 🔐 AUTH
+useEffect(() => {
+const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+return () => unsub();
+}, []);
 
-  // 🔥 PRODUCT FETCH (FIXED)
-  useEffect(() => {
-    const fetchProduct = async () => {
+// 🔥 FETCH PRODUCT
+useEffect(() => {
+const fetchProduct = async () => {
+const snap = await getDoc(doc(db, "products", id));
 
-      try {
-        const snap = await getDoc(doc(db, "products", id));
+if (snap.exists()) {  
+    const data: any = { id: snap.id, ...snap.data() };  
+    setProduct(data);  
 
-        if (snap.exists()) {
-          const data: any = { id: snap.id, ...snap.data() };
+    const first = data?.variations?.[0];  
+    setSelectedSize(first?.sizes?.[0] || null);  
 
-          console.log("🔥 PRODUCT DATA:", data);
+    fetchSimilar(data.category);  
+  }  
 
-          setProduct(data);
+  setLoading(false);  
+};  
 
-          // ✅ SAFE SIZE FIX
-          const firstVar = data?.variations?.[0];
-          const firstSize = firstVar?.sizes?.[0];
+if (id) fetchProduct();
 
-          setSelectedSize(firstSize || null);
-        }
+}, [id]);
+// 🔥 OFFER FETCH (LINE 72 PAR ADD KARO)
+useEffect(() => {
+const fetchOffer = async () => {
+try {
+const snap = await getDocs(collection(db, "offers"));
 
-      } catch (err) {
-        console.log("❌ PRODUCT ERROR:", err);
-      }
+const offers = snap.docs  
+    .map(d => ({ id: d.id, ...d.data() }))  
+    .filter((o: any) =>  
+      o.active &&  
+      new Date(o.endDate).getTime() > Date.now()  
+    );  
 
-      setLoading(false);
-    };
+  const matched = offers.find((o: any) => {  
 
-    if (id) fetchProduct();
-  }, [id]);
+    if (o.type === "product" && o.productId === product?.id)  
+      return true;  
 
-  // 🔥 OFFER
-  useEffect(() => {
-    const fetchOffer = async () => {
-      const snap = await getDocs(collection(db, "offers"));
+    if (  
+      o.type === "category" &&  
+      o.category?.toLowerCase() === product?.category?.toLowerCase()  
+    )  
+      return true;  
 
-      const match = snap.docs.find(
-        (d: any) => d.data()?.productId === product?.id
-      );
+    return false;  
+  });  
 
-      if (match) {
-        setDiscount(Number(match.data()?.discount || 0));
-      }
-    };
+  if (matched) {  
+    setDiscount(Number(matched.discount || 0));  
+  }  
 
-    if (product) fetchOffer();
-  }, [product]);
+} catch (err) {  
+  console.log("Offer error", err);  
+}
 
-  // 🔥 FAKE LIVE
-  useEffect(() => {
+};
 
-    setRating((Math.random() * 0.7 + 4.2).toFixed(1) as any);
-    setSold(Math.floor(Math.random() * 200 + 50));
+if (product) fetchOffer();
+}, [product]);
 
-    const interval = setInterval(() => {
-      setViewers(Math.floor(Math.random() * 20 + 5));
-    }, 3000);
+// 🔥 AFFILIATE FIX
+useEffect(() => {
+const saveAffiliate = async () => {
+if (!ref) return;
 
-    return () => clearInterval(interval);
+try {  
+    localStorage.setItem("affiliate", ref);  
 
-  }, []);
+    const user = auth.currentUser;  
+    if (user) {  
+      await setDoc(  
+        doc(db, "userAffiliate", user.uid),  
+        {  
+          refCode: ref,  
+          updatedAt: new Date(),  
+        },  
+        { merge: true }  
+      );  
+    }  
 
-  if (loading) return <div className="p-5">Loading...</div>;
-  if (!product) return <div className="p-5">Product not found ❌</div>;
+    console.log("✅ Affiliate saved:", ref);  
+  } catch (err) {  
+    console.log(err);  
+  }  
+};  
 
-  // ✅ SAFE VARIANT
-  const variant = product?.variations?.[selectedColor] || {};
+saveAffiliate();
 
-  // ✅ SAFE IMAGE FIX
-  const image =
-    variant?.images?.main ||
-    product?.image ||
-    "/no-image.png";
+}, [ref]);
 
-  // 💰 PRICE FIX
-  const price =
-    Number(selectedSize?.sellPrice) ||
-    Number(product?.price) ||
-    0;
+// 🔥 SIMILAR
+const fetchSimilar = async (category: string) => {
+const snap = await getDocs(collection(db, "products"));
 
-  const finalPrice = Math.max(
-    1,
-    Math.round(price - (price * discount) / 100)
-  );
+const data = snap.docs  
+  .map((d) => ({ id: d.id, ...d.data() }))  
+  .filter((p: any) => p.category === category && p.id !== id)  
+  .slice(0, 6);  
 
-  const stock = Number(selectedSize?.stock) || 0;
+setSimilar(data);
 
-  // 🛒 ADD
-  const handleAddToCart = async () => {
+};
 
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
+// 🚚 PINCODE CHECK
+const checkPincode = async () => {
+if (!pincode || pincode.length !== 6) {
+return alert("Please enter a valid 6-digit PIN code.");
+}
 
-    await addDoc(collection(db, "carts", user.uid, "items"), {
-      productId: product.id,
-      name: product.name,
-      image,
-      price,
-      quantity: 1
-    });
+setCheckingPin(true);  
 
-    toast.success("Added to cart 🛒");
-    setTimeout(() => router.push("/cart"), 1000);
-  };
+try {  
+  const res = await fetch(  
+    `https://api.postalpincode.in/pincode/${pincode}`  
+  );  
+  const data = await res.json();  
 
-  // ⚡ BUY
-  const handleBuyNow = async () => {
+  if (data[0].Status === "Success") {  
+    const postOffice = data[0].PostOffice[0];  
 
-    if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return alert("Select size");
+    setDeliveryInfo({  
+      place: postOffice.District,  
+      state: postOffice.State,  
+      deliveryDays: Math.floor(Math.random() * 3) + 3,  
+    });  
+  } else {  
+    setDeliveryInfo(null);  
+    alert(  
+      "We’re sorry, but delivery is not available at this PIN code. Please enter a different location."  
+    );  
+  }  
+} catch (err) {  
+  alert("Unable to verify PIN code at the moment. Please try again.");  
+}  
 
-    await updateDoc(doc(db, "products", product.id), {
-      sold: increment(1)
-    });
+setCheckingPin(false);
 
-    localStorage.setItem("buy-now", JSON.stringify({
-      productId: product.id,
-      price: finalPrice
-    }));
+};
 
-    router.push("/checkout");
-  };
+if (loading) return <>Loading...</>;
+if (!product) return <>Product not found</>;
 
-  return (
-    <div className="p-4">
+const variant = product?.variations?.[selectedColor] || {};
 
-      {/* IMAGE */}
-      <img
-        src={image}
-        className="w-full h-[300px] object-cover rounded-xl"
-      />
+const images = [
+variant?.images?.main,
+variant?.images?.front,
+variant?.images?.back,
+variant?.images?.side,
+variant?.images?.model,
+].filter(Boolean);
 
-      <h1 className="text-xl font-bold mt-3">{product.name}</h1>
+const price =
+Number(selectedSize?.sellPrice) ||
+Number(selectedSize?.price) ||
+Number(variant?.sizes?.[0]?.sellPrice) ||
+Number(variant?.sizes?.[0]?.price) ||
+Number(product?.price) ||
+0;
+const finalPrice = Math.max(
+1,
+Math.round(price - (price * discount) / 100)
+);
 
-      {/* ⭐ RATING */}
-      <p className="mt-1">⭐⭐⭐⭐⭐ {rating}</p>
+const stock = Number(selectedSize?.stock) || 0;
 
-      {/* 👀 VIEWERS */}
-      <p className="text-red-500 text-sm">
-        👀 {viewers} people viewing
-      </p>
+// 🛒 CART
+const handleAddToCart = async () => {
+if (!user) return router.push(/login?redirect=/product/${id});
+if (!selectedSize) return alert("Select size");
 
-      {/* 🔥 SOLD */}
-      <p className="text-sm text-gray-500">
-        🔥 {sold}+ sold
-      </p>
+const basePrice =
+selectedSize?.sellPrice ||
+selectedSize?.price ||
+product?.price ||
+0;
 
-      {/* PRICE */}
-      <div className="mt-2">
-        <span className="text-2xl text-green-600">₹{finalPrice}</span>
-        {discount > 0 && (
-          <span className="ml-2 line-through text-gray-400">
-            ₹{price}
-          </span>
-        )}
-      </div>
+await addDoc(collection(db, "carts", user.uid, "items"), {
 
-      {/* STOCK */}
-      <p className="text-red-500 mt-1">
-        Only {Math.max(1, stock)} left ⚡
-      </p>
+productId: product.id,
+name: product.name,
+image: images?.[0] || "",
+quantity: 1,
+category: product.category,
 
-      {/* SIZE */}
-      <div className="mt-4 flex gap-2">
-        {variant?.sizes?.map((s: any, i: number) => (
-          <button
-            key={i}
-            onClick={() => setSelectedSize(s)}
-            className="border px-3 py-1 rounded"
-          >
-            {s.size}
-          </button>
-        ))}
-      </div>
+price: basePrice, // 🔥 MAIN FIX
 
-      {/* REVIEW */}
-      <div className="mt-5">
-        <ReviewSection productId={product.id} />
-      </div>
+variations: [
+{
+...variant,
+sizes: [selectedSize]
+}
+],
 
-      {/* BUTTONS */}
-      <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white">
-        <button onClick={handleAddToCart} className="w-1/2 border py-3">
-          Add to Cart
-        </button>
-        <button onClick={handleBuyNow} className="w-1/2 bg-blue-600 text-white py-3">
-          Buy Now
-        </button>
-      </div>
+discount: discount || 0
+});
 
-    </div>
-  );
+// ✅ YAHI LIKHNA HAI (IMPORTANT)
+toast.success("Added to cart 🛒");
+
+// ✅ delay (warna dikhega nahi)
+setTimeout(() => {
+router.push("/cart");
+}, 1200);
+};
+
+// ⚡ BUY (FIXED)
+const handleBuyNow = async () => {
+if (!user) return router.push(/login?redirect=/product/${id});
+if (!selectedSize) return alert("Select size");
+
+const buyNowData = {
+id: product.id,
+productId: product.id, // 🔥 ADD THIS
+name: product.name,
+image: images?.[0] || "",
+quantity: 1,
+
+price: finalPrice, // 🔥 ADD THIS
+
+category: product.category,
+
+variations: [
+{
+...variant,
+sizes: [selectedSize]
+}
+]
+};
+
+console.log("🔥 BUY NOW SAVE:", buyNowData);
+
+localStorage.setItem("buy-now", JSON.stringify(buyNowData));
+
+router.push("/checkout");
+};
+
+const handleShare = () => {
+navigator.share?.({
+title: product.name,
+url: window.location.href,
+});
+};
+
+const handleScroll = (e: any) => {
+const index = Math.round(
+e.target.scrollLeft / e.target.clientWidth
+);
+setCurrentImage(index);
+};
+
+return (
+<div>
+{/* IMAGE SLIDER */}
+<div  
+onScroll={handleScroll}  
+className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"  
+>
+{images.map((img: any, i: number) => (
+<div key={i} className="min-w-full snap-center">
+<img
+src={img}
+onClick={() => setShowViewer(true)}
+className="w-full h-[320px] object-contain"
+/>
+</div>
+))}
+</div>
+
+{/* ZOOM */}  
+  {showViewer && (  
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">  
+      <button  
+        onClick={() => setShowViewer(false)}  
+        className="text-white text-xl p-4"  
+      >  
+        ✕  
+      </button>  
+
+      <div className="flex-1 flex items-center justify-center">  
+        <img  
+          src={images[currentImage]}  
+          className="max-w-full max-h-full"  
+        />  
+      </div>  
+    </div>  
+  )}  
+
+  {/* SHARE */}  
+  <button  
+    onClick={handleShare}  
+    className="absolute top-4 right-4 bg-white p-2 rounded-full shadow"  
+  >  
+    🔗  
+  </button>  
+
+  {/* DOTS */}  
+  <div className="flex justify-center gap-2 mt-2">  
+    {images.map((_, i) => (  
+      <div  
+        key={i}  
+        className={`w-2 h-2 rounded-full ${  
+          currentImage === i ? "bg-blue-600" : "bg-gray-300"  
+        }`}  
+      />  
+    ))}  
+  </div>  
+
+  <div className="p-4">  
+    {/* COLOR */}  
+    <div className="flex gap-3 overflow-x-auto">  
+      {product?.variations?.map((v: any, i: number) => (  
+        <img  
+          key={i}  
+          src={v?.images?.main}  
+          onClick={() => {  
+            setSelectedColor(i);  
+            setSelectedSize(v?.sizes?.[0] || null);  
+          }}  
+          className={`w-16 h-16 rounded-xl border ${  
+            selectedColor === i ? "border-blue-600" : ""  
+          }`}  
+        />  
+      ))}  
+    </div>  
+
+    <h1 className="text-xl font-bold mt-4">{product.name}</h1>  
+
+    <div className="mt-2 text-3xl font-bold text-green-600">  
+      ₹{finalPrice}  
+    </div>  
+
+    {/* ⭐ TRUST LINE */}  
+    <div className="mt-2 text-sm text-gray-600 font-medium">
+
+🚚 Fast Delivery | 🔒 Secure Payment | 💵 COD Available (shipping charge)
+
+</div>  {/* 🚚 PIN */}  
+    <div className="mt-5 bg-white p-4 rounded-2xl shadow">  
+      <div className="flex gap-2">  
+        <input  
+          type="number"  
+          placeholder="Enter PIN code"  
+          value={pincode}  
+          onChange={(e) => setPincode(e.target.value)}  
+          className="flex-1 border rounded-lg px-3 py-2"  
+        />  
+
+        <button  
+          onClick={checkPincode}  
+          className="bg-black text-white px-4 rounded-lg"  
+        >  
+          {checkingPin ? "Checking..." : "Check"}  
+        </button>  
+      </div>  
+
+      {deliveryInfo && (  
+        <div className="mt-3 text-green-600 text-sm font-medium">  
+          Delivery to {deliveryInfo.place}, {deliveryInfo.state} in{" "}  
+          {deliveryInfo.deliveryDays} -{" "}  
+          {deliveryInfo.deliveryDays + 2} days  
+        </div>  
+      )}  
+    </div>  
+
+    {/* SIZE */}  
+    <div className="mt-5">  
+      <h3 className="font-semibold mb-3">Select Size</h3>  
+
+      <div className="grid grid-cols-3 gap-3">  
+        {variant?.sizes?.map((s: any, i: number) => (  
+          <div  
+            key={i}  
+            onClick={() => setSelectedSize(s)}  
+            className={`p-3 rounded-xl border text-center ${  
+              selectedSize?.size === s.size  
+                ? "bg-blue-600 text-white"  
+                : "bg-white"  
+            }`}  
+          >  
+            {s.size}  
+          </div>  
+        ))}  
+      </div>  
+    </div>  
+
+    {/* DESCRIPTION */}  
+    <div className="mt-4 bg-white/60 backdrop-blur p-4 rounded-2xl shadow">  
+      {product.description || "Premium product"}  
+    </div>  
+
+    {/* ⭐ REVIEWS */}  
+    <div className="mt-6">  
+      <ReviewSection productId={product.id} />  
+    </div>  
+
+    {/* SIMILAR */}  
+    <div className="mt-6">  
+      <h3 className="font-bold mb-3">You may also like</h3>  
+
+      <div className="flex gap-3 overflow-x-auto">  
+        {similar.map((p: any) => (  
+          <div  
+            key={p.id}  
+            onClick={() => router.push(`/product/${p.id}`)}  
+            className="min-w-[140px] bg-white p-2 rounded-xl shadow"  
+          >  
+            <img  
+              src={p?.variations?.[0]?.images?.main}  
+              className="h-32 w-full object-cover rounded"  
+            />  
+            <p className="text-sm">{p.name}</p>  
+            <p className="text-green-600 font-bold">  
+              ₹  
+              {p?.variations?.[0]?.sizes?.[0]?.sellPrice || 0}  
+            </p>  
+          </div>  
+        ))}  
+      </div>  
+    </div>  
+  </div>  
+
+  {/* BUTTONS */}  
+  <div className="fixed bottom-0 left-0 w-full flex gap-3 p-3 bg-white border-t">  
+    <button  
+      onClick={handleAddToCart}  
+      className="w-1/2 py-3 rounded-xl border border-blue-600 text-blue-600"  
+    >  
+      Add to Cart  
+    </button>  
+
+    <button  
+      onClick={handleBuyNow}  
+      className="w-1/2 py-3 rounded-xl bg-blue-600 text-white"  
+    >  
+      Buy Now  
+    </button>  
+  </div>  
+</div>
+
+);
 }
