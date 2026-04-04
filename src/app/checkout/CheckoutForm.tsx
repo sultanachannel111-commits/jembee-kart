@@ -1,16 +1,17 @@
+*Checkout page* 
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { load } from "@cashfreepayments/cashfree-js";
 
 import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  serverTimestamp
+collection,
+getDocs,
+doc,
+getDoc,
+addDoc,
+serverTimestamp
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,269 +19,352 @@ import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
 
-  const [cashfree, setCashfree] = useState<any>(null);
+const DEBUG = true;
+const log = (...args: any[]) => {
+if (DEBUG) console.log("🧪 DEBUG:", ...args);
+};
 
-  const [user, setUser] = useState<any>(null);
-  const [address, setAddress] = useState<any>(null);
+const [user, setUser] = useState<any>(null);
+const [address, setAddress] = useState<any>(null);
 
-  const [payment, setPayment] = useState("COD");
-  const [loading, setLoading] = useState(false);
+const [payment, setPayment] = useState("COD");
+const [loading, setLoading] = useState(false);
 
-  const [shippingConfig, setShippingConfig] = useState({
-    prepaid: 0,
-    cod: 0,
-    freeShippingAbove: 0
-  });
+const [shippingConfig, setShippingConfig] = useState({
+prepaid: 0,
+cod: 0,
+freeShippingAbove: 0
+});
 
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [orderId, setOrderId] = useState("");
+const [showSuccess, setShowSuccess] = useState(false);
+const [orderId, setOrderId] = useState("");
 
-  const [refSeller, setRefSeller] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+const [refSeller, setRefSeller] = useState<string | null>(null);
+const [items, setItems] = useState<any[]>([]);
 
-  const router = useRouter();
+const router = useRouter();
 
-  // 🔥 INIT CASHFREE
-  useEffect(() => {
-    load({ mode: "production" }).then(setCashfree);
-  }, []);
+// 🔥 LOAD DATA
+useEffect(() => {
 
-  // 🔥 LOAD DATA
-  useEffect(() => {
+if (typeof window !== "undefined") {  
 
-    if (typeof window !== "undefined") {
+  const seller = localStorage.getItem("refSeller");  
+  log("👤 refSeller:", seller);  
+  setRefSeller(seller);  
 
-      setRefSeller(localStorage.getItem("refSeller"));
+  const buyNow = localStorage.getItem("buy-now");  
+  log("🛒 buy-now raw:", buyNow);  
 
-      const buyNow = localStorage.getItem("buy-now");
+  if (buyNow) {  
+    try {  
+      const parsed = JSON.parse(buyNow);  
+      log("✅ buy-now parsed:", parsed);  
 
-      if (buyNow) {
-        const parsed = JSON.parse(buyNow);
+      setItems([  
+        {  
+          ...parsed,  
+          qty: Number(parsed.quantity) || 1,  
+          price: Number(parsed.price) || 0,  
+          basePrice: Number(parsed.basePrice || parsed.price) || 0  
+        }  
+      ]);  
+    } catch (e) {  
+      log("❌ JSON parse error:", e);  
+    }  
+  } else {  
+    log("❌ No buy-now data found");  
+  }  
+}  
 
-        setItems([
-          {
-            ...parsed,
-            qty: Number(parsed.quantity) || 1,
-            price: Number(parsed.price) || 0,
-            basePrice: Number(parsed.basePrice || parsed.price) || 0
-          }
-        ]);
-      }
-    }
+const unsub = onAuthStateChanged(auth, async (u) => {  
 
-    const unsub = onAuthStateChanged(auth, async (u) => {
+  log("👤 Auth user:", u);  
 
-      if (!u) {
-        router.push("/login");
-        return;
-      }
+  if (!u) {  
+    router.push("/login");  
+    return;  
+  }  
 
-      setUser(u);
+  setUser(u);  
 
-      const addrSnap = await getDocs(
-        collection(db, "users", u.uid, "addresses")
-      );
+  const addrSnap = await getDocs(  
+    collection(db, "users", u.uid, "addresses")  
+  );  
 
-      let defaultAddr: any = null;
-      addrSnap.forEach(d => {
-        if (d.data().isDefault) defaultAddr = d.data();
-      });
+  let defaultAddr: any = null;  
 
-      setAddress(defaultAddr);
+  addrSnap.forEach(d => {  
+    if (d.data().isDefault) defaultAddr = d.data();  
+  });  
 
-      const shipSnap = await getDoc(doc(db, "config", "shipping"));
+  log("📍 Address:", defaultAddr);  
+  setAddress(defaultAddr);  
 
-      if (shipSnap.exists()) {
-        const data = shipSnap.data();
+  const shipSnap = await getDoc(doc(db, "config", "shipping"));  
 
-        setShippingConfig({
-          prepaid: Number(data.prepaid) || 0,
-          cod: Number(data.cod) || 0,
-          freeShippingAbove: Number(data.freeShippingAbove) || 0
-        });
-      }
+  if (shipSnap.exists()) {  
+    const data = shipSnap.data();  
+    log("🚚 Shipping config:", data);  
 
-    });
+    setShippingConfig({  
+      prepaid: Number(data.prepaid) || 0,  
+      cod: Number(data.cod) || 0,  
+      freeShippingAbove: Number(data.freeShippingAbove) || 0  
+    });  
+  }  
 
-    return () => unsub();
+});  
 
-  }, []);
+return () => unsub();
 
-  // 💰 CALC
-  const itemsTotal = items.reduce(
-    (sum, i) => sum + (i.price * i.qty),
-    0
-  );
+}, []);
 
-  let shipping =
-    payment === "COD"
-      ? shippingConfig.cod
-      : shippingConfig.prepaid;
+// 💰 TOTAL
+const itemsTotal = items.reduce(
+(sum, i) => sum + (i.price * i.qty),
+0
+);
 
-  if (
-    shippingConfig.freeShippingAbove > 0 &&
-    itemsTotal >= shippingConfig.freeShippingAbove
-  ) {
-    shipping = 0;
-  }
+let shipping =
+payment === "COD"
+? shippingConfig.cod
+: shippingConfig.prepaid;
 
-  const total = itemsTotal + shipping;
+// ✅ FIXED FREE SHIPPING
+if (
+shippingConfig.freeShippingAbove > 0 &&
+itemsTotal >= shippingConfig.freeShippingAbove
+) {
+shipping = 0;
+}
 
-  const totalProfit = items.reduce((sum, item) => {
-    return sum + (item.price - item.basePrice) * item.qty;
-  }, 0);
+const total = itemsTotal + shipping;
 
-  const commission = refSeller
-    ? Math.floor(totalProfit * 0.5)
-    : 0;
+log("💰 ItemsTotal:", itemsTotal);
+log("🚚 Shipping:", shipping);
+log("🧾 Total:", total);
 
-  // =========================
-  // 🚀 COD ORDER
-  // =========================
-  const placeOrderCOD = async () => {
+// 💰 PROFIT + COMMISSION
+const totalProfit = items.reduce((sum, item) => {
+const profit = (item.price - item.basePrice) * item.qty;
+return sum + profit;
+}, 0);
 
-    const ref = await addDoc(collection(db, "orders"), {
-      userId: user.uid,
-      items,
-      itemsTotal,
-      shipping,
-      total,
-      paymentMethod: "COD",
-      address,
-      sellerRef: refSeller || null,
-      totalProfit,
-      commission,
-      status: "Pending",
-      createdAt: serverTimestamp()
-    });
+const commission = refSeller
+? Math.floor(totalProfit * 0.5)
+: 0;
 
-    if (refSeller && commission > 0) {
-      await addDoc(collection(db, "commissions"), {
-        sellerId: refSeller,
-        orderId: ref.id,
-        amount: commission,
-        createdAt: serverTimestamp(),
-        status: "pending"
-      });
-    }
+log("💵 Total Profit:", totalProfit);
+log("👤 Seller:", refSeller);
+log("💸 Commission:", commission);
 
-    setOrderId(ref.id);
-    setShowSuccess(true);
-  };
+items.forEach((item, i) => {
+log(Item ${i + 1}, {
+price: item.price,
+basePrice: item.basePrice,
+qty: item.qty,
+profit: (item.price - item.basePrice) * item.qty
+});
+});
 
-  // =========================
-  // 💳 ONLINE PAYMENT
-  // =========================
-  const handlePayment = async () => {
+// 🚀 PLACE ORDER
+const placeOrder = async () => {
 
-    if (!address) {
-      alert("Add address ❌");
-      return;
-    }
+if (!address) {  
+  alert("Please add address ❌");  
+  return;  
+}  
 
-    try {
-      setLoading(true);
+try {  
+  setLoading(true);  
 
-      const res = await fetch("/api/cashfree", {
-        method: "POST",
-        body: JSON.stringify({
-          amount: total,
-          customer_id: user.uid,
-          customer_email: user.email,
-          customer_phone: address.phone
-        })
-      });
+  const orderData = {  
+    userId: user.uid,  
+    items,  
+    itemsTotal,  
+    shipping,  
+    total,  
+    paymentMethod: payment,  
+    address,  
+    sellerRef: refSeller || null,  
+    totalProfit,  
+    commission  
+  };  
 
-      const data = await res.json();
+  log("🔥 ORDER DATA:", orderData);  
 
-      if (!data.payment_session_id) {
-        alert("Payment failed ❌");
-        return;
-      }
+  const ref = await addDoc(collection(db, "orders"), {  
+    ...orderData,  
+    status: "Pending",  
+    createdAt: serverTimestamp()  
+  });  
 
-      await cashfree.checkout({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
-      });
+  // 💰 COMMISSION SAVE  
+  if (refSeller && commission > 0) {  
 
-    } catch (err: any) {
-      alert(err.message);
-    }
+    log("✅ Saving commission...", {  
+      sellerId: refSeller,  
+      amount: commission  
+    });  
 
-    setLoading(false);
-  };
+    await addDoc(collection(db, "commissions"), {  
+      sellerId: refSeller,  
+      orderId: ref.id,  
+      amount: commission,  
+      createdAt: serverTimestamp(),  
+      status: "pending"  
+    });  
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-28">
+  } else {  
+    log("❌ Commission not saved", { refSeller, commission });  
+  }  
 
-      <h1 className="text-3xl font-bold text-center text-white mb-6">
-        Checkout 🛍
-      </h1>
+  setOrderId(ref.id);  
+  setShowSuccess(true);  
 
-      {/* ADDRESS */}
-      <div className="backdrop-blur-xl bg-white/20 p-4 rounded-2xl mb-4 text-white">
-        <div className="flex justify-between">
-          <h2>Delivery Address</h2>
-          <button onClick={() => router.push("/profile")}>
-            Change
-          </button>
-        </div>
+  setTimeout(() => {  
+    router.push("/profile");  
+  }, 2000);  
 
-        {address && (
-          <div className="mt-2 text-sm">
-            <p>{address.name}</p>
-            <p>{address.phone}</p>
-            <p>{address.address}</p>
-          </div>
-        )}
-      </div>
+} catch (err: any) {  
+  alert("Error: " + err.message);  
+}  
 
-      {/* ITEMS */}
-      {items.map((item, i) => (
-        <div key={i} className="bg-white/20 p-3 rounded-xl mb-3 text-white">
-          <p>{item.name}</p>
-          <p>Qty: {item.qty}</p>
-          <p>₹{item.price}</p>
-        </div>
-      ))}
+setLoading(false);
 
-      {/* PAYMENT */}
-      <div className="space-y-3">
-        <button onClick={() => setPayment("ONLINE")} className="w-full p-3 bg-white text-black rounded-xl">
-          💳 Online Payment
-        </button>
+};
 
-        <button onClick={() => setPayment("COD")} className="w-full p-3 bg-white/20 text-white rounded-xl">
-          📦 Cash on Delivery
-        </button>
-      </div>
+return (
+<div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4 pb-28">
 
-      {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-xl mt-5 text-white">
-        <p>Total: ₹{total}</p>
-      </div>
+<h1 className="text-3xl font-bold text-center mb-6">  
+    Checkout 🛍  
+  </h1>  
 
-      {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-3">
+  {/* DEBUG UI */}  
+  {DEBUG && (  
+    <div className="bg-yellow-100 p-2 text-xs rounded mb-3 space-y-1">  
+      <p>ItemsTotal: {itemsTotal}</p>  
+      <p>Shipping: {shipping}</p>  
+      <p>Total: {total}</p>  
+      <hr />  
+      <p>Profit: {totalProfit}</p>  
+      <p>Seller: {refSeller || "No Seller"}</p>  
+      <p>Commission: {commission}</p>  
+    </div>  
+  )}  
 
-        {payment === "ONLINE" ? (
-          <button
-            onClick={handlePayment}
-            className="w-full py-4 bg-green-500 text-white rounded-xl"
-          >
-            Pay Online ₹{total}
-          </button>
-        ) : (
-          <button
-            onClick={placeOrderCOD}
-            className="w-full py-4 bg-purple-600 text-white rounded-xl"
-          >
-            Place COD Order ₹{total}
-          </button>
-        )}
+  {/* ADDRESS */}  
+  <div className="bg-white p-4 rounded-xl shadow mb-4">  
+    <div className="flex justify-between">  
+      <h2 className="font-bold">Delivery Address</h2>  
+      <button  
+        onClick={() => router.push("/profile")}  
+        className="text-pink-500"  
+      >  
+        Change  
+      </button>  
+    </div>  
 
-      </div>
+    {address ? (  
+      <div className="mt-2 text-sm space-y-1">  
+        <p className="font-semibold">{address.name}</p>  
+        <p>{address.phone}</p>  
+        <p>{address.address}</p>  
+        <p>{address.city} - {address.pincode}</p>  
+      </div>  
+    ) : (  
+      <p className="text-red-500 mt-2">  
+        No address found ❌  
+      </p>  
+    )}  
+  </div>  
 
-    </div>
-  );
+  {/* ITEMS */}  
+  {items.map((item, i) => (  
+    <div key={i} className="flex gap-3 bg-white p-3 rounded-xl shadow mb-3">  
+      <img src={item.image} className="w-16 h-16 rounded-lg" />  
+      <div className="flex-1">  
+        <p className="font-semibold">{item.name}</p>  
+        <p className="text-sm text-gray-500">Qty: {item.qty}</p>  
+        <p className="text-green-600 font-bold">₹{item.price}</p>  
+      </div>  
+    </div>  
+  ))}  
+
+  {/* PAYMENT */}  
+  <div className="mt-6 space-y-3">  
+    <div  
+      onClick={() => setPayment("ONLINE")}  
+      className={`p-3 rounded-xl border cursor-pointer ${  
+        payment === "ONLINE" ? "border-pink-500 bg-pink-50" : ""  
+      }`}  
+    >  
+      💳 Online Payment (+₹{shippingConfig.prepaid})  
+    </div>  
+
+    <div  
+      onClick={() => setPayment("COD")}  
+      className={`p-3 rounded-xl border cursor-pointer ${  
+        payment === "COD" ? "border-pink-500 bg-pink-50" : ""  
+      }`}  
+    >  
+      📦 Cash on Delivery (+₹{shippingConfig.cod})  
+    </div>  
+  </div>  
+
+  {/* SUMMARY */}  
+  <div className="mt-6 bg-white p-4 rounded-xl shadow">  
+    <div className="flex justify-between">  
+      <span>Items</span>  
+      <span>₹{itemsTotal}</span>  
+    </div>  
+
+    <div className="flex justify-between">  
+      <span>Shipping</span>  
+      <span>₹{shipping}</span>  
+    </div>  
+
+    <hr className="my-2"/>  
+
+    <div className="flex justify-between font-bold text-lg">  
+      <span>Total</span>  
+      <span>₹{total}</span>  
+    </div>  
+  </div>  
+
+  {/* BUTTON */}  
+  <div className="fixed bottom-0 left-0 w-full p-3 bg-white shadow-lg">  
+    <button  
+      onClick={placeOrder}  
+      disabled={loading}  
+      className={`w-full py-4 rounded-xl text-white font-bold ${  
+        loading  
+          ? "bg-gray-400"  
+          : "bg-gradient-to-r from-purple-600 to-pink-500"  
+      }`}  
+    >  
+      {loading ? "Processing..." : `Pay ₹${total} 🚀`}  
+    </button>  
+  </div>  
+
+  {/* SUCCESS */}  
+  {showSuccess && (  
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">  
+      <div className="bg-white p-6 rounded-2xl text-center w-[90%] max-w-sm shadow-xl">  
+        <div className="text-5xl mb-3">🎉</div>  
+        <h2 className="text-xl font-bold text-green-600">  
+          Order Placed Successfully  
+        </h2>  
+        <p className="text-sm text-gray-500 mt-2">  
+          Order ID: {orderId}  
+        </p>  
+      </div>  
+    </div>  
+  )}  
+
+</div>
+
+);
 }
