@@ -158,12 +158,12 @@ log("👤 Seller:", refSeller);
 log("💸 Commission:", commission);
 
 items.forEach((item, i) => {
-log(Item ${i + 1}, {
-price: item.price,
-basePrice: item.basePrice,
-qty: item.qty,
-profit: (item.price - item.basePrice) * item.qty
-});
+  log(`Item ${i + 1}`, {
+    price: item.price,
+    basePrice: item.basePrice,
+    qty: item.qty,
+    profit: (item.price - item.basePrice) * item.qty
+  });
 });
 
 // 🚀 PLACE ORDER
