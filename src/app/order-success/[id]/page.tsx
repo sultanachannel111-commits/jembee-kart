@@ -31,11 +31,36 @@ export default function OrderSuccess(){
         // ✅ FETCH ORDER
         const snap = await getDoc(doc(db,"orders",id as string));
 
-        if(snap.exists()){
-          setOrder(snap.data());
+        if(!snap.exists()) return;
+
+        const data = snap.data();
+        setOrder(data);
+
+        // =========================
+        // 🔐 VERIFY PAYMENT (IMPORTANT)
+        // =========================
+
+        const verifyRes = await fetch("/api/cashfree/verify-payment",{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body: JSON.stringify({
+            orderId: id
+          })
+        });
+
+        const verifyData = await verifyRes.json();
+
+        if(!verifyData.success){
+          console.log("❌ Payment not verified");
+          return;
         }
 
-        // ✅ PAYMENT UPDATE
+        // =========================
+        // ✅ UPDATE PAYMENT
+        // =========================
+
         await updateDoc(
           doc(db,"orders",id as string),
           {
@@ -43,8 +68,12 @@ export default function OrderSuccess(){
           }
         );
 
+        // =========================
         // 🧹 CLEAR CART
+        // =========================
+
         const user = auth.currentUser;
+
         if(user){
           const cartSnap = await getDocs(
             collection(db,"carts",user.uid,"items")
@@ -57,11 +86,15 @@ export default function OrderSuccess(){
           }
         }
 
-        // 📲 WHATSAPP MESSAGE
-        if(order){
-          const msg = `🛍️ Order Placed!\nOrder ID: ${id}\nTotal: ₹${order.total}`;
-          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
-        }
+        // =========================
+        // 📲 WHATSAPP MESSAGE (FIXED)
+        // =========================
+
+        const msg = `🛍️ Order Placed!
+Order ID: ${id}
+Total: ₹${data.total}`;
+
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
 
         setDone(true);
 
@@ -81,7 +114,6 @@ export default function OrderSuccess(){
 
 <div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl text-center max-w-md w-full">
 
-{/* ✅ ICON */}
 <div className="text-5xl mb-3">✅</div>
 
 <h1 className="text-green-600 text-2xl font-bold">
@@ -92,28 +124,24 @@ Payment Successful 🎉
 Your order has been placed successfully
 </p>
 
-{/* ORDER ID */}
 <div className="mt-4 bg-gray-100 p-3 rounded-xl text-sm">
 Order ID: <span className="font-bold">{id}</span>
 </div>
 
-{/* TOTAL */}
 {order && (
   <p className="mt-2 font-semibold text-lg text-green-700">
     Total: ₹{order.total}
   </p>
 )}
 
-{/* STATUS */}
 <p className="text-gray-500 mt-2 text-sm">
 Your order is being prepared 🚚
 </p>
 
-{/* BUTTONS */}
 <div className="flex gap-3 mt-6">
 
 <button
-onClick={()=>router.push(`/order/${id}`)}
+onClick={()=>router.push(`/orders/${id}`)}
 className="flex-1 bg-black text-white py-2 rounded-xl"
 >
 Track Order
