@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
@@ -32,36 +32,44 @@ export default function CheckoutPage() {
   });
 
   const router = useRouter();
-  const pathname = usePathname();
 
   // =========================
-  // 🔥 LOAD DATA
+  // 🔥 LOAD DATA (FIXED)
   // =========================
   const loadData = async (u) => {
 
-    // 🔥 ITEMS FIX
+    // 🔥 ITEMS FIX (reload safe)
     const buyNow = localStorage.getItem("buy-now");
     const cart = localStorage.getItem("cart");
 
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      setItems([{
-        ...parsed,
-        qty: Number(parsed.quantity) || 1,
-        price: Number(parsed.price) || 0,
-        basePrice: Number(parsed.basePrice || parsed.price) || 0,
-        image: parsed.image || "/no-image.png"
-      }]);
+      if (parsed?.price) {
+        setItems([{
+          ...parsed,
+          qty: Number(parsed.quantity) || 1,
+          price: Number(parsed.price) || 0,
+          basePrice: Number(parsed.basePrice || parsed.price) || 0,
+          image: parsed.image || "/no-image.png"
+        }]);
+      }
 
     } else if (cart) {
+
       const parsedCart = JSON.parse(cart);
-      setItems(Array.isArray(parsedCart) ? parsedCart : []);
+
+      if (Array.isArray(parsedCart) && parsedCart.length > 0) {
+        setItems(parsedCart);
+      } else {
+        setItems([]);
+      }
+
     } else {
-      setItems([]);
+      setItems([]); // ✅ important fix
     }
 
-    // 🔥 ADDRESS LOAD
+    // 🔥 ADDRESS RELOAD FIX
     const addrSnap = await getDocs(
       collection(db, "users", u.uid, "addresses")
     );
@@ -72,6 +80,7 @@ export default function CheckoutPage() {
     addrSnap.forEach(d => {
       const data = { id: d.id, ...d.data() };
       all.push(data);
+
       if (data.isDefault) defaultAddr = data;
     });
 
@@ -92,9 +101,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // =========================
-  // 🔥 INIT + RELOAD FIX
-  // =========================
   useEffect(() => {
 
     const seller = localStorage.getItem("refSeller");
@@ -105,20 +111,21 @@ export default function CheckoutPage() {
       if (!u) return router.push("/login");
 
       setUser(u);
-      await loadData(u);
 
+      await loadData(u); // ✅ main fix
+
+    });
+
+    // 🔥 BACK BUTTON FIX (reload on focus)
+    window.addEventListener("focus", () => {
+      if (auth.currentUser) {
+        loadData(auth.currentUser);
+      }
     });
 
     return () => unsub();
 
   }, []);
-
-  // 🔥 BACK FIX (IMPORTANT)
-  useEffect(() => {
-    if (auth.currentUser) {
-      loadData(auth.currentUser);
-    }
-  }, [pathname]);
 
   // =========================
   // 💰 TOTAL
@@ -144,8 +151,15 @@ export default function CheckoutPage() {
   // =========================
   const handlePayment = async () => {
 
-    if (!address) return alert("Add address ❌");
-    if (items.length === 0) return alert("Cart empty ❌");
+    if (!address) {
+      alert("Add address ❌");
+      return;
+    }
+
+    if (items.length === 0) {
+      alert("Cart empty ❌");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -160,7 +174,7 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // COD
+      // 🟡 COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -171,7 +185,10 @@ export default function CheckoutPage() {
 
         const data = await res.json();
 
-        if (!data.success) return alert("Order failed ❌");
+        if (!data.success) {
+          alert("Order failed ❌");
+          return;
+        }
 
         localStorage.removeItem("buy-now");
         localStorage.removeItem("cart");
@@ -180,10 +197,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      // ONLINE
+      // 🔵 ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           amount: total,
           customer: {
@@ -197,6 +216,11 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      if (!data.payment_session_id) {
+        alert("Payment error ❌");
+        return;
+      }
+
       const cashfree = await load({ mode: "production" });
 
       await cashfree.checkout({
@@ -204,7 +228,11 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
-    } catch {
+      // ✅ FIX: clear after online too
+      localStorage.removeItem("buy-now");
+      localStorage.removeItem("cart");
+
+    } catch (err) {
       alert("Payment error ❌");
     }
 
@@ -215,56 +243,96 @@ export default function CheckoutPage() {
   // 🎨 UI
   // =========================
   return (
-    <div className="p-4 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32 text-white">
 
-      <h1 className="text-2xl mb-4">Checkout</h1>
+      <h1 className="text-3xl font-bold text-center mb-6">
+        Checkout 🛍
+      </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 p-4 rounded mb-4">
+      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-2xl mb-4">
 
-        <div className="flex justify-between">
-          <p>Address</p>
-          <button onClick={()=>router.push("/account")}>
+        <div className="flex justify-between mb-2">
+          <p className="font-semibold">Delivery Address 📍</p>
+
+          <button
+            onClick={() => router.push("/account")}
+            className="text-xs bg-white/20 px-2 py-1 rounded"
+          >
             Change
           </button>
         </div>
 
-        {address && (
-          <div>
-            <p>{address.name}</p>
+        {address ? (
+          <div className="text-sm">
+            <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
-            <p>{address.address}</p>
+            <p>{address.address || address.addressLine}</p>
+            <p>{address.city}, {address.state}</p>
+            <p>PIN: {address.pincode}</p>
           </div>
+        ) : (
+          <p>No address found ❌</p>
         )}
 
-        {/* 🔥 SELECT ADDRESS */}
-        <div className="flex gap-2 mt-2 overflow-x-auto">
-          {addresses.map(a => (
-            <div
-              key={a.id}
-              onClick={()=>setAddress(a)}
-              className={`p-2 rounded cursor-pointer ${
-                address?.id === a.id
-                  ? "bg-green-500"
-                  : "bg-white/20"
-              }`}
-            >
-              {a.name}
-            </div>
-          ))}
+      </div>
+
+      {/* PAYMENT */}
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+
+        <p>Select Payment</p>
+
+        <div className="flex gap-3 mt-2">
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 p-2 rounded ${
+              paymentMethod === "ONLINE"
+                ? "bg-green-500"
+                : "bg-white/20"
+            }`}
+          >
+            Online
+          </button>
+
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 p-2 rounded ${
+              paymentMethod === "COD"
+                ? "bg-yellow-500"
+                : "bg-white/20"
+            }`}
+          >
+            COD
+          </button>
         </div>
 
       </div>
 
-      {/* TOTAL */}
-      <div>
-        Total ₹{total}
+      {/* SUMMARY */}
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+        <p>Items: ₹{itemsTotal}</p>
+        <p>Shipping: ₹{shipping}</p>
+        <p className="font-bold text-xl">Total: ₹{total}</p>
       </div>
 
-      <button onClick={handlePayment}>
-        {paymentMethod === "COD"
-          ? `Place Order ₹${total}`
-          : `Pay ₹${total}`}
+      {/* ITEMS */}
+      {items.map((item, i) => (
+        <div key={i} className="bg-white/20 p-3 rounded mb-3 flex gap-3">
+          <img src={item.image} className="w-16 h-16 rounded"/>
+          <div>
+            <p>{item.name}</p>
+            <p>Qty: {item.qty}</p>
+            <p>₹{item.price}</p>
+          </div>
+        </div>
+      ))}
+
+      {/* BUTTON */}
+      <button
+        onClick={handlePayment}
+        className="fixed bottom-5 left-4 right-4 bg-black text-white py-3 rounded-xl"
+      >
+        {loading ? "Processing..." : `Pay ₹${total}`}
       </button>
 
     </div>
