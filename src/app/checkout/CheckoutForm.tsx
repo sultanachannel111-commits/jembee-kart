@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-
 import {
   collection,
   getDocs,
@@ -14,7 +13,6 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-
 import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
@@ -39,14 +37,17 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // 🔥 LOAD DATA
+  // 🔥 LOAD
   useEffect(() => {
 
     if (typeof window !== "undefined") {
+
       const seller = localStorage.getItem("refSeller");
+      console.log("👤 refSeller:", seller);
       setRefSeller(seller);
 
       const buyNow = localStorage.getItem("buy-now");
+      console.log("🛒 buyNow:", buyNow);
 
       if (buyNow) {
         try {
@@ -60,11 +61,15 @@ export default function CheckoutPage() {
               basePrice: Number(parsed.basePrice || parsed.price) || 0
             }
           ]);
-        } catch {}
+        } catch (e) {
+          console.log("❌ JSON ERROR:", e);
+        }
       }
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+
+      console.log("👤 USER:", u);
 
       if (!u) {
         router.push("/login");
@@ -83,12 +88,15 @@ export default function CheckoutPage() {
         if (d.data().isDefault) defaultAddr = d.data();
       });
 
+      console.log("📍 ADDRESS:", defaultAddr);
       setAddress(defaultAddr);
 
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
         const data = shipSnap.data();
+
+        console.log("🚚 SHIPPING:", data);
 
         setShippingConfig({
           prepaid: Number(data.prepaid) || 0,
@@ -123,16 +131,9 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // 💰 PROFIT
-  const totalProfit = items.reduce((sum, item) => {
-    return sum + (item.price - item.basePrice) * item.qty;
-  }, 0);
+  console.log("💰 TOTAL:", { itemsTotal, shipping, total });
 
-  const commission = refSeller
-    ? Math.floor(totalProfit * 0.5)
-    : 0;
-
-  // 🚀 ONLINE PAYMENT (FINAL FIXED)
+  // 🚀 ONLINE PAYMENT (DEBUG VERSION)
   const handleOnlinePayment = async () => {
 
     if (!address) {
@@ -143,7 +144,8 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      // 🔥 create order
+      console.log("🚀 Creating order...");
+
       const res = await fetch("/api/create-order", {
         method: "POST",
         body: JSON.stringify({
@@ -159,8 +161,10 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      console.log("🔥 CREATE ORDER RESPONSE:", data);
+
       if (!data.payment_session_id) {
-        alert("Payment init failed ❌");
+        alert("❌ Payment session not received");
         setLoading(false);
         return;
       }
@@ -169,12 +173,15 @@ export default function CheckoutPage() {
         mode: process.env.NODE_ENV === "production" ? "production" : "sandbox"
       });
 
+      console.log("💳 Opening Cashfree...");
+
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
         redirectTarget: "_modal"
       });
 
-      // ✅ VERIFY PAYMENT
+      console.log("🔍 Verifying payment...");
+
       const verifyRes = await fetch("/api/verify-payment", {
         method: "POST",
         body: JSON.stringify({ orderId: data.order_id })
@@ -182,13 +189,17 @@ export default function CheckoutPage() {
 
       const verifyData = await verifyRes.json();
 
+      console.log("✅ VERIFY RESPONSE:", verifyData);
+
       if (!verifyData.success) {
-        alert("Payment failed ❌");
+        alert("❌ Payment not verified");
         setLoading(false);
         return;
       }
 
-      // ✅ SAVE ORDER AFTER SUCCESS
+      alert("✅ Payment success");
+
+      // 🔥 SAVE ORDER
       const ref = await addDoc(collection(db, "orders"), {
         userId: user.uid,
         items,
@@ -198,22 +209,9 @@ export default function CheckoutPage() {
         paymentMethod: "ONLINE",
         address,
         sellerRef: refSeller || null,
-        totalProfit,
-        commission,
         status: "Paid",
         createdAt: serverTimestamp()
       });
-
-      // commission
-      if (refSeller && commission > 0) {
-        await addDoc(collection(db, "commissions"), {
-          sellerId: refSeller,
-          orderId: ref.id,
-          amount: commission,
-          createdAt: serverTimestamp(),
-          status: "pending"
-        });
-      }
 
       setOrderId(ref.id);
       setShowSuccess(true);
@@ -222,8 +220,9 @@ export default function CheckoutPage() {
         router.push("/profile");
       }, 2000);
 
-    } catch (err) {
-      alert("Payment error ❌");
+    } catch (err: any) {
+      console.log("❌ PAYMENT ERROR:", err);
+      alert("Payment failed ❌");
     }
 
     setLoading(false);
@@ -233,7 +232,7 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
 
     if (!address) {
-      alert("Please add address ❌");
+      alert("Add address ❌");
       return;
     }
 
@@ -249,8 +248,6 @@ export default function CheckoutPage() {
         paymentMethod: "COD",
         address,
         sellerRef: refSeller || null,
-        totalProfit,
-        commission,
         status: "Pending",
         createdAt: serverTimestamp()
       });
@@ -258,9 +255,7 @@ export default function CheckoutPage() {
       setOrderId(ref.id);
       setShowSuccess(true);
 
-      setTimeout(() => {
-        router.push("/profile");
-      }, 2000);
+      setTimeout(() => router.push("/profile"), 2000);
 
     } catch (err: any) {
       alert(err.message);
@@ -276,57 +271,12 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* ADDRESS */}
-      <div className="backdrop-blur-2xl bg-white/20 border border-white/30 p-4 rounded-2xl shadow-xl mb-4 text-white">
-        <div className="flex justify-between">
-          <h2 className="font-semibold">Delivery Address</h2>
-          <button onClick={() => router.push("/profile")} className="underline text-sm">
-            Change
-          </button>
-        </div>
-
-        {address ? (
-          <div className="mt-2 text-sm space-y-1">
-            <p className="font-semibold">{address.name}</p>
-            <p>{address.phone}</p>
-            <p>{address.address}</p>
-            <p>{address.city} - {address.pincode}</p>
-          </div>
-        ) : (
-          <p className="text-red-200 mt-2">No address found ❌</p>
-        )}
-      </div>
-
-      {/* SUMMARY */}
-      <div className="mt-6 backdrop-blur-2xl bg-white/20 border border-white/30 p-4 rounded-2xl text-white">
-        <div className="flex justify-between">
-          <span>Items</span>
-          <span>₹{itemsTotal}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Shipping</span>
-          <span>₹{shipping}</span>
-        </div>
-
-        <hr className="my-2 border-white/30"/>
-
-        <div className="flex justify-between font-bold text-lg">
-          <span>Total</span>
-          <span>₹{total}</span>
-        </div>
-      </div>
-
       {/* BUTTON */}
       <div className="fixed bottom-0 left-0 w-full p-3 backdrop-blur-xl bg-white/20 border-t border-white/30">
         <button
-          onClick={() => {
-            payment === "ONLINE"
-              ? handleOnlinePayment()
-              : placeOrder();
-          }}
+          onClick={() => payment === "ONLINE" ? handleOnlinePayment() : placeOrder()}
           disabled={loading}
-          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600 shadow-xl"
+          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600"
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
@@ -334,15 +284,10 @@ export default function CheckoutPage() {
 
       {/* SUCCESS */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="backdrop-blur-2xl bg-white/20 border border-white/30 p-6 rounded-2xl text-center text-white w-[90%] max-w-sm">
-            <div className="text-5xl mb-3">🎉</div>
-            <h2 className="text-xl font-bold">
-              Order Placed Successfully
-            </h2>
-            <p className="text-sm mt-2">
-              Order ID: {orderId}
-            </p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl text-center">
+            <h2>Order Success 🎉</h2>
+            <p>{orderId}</p>
           </div>
         </div>
       )}
