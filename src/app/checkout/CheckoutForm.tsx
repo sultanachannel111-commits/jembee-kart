@@ -41,7 +41,6 @@ export default function CheckoutPage() {
     const seller = localStorage.getItem("refSeller");
     setRefSeller(seller);
 
-    // ✅ FIX: buy-now reload safe
     const buyNow = localStorage.getItem("buy-now");
 
     if (buyNow) {
@@ -64,7 +63,7 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // ✅ LOAD ADDRESS
+      // ✅ ADDRESS LOAD
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -106,7 +105,7 @@ export default function CheckoutPage() {
   // =========================
 
   const itemsTotal = items.length > 0
-    ? items.reduce((sum, i) => sum + (i.price * i.qty), 0)
+    ? items.reduce((sum, i) => sum + i.price * i.qty, 0)
     : 0;
 
   let shipping =
@@ -124,18 +123,6 @@ export default function CheckoutPage() {
   const total = itemsTotal + shipping;
 
   // =========================
-  // 💰 PROFIT + COMMISSION
-  // =========================
-
-  const totalProfit = items.reduce((sum, item) => {
-    return sum + (item.price - item.basePrice) * item.qty;
-  }, 0);
-
-  const commission = refSeller
-    ? Math.floor(totalProfit * 0.5)
-    : 0;
-
-  // =========================
   // 🚀 PAYMENT
   // =========================
 
@@ -146,7 +133,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ✅ FIX: empty cart block
     if (items.length === 0) {
       alert("Cart empty ❌");
       return;
@@ -162,11 +148,10 @@ export default function CheckoutPage() {
         shipping,
         total,
         address,
-        sellerRef: refSeller || null,
-        commission
+        sellerRef: refSeller || null
       };
 
-      // 🟡 COD
+      // COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -190,7 +175,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🔵 ONLINE
+      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {
@@ -215,7 +200,7 @@ export default function CheckoutPage() {
       }
 
       const cashfree = await load({
-        mode: "production" // ✅ FIX: always real payment
+        mode: "production"
       });
 
       await cashfree.checkout({
@@ -223,12 +208,7 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
-      localStorage.setItem("orderData", JSON.stringify({
-        ...orderData,
-        cashfreeOrderId: data.order_id
-      }));
-
-    } catch (err: any) {
+    } catch (err) {
       alert("Payment error ❌");
     }
 
@@ -271,6 +251,24 @@ export default function CheckoutPage() {
         ) : (
           <p className="text-red-300">No address found ❌</p>
         )}
+
+        {/* ✅ ADDRESS SELECT BACK */}
+        <div className="flex gap-2 mt-3 overflow-x-auto">
+          {addresses.map((a) => (
+            <div
+              key={a.id}
+              onClick={() => setAddress(a)}
+              className={`p-2 min-w-[180px] rounded-xl cursor-pointer ${
+                address?.id === a.id
+                  ? "bg-green-500"
+                  : "bg-white/20"
+              }`}
+            >
+              <p className="text-xs font-semibold">{a.name}</p>
+              <p className="text-xs">{a.city}</p>
+            </div>
+          ))}
+        </div>
 
       </div>
 
