@@ -15,13 +15,13 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const [user, setUser] = useState(null);
-  const [address, setAddress] = useState(null);
-  const [addresses, setAddresses] = useState([]);
+  const [user, setUser] = useState<any>(null);
+  const [address, setAddress] = useState<any>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [items, setItems] = useState([]);
-  const [refSeller, setRefSeller] = useState(null);
+  const [items, setItems] = useState<any[]>([]);
+  const [refSeller, setRefSeller] = useState<string | null>(null);
 
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
@@ -34,24 +34,44 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
+  // 🔥 BACK BUTTON → HOME
+  // =========================
+  useEffect(() => {
+    const handleBack = () => {
+      router.push("/");
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handleBack);
+
+    return () => {
+      window.removeEventListener("popstate", handleBack);
+    };
+  }, []);
+
+  // =========================
   // 🔥 LOAD DATA
   // =========================
-  const loadData = async (u) => {
+  const loadData = async (u: any) => {
 
-    // 🛒 ITEMS LOAD
+    // 🛒 ITEMS
     const buyNow = localStorage.getItem("buy-now");
     const cart = localStorage.getItem("cart");
 
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      setItems([{
-        ...parsed,
-        qty: Number(parsed.quantity) || 1,
-        price: Number(parsed.price) || 0,
-        basePrice: Number(parsed.basePrice || parsed.price) || 0,
-        image: parsed.image || "/no-image.png"
-      }]);
+      if (!parsed || !parsed.price) {
+        setItems([]);
+      } else {
+        setItems([{
+          ...parsed,
+          qty: Number(parsed.quantity) || 1,
+          price: Number(parsed.price) || 0,
+          basePrice: Number(parsed.basePrice || parsed.price) || 0,
+          image: parsed.image || "/no-image.png"
+        }]);
+      }
 
     } else if (cart) {
       const parsedCart = JSON.parse(cart);
@@ -60,28 +80,32 @@ export default function CheckoutPage() {
       setItems([]);
     }
 
-    // 📍 ADDRESS LOAD
+    // 📍 ADDRESS
     const addrSnap = await getDocs(
       collection(db, "users", u.uid, "addresses")
     );
 
-    let all = [];
-    let defaultAddr = null;
+    let all: any[] = [];
+    let defaultAddr: any = null;
 
     addrSnap.forEach(d => {
       const data = { id: d.id, ...d.data() };
       all.push(data);
-
       if (data.isDefault) defaultAddr = data;
     });
 
     setAddresses(all);
 
-    // ✅ PRESERVE SELECTED ADDRESS
-    setAddress(prev => {
-      if (prev) return prev;
-      return defaultAddr || all[0] || null;
-    });
+    // 🔥 SELECTED ADDRESS FIX
+    const savedId = localStorage.getItem("selectedAddressId");
+
+    const selected =
+      all.find(a => a.id === savedId) ||
+      defaultAddr ||
+      all[0] ||
+      null;
+
+    setAddress(selected);
 
     // 🚚 SHIPPING
     const shipSnap = await getDoc(doc(db, "config", "shipping"));
@@ -119,20 +143,22 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 🔥 BACK FIX (FOCUS)
+  // 🔥 BACK / RELOAD FIX
   // =========================
   useEffect(() => {
 
-    const handleFocus = () => {
+    const reload = () => {
       if (auth.currentUser) {
         loadData(auth.currentUser);
       }
     };
 
-    window.addEventListener("focus", handleFocus);
+    window.addEventListener("focus", reload);
+    document.addEventListener("visibilitychange", reload);
 
     return () => {
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("focus", reload);
+      document.removeEventListener("visibilitychange", reload);
     };
 
   }, []);
@@ -177,12 +203,12 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // 🟡 COD
+      // COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type": "application/json"},
           body: JSON.stringify(orderData)
         });
 
@@ -197,7 +223,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🔵 ONLINE
+      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -260,7 +286,7 @@ export default function CheckoutPage() {
           </button>
         </div>
 
-        {address ? (
+        {address && (
           <div className="text-sm">
             <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
@@ -268,16 +294,17 @@ export default function CheckoutPage() {
             <p>{address.city}, {address.state}</p>
             <p>PIN: {address.pincode}</p>
           </div>
-        ) : (
-          <p>No address found ❌</p>
         )}
 
-        {/* SELECT ADDRESS */}
+        {/* SELECT */}
         <div className="flex gap-2 mt-3 overflow-x-auto">
           {addresses.map((a) => (
             <div
               key={a.id}
-              onClick={() => setAddress(a)}
+              onClick={() => {
+                setAddress(a);
+                localStorage.setItem("selectedAddressId", a.id);
+              }}
               className={`p-2 min-w-[150px] rounded-xl cursor-pointer ${
                 address?.id === a.id
                   ? "bg-green-500"
