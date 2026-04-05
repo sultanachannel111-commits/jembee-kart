@@ -41,17 +41,21 @@ export default function CheckoutPage() {
     const seller = localStorage.getItem("refSeller");
     setRefSeller(seller);
 
+    // ✅ FIX: buy-now reload safe
     const buyNow = localStorage.getItem("buy-now");
 
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      setItems([{
-        ...parsed,
-        qty: Number(parsed.quantity) || 1,
-        price: Number(parsed.price) || 0,
-        basePrice: Number(parsed.basePrice || parsed.price) || 0
-      }]);
+      if (parsed && parsed.price) {
+        setItems([{
+          ...parsed,
+          qty: Number(parsed.quantity) || 1,
+          price: Number(parsed.price) || 0,
+          basePrice: Number(parsed.basePrice || parsed.price) || 0,
+          image: parsed.image || "/no-image.png"
+        }]);
+      }
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -60,7 +64,7 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // ✅ LOAD ADDRESSES
+      // ✅ LOAD ADDRESS
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -98,10 +102,12 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 💰 TOTAL
+  // 💰 TOTAL FIX
   // =========================
 
-  const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const itemsTotal = items.length > 0
+    ? items.reduce((sum, i) => sum + (i.price * i.qty), 0)
+    : 0;
 
   let shipping =
     paymentMethod === "COD"
@@ -137,6 +143,12 @@ export default function CheckoutPage() {
 
     if (!address) {
       alert("Add address ❌");
+      return;
+    }
+
+    // ✅ FIX: empty cart block
+    if (items.length === 0) {
+      alert("Cart empty ❌");
       return;
     }
 
@@ -203,9 +215,7 @@ export default function CheckoutPage() {
       }
 
       const cashfree = await load({
-        mode: process.env.NODE_ENV === "production"
-          ? "production"
-          : "sandbox"
+        mode: "production" // ✅ FIX: always real payment
       });
 
       await cashfree.checkout({
@@ -243,7 +253,7 @@ export default function CheckoutPage() {
           <p className="font-semibold">Delivery Address 📍</p>
 
           <button
-            onClick={()=>router.push("/account")}
+            onClick={() => router.push("/account")}
             className="text-xs bg-white/20 px-2 py-1 rounded"
           >
             Change
@@ -262,24 +272,6 @@ export default function CheckoutPage() {
           <p className="text-red-300">No address found ❌</p>
         )}
 
-        {/* SELECT */}
-        <div className="flex gap-2 mt-3 overflow-x-auto">
-          {addresses.map((a) => (
-            <div
-              key={a.id}
-              onClick={()=>setAddress(a)}
-              className={`p-2 min-w-[180px] rounded-xl cursor-pointer ${
-                address?.id === a.id
-                  ? "bg-green-500"
-                  : "bg-white/20"
-              }`}
-            >
-              <p className="text-xs font-semibold">{a.name}</p>
-              <p className="text-xs">{a.city}</p>
-            </div>
-          ))}
-        </div>
-
       </div>
 
       {/* PAYMENT */}
@@ -290,7 +282,7 @@ export default function CheckoutPage() {
         <div className="flex gap-3">
 
           <button
-            onClick={()=>setPaymentMethod("ONLINE")}
+            onClick={() => setPaymentMethod("ONLINE")}
             className={`flex-1 p-2 rounded-xl ${
               paymentMethod === "ONLINE"
                 ? "bg-green-500"
@@ -301,7 +293,7 @@ export default function CheckoutPage() {
           </button>
 
           <button
-            onClick={()=>setPaymentMethod("COD")}
+            onClick={() => setPaymentMethod("COD")}
             className={`flex-1 p-2 rounded-xl ${
               paymentMethod === "COD"
                 ? "bg-yellow-500"
