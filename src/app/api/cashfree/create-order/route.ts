@@ -4,9 +4,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { amount, customer } = body;
-
-    const order_id = "order_" + Date.now();
+    const orderId = "order_" + Date.now();
 
     const res = await fetch("https://api.cashfree.com/pg/orders", {
       method: "POST",
@@ -17,50 +15,36 @@ export async function POST(req: Request) {
         "x-api-version": "2022-09-01"
       },
       body: JSON.stringify({
-        order_id,
-        order_amount: amount,
+        order_id: orderId,
+        order_amount: body.amount,
         order_currency: "INR",
+
         customer_details: {
-          customer_id: customer.uid || "guest",
-          customer_name: customer.name || "Test User",
-          customer_email: customer.email || "test@gmail.com",
-          customer_phone: customer.phone || "9999999999"
+          customer_id: body.customer.uid,
+          customer_name: body.customer.name,
+          customer_email: body.customer.email,
+          customer_phone: body.customer.phone
         },
+
+        // ✅ MOST IMPORTANT FIX
         order_meta: {
-          return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?orderId=${order_id}`
+          return_url: `https://jembee-kart-1v9fkcjde-md-alim-ansar-s-projects.vercel.app/success?order_id=${orderId}`
         }
       })
     });
 
-    const text = await res.text();
+    const data = await res.json();
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json({
-        success: false,
-        error: "❌ Not JSON from Cashfree",
-        raw: text
-      });
-    }
-
-    // 🔥 IMPORTANT FIX
-    if (!data.payment_session_id) {
-      return NextResponse.json({
-        success: false,
-        error: "❌ No session id from Cashfree",
-        full: data
-      });
-    }
+    console.log("CASHFREE RESPONSE:", data);
 
     return NextResponse.json({
       success: true,
-      payment_session_id: data.payment_session_id,
-      order_id
+      ...data
     });
 
   } catch (err: any) {
+    console.log("ERROR:", err);
+
     return NextResponse.json({
       success: false,
       error: err.message
