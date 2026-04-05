@@ -21,7 +21,7 @@ export default function CheckoutPage() {
 
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
-  const [payment, setPayment] = useState("COD");
+  const [payment, setPayment] = useState("ONLINE");
   const [loading, setLoading] = useState(false);
 
   const [shippingConfig, setShippingConfig] = useState({
@@ -30,22 +30,26 @@ export default function CheckoutPage() {
     freeShippingAbove: 0
   });
 
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [orderId, setOrderId] = useState("");
-
-  const [refSeller, setRefSeller] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [refSeller, setRefSeller] = useState<string | null>(null);
+
+  const [orderId, setOrderId] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const [debugData, setDebugData] = useState<any>({});
 
   const router = useRouter();
 
-  // LOAD
+  // 🔥 LOAD DATA
   useEffect(() => {
 
     if (typeof window !== "undefined") {
+
       const seller = localStorage.getItem("refSeller");
       const buyNow = localStorage.getItem("buy-now");
+
+      console.log("👤 Seller:", seller);
+      console.log("🛒 BuyNow:", buyNow);
 
       setRefSeller(seller);
 
@@ -59,7 +63,10 @@ export default function CheckoutPage() {
             price: Number(parsed.price) || 0,
             basePrice: Number(parsed.basePrice || parsed.price) || 0
           }]);
-        } catch {}
+
+        } catch (e) {
+          console.log("❌ JSON ERROR:", e);
+        }
       }
     }
 
@@ -72,19 +79,26 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      const addrSnap = await getDocs(collection(db, "users", u.uid, "addresses"));
+      const addrSnap = await getDocs(
+        collection(db, "users", u.uid, "addresses")
+      );
 
       let defaultAddr: any = null;
+
       addrSnap.forEach(d => {
         if (d.data().isDefault) defaultAddr = d.data();
       });
 
+      console.log("📍 Address:", defaultAddr);
       setAddress(defaultAddr);
 
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
         const data = shipSnap.data();
+
+        console.log("🚚 Shipping:", data);
+
         setShippingConfig({
           prepaid: Number(data.prepaid) || 0,
           cod: Number(data.cod) || 0,
@@ -98,12 +112,16 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // TOTAL
-  const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  // 💰 TOTAL
+  const itemsTotal = items.reduce(
+    (sum, i) => sum + (i.price * i.qty),
+    0
+  );
 
-  let shipping = payment === "COD"
-    ? shippingConfig.cod
-    : shippingConfig.prepaid;
+  let shipping =
+    payment === "COD"
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
   if (
     shippingConfig.freeShippingAbove > 0 &&
@@ -114,24 +132,39 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // PROFIT
+  console.log("💰 TOTAL:", { itemsTotal, shipping, total });
+
+  // 💰 PROFIT
   const totalProfit = items.reduce((sum, item) => {
     return sum + (item.price - item.basePrice) * item.qty;
   }, 0);
 
-  const commission = refSeller ? Math.floor(totalProfit * 0.5) : 0;
+  const commission = refSeller
+    ? Math.floor(totalProfit * 0.5)
+    : 0;
 
-  // PAYMENT
+  // 🚀 ONLINE PAYMENT
   const handleOnlinePayment = async () => {
 
-    if (!address) return alert("Add address ❌");
+    if (!address) {
+      alert("Add address ❌");
+      return;
+    }
 
     try {
       setLoading(true);
 
+      const orderIdGenerated = "order_" + Date.now();
+
+      console.log("🚀 Creating Order:", orderIdGenerated);
+
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
+          orderId: orderIdGenerated,
           amount: total,
           customer: {
             uid: user.uid,
@@ -144,15 +177,21 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      console.log("🔥 CREATE ORDER:", data);
+
       setDebugData((prev:any)=>({...prev, createOrder:data}));
 
       if (!data.payment_session_id || !data.order_id) {
-        alert("❌ Session error");
+        alert("❌ Payment init failed");
         setLoading(false);
         return;
       }
 
-      const cashfree = await load({ mode: "sandbox" });
+      const cashfree = await load({
+        mode: "sandbox"
+      });
+
+      console.log("💳 Opening payment UI...");
 
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
@@ -160,20 +199,31 @@ export default function CheckoutPage() {
       });
 
       // VERIFY
+      console.log("🔍 Verifying payment...");
+
       const verifyRes = await fetch("/api/verify-payment", {
         method: "POST",
-        body: JSON.stringify({ orderId: data.order_id })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          orderId: data.order_id
+        })
       });
 
       const verifyData = await verifyRes.json();
 
+      console.log("✅ VERIFY:", verifyData);
+
       setDebugData((prev:any)=>({...prev, verify:verifyData}));
 
       if (!verifyData.success) {
-        alert("Payment failed ❌");
+        alert("❌ Payment failed");
         setLoading(false);
         return;
       }
+
+      alert("✅ Payment success");
 
       // SAVE ORDER
       const ref = await addDoc(collection(db, "orders"), {
@@ -184,7 +234,7 @@ export default function CheckoutPage() {
         total,
         paymentMethod: "ONLINE",
         address,
-        sellerRef: refSeller,
+        sellerRef: refSeller || null,
         totalProfit,
         commission,
         status: "Paid",
@@ -195,6 +245,7 @@ export default function CheckoutPage() {
       setShowSuccess(true);
 
     } catch (err:any) {
+      console.log("❌ PAYMENT ERROR:", err);
       setDebugData((prev:any)=>({...prev, error:err.message}));
       alert("Payment error ❌");
     }
@@ -202,7 +253,7 @@ export default function CheckoutPage() {
     setLoading(false);
   };
 
-  // COD
+  // 🚀 COD
   const placeOrder = async () => {
 
     if (!address) return alert("Add address ❌");
@@ -229,10 +280,12 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-28 text-white">
 
-      <h1 className="text-3xl font-bold text-center mb-6">Checkout 🛍</h1>
+      <h1 className="text-3xl font-bold text-center mb-6">
+        Checkout 🛍
+      </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-xl mb-4">
+      <div className="bg-white/20 p-4 rounded-xl mb-3">
         <p>{address?.name}</p>
         <p>{address?.phone}</p>
         <p>{address?.address}</p>
@@ -241,24 +294,27 @@ export default function CheckoutPage() {
       {/* ITEMS */}
       {items.map((item, i) => (
         <div key={i} className="bg-white/20 p-3 rounded-xl mb-2">
-          {item.name} - ₹{item.price} × {item.qty}
+          {item.name} — ₹{item.price} × {item.qty}
         </div>
       ))}
 
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-xl mt-4">
+      <div className="bg-white/20 p-4 rounded-xl mt-3">
         <p>Items: ₹{itemsTotal}</p>
         <p>Shipping: ₹{shipping}</p>
         <p>Total: ₹{total}</p>
       </div>
 
       {/* BUTTON */}
-      <button
-        onClick={() => payment === "ONLINE" ? handleOnlinePayment() : placeOrder()}
-        className="fixed bottom-5 left-5 right-5 py-4 bg-gradient-to-r from-purple-700 to-pink-600 rounded-xl"
-      >
-        {loading ? "Processing..." : `Pay ₹${total}`}
-      </button>
+      <div className="fixed bottom-0 left-0 w-full p-3 bg-black/30">
+        <button
+          onClick={handleOnlinePayment}
+          disabled={loading}
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-700 to-pink-600"
+        >
+          {loading ? "Processing..." : `Pay ₹${total}`}
+        </button>
+      </div>
 
       {/* DEBUG PANEL */}
       {DEBUG && (
@@ -269,9 +325,9 @@ export default function CheckoutPage() {
           <p>Commission: {commission}</p>
 
           {items.map((item, i) => (
-            <div key={i}>
+            <p key={i}>
               Item {i+1}: {item.basePrice} → {item.price}
-            </div>
+            </p>
           ))}
 
           <hr/>
@@ -285,9 +341,9 @@ export default function CheckoutPage() {
 
       {/* SUCCESS */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white text-black p-5 rounded-xl">
-            Order Success 🎉 <br/>
+            Order Success 🎉<br/>
             {orderId}
           </div>
         </div>
