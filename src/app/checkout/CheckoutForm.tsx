@@ -15,16 +15,12 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const [blocked, setBlocked] = useState(false); // 🔥 BACK CONTROL
-
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [items, setItems] = useState<any[]>([]);
-  const [refSeller, setRefSeller] = useState<string | null>(null);
-
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
   const [shippingConfig, setShippingConfig] = useState({
@@ -36,46 +32,41 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 BACK BUTTON FIX (NO UI FLASH)
+  // 🔥 BACK BUTTON → HOME REDIRECT
   // =========================
   useEffect(() => {
     const handleBack = () => {
-      setBlocked(true); // 🔥 UI hata do
-      router.replace("/"); // 🔥 home bhejo
+      router.replace("/");
     };
 
     window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", handleBack);
 
-    return () => {
-      window.removeEventListener("popstate", handleBack);
-    };
+    return () => window.removeEventListener("popstate", handleBack);
   }, []);
-
-  // 🔥 BLOCK UI
-  if (blocked) return null;
 
   // =========================
   // 🔥 LOAD DATA
   // =========================
   const loadData = async (u: any) => {
 
+    // 🛒 BUY NOW
     const buyNow = localStorage.getItem("buy-now");
 
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      if (parsed?.price) {
-        setItems([{
-          ...parsed,
-          qty: Number(parsed.quantity) || 1,
-          price: Number(parsed.price) || 0,
-          basePrice: Number(parsed.basePrice || parsed.price) || 0,
-          image: parsed.image || "/no-image.png"
-        }]);
-      } else {
-        setItems([]);
+      if (!parsed?.price) {
+        router.replace("/");
+        return;
       }
+
+      setItems([{
+        ...parsed,
+        qty: Number(parsed.quantity) || 1,
+        price: Number(parsed.price) || 0,
+        image: parsed.image || "/no-image.png"
+      }]);
 
     } else {
       // 🔥 FIRESTORE CART
@@ -88,6 +79,11 @@ export default function CheckoutPage() {
         ...d.data(),
         qty: d.data().quantity || 1
       }));
+
+      if (cartItems.length === 0) {
+        router.replace("/");
+        return;
+      }
 
       setItems(cartItems);
     }
@@ -107,16 +103,7 @@ export default function CheckoutPage() {
     });
 
     setAddresses(all);
-
-    const savedId = localStorage.getItem("selectedAddressId");
-
-    const selected =
-      all.find(a => a.id === savedId) ||
-      defaultAddr ||
-      all[0] ||
-      null;
-
-    setAddress(selected);
+    setAddress(defaultAddr || all[0] || null);
 
     // 🚚 SHIPPING
     const shipSnap = await getDoc(doc(db, "config", "shipping"));
@@ -130,15 +117,14 @@ export default function CheckoutPage() {
         freeShippingAbove: Number(data.freeShippingAbove) || 0
       });
     }
+
+    setLoading(false);
   };
 
   // =========================
   // 🔥 INIT
   // =========================
   useEffect(() => {
-
-    const seller = localStorage.getItem("refSeller");
-    setRefSeller(seller);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
@@ -178,41 +164,8 @@ export default function CheckoutPage() {
   const handlePayment = async () => {
 
     if (!address) return alert("Add address ❌");
-    if (items.length === 0) return alert("Cart empty ❌");
 
     try {
-      setLoading(true);
-
-      const orderData = {
-        userId: user.uid,
-        items,
-        itemsTotal,
-        shipping,
-        total,
-        address,
-        sellerRef: refSeller || null
-      };
-
-      // COD
-      if (paymentMethod === "COD") {
-
-        const res = await fetch("/api/orders/cod", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(orderData)
-        });
-
-        const data = await res.json();
-
-        if (!data.success) return alert("Order failed ❌");
-
-        localStorage.removeItem("buy-now");
-
-        router.push(`/order-success/${data.orderId}`);
-        return;
-      }
-
-      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -237,11 +190,20 @@ export default function CheckoutPage() {
       });
 
     } catch {
-      alert("Payment error ❌");
+      alert("Payment failed");
     }
-
-    setLoading(false);
   };
+
+  // =========================
+  // ⏳ LOADING FIX
+  // =========================
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-white">
+        Loading Checkout...
+      </div>
+    );
+  }
 
   // =========================
   // 🎨 UI
@@ -249,51 +211,25 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32 text-white">
 
-      <h1 className="text-3xl font-bold text-center mb-6">
-        Checkout 🛍
-      </h1>
+      <h1 className="text-3xl text-center mb-6">Checkout 🛍</h1>
 
       {/* ADDRESS */}
       <div className="bg-white/20 p-4 rounded-2xl mb-4">
 
         <div className="flex justify-between mb-2">
           <p>Delivery Address</p>
-
-          <button
-            onClick={() => router.push("/account")}
-            className="underline"
-          >
-            Change Address
+          <button onClick={() => router.push("/account")}>
+            Change
           </button>
         </div>
 
         {address && (
-          <div className="text-sm">
+          <div>
             <p>{address.name}</p>
             <p>{address.phone}</p>
             <p>{address.address}</p>
           </div>
         )}
-
-        {/* SELECT */}
-        <div className="flex gap-2 mt-3 overflow-x-auto">
-          {addresses.map(a => (
-            <div
-              key={a.id}
-              onClick={() => {
-                setAddress(a);
-                localStorage.setItem("selectedAddressId", a.id);
-              }}
-              className={`p-2 rounded ${
-                address?.id === a.id
-                  ? "bg-green-500"
-                  : "bg-white/20"
-              }`}
-            >
-              {a.name}
-            </div>
-          ))}
-        </div>
 
       </div>
 
@@ -307,7 +243,7 @@ export default function CheckoutPage() {
       {/* BUTTON */}
       <button
         onClick={handlePayment}
-        className="fixed bottom-5 left-4 right-4 bg-black text-white py-4 rounded-xl"
+        className="fixed bottom-5 left-4 right-4 bg-black py-4 rounded-xl"
       >
         Pay ₹{total}
       </button>
