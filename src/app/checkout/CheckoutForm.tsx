@@ -15,8 +15,6 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const [hidePage, setHidePage] = useState(false);
-
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -36,39 +34,16 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 BACK FIX
-  // =========================
-  useEffect(() => {
-    const handleBack = () => {
-      console.log("🔥 BACK BUTTON TRIGGERED");
-      setHidePage(true);
-      router.replace("/");
-    };
-
-    window.history.pushState(null, "", window.location.href);
-    window.addEventListener("popstate", handleBack);
-
-    return () => {
-      window.removeEventListener("popstate", handleBack);
-    };
-  }, []);
-
-  if (hidePage) return null;
-
-  // =========================
   // 🔥 LOAD DATA
   // =========================
   const loadData = async (u: any) => {
 
-    console.log("======== LOAD DATA START ========");
+    console.log("🔥 LOAD START");
 
     const buyNow = localStorage.getItem("buy-now");
     const cart = localStorage.getItem("cart");
 
-    console.log("BUY-NOW:", buyNow);
-    console.log("CART:", cart);
-
-    // 🛒 ITEMS
+    // ITEMS
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
@@ -80,24 +55,22 @@ export default function CheckoutPage() {
         image: parsed.image || "/no-image.png"
       };
 
-      console.log("🔥 BUY NOW ITEM:", item);
-
+      console.log("✅ BUY NOW:", item);
       setItems([item]);
 
     } else if (cart) {
 
       const parsedCart = JSON.parse(cart);
-
-      console.log("🔥 CART ITEMS:", parsedCart);
+      console.log("✅ CART:", parsedCart);
 
       setItems(Array.isArray(parsedCart) ? parsedCart : []);
 
     } else {
-      console.log("❌ NO ITEMS FOUND");
+      console.log("❌ EMPTY CART");
       setItems([]);
     }
 
-    // 📍 ADDRESS
+    // ADDRESS
     const addrSnap = await getDocs(
       collection(db, "users", u.uid, "addresses")
     );
@@ -112,18 +85,19 @@ export default function CheckoutPage() {
       if (data.isDefault) defaultAddr = data;
     });
 
-    console.log("🔥 ADDRESSES:", all);
+    console.log("📍 ADDRESSES:", all);
 
     setAddresses(all);
 
-    // ✅ FIXED (NO BUG)
-    const selected = defaultAddr || all[0] || null;
+    // FIXED
+    setAddress(prev => {
+      if (prev && all.find(a => a.id === prev.id)) {
+        return prev;
+      }
+      return defaultAddr || all[0] || null;
+    });
 
-    console.log("🔥 SELECTED ADDRESS:", selected);
-
-    setAddress(selected);
-
-    // 🚚 SHIPPING
+    // SHIPPING
     const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
     if (shipSnap.exists()) {
@@ -136,7 +110,7 @@ export default function CheckoutPage() {
       });
     }
 
-    console.log("======== LOAD DATA END ========");
+    console.log("🔥 LOAD END");
   };
 
   // =========================
@@ -148,8 +122,6 @@ export default function CheckoutPage() {
     setRefSeller(seller);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
-
-      console.log("🔥 USER:", u);
 
       if (!u) return router.push("/login");
 
@@ -163,13 +135,13 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 🔥 REFRESH FIX
+  // 🔥 BACK FIX (RELOAD)
   // =========================
   useEffect(() => {
 
     const handleFocus = () => {
-      console.log("🔥 WINDOW FOCUS → RELOAD");
       if (auth.currentUser) {
+        console.log("🔄 REFRESH");
         loadData(auth.currentUser);
       }
     };
@@ -208,7 +180,7 @@ export default function CheckoutPage() {
   // =========================
   const handlePayment = async () => {
 
-    console.log("🔥 PAYMENT START");
+    console.log("🔥 PAYMENT CLICK");
 
     if (!address) return alert("Add address ❌");
     if (items.length === 0) return alert("Cart empty ❌");
@@ -216,6 +188,44 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
+      const orderData = {
+        userId: user.uid,
+        items,
+        itemsTotal,
+        shipping,
+        total,
+        address,
+        sellerRef: refSeller || null
+      };
+
+      // 🟡 COD
+      if (paymentMethod === "COD") {
+
+        console.log("🚚 COD ORDER:", orderData);
+
+        const res = await fetch("/api/orders/cod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderData)
+        });
+
+        const data = await res.json();
+
+        console.log("✅ COD RESPONSE:", data);
+
+        if (!data.success) {
+          alert("Order failed ❌");
+          return;
+        }
+
+        localStorage.removeItem("buy-now");
+        localStorage.removeItem("cart");
+
+        router.replace(`/order-success/${data.orderId}`);
+        return;
+      }
+
+      // 🔵 ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -232,7 +242,12 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      console.log("🔥 PAYMENT RESPONSE:", data);
+      console.log("💳 PAYMENT RESPONSE:", data);
+
+      if (!data.payment_session_id) {
+        alert("Payment error ❌");
+        return;
+      }
 
       const cashfree = await load({ mode: "production" });
 
@@ -241,8 +256,11 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
+      localStorage.removeItem("buy-now");
+      localStorage.removeItem("cart");
+
     } catch (err) {
-      console.log("❌ PAYMENT ERROR:", err);
+      console.log("❌ ERROR:", err);
       alert("Payment error ❌");
     }
 
@@ -263,7 +281,7 @@ export default function CheckoutPage() {
       <div className="bg-white/20 p-4 rounded-2xl mb-4">
 
         <div className="flex justify-between mb-2">
-          <p>Delivery Address</p>
+          <p>Delivery Address 📍</p>
 
           <button
             onClick={() => router.push("/account")}
@@ -283,6 +301,35 @@ export default function CheckoutPage() {
           <p>No address ❌</p>
         )}
 
+        {/* SELECT */}
+        <div className="flex gap-2 mt-3 overflow-x-auto">
+          {addresses.map((a) => (
+            <div
+              key={a.id}
+              onClick={() => setAddress(a)}
+              className={`p-2 min-w-[120px] rounded cursor-pointer ${
+                address?.id === a.id
+                  ? "bg-green-500"
+                  : "bg-white/20"
+              }`}
+            >
+              {a.name}
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* PAYMENT */}
+      <div className="bg-white/20 p-4 rounded mb-4">
+        <div className="flex gap-3">
+          <button onClick={() => setPaymentMethod("ONLINE")}>
+            Online
+          </button>
+          <button onClick={() => setPaymentMethod("COD")}>
+            COD
+          </button>
+        </div>
       </div>
 
       {/* TOTAL */}
@@ -294,7 +341,11 @@ export default function CheckoutPage() {
         onClick={handlePayment}
         className="fixed bottom-5 left-4 right-4 bg-black py-4 rounded-xl"
       >
-        Pay ₹{total}
+        {loading
+          ? "Processing..."
+          : paymentMethod === "COD"
+          ? `Place Order ₹${total}`
+          : `Pay ₹${total}`}
       </button>
 
     </div>
