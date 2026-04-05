@@ -6,9 +6,7 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc,
-  addDoc,
-  serverTimestamp
+  getDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -17,11 +15,12 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const [user, setUser] = useState<any>(null);
-  const [address, setAddress] = useState<any>(null);
-
-  const [payment, setPayment] = useState("ONLINE");
+  const [user, setUser] = useState(null);
+  const [address, setAddress] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const [items, setItems] = useState([]);
+  const [refSeller, setRefSeller] = useState(null);
 
   const [shippingConfig, setShippingConfig] = useState({
     prepaid: 0,
@@ -29,42 +28,34 @@ export default function CheckoutPage() {
     freeShippingAbove: 0
   });
 
-  const [items, setItems] = useState<any[]>([]);
-  const [refSeller, setRefSeller] = useState<string | null>(null);
-
   // DEBUG
   const [debugCreate, setDebugCreate] = useState("");
   const [debugError, setDebugError] = useState("");
 
   const router = useRouter();
 
-  // 🔥 LOAD
+  // 🔥 LOAD DATA
   useEffect(() => {
 
-    if (typeof window !== "undefined") {
-      const seller = localStorage.getItem("refSeller");
-      setRefSeller(seller);
+    const seller = localStorage.getItem("refSeller");
+    setRefSeller(seller);
 
-      const buyNow = localStorage.getItem("buy-now");
+    const buyNow = localStorage.getItem("buy-now");
 
-      if (buyNow) {
-        const parsed = JSON.parse(buyNow);
+    if (buyNow) {
+      const parsed = JSON.parse(buyNow);
 
-        setItems([{
-          ...parsed,
-          qty: Number(parsed.quantity) || 1,
-          price: Number(parsed.price) || 0,
-          basePrice: Number(parsed.basePrice || parsed.price) || 0
-        }]);
-      }
+      setItems([{
+        ...parsed,
+        qty: Number(parsed.quantity) || 1,
+        price: Number(parsed.price) || 0,
+        basePrice: Number(parsed.basePrice || parsed.price) || 0
+      }]);
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
-      if (!u) {
-        router.push("/login");
-        return;
-      }
+      if (!u) return router.push("/login");
 
       setUser(u);
 
@@ -72,7 +63,7 @@ export default function CheckoutPage() {
         collection(db, "users", u.uid, "addresses")
       );
 
-      let defaultAddr: any = null;
+      let defaultAddr = null;
       addrSnap.forEach(d => {
         if (d.data().isDefault) defaultAddr = d.data();
       });
@@ -97,12 +88,10 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // 💰 TOTAL
+  // 💰 CALCULATION
   const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  let shipping = payment === "COD"
-    ? shippingConfig.cod
-    : shippingConfig.prepaid;
+  let shipping = shippingConfig.prepaid;
 
   if (shippingConfig.freeShippingAbove > 0 && itemsTotal >= shippingConfig.freeShippingAbove) {
     shipping = 0;
@@ -110,18 +99,17 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  // 💰 PROFIT
   const totalProfit = items.reduce((sum, item) => {
     return sum + (item.price - item.basePrice) * item.qty;
   }, 0);
 
   const commission = refSeller ? Math.floor(totalProfit * 0.5) : 0;
 
-  // 🚀 ONLINE PAYMENT (FINAL)
-  const handleOnlinePayment = async () => {
+  // 🚀 PAYMENT
+  const handlePayment = async () => {
 
     if (!address) {
-      alert("Add address first ❌");
+      alert("Add address ❌");
       return;
     }
 
@@ -129,7 +117,7 @@ export default function CheckoutPage() {
       setLoading(true);
       setDebugError("");
 
-      const res = await fetch("/api/orders/create", {
+      const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -145,27 +133,34 @@ export default function CheckoutPage() {
         })
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      console.log("RAW:", text);
 
-      console.log("CREATE:", data);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setDebugError("❌ Not JSON → " + text);
+        return;
+      }
+
       setDebugCreate(JSON.stringify(data, null, 2));
 
       if (!data.payment_session_id) {
-        setDebugError("No session id ❌");
+        setDebugError("❌ No session id");
         return;
       }
 
       const cashfree = await load({
-        mode: process.env.NODE_ENV === "production" ? "production" : "sandbox"
+        mode: "production" // ✅ REAL PAYMENT
       });
 
-      // ✅ IMPORTANT: redirect use karo
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
         redirectTarget: "_self"
       });
 
-    } catch (err: any) {
+    } catch (err) {
       console.log(err);
       setDebugError(err.message);
       alert("Payment error ❌");
@@ -175,14 +170,12 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32">
+    <div className="p-4 text-white">
 
-      <h1 className="text-3xl font-bold text-center text-white mb-6">
-        Checkout 🛍
-      </h1>
+      <h1 className="text-2xl font-bold mb-4">Checkout</h1>
 
       {/* DEBUG */}
-      <div className="bg-black/70 text-white p-4 rounded-xl text-xs space-y-2 mb-4">
+      <div className="bg-black/70 p-3 rounded text-xs mb-4">
         <p>Seller: {refSeller || "None"}</p>
         <p>Profit: {totalProfit}</p>
         <p>Commission: {commission}</p>
@@ -199,23 +192,20 @@ export default function CheckoutPage() {
         <p className="text-red-400">Error: {debugError}</p>
       </div>
 
-      {/* SUMMARY */}
-      <div className="backdrop-blur-xl bg-white/20 border border-white/30 p-4 rounded-xl text-white">
+      {/* TOTAL */}
+      <div className="mb-4">
         <p>Items: ₹{itemsTotal}</p>
         <p>Shipping: ₹{shipping}</p>
-        <p className="font-bold">Total: ₹{total}</p>
+        <p>Total: ₹{total}</p>
       </div>
 
-      {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-3 backdrop-blur-xl bg-white/20">
-        <button
-          onClick={handleOnlinePayment}
-          disabled={loading}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-700 to-pink-600 text-white font-bold"
-        >
-          {loading ? "Processing..." : `Pay ₹${total} 🚀`}
-        </button>
-      </div>
+      <button
+        onClick={handlePayment}
+        disabled={loading}
+        className="bg-purple-600 px-4 py-3 rounded w-full"
+      >
+        {loading ? "Processing..." : `Pay ₹${total}`}
+      </button>
 
     </div>
   );
