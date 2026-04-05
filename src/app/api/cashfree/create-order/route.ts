@@ -21,10 +21,10 @@ export async function POST(req: Request) {
         order_amount: amount,
         order_currency: "INR",
         customer_details: {
-          customer_id: customer.uid,
-          customer_name: customer.name,
-          customer_email: customer.email,
-          customer_phone: customer.phone
+          customer_id: customer.uid || "guest",
+          customer_name: customer.name || "Test User",
+          customer_email: customer.email || "test@gmail.com",
+          customer_phone: customer.phone || "9999999999"
         },
         order_meta: {
           return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?orderId=${order_id}`
@@ -32,7 +32,27 @@ export async function POST(req: Request) {
       })
     });
 
-    const data = await res.json();
+    const text = await res.text();
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: "❌ Not JSON from Cashfree",
+        raw: text
+      });
+    }
+
+    // 🔥 IMPORTANT FIX
+    if (!data.payment_session_id) {
+      return NextResponse.json({
+        success: false,
+        error: "❌ No session id from Cashfree",
+        full: data
+      });
+    }
 
     return NextResponse.json({
       success: true,
