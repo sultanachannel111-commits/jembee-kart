@@ -49,7 +49,7 @@ export default function StorePage() {
   }, [sellerId]);
 
 
-  // 🔥 LOAD OFFERS (DISCOUNT)
+  // 🔥 LOAD OFFERS
   useEffect(() => {
 
     const loadOffers = async () => {
@@ -61,8 +61,14 @@ export default function StorePage() {
         snap.forEach((doc) => {
           const d: any = doc.data();
 
-          if (d.productId && d.active) {
-            data[d.productId] = d.discount || 0;
+          // ✅ SAFE FILTER
+          if (
+            d.productId &&
+            d.active &&
+            d.discount > 0 &&
+            d.discount <= 90
+          ) {
+            data[d.productId] = d.discount;
           }
         });
 
@@ -96,7 +102,7 @@ export default function StorePage() {
       </div>
 
 
-      {/* 🔥 ALL STORE SHARE */}
+      {/* SHARE STORE */}
       <div className="p-4 rounded-2xl mb-5 shadow bg-gradient-to-r from-green-400 to-emerald-500 text-white">
 
         <h2 className="font-bold text-lg">🚀 Share & Earn</h2>
@@ -154,7 +160,7 @@ export default function StorePage() {
       )}
 
 
-      {/* PRODUCTS GRID */}
+      {/* PRODUCTS */}
       <div className="grid grid-cols-2 gap-4">
 
         {products.map((p) => {
@@ -164,12 +170,17 @@ export default function StorePage() {
             p.price ||
             0;
 
-          const discount = offers[p.id] || 0;
+          // ✅ SAFE DISCOUNT
+          const discount =
+            offers[p.id] && offers[p.id] > 0 && offers[p.id] <= 90
+              ? offers[p.id]
+              : 0;
 
           const finalPrice = Math.round(
             basePrice - (basePrice * discount) / 100
           );
 
+          // ✅ SAFE IMAGE
           const image =
             p?.variations?.[0]?.images?.main ||
             p.image ||
@@ -184,6 +195,9 @@ export default function StorePage() {
               {/* IMAGE */}
               <img
                 src={image}
+                onError={(e) => {
+                  e.currentTarget.src = "/no-image.png";
+                }}
                 className="h-32 w-full object-cover rounded-xl"
               />
 
@@ -211,7 +225,7 @@ export default function StorePage() {
                 </p>
               )}
 
-              {/* SHARE PRODUCT */}
+              {/* SHARE */}
               <button
                 onClick={() => {
 
