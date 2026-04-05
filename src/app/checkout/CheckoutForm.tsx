@@ -42,19 +42,30 @@ export default function CheckoutPage() {
     setRefSeller(seller);
 
     const buyNow = localStorage.getItem("buy-now");
+    const cart = localStorage.getItem("cart");
 
+    // ✅ BUY NOW
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      if (parsed && parsed.price) {
-        setItems([{
-          ...parsed,
-          qty: Number(parsed.quantity) || 1,
-          price: Number(parsed.price) || 0,
-          basePrice: Number(parsed.basePrice || parsed.price) || 0,
-          image: parsed.image || "/no-image.png"
-        }]);
+      setItems([{
+        ...parsed,
+        qty: Number(parsed.quantity) || 1,
+        price: Number(parsed.price) || 0,
+        basePrice: Number(parsed.basePrice || parsed.price) || 0,
+        image: parsed.image || "/no-image.png"
+      }]);
+
+    }
+    // ✅ CART FALLBACK
+    else if (cart) {
+
+      const parsedCart = JSON.parse(cart);
+
+      if (Array.isArray(parsedCart) && parsedCart.length > 0) {
+        setItems(parsedCart);
       }
+
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -101,11 +112,11 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 💰 TOTAL FIX
+  // 💰 TOTAL
   // =========================
 
   const itemsTotal = items.length > 0
-    ? items.reduce((sum, i) => sum + i.price * i.qty, 0)
+    ? items.reduce((sum, i) => sum + (i.price * i.qty), 0)
     : 0;
 
   let shipping =
@@ -151,7 +162,7 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // COD
+      // 🟡 COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -169,13 +180,15 @@ export default function CheckoutPage() {
           return;
         }
 
+        // ✅ CLEAR STORAGE
         localStorage.removeItem("buy-now");
+        localStorage.removeItem("cart");
 
         router.push(`/order-success/${data.orderId}`);
         return;
       }
 
-      // ONLINE
+      // 🔵 ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {
@@ -241,18 +254,23 @@ export default function CheckoutPage() {
         </div>
 
         {address ? (
-          <div className="text-sm">
+          <div className="text-sm leading-tight">
             <p className="font-semibold">{address.name}</p>
             <p>{address.phone}</p>
+
             <p>
-              {address.addressLine}, {address.city}, {address.state} - {address.pincode}
+              {address.address || address.addressLine}
+              <br />
+              {address.city}, {address.state}
+              <br />
+              PIN: {address.pincode}
             </p>
           </div>
         ) : (
           <p className="text-red-300">No address found ❌</p>
         )}
 
-        {/* ✅ ADDRESS SELECT BACK */}
+        {/* ADDRESS SELECT */}
         <div className="flex gap-2 mt-3 overflow-x-auto">
           {addresses.map((a) => (
             <div
