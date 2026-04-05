@@ -17,10 +17,9 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const DEBUG = true;
-
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
+
   const [payment, setPayment] = useState("ONLINE");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +35,10 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const [debugData, setDebugData] = useState<any>({});
+  // 🧪 DEBUG STATES
+  const [debugCreate, setDebugCreate] = useState("");
+  const [debugVerify, setDebugVerify] = useState("");
+  const [debugError, setDebugError] = useState("");
 
   const router = useRouter();
 
@@ -46,26 +48,24 @@ export default function CheckoutPage() {
     if (typeof window !== "undefined") {
 
       const seller = localStorage.getItem("refSeller");
-      const buyNow = localStorage.getItem("buy-now");
-
-      console.log("👤 Seller:", seller);
-      console.log("🛒 BuyNow:", buyNow);
-
       setRefSeller(seller);
+
+      const buyNow = localStorage.getItem("buy-now");
 
       if (buyNow) {
         try {
           const parsed = JSON.parse(buyNow);
 
-          setItems([{
-            ...parsed,
-            qty: Number(parsed.quantity) || 1,
-            price: Number(parsed.price) || 0,
-            basePrice: Number(parsed.basePrice || parsed.price) || 0
-          }]);
-
+          setItems([
+            {
+              ...parsed,
+              qty: Number(parsed.quantity) || 1,
+              price: Number(parsed.price) || 0,
+              basePrice: Number(parsed.basePrice || parsed.price) || 0
+            }
+          ]);
         } catch (e) {
-          console.log("❌ JSON ERROR:", e);
+          console.log("JSON ERROR:", e);
         }
       }
     }
@@ -89,15 +89,12 @@ export default function CheckoutPage() {
         if (d.data().isDefault) defaultAddr = d.data();
       });
 
-      console.log("📍 Address:", defaultAddr);
       setAddress(defaultAddr);
 
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
         const data = shipSnap.data();
-
-        console.log("🚚 Shipping:", data);
 
         setShippingConfig({
           prepaid: Number(data.prepaid) || 0,
@@ -132,8 +129,6 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  console.log("💰 TOTAL:", { itemsTotal, shipping, total });
-
   // 💰 PROFIT
   const totalProfit = items.reduce((sum, item) => {
     return sum + (item.price - item.basePrice) * item.qty;
@@ -147,24 +142,19 @@ export default function CheckoutPage() {
   const handleOnlinePayment = async () => {
 
     if (!address) {
-      alert("Add address ❌");
+      alert("Add address first ❌");
       return;
     }
 
     try {
       setLoading(true);
+      setDebugError("");
 
-      const orderIdGenerated = "order_" + Date.now();
+      console.log("🚀 Creating order...");
 
-      console.log("🚀 Creating Order:", orderIdGenerated);
-
-      const res = await fetch("/api/cashfree/create-order", {
+      const res = await fetch("/api/orders/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({
-          orderId: orderIdGenerated,
           amount: total,
           customer: {
             uid: user.uid,
@@ -177,35 +167,27 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      console.log("🔥 CREATE ORDER:", data);
+      console.log("🔥 CREATE:", data);
+      setDebugCreate(JSON.stringify(data, null, 2));
 
-      setDebugData((prev:any)=>({...prev, createOrder:data}));
-
-      if (!data.payment_session_id || !data.order_id) {
-        alert("❌ Payment init failed");
+      if (!data.payment_session_id) {
+        setDebugError("No payment_session_id ❌");
         setLoading(false);
         return;
       }
 
       const cashfree = await load({
-        mode: "sandbox"
+        mode: process.env.NODE_ENV === "production" ? "production" : "sandbox"
       });
-
-      console.log("💳 Opening payment UI...");
 
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
+        redirectTarget: "_modal"
       });
 
-      // VERIFY
-      console.log("🔍 Verifying payment...");
-
+      // ✅ VERIFY
       const verifyRes = await fetch("/api/verify-payment", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({
           orderId: data.order_id
         })
@@ -214,18 +196,15 @@ export default function CheckoutPage() {
       const verifyData = await verifyRes.json();
 
       console.log("✅ VERIFY:", verifyData);
-
-      setDebugData((prev:any)=>({...prev, verify:verifyData}));
+      setDebugVerify(JSON.stringify(verifyData, null, 2));
 
       if (!verifyData.success) {
-        alert("❌ Payment failed");
+        setDebugError("Payment not verified ❌");
         setLoading(false);
         return;
       }
 
-      alert("✅ Payment success");
-
-      // SAVE ORDER
+      // 🔥 SAVE ORDER
       const ref = await addDoc(collection(db, "orders"), {
         userId: user.uid,
         items,
@@ -244,9 +223,11 @@ export default function CheckoutPage() {
       setOrderId(ref.id);
       setShowSuccess(true);
 
-    } catch (err:any) {
-      console.log("❌ PAYMENT ERROR:", err);
-      setDebugData((prev:any)=>({...prev, error:err.message}));
+      setTimeout(() => router.push("/profile"), 2000);
+
+    } catch (err: any) {
+      console.log("❌ ERROR:", err);
+      setDebugError(err.message);
       alert("Payment error ❌");
     }
 
@@ -256,7 +237,10 @@ export default function CheckoutPage() {
   // 🚀 COD
   const placeOrder = async () => {
 
-    if (!address) return alert("Add address ❌");
+    if (!address) {
+      alert("Add address ❌");
+      return;
+    }
 
     const ref = await addDoc(collection(db, "orders"), {
       userId: user.uid,
@@ -266,7 +250,7 @@ export default function CheckoutPage() {
       total,
       paymentMethod: "COD",
       address,
-      sellerRef: refSeller,
+      sellerRef: refSeller || null,
       totalProfit,
       commission,
       status: "Pending",
@@ -275,76 +259,60 @@ export default function CheckoutPage() {
 
     setOrderId(ref.id);
     setShowSuccess(true);
+
+    setTimeout(() => router.push("/profile"), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-28 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32">
 
-      <h1 className="text-3xl font-bold text-center mb-6">
+      <h1 className="text-3xl font-bold text-center text-white mb-6">
         Checkout 🛍
       </h1>
 
-      {/* ADDRESS */}
-      <div className="bg-white/20 p-4 rounded-xl mb-3">
-        <p>{address?.name}</p>
-        <p>{address?.phone}</p>
-        <p>{address?.address}</p>
+      {/* DEBUG PANEL */}
+      <div className="bg-black/70 text-white p-4 rounded-xl text-xs space-y-2 mb-4">
+        <p>Seller: {refSeller || "None"}</p>
+        <p>Profit: {totalProfit}</p>
+        <p>Commission: {commission}</p>
+
+        {items.map((item, i) => (
+          <p key={i}>
+            Item {i + 1}: {item.basePrice} → {item.price}
+          </p>
+        ))}
+
+        <hr />
+
+        <p>CreateOrder: {debugCreate}</p>
+        <p>Verify: {debugVerify}</p>
+        <p className="text-red-400">Error: {debugError}</p>
       </div>
 
-      {/* ITEMS */}
-      {items.map((item, i) => (
-        <div key={i} className="bg-white/20 p-3 rounded-xl mb-2">
-          {item.name} — ₹{item.price} × {item.qty}
-        </div>
-      ))}
-
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-xl mt-3">
+      <div className="backdrop-blur-xl bg-white/20 border border-white/30 p-4 rounded-xl text-white">
         <p>Items: ₹{itemsTotal}</p>
         <p>Shipping: ₹{shipping}</p>
-        <p>Total: ₹{total}</p>
+        <p className="font-bold">Total: ₹{total}</p>
       </div>
 
       {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-3 bg-black/30">
+      <div className="fixed bottom-0 left-0 w-full p-3 backdrop-blur-xl bg-white/20">
         <button
-          onClick={handleOnlinePayment}
+          onClick={() => payment === "ONLINE" ? handleOnlinePayment() : placeOrder()}
           disabled={loading}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-700 to-pink-600"
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-700 to-pink-600 text-white font-bold"
         >
-          {loading ? "Processing..." : `Pay ₹${total}`}
+          {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
       </div>
-
-      {/* DEBUG PANEL */}
-      {DEBUG && (
-        <div className="fixed bottom-24 left-2 right-2 bg-black/80 p-3 text-xs rounded-xl space-y-1">
-
-          <p>Seller: {refSeller || "None"}</p>
-          <p>Profit: {totalProfit}</p>
-          <p>Commission: {commission}</p>
-
-          {items.map((item, i) => (
-            <p key={i}>
-              Item {i+1}: {item.basePrice} → {item.price}
-            </p>
-          ))}
-
-          <hr/>
-
-          <p>CreateOrder: {JSON.stringify(debugData.createOrder)}</p>
-          <p>Verify: {JSON.stringify(debugData.verify)}</p>
-          <p>Error: {debugData.error}</p>
-
-        </div>
-      )}
 
       {/* SUCCESS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white text-black p-5 rounded-xl">
-            Order Success 🎉<br/>
-            {orderId}
+          <div className="bg-white p-6 rounded-xl text-center">
+            <h2>Order Success 🎉</h2>
+            <p>{orderId}</p>
           </div>
         </div>
       )}
