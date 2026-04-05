@@ -15,13 +15,15 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
-  const [user, setUser] = useState(null);
-  const [address, setAddress] = useState(null);
-  const [addresses, setAddresses] = useState([]);
+  const [hidePage, setHidePage] = useState(false); // 🔥 BACK FIX
+
+  const [user, setUser] = useState<any>(null);
+  const [address, setAddress] = useState<any>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [items, setItems] = useState([]);
-  const [refSeller, setRefSeller] = useState(null);
+  const [items, setItems] = useState<any[]>([]);
+  const [refSeller, setRefSeller] = useState<string | null>(null);
 
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
@@ -34,11 +36,30 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
+  // 🔥 BACK BUTTON FIX (NO UI FLASH)
+  // =========================
+  useEffect(() => {
+    const handleBack = () => {
+      setHidePage(true); // UI hide
+      router.replace("/"); // home redirect
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handleBack);
+
+    return () => {
+      window.removeEventListener("popstate", handleBack);
+    };
+  }, []);
+
+  // 🔥 UI HIDE
+  if (hidePage) return null;
+
+  // =========================
   // 🔥 LOAD DATA
   // =========================
-  const loadData = async (u) => {
+  const loadData = async (u: any) => {
 
-    // 🛒 ITEMS LOAD
     const buyNow = localStorage.getItem("buy-now");
     const cart = localStorage.getItem("cart");
 
@@ -60,24 +81,22 @@ export default function CheckoutPage() {
       setItems([]);
     }
 
-    // 📍 ADDRESS LOAD
+    // 📍 ADDRESS
     const addrSnap = await getDocs(
       collection(db, "users", u.uid, "addresses")
     );
 
-    let all = [];
-    let defaultAddr = null;
+    let all: any[] = [];
+    let defaultAddr: any = null;
 
     addrSnap.forEach(d => {
       const data = { id: d.id, ...d.data() };
       all.push(data);
-
       if (data.isDefault) defaultAddr = data;
     });
 
     setAddresses(all);
 
-    // ✅ PRESERVE SELECTED ADDRESS
     setAddress(prev => {
       if (prev) return prev;
       return defaultAddr || all[0] || null;
@@ -119,7 +138,7 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 🔥 BACK FIX (FOCUS)
+  // 🔥 REFRESH FIX (BACK FROM OTHER PAGE)
   // =========================
   useEffect(() => {
 
@@ -177,7 +196,7 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // 🟡 COD
+      // COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -197,7 +216,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🔵 ONLINE
+      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -272,7 +291,7 @@ export default function CheckoutPage() {
           <p>No address found ❌</p>
         )}
 
-        {/* SELECT ADDRESS */}
+        {/* SELECT */}
         <div className="flex gap-2 mt-3 overflow-x-auto">
           {addresses.map((a) => (
             <div
@@ -294,7 +313,6 @@ export default function CheckoutPage() {
 
       {/* PAYMENT */}
       <div className="bg-white/20 p-4 rounded-2xl mb-4">
-
         <p className="font-semibold mb-2">Select Payment</p>
 
         <div className="flex gap-3">
@@ -320,7 +338,6 @@ export default function CheckoutPage() {
             COD 🚚
           </button>
         </div>
-
       </div>
 
       {/* SUMMARY */}
