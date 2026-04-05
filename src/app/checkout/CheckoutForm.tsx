@@ -22,13 +22,13 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<any[]>([]);
   const [refSeller, setRefSeller] = useState<string | null>(null);
 
+  const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "COD">("ONLINE");
+
   const [shippingConfig, setShippingConfig] = useState({
     prepaid: 0,
     cod: 0,
     freeShippingAbove: 0
   });
-
-  const [debug, setDebug] = useState("");
 
   const router = useRouter();
 
@@ -89,7 +89,10 @@ export default function CheckoutPage() {
   // 💰 TOTAL
   const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  let shipping = shippingConfig.prepaid;
+  let shipping =
+    paymentMethod === "COD"
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
 
   if (
     shippingConfig.freeShippingAbove > 0 &&
@@ -117,9 +120,38 @@ export default function CheckoutPage() {
       return;
     }
 
+    // =====================
+    // 🟡 COD ORDER
+    // =====================
+    if (paymentMethod === "COD") {
+
+      const orderData = {
+        userId: user.uid,
+        items,
+        itemsTotal,
+        shipping,
+        total,
+        address,
+        sellerRef: refSeller || null,
+        paymentMethod: "COD",
+        status: "PLACED"
+      };
+
+      // 👉 Yaha Firestore save kar sakta hai (optional)
+      localStorage.removeItem("buy-now");
+
+      alert("Order placed successfully (COD) ✅");
+      router.push("/");
+
+      return;
+    }
+
+    // =====================
+    // 🟢 ONLINE PAYMENT
+    // =====================
+
     try {
       setLoading(true);
-      setDebug("");
 
       const orderData = {
         userId: user.uid,
@@ -149,10 +181,8 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      console.log("🔥 CREATE:", data);
-
       if (!data.payment_session_id) {
-        setDebug("❌ No session id");
+        alert("Payment error ❌");
         return;
       }
 
@@ -165,15 +195,12 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
-      // 🔥 SAVE TEMP ORDER
       localStorage.setItem("orderData", JSON.stringify({
         ...orderData,
         cashfreeOrderId: data.order_id
       }));
 
     } catch (err: any) {
-      console.log(err);
-      setDebug(err.message);
       alert("Payment error ❌");
     }
 
@@ -183,8 +210,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32">
 
-      {/* TITLE */}
-      <h1 className="text-3xl font-bold text-center text-white mb-6 drop-shadow-lg">
+      <h1 className="text-3xl font-bold text-center text-white mb-6">
         Checkout 🛍
       </h1>
 
@@ -227,29 +253,36 @@ export default function CheckoutPage() {
         </div>
       ))}
 
-      {/* DEBUG PANEL */}
-      <div className="backdrop-blur-xl bg-black/40 border border-white/20 rounded-xl p-3 text-xs text-white mb-4 space-y-1">
+      {/* PAYMENT OPTIONS */}
+      <div className="backdrop-blur-xl bg-white/20 border border-white/30 rounded-xl p-4 text-white mb-4">
 
-        <p>Seller: {refSeller || "None"}</p>
-        <p>Profit: {totalProfit}</p>
-        <p>Commission: {commission}</p>
+        <h2 className="font-semibold mb-2">💳 Payment Method</h2>
 
-        <hr className="border-white/20"/>
+        <div className="flex gap-3">
 
-        <p>🚚 Shipping Config:</p>
-        <p>Prepaid: ₹{shippingConfig.prepaid}</p>
-        <p>COD: ₹{shippingConfig.cod}</p>
-        <p>Free Above: ₹{shippingConfig.freeShippingAbove}</p>
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "ONLINE"
+                ? "bg-green-500"
+                : "bg-white/20"
+            }`}
+          >
+            Online
+          </button>
 
-        <hr className="border-white/20"/>
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "COD"
+                ? "bg-yellow-500"
+                : "bg-white/20"
+            }`}
+          >
+            COD
+          </button>
 
-        {items.map((item, i) => (
-          <p key={i}>
-            Item {i + 1}: {item.basePrice} → {item.price}
-          </p>
-        ))}
-
-        <p className="text-red-300">{debug}</p>
+        </div>
 
       </div>
 
@@ -259,7 +292,7 @@ export default function CheckoutPage() {
         <button
           onClick={handlePayment}
           disabled={loading}
-          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600 shadow-xl active:scale-95 transition"
+          className="w-full py-4 rounded-xl text-white font-bold bg-gradient-to-r from-purple-700 to-pink-600 shadow-xl"
         >
           {loading ? "Processing..." : `Pay ₹${total} 🚀`}
         </button>
