@@ -38,39 +38,27 @@ export default function CheckoutPage() {
   // =========================
   const loadData = async (u: any) => {
 
-    console.log("🔥 LOAD START");
-
     const buyNow = localStorage.getItem("buy-now");
     const cart = localStorage.getItem("cart");
 
-    // ITEMS
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      const item = {
+      setItems([{
         ...parsed,
         qty: Number(parsed.quantity) || 1,
         price: Number(parsed.price) || 0,
         basePrice: Number(parsed.basePrice || parsed.price) || 0,
         image: parsed.image || "/no-image.png"
-      };
-
-      console.log("✅ BUY NOW:", item);
-      setItems([item]);
+      }]);
 
     } else if (cart) {
-
       const parsedCart = JSON.parse(cart);
-      console.log("✅ CART:", parsedCart);
-
       setItems(Array.isArray(parsedCart) ? parsedCart : []);
-
     } else {
-      console.log("❌ EMPTY CART");
       setItems([]);
     }
 
-    // ADDRESS
     const addrSnap = await getDocs(
       collection(db, "users", u.uid, "addresses")
     );
@@ -81,23 +69,16 @@ export default function CheckoutPage() {
     addrSnap.forEach(d => {
       const data = { id: d.id, ...d.data() };
       all.push(data);
-
       if (data.isDefault) defaultAddr = data;
     });
 
-    console.log("📍 ADDRESSES:", all);
-
     setAddresses(all);
 
-    // FIXED
     setAddress(prev => {
-      if (prev && all.find(a => a.id === prev.id)) {
-        return prev;
-      }
+      if (prev && all.find(a => a.id === prev.id)) return prev;
       return defaultAddr || all[0] || null;
     });
 
-    // SHIPPING
     const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
     if (shipSnap.exists()) {
@@ -109,54 +90,32 @@ export default function CheckoutPage() {
         freeShippingAbove: Number(data.freeShippingAbove) || 0
       });
     }
-
-    console.log("🔥 LOAD END");
   };
 
-  // =========================
-  // 🔥 INIT
-  // =========================
+  // INIT
   useEffect(() => {
-
     const seller = localStorage.getItem("refSeller");
     setRefSeller(seller);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
-
       if (!u) return router.push("/login");
-
       setUser(u);
       await loadData(u);
-
     });
 
     return () => unsub();
-
   }, []);
 
-  // =========================
-  // 🔥 BACK FIX (RELOAD)
-  // =========================
+  // BACK FIX
   useEffect(() => {
-
     const handleFocus = () => {
-      if (auth.currentUser) {
-        console.log("🔄 REFRESH");
-        loadData(auth.currentUser);
-      }
+      if (auth.currentUser) loadData(auth.currentUser);
     };
-
     window.addEventListener("focus", handleFocus);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
-
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
-  // =========================
-  // 💰 TOTAL
-  // =========================
+  // TOTAL
   const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   let shipping =
@@ -173,14 +132,8 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  console.log("💰 TOTAL:", total);
-
-  // =========================
-  // 🚀 PAYMENT
-  // =========================
+  // PAYMENT
   const handlePayment = async () => {
-
-    console.log("🔥 PAYMENT CLICK");
 
     if (!address) return alert("Add address ❌");
     if (items.length === 0) return alert("Cart empty ❌");
@@ -198,11 +151,8 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // 🟡 COD
+      // COD
       if (paymentMethod === "COD") {
-
-        console.log("🚚 COD ORDER:", orderData);
-
         const res = await fetch("/api/orders/cod", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -211,12 +161,7 @@ export default function CheckoutPage() {
 
         const data = await res.json();
 
-        console.log("✅ COD RESPONSE:", data);
-
-        if (!data.success) {
-          alert("Order failed ❌");
-          return;
-        }
+        if (!data.success) return alert("Order failed ❌");
 
         localStorage.removeItem("buy-now");
         localStorage.removeItem("cart");
@@ -225,7 +170,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🔵 ONLINE
+      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -242,13 +187,6 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      console.log("💳 PAYMENT RESPONSE:", data);
-
-      if (!data.payment_session_id) {
-        alert("Payment error ❌");
-        return;
-      }
-
       const cashfree = await load({ mode: "production" });
 
       await cashfree.checkout({
@@ -256,11 +194,7 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
-      localStorage.removeItem("buy-now");
-      localStorage.removeItem("cart");
-
-    } catch (err) {
-      console.log("❌ ERROR:", err);
+    } catch {
       alert("Payment error ❌");
     }
 
@@ -268,52 +202,54 @@ export default function CheckoutPage() {
   };
 
   // =========================
-  // 🎨 UI
+  // 🎨 UI (PREMIUM)
   // =========================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-4 pb-32 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 via-pink-600 to-orange-400 p-4 pb-32 text-white">
 
       <h1 className="text-3xl font-bold text-center mb-6">
         Checkout 🛍
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
 
-        <div className="flex justify-between mb-2">
-          <p>Delivery Address 📍</p>
+        <div className="flex justify-between items-center mb-3">
+          <p className="font-semibold text-lg">Delivery Address 📍</p>
 
           <button
             onClick={() => router.push("/account")}
-            className="underline"
+            className="text-sm text-blue-300 underline"
           >
-            Change Address
+            Change
           </button>
         </div>
 
         {address ? (
-          <div>
-            <p>{address.name}</p>
+          <div className="text-sm space-y-1">
+            <p className="font-bold">{address.name}</p>
             <p>{address.phone}</p>
             <p>{address.address}</p>
+            <p>{address.city}, {address.state}</p>
           </div>
         ) : (
           <p>No address ❌</p>
         )}
 
         {/* SELECT */}
-        <div className="flex gap-2 mt-3 overflow-x-auto">
+        <div className="flex gap-3 mt-4 overflow-x-auto">
           {addresses.map((a) => (
             <div
               key={a.id}
               onClick={() => setAddress(a)}
-              className={`p-2 min-w-[120px] rounded cursor-pointer ${
+              className={`p-3 min-w-[160px] rounded-2xl cursor-pointer transition ${
                 address?.id === a.id
-                  ? "bg-green-500"
+                  ? "bg-green-500 scale-105"
                   : "bg-white/20"
               }`}
             >
-              {a.name}
+              <p className="text-xs font-bold">{a.name}</p>
+              <p className="text-xs">{a.city}</p>
             </div>
           ))}
         </div>
@@ -321,32 +257,89 @@ export default function CheckoutPage() {
       </div>
 
       {/* PAYMENT */}
-      <div className="bg-white/20 p-4 rounded mb-4">
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
+
+        <p className="font-semibold mb-3">Select Payment</p>
+
         <div className="flex gap-3">
-          <button onClick={() => setPaymentMethod("ONLINE")}>
-            Online
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 p-3 rounded-xl ${
+              paymentMethod === "ONLINE"
+                ? "bg-green-500"
+                : "bg-white/20"
+            }`}
+          >
+            Online 💳
           </button>
-          <button onClick={() => setPaymentMethod("COD")}>
-            COD
+
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 p-3 rounded-xl ${
+              paymentMethod === "COD"
+                ? "bg-yellow-500"
+                : "bg-white/20"
+            }`}
+          >
+            COD 🚚
           </button>
         </div>
+
       </div>
 
-      {/* TOTAL */}
-      <div className="bg-white/20 p-4 rounded mb-4">
-        Total ₹{total}
+      {/* SUMMARY */}
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
+
+        <p className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </p>
+
+        <p className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </p>
+
+        <hr className="my-3 border-white/30"/>
+
+        <p className="flex justify-between text-xl font-bold">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </p>
+
       </div>
 
-      <button
-        onClick={handlePayment}
-        className="fixed bottom-5 left-4 right-4 bg-black py-4 rounded-xl"
-      >
-        {loading
-          ? "Processing..."
-          : paymentMethod === "COD"
-          ? `Place Order ₹${total}`
-          : `Pay ₹${total}`}
-      </button>
+      {/* ITEMS */}
+      {items.map((item, i) => (
+        <div key={i} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3 shadow">
+
+          <img src={item.image} className="w-16 h-16 rounded-xl object-cover"/>
+
+          <div>
+            <p className="font-semibold">{item.name}</p>
+            <p className="text-sm">Qty: {item.qty}</p>
+            <p className="font-bold text-green-300">₹{item.price}</p>
+          </div>
+
+        </div>
+      ))}
+
+      {/* BUTTON */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
+
+        <button
+          onClick={handlePayment}
+          disabled={loading}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-lg"
+        >
+          {loading
+            ? "Processing..."
+            : paymentMethod === "COD"
+            ? `Place Order ₹${total}`
+            : `Pay ₹${total}`}
+        </button>
+
+      </div>
 
     </div>
   );
