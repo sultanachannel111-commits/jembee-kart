@@ -17,6 +17,7 @@ export default function CheckoutPage() {
 
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [items, setItems] = useState<any[]>([]);
@@ -59,17 +60,25 @@ export default function CheckoutPage() {
 
       setUser(u);
 
+      // ✅ LOAD ADDRESSES
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
 
+      let all: any[] = [];
       let defaultAddr: any = null;
+
       addrSnap.forEach(d => {
-        if (d.data().isDefault) defaultAddr = d.data();
+        const data = { id: d.id, ...d.data() };
+        all.push(data);
+
+        if (data.isDefault) defaultAddr = data;
       });
 
-      setAddress(defaultAddr);
+      setAddresses(all);
+      setAddress(defaultAddr || all[0]);
 
+      // ✅ SHIPPING CONFIG
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -145,10 +154,7 @@ export default function CheckoutPage() {
         commission
       };
 
-      // =========================
-      // 🟡 COD ORDER
-      // =========================
-
+      // 🟡 COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -172,10 +178,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // =========================
-      // 🔵 ONLINE PAYMENT
-      // =========================
-
+      // 🔵 ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {
@@ -233,7 +236,53 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      {/* PAYMENT METHOD */}
+      {/* ADDRESS */}
+      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-2xl mb-4">
+
+        <div className="flex justify-between mb-2">
+          <p className="font-semibold">Delivery Address 📍</p>
+
+          <button
+            onClick={()=>router.push("/account")}
+            className="text-xs bg-white/20 px-2 py-1 rounded"
+          >
+            Change
+          </button>
+        </div>
+
+        {address ? (
+          <div className="text-sm">
+            <p className="font-semibold">{address.name}</p>
+            <p>{address.phone}</p>
+            <p>
+              {address.addressLine}, {address.city}, {address.state} - {address.pincode}
+            </p>
+          </div>
+        ) : (
+          <p className="text-red-300">No address found ❌</p>
+        )}
+
+        {/* SELECT */}
+        <div className="flex gap-2 mt-3 overflow-x-auto">
+          {addresses.map((a) => (
+            <div
+              key={a.id}
+              onClick={()=>setAddress(a)}
+              className={`p-2 min-w-[180px] rounded-xl cursor-pointer ${
+                address?.id === a.id
+                  ? "bg-green-500"
+                  : "bg-white/20"
+              }`}
+            >
+              <p className="text-xs font-semibold">{a.name}</p>
+              <p className="text-xs">{a.city}</p>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* PAYMENT */}
       <div className="bg-white/20 backdrop-blur-xl p-4 rounded-2xl mb-4">
 
         <p className="mb-2 font-semibold">Select Payment</p>
@@ -241,7 +290,7 @@ export default function CheckoutPage() {
         <div className="flex gap-3">
 
           <button
-            onClick={() => setPaymentMethod("ONLINE")}
+            onClick={()=>setPaymentMethod("ONLINE")}
             className={`flex-1 p-2 rounded-xl ${
               paymentMethod === "ONLINE"
                 ? "bg-green-500"
@@ -252,7 +301,7 @@ export default function CheckoutPage() {
           </button>
 
           <button
-            onClick={() => setPaymentMethod("COD")}
+            onClick={()=>setPaymentMethod("COD")}
             className={`flex-1 p-2 rounded-xl ${
               paymentMethod === "COD"
                 ? "bg-yellow-500"
