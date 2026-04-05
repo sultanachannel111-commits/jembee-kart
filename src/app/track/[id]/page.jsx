@@ -8,13 +8,13 @@ import { db } from "@/lib/firebase";
 export default function TrackPage() {
 
   const { id } = useParams();
-  const [order, setOrder] = useState(null);
+  const [order, setOrder] = useState<any>(null);
 
   useEffect(() => {
 
     if (!id) return;
 
-    const unsub = onSnapshot(doc(db, "orders", id), (snap) => {
+    const unsub = onSnapshot(doc(db, "orders", id as string), (snap) => {
       if (snap.exists()) {
         setOrder({ id: snap.id, ...snap.data() });
       }
@@ -26,19 +26,27 @@ export default function TrackPage() {
 
   if (!order) return <div className="p-5">Loading...</div>;
 
-  // 🔥 STATUS STEPS
-  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
+  // 🔥 STATUS STEPS (UPDATED ONLY UI)
+  const steps = [
+    "🕐 Pending",
+    "📦 Placed",
+    "🚚 Shipped",
+    "🏃 Out for Delivery",
+    "✅ Delivered"
+  ];
 
-  const current = steps.indexOf(order.status || "Pending");
+  const rawSteps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
+
+  const current = rawSteps.indexOf(order.status || "Pending");
 
   const progress =
     current <= 0
       ? 5
-      : current >= steps.length - 1
+      : current >= rawSteps.length - 1
       ? 100
-      : (current / (steps.length - 1)) * 100;
+      : (current / (rawSteps.length - 1)) * 100;
 
-  // 🚚 DELIVERY DATE
+  // 🚚 DELIVERY DATE (same logic)
   let deliveryDate = "N/A";
 
   if (order.createdAt?.toDate) {
@@ -62,13 +70,18 @@ export default function TrackPage() {
           <p className="text-3xl font-bold text-green-600">
             ₹{order.total || 0}
           </p>
+
+          {/* 💳 PAYMENT METHOD */}
+          <p className="text-sm text-gray-500 mt-1">
+            Payment: {order.paymentMethod === "COD" ? "Cash on Delivery" : "Online Paid"}
+          </p>
         </div>
 
         {/* 🛒 ITEMS */}
         <div>
           <p className="font-semibold mb-2">Items</p>
 
-          {order.items?.map((item, i) => (
+          {order.items?.map((item: any, i: number) => (
             <div key={i} className="flex gap-3 mb-2">
 
               <img
@@ -91,6 +104,18 @@ export default function TrackPage() {
           ))}
 
         </div>
+
+        {/* 📍 ADDRESS (NEW ADD) */}
+        {order.address && (
+          <div className="text-sm bg-white/60 p-3 rounded-xl">
+            <p className="font-semibold mb-1">Delivery Address 📍</p>
+            <p>{order.address.name}</p>
+            <p>{order.address.phone}</p>
+            <p>
+              {order.address.addressLine}, {order.address.city}, {order.address.state} - {order.address.pincode}
+            </p>
+          </div>
+        )}
 
         {/* 🚚 TRACKING BAR */}
         <div className="mt-4">
