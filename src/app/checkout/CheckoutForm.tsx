@@ -15,6 +15,8 @@ import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
 
+  const [blocked, setBlocked] = useState(false); // 🔥 BACK CONTROL
+
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -34,11 +36,12 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 BACK BUTTON → HOME
+  // 🔥 BACK BUTTON FIX (NO UI FLASH)
   // =========================
   useEffect(() => {
     const handleBack = () => {
-      router.push("/");
+      setBlocked(true); // 🔥 UI hata do
+      router.replace("/"); // 🔥 home bhejo
     };
 
     window.history.pushState(null, "", window.location.href);
@@ -49,21 +52,20 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  // 🔥 BLOCK UI
+  if (blocked) return null;
+
   // =========================
   // 🔥 LOAD DATA
   // =========================
   const loadData = async (u: any) => {
 
-    // 🛒 ITEMS
     const buyNow = localStorage.getItem("buy-now");
-    const cart = localStorage.getItem("cart");
 
     if (buyNow) {
       const parsed = JSON.parse(buyNow);
 
-      if (!parsed || !parsed.price) {
-        setItems([]);
-      } else {
+      if (parsed?.price) {
         setItems([{
           ...parsed,
           qty: Number(parsed.quantity) || 1,
@@ -71,13 +73,23 @@ export default function CheckoutPage() {
           basePrice: Number(parsed.basePrice || parsed.price) || 0,
           image: parsed.image || "/no-image.png"
         }]);
+      } else {
+        setItems([]);
       }
 
-    } else if (cart) {
-      const parsedCart = JSON.parse(cart);
-      setItems(Array.isArray(parsedCart) ? parsedCart : []);
     } else {
-      setItems([]);
+      // 🔥 FIRESTORE CART
+      const snap = await getDocs(
+        collection(db, "carts", u.uid, "items")
+      );
+
+      const cartItems = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        qty: d.data().quantity || 1
+      }));
+
+      setItems(cartItems);
     }
 
     // 📍 ADDRESS
@@ -96,7 +108,6 @@ export default function CheckoutPage() {
 
     setAddresses(all);
 
-    // 🔥 SELECTED ADDRESS FIX
     const savedId = localStorage.getItem("selectedAddressId");
 
     const selected =
@@ -139,27 +150,6 @@ export default function CheckoutPage() {
     });
 
     return () => unsub();
-
-  }, []);
-
-  // =========================
-  // 🔥 BACK / RELOAD FIX
-  // =========================
-  useEffect(() => {
-
-    const reload = () => {
-      if (auth.currentUser) {
-        loadData(auth.currentUser);
-      }
-    };
-
-    window.addEventListener("focus", reload);
-    document.addEventListener("visibilitychange", reload);
-
-    return () => {
-      window.removeEventListener("focus", reload);
-      document.removeEventListener("visibilitychange", reload);
-    };
 
   }, []);
 
@@ -217,7 +207,6 @@ export default function CheckoutPage() {
         if (!data.success) return alert("Order failed ❌");
 
         localStorage.removeItem("buy-now");
-        localStorage.removeItem("cart");
 
         router.push(`/order-success/${data.orderId}`);
         return;
@@ -240,20 +229,12 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      if (!data.payment_session_id) {
-        alert("Payment error ❌");
-        return;
-      }
-
       const cashfree = await load({ mode: "production" });
 
       await cashfree.checkout({
         paymentSessionId: data.payment_session_id,
         redirectTarget: "_self"
       });
-
-      localStorage.removeItem("buy-now");
-      localStorage.removeItem("cart");
 
     } catch {
       alert("Payment error ❌");
@@ -273,14 +254,14 @@ export default function CheckoutPage() {
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-2xl mb-4">
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
 
         <div className="flex justify-between mb-2">
-          <p className="font-semibold">Delivery Address 📍</p>
+          <p>Delivery Address</p>
 
           <button
             onClick={() => router.push("/account")}
-            className="text-blue-300 underline"
+            className="underline"
           >
             Change Address
           </button>
@@ -288,99 +269,47 @@ export default function CheckoutPage() {
 
         {address && (
           <div className="text-sm">
-            <p className="font-semibold">{address.name}</p>
+            <p>{address.name}</p>
             <p>{address.phone}</p>
-            <p>{address.address || address.addressLine}</p>
-            <p>{address.city}, {address.state}</p>
-            <p>PIN: {address.pincode}</p>
+            <p>{address.address}</p>
           </div>
         )}
 
         {/* SELECT */}
         <div className="flex gap-2 mt-3 overflow-x-auto">
-          {addresses.map((a) => (
+          {addresses.map(a => (
             <div
               key={a.id}
               onClick={() => {
                 setAddress(a);
                 localStorage.setItem("selectedAddressId", a.id);
               }}
-              className={`p-2 min-w-[150px] rounded-xl cursor-pointer ${
+              className={`p-2 rounded ${
                 address?.id === a.id
                   ? "bg-green-500"
                   : "bg-white/20"
               }`}
             >
-              <p className="text-xs font-semibold">{a.name}</p>
-              <p className="text-xs">{a.city}</p>
+              {a.name}
             </div>
           ))}
         </div>
 
       </div>
 
-      {/* PAYMENT */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
-
-        <p className="font-semibold mb-2">Select Payment</p>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => setPaymentMethod("ONLINE")}
-            className={`flex-1 p-2 rounded ${
-              paymentMethod === "ONLINE"
-                ? "bg-green-500"
-                : "bg-white/20"
-            }`}
-          >
-            Online 💳
-          </button>
-
-          <button
-            onClick={() => setPaymentMethod("COD")}
-            className={`flex-1 p-2 rounded ${
-              paymentMethod === "COD"
-                ? "bg-yellow-500"
-                : "bg-white/20"
-            }`}
-          >
-            COD 🚚
-          </button>
-        </div>
-
-      </div>
-
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+      <div className="bg-white/20 p-4 rounded mb-4">
         <p>Items: ₹{itemsTotal}</p>
         <p>Shipping: ₹{shipping}</p>
-        <hr className="my-2 border-white/30"/>
-        <p className="text-xl font-bold">Total: ₹{total}</p>
+        <p>Total: ₹{total}</p>
       </div>
-
-      {/* ITEMS */}
-      {items.map((item, i) => (
-        <div key={i} className="bg-white/20 p-3 rounded mb-3 flex gap-3">
-          <img src={item.image} className="w-16 h-16 rounded"/>
-          <div>
-            <p>{item.name}</p>
-            <p>Qty: {item.qty}</p>
-            <p>₹{item.price}</p>
-          </div>
-        </div>
-      ))}
 
       {/* BUTTON */}
       <button
         onClick={handlePayment}
-        disabled={loading}
-        className="fixed bottom-5 left-4 right-4 bg-black text-white py-4 rounded-xl font-bold"
+        className="fixed bottom-5 left-4 right-4 bg-black text-white py-4 rounded-xl"
       >
-        {loading
-          ? "Processing..."
-          : paymentMethod === "COD"
-          ? `Place Order ₹${total}`
-          : `Pay ₹${total}`}
+        Pay ₹{total}
       </button>
 
     </div>
