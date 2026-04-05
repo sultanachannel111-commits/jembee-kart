@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 export default function SuccessPage() {
 
   const params = useSearchParams();
   const router = useRouter();
 
-  const orderIdFromUrl = params.get("order_id"); // ⚠️ सही param
+  const orderId = params.get("order_id");
 
-  const [orderId, setOrderId] = useState("");
-  const [status, setStatus] = useState("Verifying...");
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("Verifying payment...");
+  const [finalOrderId, setFinalOrderId] = useState("");
+
+  const [debug, setDebug] = useState("");
 
   useEffect(() => {
 
@@ -22,98 +22,107 @@ export default function SuccessPage() {
 
       try {
 
-        if (!orderIdFromUrl) {
-          setStatus("Invalid Order ❌");
+        const stored = localStorage.getItem("orderData");
+
+        if (!stored) {
+          setStatus("❌ No order data found");
+          setLoading(false);
           return;
         }
 
-        // ✅ VERIFY PAYMENT FROM SERVER
-        const verifyRes = await fetch("/api/verify-payment", {
+        const orderData = JSON.parse(stored);
+
+        console.log("🧾 ORDER DATA:", orderData);
+
+        // =========================
+        // 🔍 VERIFY PAYMENT
+        // =========================
+
+        const verifyRes = await fetch("/api/cashfree/verify-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ orderId: orderIdFromUrl })
+          body: JSON.stringify({
+            orderId,
+            orderData
+          })
         });
 
         const verifyData = await verifyRes.json();
 
-        console.log("VERIFY:", verifyData);
+        console.log("🔍 VERIFY:", verifyData);
+
+        setDebug(JSON.stringify(verifyData, null, 2));
 
         if (!verifyData.success) {
-          setStatus("Payment Not Verified ❌");
-          setError(JSON.stringify(verifyData));
+          setStatus("❌ Payment verification failed");
+          setLoading(false);
           return;
         }
 
-        // 🔥 GET SAFE ORDER DATA
-        const data = localStorage.getItem("pendingOrder");
+        // =========================
+        // ✅ SUCCESS
+        // =========================
 
-        if (!data) {
-          setStatus("Order data missing ❌");
-          return;
-        }
+        setStatus("✅ Payment Successful");
+        setFinalOrderId(verifyData.orderId);
 
-        const orderData = JSON.parse(data);
-
-        // ✅ SAVE ORDER
-        const ref = await addDoc(collection(db, "orders"), {
-          ...orderData,
-          paymentId: orderIdFromUrl,
-          status: "Paid",
-          createdAt: serverTimestamp()
-        });
-
-        setOrderId(ref.id);
-        setStatus("Payment Successful ✅");
-
-        // 🔥 CLEAR STORAGE
-        localStorage.removeItem("pendingOrder");
+        // 🔥 clear temp data
+        localStorage.removeItem("orderData");
 
       } catch (err: any) {
         console.log("❌ ERROR:", err);
-        setStatus("Error ❌");
-        setError(err.message);
+        setStatus("Payment error ❌");
+        setDebug(err.message);
       }
 
+      setLoading(false);
     };
 
     verifyAndSave();
 
-  }, [orderIdFromUrl]);
+  }, [orderId]);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-green-100 to-white p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-200 to-white p-4">
 
-      <div className="bg-white p-6 rounded-2xl shadow text-center max-w-sm w-full">
+      <div className="backdrop-blur-xl bg-white/70 border border-white/50 p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
 
-        <h1 className="text-2xl font-bold text-green-600 mb-3">
+        <div className="text-5xl mb-3">
+          {loading ? "⏳" : "🎉"}
+        </div>
+
+        <h1 className="text-xl font-bold text-green-600 mb-2">
           {status}
         </h1>
 
-        {error && (
-          <p className="text-red-500 text-xs mb-2">{error}</p>
+        {!loading && (
+          <>
+            <p className="text-sm text-gray-600 mb-3">
+              Order ID: {finalOrderId || orderId}
+            </p>
+
+            <button
+              onClick={() => router.push("/")}
+              className="w-full bg-black text-white py-3 rounded-xl mb-2"
+            >
+              Go to Home
+            </button>
+
+            <button
+              onClick={() => router.push("/profile")}
+              className="w-full border py-3 rounded-xl"
+            >
+              View Orders
+            </button>
+          </>
         )}
 
-        {orderId && (
-          <p className="text-sm text-gray-500 mb-4">
-            Order ID: {orderId}
-          </p>
-        )}
-
-        <button
-          onClick={() => router.push("/")}
-          className="w-full bg-black text-white py-3 rounded-xl mb-2"
-        >
-          Go to Home
-        </button>
-
-        <button
-          onClick={() => router.push("/profile")}
-          className="w-full border py-3 rounded-xl"
-        >
-          View Orders
-        </button>
+        {/* DEBUG */}
+        <div className="mt-4 text-xs text-left bg-black/80 text-white p-2 rounded max-h-40 overflow-auto">
+          {debug}
+        </div>
 
       </div>
 
