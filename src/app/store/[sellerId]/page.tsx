@@ -11,7 +11,6 @@ export default function StorePage() {
   const sellerId = String(params?.sellerId || "");
 
   const [products, setProducts] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   // 🔥 LOAD PRODUCTS
@@ -49,41 +48,6 @@ export default function StorePage() {
   }, [sellerId]);
 
 
-  // 🔥 LOAD OFFERS
-  useEffect(() => {
-
-    const loadOffers = async () => {
-      try {
-        const snap = await getDocs(collection(db, "offers"));
-
-        const data: any = {};
-
-        snap.forEach((doc) => {
-          const d: any = doc.data();
-
-          // ✅ SAFE FILTER
-          if (
-            d.productId &&
-            d.active &&
-            d.discount > 0 &&
-            d.discount <= 90
-          ) {
-            data[d.productId] = d.discount;
-          }
-        });
-
-        setOffers(data);
-
-      } catch (err) {
-        console.log("❌ OFFER ERROR:", err);
-      }
-    };
-
-    loadOffers();
-
-  }, []);
-
-
   const shareLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/store/${sellerId}`
@@ -97,7 +61,7 @@ export default function StorePage() {
       <div className="p-5 rounded-2xl mb-5 text-center shadow bg-white/40 backdrop-blur-lg">
         <h1 className="text-2xl font-bold">🛍 Seller Store</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Best deals just for you 🔥
+          Best products for you 🔥
         </p>
       </div>
 
@@ -170,17 +134,9 @@ export default function StorePage() {
             p.price ||
             0;
 
-          // ✅ SAFE DISCOUNT
-          const discount =
-            offers[p.id] && offers[p.id] > 0 && offers[p.id] <= 90
-              ? offers[p.id]
-              : 0;
+          // ❌ DISCOUNT REMOVED
+          const finalPrice = basePrice;
 
-          const finalPrice = Math.round(
-            basePrice - (basePrice * discount) / 100
-          );
-
-          // ✅ SAFE IMAGE
           const image =
             p?.variations?.[0]?.images?.main ||
             p.image ||
@@ -192,12 +148,9 @@ export default function StorePage() {
               className="bg-white p-3 rounded-2xl shadow hover:shadow-xl transition"
             >
 
-              {/* IMAGE */}
+              {/* IMAGE (NO BLINK FIXED) */}
               <img
                 src={image}
-                onError={(e) => {
-                  e.currentTarget.src = "/no-image.png";
-                }}
                 className="h-32 w-full object-cover rounded-xl"
               />
 
@@ -210,20 +163,6 @@ export default function StorePage() {
               <p className="text-green-600 font-bold mt-1">
                 ₹{finalPrice}
               </p>
-
-              {/* OLD PRICE */}
-              {discount > 0 && (
-                <p className="text-xs text-gray-400 line-through">
-                  ₹{basePrice}
-                </p>
-              )}
-
-              {/* DISCOUNT */}
-              {discount > 0 && (
-                <p className="text-xs text-red-500 font-semibold">
-                  {discount}% OFF 🔥
-                </p>
-              )}
 
               {/* SHARE */}
               <button
