@@ -7,7 +7,8 @@ import {
   getDocs,
   doc,
   getDoc,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -20,7 +21,9 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
   const [refSeller, setRefSeller] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // ================= LOAD DATA =================
+  // ================= LOAD =================
   useEffect(() => {
 
     let unsubscribe: any;
@@ -44,11 +47,11 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      const seller = localStorage.getItem("refSeller");
-      setRefSeller(seller);
+      setRefSeller(localStorage.getItem("refSeller"));
 
       const buyNow = localStorage.getItem("buy-now");
 
+      // ✅ BUY NOW
       if (buyNow) {
         try {
           const parsed = JSON.parse(buyNow);
@@ -69,6 +72,7 @@ export default function CheckoutPage() {
 
       } else {
 
+        // ✅ FIRESTORE CART
         const ref = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(ref, (snap) => {
@@ -103,7 +107,7 @@ export default function CheckoutPage() {
         });
       }
 
-      // ADDRESS
+      // ✅ ADDRESS
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -120,7 +124,7 @@ export default function CheckoutPage() {
       setAddresses(all);
       setAddress(defaultAddr || all[0] || null);
 
-      // SHIPPING
+      // ✅ SHIPPING
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -161,11 +165,33 @@ export default function CheckoutPage() {
 
   const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
+  // ================= CLEAR CART =================
+  const clearCart = async () => {
+    if (!user) return;
+
+    const ref = collection(db, "carts", user.uid, "items");
+    const snap = await getDocs(ref);
+
+    snap.forEach(async (d) => {
+      await deleteDoc(doc(db, "carts", user.uid, "items", d.id));
+    });
+  };
+
   // ================= PAYMENT =================
   const handlePayment = async () => {
 
-    if (!address) return alert("Add address ❌");
-    if (items.length === 0) return alert("Cart empty ❌");
+    if (processing) return;
+    setProcessing(true);
+
+    if (!address) {
+      router.push("/account");
+      return;
+    }
+
+    if (items.length === 0) {
+      alert("Cart empty ❌");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -180,7 +206,7 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // COD
+      // ================= COD =================
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -193,12 +219,14 @@ export default function CheckoutPage() {
 
         if (!data.success) return alert("Order failed ❌");
 
+        await clearCart();
         localStorage.removeItem("buy-now");
+
         router.replace(`/order-success/${data.orderId}`);
         return;
       }
 
-      // ONLINE
+      // ================= ONLINE =================
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -215,6 +243,11 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      if (!data.payment_session_id) {
+        alert("Payment failed ❌");
+        return;
+      }
+
       const cashfree = await load({ mode: "production" });
 
       await cashfree.checkout({
@@ -222,14 +255,26 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
+      await clearCart();
       localStorage.removeItem("buy-now");
 
-    } catch {
+    } catch (err) {
+      console.log(err);
       alert("Payment error ❌");
     }
 
     setLoading(false);
+    setProcessing(false);
   };
+
+  // ================= EMPTY =================
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Cart is empty ❌
+      </div>
+    );
+  }
 
   // ================= UI =================
   return (
@@ -240,107 +285,50 @@ export default function CheckoutPage() {
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl shadow-2xl border border-white/30 mb-4">
+      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl mb-4">
         <div className="flex justify-between mb-3">
           <p className="font-semibold text-lg">Delivery Address</p>
 
-          <button
-            onClick={() => router.push("/account")}
-            className="text-sm underline text-blue-300"
-          >
+          <button onClick={() => router.push("/account")}>
             Change
           </button>
         </div>
 
-        {address ? (
-          <div className="text-sm space-y-1">
-            <p className="font-bold">{address.name}</p>
-            <p>{address.phone}</p>
-            <p>{address.address}</p>
-          </div>
-        ) : (
-          <p>No address ❌</p>
-        )}
+        <div>
+          <p>{address?.name}</p>
+          <p>{address?.phone}</p>
+          <p>{address?.address}</p>
+        </div>
       </div>
 
       {/* PAYMENT */}
-      <div className="bg-white/20 backdrop-blur-2xl p-4 rounded-3xl shadow-xl border border-white/30 mb-4">
-        <p className="font-semibold mb-2">Payment Method</p>
-
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
         <div className="flex gap-3">
-          <button
-            onClick={() => setPaymentMethod("ONLINE")}
-            className={`flex-1 py-3 rounded-xl ${
-              paymentMethod === "ONLINE"
-                ? "bg-green-500 shadow-lg"
-                : "bg-white/20"
-            }`}
-          >
+          <button onClick={() => setPaymentMethod("ONLINE")}>
             Online 💳
           </button>
-
-          <button
-            onClick={() => setPaymentMethod("COD")}
-            className={`flex-1 py-3 rounded-xl ${
-              paymentMethod === "COD"
-                ? "bg-yellow-500 shadow-lg"
-                : "bg-white/20"
-            }`}
-          >
+          <button onClick={() => setPaymentMethod("COD")}>
             COD 🚚
           </button>
         </div>
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl shadow-xl border border-white/30 mb-4">
-        <div className="flex justify-between">
-          <span>Items Total</span>
-          <span>₹{itemsTotal}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span>Shipping</span>
-          <span>₹{shipping}</span>
-        </div>
-
-        <hr className="my-3 border-white/30" />
-
-        <div className="flex justify-between text-xl font-bold">
-          <span>Total</span>
-          <span>₹{total}</span>
-        </div>
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+        <p>Items: ₹{itemsTotal}</p>
+        <p>Shipping: ₹{shipping}</p>
+        <p className="text-xl font-bold">Total: ₹{total}</p>
       </div>
 
-      {/* ITEMS */}
-      {items.map((item) => (
-        <div key={item.id} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3 shadow-lg">
-
-          <img
-            src={item.image}
-            className="w-16 h-16 rounded-xl object-cover border"
-          />
-
-          <div>
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-sm">Qty: {item.qty}</p>
-            <p className="text-green-300 font-bold">₹{item.price}</p>
-          </div>
-
-        </div>
-      ))}
-
       {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-2xl border-t border-white/30">
-
+      <div className="fixed bottom-0 left-0 w-full p-4">
         <button
           onClick={handlePayment}
           disabled={loading}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-xl"
+          className="w-full py-4 bg-black rounded-xl"
         >
           {loading ? "Processing..." : `Pay ₹${total}`}
         </button>
-
       </div>
 
     </div>
