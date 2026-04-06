@@ -48,7 +48,7 @@ export default function SellerDashboard() {
 
       const q = query(
         collection(db, "orders"),
-        where("sellerRef", "==", user.uid) // ✅ IMPORTANT
+        where("sellerRef", "==", user.uid) // ✅ correct
       );
 
       const snap = await getDocs(q);
@@ -63,10 +63,17 @@ export default function SellerDashboard() {
 
         totalRevenue += data.total || 0;
 
-        if (data.status === "PENDING") {
+        // 🔥 UPDATED PENDING LOGIC (IMPORTANT FIX)
+        if (
+          data.status === "PENDING" ||
+          data.status === "PLACED" ||
+          data.status === "Processing" ||
+          data.status === "Shipped"
+        ) {
           pendingAmount += data.commission || 0;
         }
 
+        // ✅ AVAILABLE (NO CHANGE)
         if (data.status === "DELIVERED") {
           availableAmount += data.commission || 0;
         }
@@ -113,7 +120,7 @@ export default function SellerDashboard() {
         Seller Dashboard 🚀
       </h1>
 
-      {/* 🔥 STATS (UPDATED) */}
+      {/* 🔥 STATS */}
       <div className="grid grid-cols-2 gap-3 mb-5">
 
         <div className="glass p-3 rounded-xl text-center">
