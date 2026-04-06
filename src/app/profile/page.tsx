@@ -1,177 +1,339 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { useParams } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  addDoc,
+  getDoc,
+  setDoc
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
-export default function TrackPage() {
+export default function ProfilePage() {
 
-  const { id }: any = useParams();
-  const [order, setOrder] = useState<any>(null);
+  const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]);
 
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [reason, setReason] = useState("");
+  const [issue, setIssue] = useState("");
+
+  const router = useRouter();
+
+  // 🔥 LOAD DATA
   useEffect(() => {
-    const load = async () => {
-      const snap = await getDoc(doc(db, "orders", id));
-      if (snap.exists()) setOrder(snap.data());
-    };
-    load();
+    const unsub = onAuthStateChanged(auth, async (u) => {
+
+      if (!u) return router.push("/login");
+
+      setUser(u);
+
+      // 👤 NAME
+      const userRef = doc(db, "users", u.uid);
+      const snap = await getDoc(userRef);
+
+      if (snap.exists()) {
+        setName(snap.data().name);
+      } else {
+        setName(u.email.split("@")[0]);
+      }
+
+      // 📦 ORDERS
+      const snapOrders = await getDocs(collection(db, "orders"));
+
+      const arr = [];
+      snapOrders.forEach(d => {
+        const data = d.data();
+        if (data.userId === u.uid) {
+          arr.push({ id: d.id, ...data });
+        }
+      });
+
+      setOrders(arr);
+
+    });
+
+    return () => unsub();
   }, []);
 
-  if (!order) return <p className="p-6">Loading...</p>;
+  // 🚚 DELIVERY DATE
+  const getDeliveryDate = (order) => {
+    if (!order.createdAt?.toDate) return "N/A";
+    const d = order.createdAt.toDate();
+    d.setDate(d.getDate() + 5);
+    return d.toDateString();
+  };
 
-  const created = order.createdAt?.toDate?.() || new Date();
+  // 📊 STATUS TEXT
+  const getTrackingText = (status) => {
+    switch (status) {
+      case "Pending":
+        return "Order placed, preparing 📦";
+      case "Placed":
+        return "Order confirmed ✅";
+      case "Shipped":
+        return "Shipped from warehouse 🚚";
+      case "Out for Delivery":
+        return "Out for delivery 🛵";
+      case "Delivered":
+        return "Delivered successfully 🎉";
+      default:
+        return "Processing...";
+    }
+  };
 
-  // 🔥 REAL ROUTE FLOW
-  const trackingData = order.tracking || [
-    { status: "Order Placed", location: "Jamshedpur", date: created },
-    { status: "Shipped", location: "Kolkata Hub", date: addDays(created, 1) },
-    { status: "In Transit", location: "Delhi Hub", date: addDays(created, 2) },
-    { status: "In Transit", location: "Nagpur Hub", date: addDays(created, 3) },
-    { status: "In Transit", location: "Mumbai Hub", date: addDays(created, 4) },
-    { status: "Out for Delivery", location: "Your City", date: addDays(created, 5) },
-    { status: "Delivered", location: "Home", date: addDays(created, 6) },
-  ];
+  // 📅 TIMELINE
+  const getDates = (order) => {
+    if (!order.createdAt?.toDate) return {};
+    const base = order.createdAt.toDate();
 
-  const currentIndex = Math.max(
-    0,
-    trackingData.findIndex(
-      t =>
-        t.status.toUpperCase().includes(
-          (order.status || "PENDING").toUpperCase()
-        )
-    )
-  );
+    return {
+      ordered: base.toDateString(),
+      shipped: new Date(base.getTime() + 2 * 86400000).toDateString(),
+      out: new Date(base.getTime() + 4 * 86400000).toDateString(),
+      delivered: new Date(base.getTime() + 5 * 86400000).toDateString()
+    };
+  };
 
-  const deliveryDate = addDays(created, 6);
+  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
 
   return (
+    <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
 
-    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-300 via-pink-200 to-orange-100">
+      {/* 👤 PROFILE */}
+      <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
 
-      <div className="glass p-5 rounded-2xl shadow-xl">
+        {!editing ? (
+          <>
+            <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-        {/* HEADER */}
-        <h1 className="text-2xl font-bold mb-1">
-          🚚 Live Tracking
-        </h1>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-blue-600 text-sm mt-1"
+            >
+              Edit Name
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="border p-2 rounded w-full"
+            />
 
-        <p className="text-sm text-gray-600 mb-4">
-          Expected Delivery: <b>{deliveryDate.toDateString()}</b>
+            <button
+              onClick={async () => {
+                await setDoc(doc(db, "users", user.uid), { name });
+                setEditing(false);
+              }}
+              className="bg-green-600 text-white px-4 py-1 rounded mt-2"
+            >
+              Save
+            </button>
+          </>
+        )}
+
+        <p className="text-sm text-gray-500 mt-2">
+          {user?.email}
         </p>
 
-        {/* CURRENT STATUS */}
-        <div className="glass p-3 rounded-xl mb-4 text-center">
-          <p className="text-green-600 font-semibold text-lg">
-            {trackingData[currentIndex]?.status}
-          </p>
-          <p className="text-sm text-gray-500">
-            📍 {trackingData[currentIndex]?.location}
-          </p>
-        </div>
-
-        {/* PROGRESS BAR */}
-        <div className="relative h-2 bg-gray-300 rounded-full overflow-hidden">
-          <div
-            className="h-2 bg-gradient-to-r from-green-400 to-green-600 transition-all duration-700"
-            style={{
-              width: `${((currentIndex + 1) / trackingData.length) * 100}%`
-            }}
-          />
-        </div>
-
-        {/* STEPS */}
-        <div className="flex justify-between text-[10px] mt-2">
-          {trackingData.map((t: any, i: number) => (
-            <span
-              key={i}
-              className={i <= currentIndex ? "text-green-600" : "text-gray-400"}
-            >
-              {t.location.split(" ")[0]}
-            </span>
-          ))}
-        </div>
-
-        {/* 🔥 TIMELINE */}
-        <div className="mt-6 space-y-4">
-
-          {trackingData.map((t: any, i: number) => {
-
-            const active = i === currentIndex;
-            const done = i < currentIndex;
-
-            return (
-              <div
-                key={i}
-                className={`flex gap-4 p-3 rounded-xl transition ${
-                  active
-                    ? "glass border border-green-400"
-                    : "bg-white/40"
-                }`}
-              >
-
-                {/* DOT */}
-                <div
-                  className={`w-4 h-4 mt-2 rounded-full ${
-                    active
-                      ? "bg-green-600 animate-pulse"
-                      : done
-                      ? "bg-green-500"
-                      : "bg-gray-300"
-                  }`}
-                />
-
-                {/* TEXT */}
-                <div>
-                  <p
-                    className={`font-semibold ${
-                      active ? "text-green-600" : ""
-                    }`}
-                  >
-                    {t.status}
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-                    📍 {t.location}
-                  </p>
-
-                  <p className="text-xs text-gray-400">
-                    {t.date.toDateString()}
-                  </p>
-                </div>
-
-              </div>
-            );
-          })}
-
-        </div>
-
-        {/* EXTRA STATUS */}
-        <div className="mt-6 text-center">
-
-          {trackingData[currentIndex]?.status === "Out for Delivery" && (
-            <p className="text-green-600 font-semibold animate-pulse">
-              🛵 Rider is out for delivery!
-            </p>
-          )}
-
-          {trackingData[currentIndex]?.status === "Delivered" && (
-            <p className="text-green-700 font-bold">
-              🎉 Delivered Successfully
-            </p>
-          )}
-
-        </div>
+        <button
+          onClick={() => auth.signOut()}
+          className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl"
+        >
+          Logout
+        </button>
 
       </div>
 
+      {/* 📦 ORDERS */}
+      <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
+
+      {orders.length === 0 && (
+        <p>No orders found ❌</p>
+      )}
+
+      {orders.map(o => {
+
+        const total =
+          Number(o.total) ||
+          (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
+
+        const current = steps.indexOf(o.status || "Pending");
+        const progress =
+          current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
+
+        const d = getDates(o);
+
+        return (
+          <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
+
+            {/* PRODUCT */}
+            {o.items?.length > 0 && (
+              <div className="flex gap-3 mb-3">
+                <img
+                  src={o.items[0]?.image}
+                  className="w-16 h-16 rounded-lg border"
+                />
+                <div>
+                  <p className="font-semibold">{o.items[0]?.name}</p>
+                  <p className="text-gray-500 text-sm">
+                    Qty: {o.items[0]?.qty}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* PRICE */}
+            <p className="text-green-600 font-bold">₹{total}</p>
+
+            {/* STATUS */}
+            <p className="text-yellow-600 font-semibold">
+              {o.status}
+            </p>
+
+            {/* DELIVERY */}
+            <p className="text-xs mt-1">
+              🚚 Expected Delivery: {getDeliveryDate(o)}
+            </p>
+
+            {/* TRACK BAR */}
+            <div className="mt-3">
+              <div className="h-2 bg-gray-300 rounded-full" />
+              <div
+                className="h-2 bg-green-500 rounded-full -mt-2"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <div className="flex justify-between text-[10px] mt-2">
+              {steps.map((s, i) => (
+                <span key={i} className={i <= current ? "text-green-600" : ""}>
+                  {s}
+                </span>
+              ))}
+            </div>
+
+            {/* 🚚 LIVE STATUS */}
+            <div className="mt-3 bg-gray-50 p-3 rounded-xl">
+              <p className="text-green-600 font-semibold">
+                {getTrackingText(o.status)}
+              </p>
+
+              <p className="text-xs mt-2 text-gray-500">
+                📍 Rider near your area
+              </p>
+
+              {/* TIMELINE */}
+              <div className="mt-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Ordered</span>
+                  <span>{d.ordered}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipped</span>
+                  <span>{d.shipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Out</span>
+                  <span>{d.out}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>Delivery</span>
+                  <span>{d.delivered}</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* BUTTONS */}
+            <div className="flex justify-between mt-3">
+              <button
+                onClick={() => router.push(`/track/${o.id}`)}
+                className="text-blue-600"
+              >
+                Full Track
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedOrder(o);
+                  setShowHelp(true);
+                }}
+                className="border px-3 py-1 rounded-full"
+              >
+                Help
+              </button>
+            </div>
+
+          </div>
+        );
+      })}
+
+      {/* HELP MODAL */}
+      {showHelp && selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md">
+
+            <button
+              onClick={async () => {
+                await updateDoc(doc(db, "orders", selectedOrder.id), {
+                  status: "Cancelled"
+                });
+                alert("Cancelled ✅");
+                setShowHelp(false);
+              }}
+              className="w-full bg-red-500 text-white p-2 rounded mb-3"
+            >
+              Cancel Order
+            </button>
+
+            <select
+              className="w-full border p-2 mb-2"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            >
+              <option value="">Select Reason</option>
+              <option>Wrong Product</option>
+              <option>Damaged Product</option>
+              <option>Other</option>
+            </select>
+
+            <button
+              onClick={async () => {
+                if (!reason) return alert("Select reason");
+
+                await addDoc(collection(db, "returns"), {
+                  orderId: selectedOrder.id,
+                  userId: selectedOrder.userId,
+                  reason,
+                  issue,
+                  status: "Requested",
+                  createdAt: new Date()
+                });
+
+                alert("Return sent ✅");
+                setShowHelp(false);
+              }}
+              className="w-full bg-green-600 text-white p-2 rounded"
+            >
+              Request Return
+            </button>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
-}
-
-// HELPER
-function addDays(date: Date, days: number) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
 }
