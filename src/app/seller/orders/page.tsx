@@ -26,7 +26,7 @@ export default function SellerOrders(){
 
       const q = query(
         collection(db,"orders"),
-        where("sellerRef","==",user.uid) // ✅ FIXED
+        where("sellerRef","==",user.uid)
       );
 
       const snap = await getDocs(q);
@@ -34,10 +34,14 @@ export default function SellerOrders(){
       let list:any = [];
 
       snap.forEach((d)=>{
+
+        const data:any = d.data();
+
         list.push({
           id:d.id,
-          ...d.data()
+          ...data
         });
+
       });
 
       setOrders(list);
@@ -63,7 +67,6 @@ export default function SellerOrders(){
         {
           status:status,
 
-          // ✅ IMPORTANT (earning unlock)
           ...(status === "DELIVERED" && {
             orderStatus:"DELIVERED",
             paymentStatus:"SUCCESS"
@@ -107,56 +110,77 @@ export default function SellerOrders(){
 
       <div className="space-y-4">
 
-        {orders.map((o:any)=>(
+        {orders.map((o:any)=>{
 
-          <div
-            key={o.id}
-            className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
-          >
+          // 🔥 FIX STATUS
+          const status = o.orderStatus || o.status || "PENDING";
 
-            {/* LEFT */}
-            <div>
+          return(
 
-              <h2 className="font-bold">
-                {o.productName || "Product"}
-              </h2>
+            <div
+              key={o.id}
+              className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
+            >
 
-              <p className="text-gray-500 text-sm">
-                Customer: {o.address?.name || o.customerName || "N/A"}
-              </p>
+              {/* LEFT */}
+              <div>
 
-              <p className="text-gray-500 text-sm">
-                Price: ₹{o.total || o.price || 0}
-              </p>
+                <h2 className="font-bold">
+                  {o.productName || "Product"}
+                </h2>
 
-              <p className="text-sm text-gray-400">
-                Status: {o.status || "PENDING"}
-              </p>
+                <p className="text-gray-500 text-sm">
+                  Customer: {o.address?.name || o.customerName || "N/A"}
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Price: ₹{o.total || o.price || 0}
+                </p>
+
+                {/* 🔥 NEW: COMMISSION */}
+                <p className="text-green-600 text-sm font-semibold">
+                  Commission: ₹{o.commission || 0}
+                </p>
+
+                {/* 🔥 NEW: EARNING STATUS */}
+                <p className={`text-sm ${
+                  status === "DELIVERED"
+                    ? "text-green-600"
+                    : "text-yellow-600"
+                }`}>
+                  Earning: {status === "DELIVERED" ? "Available 💸" : "Pending ⏳"}
+                </p>
+
+                <p className="text-sm text-gray-400">
+                  Status: {status}
+                </p>
+
+              </div>
+
+              {/* RIGHT BUTTONS */}
+              <div className="space-x-2">
+
+                <button
+                  onClick={()=>updateStatus(o.id,"Shipped")}
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  Ship
+                </button>
+
+                <button
+                  onClick={()=>updateStatus(o.id,"DELIVERED")}
+                  className="bg-green-500 text-white px-3 py-1 rounded"
+                >
+                  Deliver
+                </button>
+
+              </div>
 
             </div>
 
-            {/* RIGHT BUTTONS */}
-            <div className="space-x-2">
+          );
 
-              <button
-                onClick={()=>updateStatus(o.id,"Shipped")} // ✅ FIX
-                className="bg-blue-500 text-white px-3 py-1 rounded"
-              >
-                Ship
-              </button>
-
-              <button
-                onClick={()=>updateStatus(o.id,"DELIVERED")} // ✅ FIX
-                className="bg-green-500 text-white px-3 py-1 rounded"
-              >
-                Deliver
-              </button>
-
-            </div>
-
-          </div>
-
-        ))}
+        })}
 
       </div>
 
