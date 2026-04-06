@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -19,10 +20,71 @@ import {
   Trophy
 } from "lucide-react";
 
+import { db, auth } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
+
 export default function SellerDashboard() {
 
   const router = useRouter();
 
+  // 🔥 STATES
+  const [orders, setOrders] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [available, setAvailable] = useState(0);
+
+  // 🔥 LOAD DATA
+  useEffect(() => {
+
+    const loadDashboard = async () => {
+
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const q = query(
+        collection(db, "orders"),
+        where("sellerRef", "==", user.uid) // ✅ IMPORTANT
+      );
+
+      const snap = await getDocs(q);
+
+      let totalRevenue = 0;
+      let pendingAmount = 0;
+      let availableAmount = 0;
+
+      snap.forEach((doc) => {
+
+        const data: any = doc.data();
+
+        totalRevenue += data.total || 0;
+
+        if (data.status === "PENDING") {
+          pendingAmount += data.commission || 0;
+        }
+
+        if (data.status === "DELIVERED") {
+          availableAmount += data.commission || 0;
+        }
+
+      });
+
+      setOrders(snap.size);
+      setRevenue(totalRevenue);
+      setPending(pendingAmount);
+      setAvailable(availableAmount);
+
+    };
+
+    loadDashboard();
+
+  }, []);
+
+  // 🔥 CARDS
   const cards = [
     { title: "Dashboard", icon: <LayoutDashboard />, path: "/seller/dashboard" },
     { title: "Add Product", icon: <Package />, path: "/seller/add-product" },
@@ -51,22 +113,29 @@ export default function SellerDashboard() {
         Seller Dashboard 🚀
       </h1>
 
-      {/* STATS */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      {/* 🔥 STATS (UPDATED) */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+
         <div className="glass p-3 rounded-xl text-center">
           <p className="text-sm">Orders</p>
-          <p className="font-bold text-lg">0</p>
+          <p className="font-bold text-lg">{orders}</p>
         </div>
 
         <div className="glass p-3 rounded-xl text-center">
           <p className="text-sm">Revenue</p>
-          <p className="font-bold text-lg text-blue-600">₹0</p>
+          <p className="font-bold text-lg text-blue-600">₹{revenue}</p>
         </div>
 
         <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm">Commission</p>
-          <p className="font-bold text-lg text-green-600">₹0</p>
+          <p className="text-sm text-yellow-600">Pending 💰</p>
+          <p className="font-bold text-lg">₹{pending}</p>
         </div>
+
+        <div className="glass p-3 rounded-xl text-center">
+          <p className="text-sm text-green-600">Available 💸</p>
+          <p className="font-bold text-lg">₹{available}</p>
+        </div>
+
       </div>
 
       {/* 🔥 MAIN GRID */}
