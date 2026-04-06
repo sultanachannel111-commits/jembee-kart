@@ -32,11 +32,13 @@ export default function SellerDashboard() {
 
   const router = useRouter();
 
+  // 🔥 STATES
   const [orders, setOrders] = useState(0);
   const [revenue, setRevenue] = useState(0);
   const [pending, setPending] = useState(0);
   const [available, setAvailable] = useState(0);
 
+  // 🔥 LOAD DASHBOARD DATA
   useEffect(() => {
 
     const loadDashboard = async () => {
@@ -44,53 +46,60 @@ export default function SellerDashboard() {
       const user = auth.currentUser;
       if (!user) return;
 
-      const q = query(
-        collection(db, "orders"),
-        where("sellerRef", "==", user.uid)
-      );
+      try {
 
-      const snap = await getDocs(q);
+        const q = query(
+          collection(db, "orders"),
+          where("sellerRef", "==", user.uid)
+        );
 
-      let totalRevenue = 0;
-      let pendingAmount = 0;
-      let availableAmount = 0;
-      let totalOrders = 0;
+        const snap = await getDocs(q);
 
-      snap.forEach((doc) => {
+        let totalOrders = 0;
+        let totalRevenue = 0;
+        let pendingAmount = 0;
+        let availableAmount = 0;
 
-        const data: any = doc.data();
+        snap.forEach((doc) => {
 
-        totalOrders++;
+          const data: any = doc.data();
 
-        const total = Number(data.total) || 0;
-        const commission = Number(data.commission) || 0;
+          totalOrders++;
 
-        totalRevenue += total;
+          const total = Number(data.total) || 0;
+          const commission = Number(data.commission) || 0;
 
-        // 🔥 MOST IMPORTANT FIX
-        const status = data.orderStatus || data.status;
+          // 🔥 IMPORTANT (status fix)
+          const status = data.orderStatus || data.status || "PENDING";
 
-        // 🔥 PENDING (FULL ORDER VALUE)
-        if (
-          status === "PLACED" ||
-          status === "Processing" ||
-          status === "Shipped" ||
-          status === "PENDING"
-        ) {
-          pendingAmount += total;
-        }
+          // ✅ TOTAL SALES (customer paid)
+          totalRevenue += total;
 
-        // 🔥 AVAILABLE (SELLER EARNING)
-        if (status === "DELIVERED") {
-          availableAmount += commission;
-        }
+          // ✅ PENDING EARNINGS (seller commission only)
+          if (
+            status === "PENDING" ||
+            status === "PLACED" ||
+            status === "Processing" ||
+            status === "Shipped"
+          ) {
+            pendingAmount += commission;
+          }
 
-      });
+          // ✅ AVAILABLE EARNINGS (after delivery)
+          if (status === "DELIVERED") {
+            availableAmount += commission;
+          }
 
-      setOrders(totalOrders);
-      setRevenue(totalRevenue);
-      setPending(pendingAmount);
-      setAvailable(availableAmount);
+        });
+
+        setOrders(totalOrders);
+        setRevenue(totalRevenue);
+        setPending(pendingAmount);
+        setAvailable(availableAmount);
+
+      } catch (err) {
+        console.log("Dashboard Error:", err);
+      }
 
     };
 
@@ -98,6 +107,7 @@ export default function SellerDashboard() {
 
   }, []);
 
+  // 🔥 CARDS
   const cards = [
     { title: "Dashboard", icon: <LayoutDashboard />, path: "/seller/dashboard" },
     { title: "Add Product", icon: <Package />, path: "/seller/add-product" },
@@ -121,36 +131,49 @@ export default function SellerDashboard() {
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
+      {/* HEADER */}
       <h1 className="text-2xl font-bold mb-4">
         Seller Dashboard 🚀
       </h1>
 
-      {/* STATS */}
+      {/* 🔥 STATS */}
       <div className="grid grid-cols-2 gap-3 mb-5">
 
+        {/* ORDERS */}
         <div className="glass p-3 rounded-xl text-center">
           <p className="text-sm">Orders</p>
           <p className="font-bold text-lg">{orders}</p>
         </div>
 
+        {/* REVENUE */}
         <div className="glass p-3 rounded-xl text-center">
           <p className="text-sm">Revenue</p>
           <p className="font-bold text-lg text-blue-600">₹{revenue}</p>
         </div>
 
+        {/* PENDING EARNINGS */}
         <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-yellow-600">Pending Orders Value 💰</p>
-          <p className="font-bold text-lg">₹{pending}</p>
+          <p className="text-sm text-yellow-600">
+            Pending Earnings ⏳
+          </p>
+          <p className="font-bold text-lg">
+            ₹{pending}
+          </p>
         </div>
 
+        {/* AVAILABLE EARNINGS */}
         <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-green-600">Available Earnings 💸</p>
-          <p className="font-bold text-lg">₹{available}</p>
+          <p className="text-sm text-green-600">
+            Available Earnings 💸
+          </p>
+          <p className="font-bold text-lg">
+            ₹{available}
+          </p>
         </div>
 
       </div>
 
-      {/* GRID */}
+      {/* 🔥 MAIN GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {cards.map((c, i) => (
@@ -167,6 +190,7 @@ export default function SellerDashboard() {
             <p className="font-semibold text-sm">
               {c.title}
             </p>
+
           </div>
         ))}
 
