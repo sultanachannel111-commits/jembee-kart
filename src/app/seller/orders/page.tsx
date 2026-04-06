@@ -1,49 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  DollarSign,
-  Wallet,
-  BadgeCheck,
-  Star,
-  BarChart3,
-  MessageCircle,
-  Megaphone,
-  Tag,
-  Bell,
-  User,
-  Settings,
-  Trophy
-} from "lucide-react";
-
+import Image from "next/image";
 import { db, auth } from "@/lib/firebase";
 import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  doc,
+  updateDoc
 } from "firebase/firestore";
 
-export default function SellerDashboard() {
+export default function SellerOrders() {
 
-  const router = useRouter();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔥 STATES
-  const [orders, setOrders] = useState(0);
-  const [revenue, setRevenue] = useState(0);
-  const [pending, setPending] = useState(0);
-  const [available, setAvailable] = useState(0);
+  // 🔥 LOAD ORDERS
+  const loadOrders = async () => {
 
-  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-    const loadDashboard = async () => {
-
-      const user = auth.currentUser;
-      if (!user) return;
+    try {
 
       const q = query(
         collection(db, "orders"),
@@ -52,122 +32,189 @@ export default function SellerDashboard() {
 
       const snap = await getDocs(q);
 
-      let totalRevenue = 0;
-      let pendingAmount = 0;
-      let availableAmount = 0;
-      let totalOrders = 0;
+      let list: any[] = [];
 
       snap.forEach((doc) => {
-
-        const data: any = doc.data();
-
-        totalOrders++;
-
-        const total = Number(data.total) || 0;
-        const commission = Number(data.commission) || 0;
-
-        // 🔥 STATUS NORMALIZE (IMPORTANT)
-        const status = (data.orderStatus || data.status || "PENDING").toUpperCase();
-
-        // ✅ TOTAL SALES (sirf display ke liye)
-        totalRevenue += total;
-
-        // ✅ SAME LOGIC AS EARNINGS PAGE
-        if (status === "DELIVERED") {
-          availableAmount += commission;
-        } else {
-          pendingAmount += commission;
-        }
-
+        list.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
 
-      setOrders(totalOrders);
-      setRevenue(totalRevenue);
-      setPending(pendingAmount);
-      setAvailable(availableAmount);
+      setOrders(list);
 
-    };
+    } catch (err) {
+      console.log("Order Load Error:", err);
+    }
 
-    loadDashboard();
+    setLoading(false);
+  };
 
+  useEffect(() => {
+    loadOrders();
   }, []);
 
-  // 🔥 CARDS
-  const cards = [
-    { title: "Dashboard", icon: <LayoutDashboard />, path: "/seller/dashboard" },
-    { title: "Add Product", icon: <Package />, path: "/seller/add-product" },
-    { title: "All Products", icon: <Package />, path: "/seller/products" },
-    { title: "Orders", icon: <ShoppingCart />, path: "/seller/orders" },
-    { title: "Inventory", icon: <Package />, path: "/seller/inventory" },
-    { title: "Earnings", icon: <DollarSign />, path: "/seller/earnings" },
-    { title: "Withdraw", icon: <Wallet />, path: "/seller/withdraw" },
-    { title: "KYC", icon: <BadgeCheck />, path: "/seller/kyc" },
-    { title: "Reviews", icon: <Star />, path: "/seller/reviews" },
-    { title: "Analytics", icon: <BarChart3 />, path: "/seller/analytics" },
-    { title: "Messages", icon: <MessageCircle />, path: "/seller/messages" },
-    { title: "Promotions", icon: <Megaphone />, path: "/seller/promotions" },
-    { title: "Coupons", icon: <Tag />, path: "/seller/coupons" },
-    { title: "Notifications", icon: <Bell />, path: "/seller/notifications" },
-    { title: "Profile", icon: <User />, path: "/seller/profile" },
-    { title: "Settings", icon: <Settings />, path: "/seller/settings" },
-    { title: "Ranking", icon: <Trophy />, path: "/seller/ranking" },
-  ];
+  // 🔥 UPDATE STATUS
+  const updateStatus = async (id: string, status: string) => {
 
+    try {
+
+      await updateDoc(doc(db, "orders", id), {
+        status: status,
+
+        ...(status === "DELIVERED" && {
+          orderStatus: "DELIVERED",
+          paymentStatus: "SUCCESS"
+        })
+      });
+
+      loadOrders();
+
+    } catch (err) {
+      console.log("Status Update Error:", err);
+    }
+  };
+
+  // 🔄 LOADING
+  if (loading) {
+    return (
+      <div className="p-6 text-center">
+        Loading orders...
+      </div>
+    );
+  }
+
+  // ❌ EMPTY
+  if (orders.length === 0) {
+    return (
+      <div className="p-6 text-center">
+        No orders found ❌
+      </div>
+    );
+  }
+
+  // 🎯 UI
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
-      {/* HEADER */}
-      <h1 className="text-2xl font-bold mb-4">
-        Seller Dashboard 🚀
+    <div className="min-h-screen p-4 bg-gray-50">
+
+      <h1 className="text-2xl font-bold mb-6">
+        Seller Orders 📦
       </h1>
 
-      {/* 🔥 STATS (FIXED) */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      <div className="space-y-4">
 
-        <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm">Orders</p>
-          <p className="font-bold text-lg">{orders}</p>
-        </div>
+        {orders.map((o: any) => {
 
-        <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm">Revenue</p>
-          <p className="font-bold text-lg text-blue-600">₹{revenue}</p>
-        </div>
+          // 🔥 PRODUCT DATA
+          const item = o.items?.[0] || {};
 
-        <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-yellow-600">Pending Earnings ⏳</p>
-          <p className="font-bold text-lg">₹{pending}</p>
-        </div>
+          const image =
+            item?.image ||
+            item?.images?.main ||
+            "/no-image.png";
 
-        <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-green-600">Available Earnings 💸</p>
-          <p className="font-bold text-lg">₹{available}</p>
-        </div>
+          const name =
+            item?.name ||
+            o.productName ||
+            "Product";
 
-      </div>
+          const total = Number(o.total) || 0;
+          const commission = Number(o.commission) || 0;
 
-      {/* 🔥 GRID */}
-      <div className="grid grid-cols-2 gap-4">
+          const status = (o.orderStatus || o.status || "PENDING").toUpperCase();
 
-        {cards.map((c, i) => (
-          <div
-            key={i}
-            onClick={() => router.push(c.path)}
-            className="cursor-pointer p-4 rounded-2xl shadow-md 
-                       backdrop-blur-lg bg-white/70 border hover:scale-105 transition"
-          >
-            <div className="text-pink-600 mb-2">
-              {c.icon}
+          return (
+
+            <div
+              key={o.id}
+              className="bg-white p-4 rounded-xl shadow flex gap-4 items-center"
+            >
+
+              {/* 🖼 PRODUCT IMAGE */}
+              <div className="w-20 h-20 relative rounded overflow-hidden border">
+                <Image
+                  src={image}
+                  alt="product"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+
+              {/* 📦 DETAILS */}
+              <div className="flex-1">
+
+                <h2 className="font-bold text-lg">
+                  {name}
+                </h2>
+
+                <p className="text-sm text-gray-500">
+                  Customer: {o.address?.name || "N/A"}
+                </p>
+
+                <p className="text-sm">
+                  Price: ₹{total}
+                </p>
+
+                <p className="text-sm text-green-600 font-semibold">
+                  Commission: ₹{commission}
+                </p>
+
+                {/* 💰 EARNING STATUS */}
+                <p
+                  className={`text-sm font-medium ${
+                    status === "DELIVERED"
+                      ? "text-green-600"
+                      : "text-yellow-600"
+                  }`}
+                >
+                  {status === "DELIVERED"
+                    ? "Earning: Available 💸"
+                    : "Earning: Pending ⏳"}
+                </p>
+
+                {/* 📌 STATUS */}
+                <p className="text-xs text-gray-400">
+                  Status: {status}
+                </p>
+
+              </div>
+
+              {/* ⚡ ACTIONS */}
+              <div className="flex flex-col gap-2">
+
+                {status !== "DELIVERED" ? (
+                  <>
+                    <button
+                      onClick={() => updateStatus(o.id, "Shipped")}
+                      className="bg-blue-500 text-white px-3 py-1 rounded"
+                    >
+                      Ship
+                    </button>
+
+                    <button
+                      onClick={() => updateStatus(o.id, "DELIVERED")}
+                      className="bg-green-500 text-white px-3 py-1 rounded"
+                    >
+                      Deliver
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-green-600 font-semibold text-sm">
+                    Delivered ✅
+                  </span>
+                )}
+
+              </div>
+
             </div>
 
-            <p className="font-semibold text-sm">
-              {c.title}
-            </p>
-          </div>
-        ))}
+          );
+        })}
 
       </div>
 
     </div>
+
   );
 }
