@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  getDocs,
+  deleteDoc
+} from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +51,21 @@ export async function POST(req: Request) {
       orderStatus: "PLACED",
       createdAt: serverTimestamp()
     });
+
+    // =========================
+    // 🧹 CART CLEAR (🔥 ADD THIS)
+    // =========================
+    const snap = await getDocs(
+      collection(db, "carts", userId, "items")
+    );
+
+    const promises = snap.docs.map((d) =>
+      deleteDoc(doc(db, "carts", userId, "items", d.id))
+    );
+
+    await Promise.all(promises);
+
+    console.log("🧹 Cart Cleared");
 
     return NextResponse.json({
       success: true,
