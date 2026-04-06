@@ -38,7 +38,6 @@ export default function SellerDashboard() {
   const [pending, setPending] = useState(0);
   const [available, setAvailable] = useState(0);
 
-  // 🔥 LOAD DATA (SYNC WITH EARNINGS PAGE)
   useEffect(() => {
 
     const loadDashboard = async () => {
@@ -64,22 +63,25 @@ export default function SellerDashboard() {
 
         totalOrders++;
 
-        // 🔥 TOTAL SALES
-        totalRevenue += Number(data.total) || 0;
+        const total = Number(data.total) || 0;
+        const commission = Number(data.commission) || 0;
 
-        // 🔥 PENDING (EARNINGS PAGE SAME LOGIC)
+        // 🔥 TOTAL SALES
+        totalRevenue += total;
+
+        // 🔥 PENDING = FULL ORDER AMOUNT
         if (
           data.status === "PENDING" ||
           data.status === "PLACED" ||
           data.status === "Processing" ||
           data.status === "Shipped"
         ) {
-          pendingAmount += Number(data.commission) || 0;
+          pendingAmount += total; // ✅ FIXED
         }
 
-        // 🔥 AVAILABLE (DELIVERED ONLY)
+        // 🔥 AVAILABLE = SELLER EARNING
         if (data.status === "DELIVERED") {
-          availableAmount += Number(data.commission) || 0;
+          availableAmount += commission;
         }
 
       });
@@ -95,7 +97,6 @@ export default function SellerDashboard() {
 
   }, []);
 
-  // 🔥 CARDS
   const cards = [
     { title: "Dashboard", icon: <LayoutDashboard />, path: "/seller/dashboard" },
     { title: "Add Product", icon: <Package />, path: "/seller/add-product" },
@@ -119,7 +120,6 @@ export default function SellerDashboard() {
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
-      {/* HEADER */}
       <h1 className="text-2xl font-bold mb-4">
         Seller Dashboard 🚀
       </h1>
@@ -138,18 +138,18 @@ export default function SellerDashboard() {
         </div>
 
         <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-yellow-600">Pending 💰</p>
+          <p className="text-sm text-yellow-600">Pending Orders Value 💰</p>
           <p className="font-bold text-lg">₹{pending}</p>
         </div>
 
         <div className="glass p-3 rounded-xl text-center">
-          <p className="text-sm text-green-600">Available 💸</p>
+          <p className="text-sm text-green-600">Available Earnings 💸</p>
           <p className="font-bold text-lg">₹{available}</p>
         </div>
 
       </div>
 
-      {/* 🔥 MAIN GRID */}
+      {/* 🔥 GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {cards.map((c, i) => (
@@ -159,7 +159,6 @@ export default function SellerDashboard() {
             className="cursor-pointer p-4 rounded-2xl shadow-md 
                        backdrop-blur-lg bg-white/70 border hover:scale-105 transition"
           >
-
             <div className="text-pink-600 mb-2">
               {c.icon}
             </div>
@@ -167,7 +166,6 @@ export default function SellerDashboard() {
             <p className="font-semibold text-sm">
               {c.title}
             </p>
-
           </div>
         ))}
 
