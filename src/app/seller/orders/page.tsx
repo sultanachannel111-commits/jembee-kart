@@ -3,138 +3,165 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
-collection,
-query,
-where,
-getDocs,
-doc,
-updateDoc
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc
 } from "firebase/firestore";
 
 export default function SellerOrders(){
 
-const [orders,setOrders] = useState<any[]>([]);
-const [loading,setLoading] = useState(true);
+  const [orders,setOrders] = useState<any[]>([]);
+  const [loading,setLoading] = useState(true);
 
-const loadOrders = async()=>{
+  // ================= LOAD ORDERS =================
+  const loadOrders = async()=>{
 
-const user = auth.currentUser;
+    const user = auth.currentUser;
+    if(!user) return;
 
-if(!user) return;
+    try{
 
-const q = query(
-collection(db,"orders"),
-where("sellerId","==",user.uid)
-);
+      const q = query(
+        collection(db,"orders"),
+        where("sellerRef","==",user.uid) // ✅ FIXED
+      );
 
-const snap = await getDocs(q);
+      const snap = await getDocs(q);
 
-let list:any = [];
+      let list:any = [];
 
-snap.forEach((d)=>{
+      snap.forEach((d)=>{
+        list.push({
+          id:d.id,
+          ...d.data()
+        });
+      });
 
-list.push({
-id:d.id,
-...d.data()
-});
+      setOrders(list);
 
-});
+    }catch(err){
+      console.log("Order Load Error:",err);
+    }
 
-setOrders(list);
-setLoading(false);
+    setLoading(false);
+  };
 
-};
+  useEffect(()=>{
+    loadOrders();
+  },[]);
 
-useEffect(()=>{
-loadOrders();
-},[]);
+  // ================= UPDATE STATUS =================
+  const updateStatus = async(id:string,status:string)=>{
 
+    try{
 
-/* UPDATE STATUS */
+      await updateDoc(
+        doc(db,"orders",id),
+        {
+          status:status,
 
-const updateStatus = async(id:string,status:string)=>{
+          // ✅ IMPORTANT (earning unlock)
+          ...(status === "DELIVERED" && {
+            orderStatus:"DELIVERED",
+            paymentStatus:"SUCCESS"
+          })
+        }
+      );
 
-await updateDoc(
-doc(db,"orders",id),
-{status:status}
-);
+      loadOrders();
 
-loadOrders();
+    }catch(err){
+      console.log("Status Update Error:",err);
+    }
+  };
 
-};
+  // ================= LOADING =================
+  if(loading){
+    return(
+      <div className="p-6 text-center">
+        Loading orders...
+      </div>
+    );
+  }
 
+  // ================= EMPTY =================
+  if(orders.length === 0){
+    return(
+      <div className="p-6 text-center">
+        No orders found ❌
+      </div>
+    );
+  }
 
-if(loading){
-return(
-<div className="p-6">
-Loading orders...
-</div>
-);
-}
+  // ================= UI =================
+  return(
 
-return(
+    <div className="min-h-screen p-4 bg-gray-50">
 
-<div>
+      <h1 className="text-2xl font-bold mb-6">
+        Seller Orders 📦
+      </h1>
 
-<h1 className="text-2xl font-bold mb-6">
-Seller Orders
-</h1>
+      <div className="space-y-4">
 
-<div className="space-y-4">
+        {orders.map((o:any)=>(
 
-{orders.map((o:any)=>(
+          <div
+            key={o.id}
+            className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
+          >
 
-<div
-key={o.id}
-className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
->
+            {/* LEFT */}
+            <div>
 
-<div>
+              <h2 className="font-bold">
+                {o.productName || "Product"}
+              </h2>
 
-<h2 className="font-bold">
-{o.productName}
-</h2>
+              <p className="text-gray-500 text-sm">
+                Customer: {o.address?.name || o.customerName || "N/A"}
+              </p>
 
-<p className="text-gray-500">
-Customer: {o.customerName}
-</p>
+              <p className="text-gray-500 text-sm">
+                Price: ₹{o.total || o.price || 0}
+              </p>
 
-<p className="text-gray-500">
-Price: ₹{o.price}
-</p>
+              <p className="text-sm text-gray-400">
+                Status: {o.status || "PENDING"}
+              </p>
 
-<p className="text-sm text-gray-400">
-Status: {o.status}
-</p>
+            </div>
 
-</div>
+            {/* RIGHT BUTTONS */}
+            <div className="space-x-2">
 
-<div className="space-x-2">
+              <button
+                onClick={()=>updateStatus(o.id,"Shipped")} // ✅ FIX
+                className="bg-blue-500 text-white px-3 py-1 rounded"
+              >
+                Ship
+              </button>
 
-<button
-onClick={()=>updateStatus(o.id,"shipped")}
-className="bg-blue-500 text-white px-3 py-1 rounded"
->
-Ship
-</button>
+              <button
+                onClick={()=>updateStatus(o.id,"DELIVERED")} // ✅ FIX
+                className="bg-green-500 text-white px-3 py-1 rounded"
+              >
+                Deliver
+              </button>
 
-<button
-onClick={()=>updateStatus(o.id,"delivered")}
-className="bg-green-500 text-white px-3 py-1 rounded"
->
-Deliver
-</button>
+            </div>
 
-</div>
+          </div>
 
-</div>
+        ))}
 
-))}
+      </div>
 
-</div>
+    </div>
 
-</div>
-
-);
+  );
 
 }
