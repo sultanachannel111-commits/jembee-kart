@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 AUTH + LOAD
+  // 🔥 LOAD DATA (BUY NOW + CART)
   // =========================
   useEffect(() => {
 
@@ -46,39 +46,73 @@ export default function CheckoutPage() {
       setUser(u);
 
       // =====================
-      // 🛒 LIVE CART (Firestore)
+      // 🟢 BUY NOW (PRIORITY)
       // =====================
-      const ref = collection(db, "carts", u.uid, "items");
+      const buyNow = localStorage.getItem("buy-now");
 
-      unsubscribe = onSnapshot(ref, (snap) => {
+      if (buyNow) {
+        try {
+          const parsed = JSON.parse(buyNow);
 
-        const data: any[] = [];
+          if (parsed && parsed.price > 0) {
 
-        snap.forEach(docSnap => {
+            const item = {
+              id: "buy-now",
+              productId: parsed.productId,
+              name: parsed.name,
+              image: parsed.image || "/no-image.png",
+              price: Number(parsed.price) || 0,
+              qty: Number(parsed.quantity) || 1
+            };
 
-          const d: any = docSnap.data();
+            console.log("🔥 BUY NOW:", item);
 
-          const price =
-            d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-            d.price ||
-            0;
+            setItems([item]);
 
-          data.push({
-            id: docSnap.id,
-            productId: d.productId,
-            name: d.name,
-            image: d.image || "/no-image.png",
-            price: Number(price) || 0,
-            qty: Number(d.quantity) || 1
+          } else {
+            setItems([]);
+          }
+
+        } catch {
+          setItems([]);
+        }
+
+      } else {
+
+        // =====================
+        // 🛒 FIRESTORE CART
+        // =====================
+        const ref = collection(db, "carts", u.uid, "items");
+
+        unsubscribe = onSnapshot(ref, (snap) => {
+
+          const data: any[] = [];
+
+          snap.forEach(docSnap => {
+
+            const d: any = docSnap.data();
+
+            const price =
+              d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+              d.price ||
+              0;
+
+            data.push({
+              id: docSnap.id,
+              productId: d.productId,
+              name: d.name,
+              image: d.image || "/no-image.png",
+              price: Number(price) || 0,
+              qty: Number(d.quantity) || 1
+            });
+
           });
+
+          setItems(data);
 
         });
 
-        console.log("🔥 FIRESTORE CART:", data);
-
-        setItems(data);
-
-      });
+      }
 
       // =====================
       // 📍 ADDRESS
@@ -124,14 +158,16 @@ export default function CheckoutPage() {
   }, []);
 
   // =========================
-  // 💰 TOTAL
+  // 💰 TOTAL FIX
   // =========================
   const itemsTotal = items.reduce((sum, i) => {
-    return sum + i.price * i.qty;
+    return sum + (Number(i.price) || 0) * (Number(i.qty) || 1);
   }, 0);
 
   let shipping =
-    paymentMethod === "COD"
+    items.length === 0
+      ? 0
+      : paymentMethod === "COD"
       ? shippingConfig.cod
       : shippingConfig.prepaid;
 
@@ -142,7 +178,7 @@ export default function CheckoutPage() {
     shipping = 0;
   }
 
-  const total = itemsTotal + shipping;
+  const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
   // =========================
   // 🚀 PAYMENT
@@ -164,8 +200,6 @@ export default function CheckoutPage() {
         address
       };
 
-      console.log("📦 ORDER:", orderData);
-
       // COD
       if (paymentMethod === "COD") {
 
@@ -178,6 +212,8 @@ export default function CheckoutPage() {
         const data = await res.json();
 
         if (!data.success) return alert("Order failed ❌");
+
+        localStorage.removeItem("buy-now"); // 🔥 clear
 
         router.replace(`/order-success/${data.orderId}`);
         return;
@@ -207,6 +243,8 @@ export default function CheckoutPage() {
         redirectTarget: "_self"
       });
 
+      localStorage.removeItem("buy-now");
+
     } catch (err) {
       console.log(err);
       alert("Payment error ❌");
@@ -216,7 +254,7 @@ export default function CheckoutPage() {
   };
 
   // =========================
-  // 🎨 UI
+  // 🎨 PREMIUM UI
   // =========================
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-700 via-pink-600 to-orange-400 p-4 pb-32 text-white">
@@ -226,65 +264,98 @@ export default function CheckoutPage() {
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl mb-4">
-
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
         <div className="flex justify-between mb-3">
-          <p className="font-semibold">Delivery Address 📍</p>
-
-          <button onClick={() => router.push("/account")}>
+          <p className="font-semibold text-lg">Delivery Address 📍</p>
+          <button
+            onClick={() => router.push("/account")}
+            className="underline text-sm"
+          >
             Change
           </button>
         </div>
 
-        {address && (
-          <div className="text-sm">
+        {address ? (
+          <div className="text-sm space-y-1">
             <p className="font-bold">{address.name}</p>
             <p>{address.phone}</p>
             <p>{address.address}</p>
           </div>
+        ) : (
+          <p>No address ❌</p>
         )}
-
       </div>
 
       {/* PAYMENT */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-3xl mb-4">
+        <p className="mb-2 font-semibold">Payment Method</p>
+
         <div className="flex gap-3">
-          <button onClick={() => setPaymentMethod("ONLINE")}>
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "ONLINE"
+                ? "bg-green-500"
+                : "bg-white/20"
+            }`}
+          >
             Online 💳
           </button>
-          <button onClick={() => setPaymentMethod("COD")}>
+
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "COD"
+                ? "bg-yellow-500"
+                : "bg-white/20"
+            }`}
+          >
             COD 🚚
           </button>
         </div>
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
-        <p>Items: ₹{itemsTotal}</p>
-        <p>Shipping: ₹{shipping}</p>
-        <p className="text-xl font-bold">Total: ₹{total}</p>
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl mb-4">
+        <p className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </p>
+
+        <p className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </p>
+
+        <hr className="my-2 border-white/30"/>
+
+        <p className="flex justify-between text-xl font-bold">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </p>
       </div>
 
       {/* ITEMS */}
       {items.map((item) => (
-        <div key={item.id} className="bg-white/20 p-3 rounded mb-2 flex gap-3">
+        <div key={item.id} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3">
 
-          <img src={item.image} className="w-16 h-16 rounded"/>
+          <img src={item.image} className="w-16 h-16 rounded-xl object-cover"/>
 
           <div>
-            <p>{item.name}</p>
-            <p>Qty: {item.qty}</p>
-            <p>₹{item.price}</p>
+            <p className="font-semibold">{item.name}</p>
+            <p className="text-sm">Qty: {item.qty}</p>
+            <p className="text-green-300 font-bold">₹{item.price}</p>
           </div>
 
         </div>
       ))}
 
       {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-4">
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
         <button
           onClick={handlePayment}
-          className="w-full py-4 bg-black rounded-xl"
+          disabled={loading || items.length === 0}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-lg"
         >
           {loading ? "Processing..." : `Pay ₹${total}`}
         </button>
