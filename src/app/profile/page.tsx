@@ -6,7 +6,6 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc,
   addDoc,
   getDoc,
   setDoc,
@@ -23,7 +22,6 @@ export default function ProfilePage() {
 
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
-
   const [newAddress, setNewAddress] = useState("");
 
   const router = useRouter();
@@ -37,17 +35,15 @@ export default function ProfilePage() {
 
       setUser(u);
 
-      // 👤 NAME
+      // NAME
       const userRef = doc(db, "users", u.uid);
       const snap = await getDoc(userRef);
 
-      if (snap.exists()) {
-        setName(snap.data().name);
-      } else {
-        setName(u.email.split("@")[0]);
-      }
+      setName(
+        snap.exists() ? snap.data().name : u.email.split("@")[0]
+      );
 
-      // 📦 ORDERS
+      // ORDERS
       const snapOrders = await getDocs(collection(db, "orders"));
 
       let arr: any[] = [];
@@ -57,9 +53,10 @@ export default function ProfilePage() {
           arr.push({ id: d.id, ...data });
         }
       });
+
       setOrders(arr);
 
-      // 📍 ADDRESSES
+      // ADDRESSES
       const addSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -77,7 +74,7 @@ export default function ProfilePage() {
 
   }, []);
 
-  // ================= ADD ADDRESS =================
+  // ================= ADDRESS =================
   const addAddress = async () => {
 
     if (!newAddress) return alert("Enter address");
@@ -91,10 +88,9 @@ export default function ProfilePage() {
     );
 
     setNewAddress("");
-    location.reload(); // simple refresh
+    location.reload();
   };
 
-  // ================= DELETE ADDRESS =================
   const deleteAddress = async (id: string) => {
 
     await deleteDoc(
@@ -104,22 +100,27 @@ export default function ProfilePage() {
     setAddresses(addresses.filter(a => a.id !== id));
   };
 
+  // ================= TRACK =================
+  const steps = ["PENDING", "PLACED", "SHIPPED", "OUT FOR DELIVERY", "DELIVERED"];
+
+  const getProgress = (status: string) => {
+    const i = steps.indexOf((status || "PENDING").toUpperCase());
+    return i < 0 ? 10 : ((i + 1) / steps.length) * 100;
+  };
+
   // ================= UI =================
   return (
 
     <div className="p-4 pb-24 min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
-      {/* 👤 PROFILE */}
+      {/* PROFILE */}
       <div className="glass p-5 rounded-2xl mb-5 text-center">
 
         {!editing ? (
           <>
             <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-            <button
-              onClick={() => setEditing(true)}
-              className="text-blue-600 text-sm mt-1"
-            >
+            <button onClick={() => setEditing(true)} className="text-blue-600 text-sm">
               Edit Name
             </button>
           </>
@@ -136,36 +137,31 @@ export default function ProfilePage() {
                 await setDoc(doc(db, "users", user.uid), { name });
                 setEditing(false);
               }}
-              className="btn-green"
+              className="btn-green mt-2"
             >
               Save
             </button>
           </>
         )}
 
-        <p className="text-sm text-gray-500 mt-2">
-          {user?.email}
-        </p>
+        <p className="text-sm text-gray-500 mt-2">{user?.email}</p>
 
-        <button
-          onClick={() => auth.signOut()}
-          className="btn-red mt-3"
-        >
+        <button onClick={() => auth.signOut()} className="btn-red mt-3">
           Logout
         </button>
 
       </div>
 
-      {/* 📍 ADDRESS SECTION */}
-      <h2 className="text-xl font-bold mb-2">My Addresses 📍</h2>
+      {/* ADDRESS */}
+      <div className="glass p-4 rounded-2xl mb-5">
 
-      <div className="glass p-4 rounded-2xl mb-4">
+        <h2 className="font-bold mb-2">My Addresses 📍</h2>
 
         <div className="flex gap-2 mb-3">
           <input
             value={newAddress}
             onChange={(e) => setNewAddress(e.target.value)}
-            placeholder="Enter new address..."
+            placeholder="Enter address..."
             className="glass-input flex-1"
           />
 
@@ -174,17 +170,10 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {addresses.map((a) => (
-          <div
-            key={a.id}
-            className="flex justify-between items-center mb-2 glass p-2 rounded-xl"
-          >
-            <p className="text-sm">{a.address}</p>
-
-            <button
-              onClick={() => deleteAddress(a.id)}
-              className="text-red-500 text-sm"
-            >
+        {addresses.map(a => (
+          <div key={a.id} className="flex justify-between mb-2">
+            <p>{a.address}</p>
+            <button onClick={() => deleteAddress(a.id)} className="text-red-500">
               Delete
             </button>
           </div>
@@ -192,27 +181,99 @@ export default function ProfilePage() {
 
       </div>
 
-      {/* 📦 ORDERS */}
+      {/* ORDERS */}
       <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
 
       {orders.map(o => {
 
+        const item = o.items?.[0] || {};
+        const image = item.image || "/no-image.png";
+        const name = item.name || "Product";
         const total = Number(o.total) || 0;
+        const status = (o.status || "PENDING").toUpperCase();
 
         return (
           <div key={o.id} className="glass p-4 rounded-2xl mb-4">
 
-            <p className="font-semibold">
-              {o.items?.[0]?.name}
+            {/* PRODUCT */}
+            <div className="flex gap-3 mb-3">
+              <img src={image} className="w-16 h-16 rounded-lg border" />
+
+              <div>
+                <p className="font-semibold">{name}</p>
+                <p className="text-green-600 font-bold">₹{total}</p>
+              </div>
+            </div>
+
+            {/* STATUS */}
+            <p className="text-yellow-600 font-semibold mb-2">
+              {status}
             </p>
 
-            <p className="text-green-600 font-bold">
-              ₹{total}
-            </p>
+            {/* PROGRESS */}
+            <div className="h-2 bg-gray-300 rounded-full">
+              <div
+                className="h-2 bg-green-500 rounded-full"
+                style={{ width: `${getProgress(status)}%` }}
+              />
+            </div>
 
-            <p className="text-yellow-600">
-              {o.status}
-            </p>
+            {/* STEPS */}
+            <div className="flex justify-between text-xs mt-2">
+              {steps.map((s, i) => (
+                <span
+                  key={i}
+                  className={
+                    steps.indexOf(s) <= steps.indexOf(status)
+                      ? "text-green-600"
+                      : "text-gray-400"
+                  }
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+
+            {/* 🔥 LIVE TRACKING */}
+            <div className="mt-4 glass p-3 rounded-xl">
+
+              <p className="font-semibold mb-2">Live Tracking 📍</p>
+
+              {o.tracking?.length > 0 ? (
+                o.tracking.map((t:any, i:number) => (
+
+                  <div key={i} className="flex gap-3 mb-3">
+
+                    <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
+
+                    <div>
+                      <p className="text-sm font-semibold">{t.status}</p>
+                      <p className="text-xs text-gray-500">📍 {t.location}</p>
+                      <p className="text-xs text-gray-400">
+                        {t.time?.toDate
+                          ? t.time.toDate().toLocaleString()
+                          : "Now"}
+                      </p>
+                    </div>
+
+                  </div>
+
+                ))
+              ) : (
+                <p className="text-sm text-gray-400">
+                  Tracking not started yet
+                </p>
+              )}
+
+            </div>
+
+            {/* BUTTON */}
+            <button
+              onClick={() => router.push(`/track/${o.id}`)}
+              className="text-blue-600 mt-3"
+            >
+              Full Track →
+            </button>
 
           </div>
         );
