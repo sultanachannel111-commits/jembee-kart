@@ -32,7 +32,6 @@ export default function SellerDashboard() {
 
   const router = useRouter();
 
-  // 🔥 STATES
   const [orders, setOrders] = useState(0);
   const [revenue, setRevenue] = useState(0);
   const [pending, setPending] = useState(0);
@@ -66,21 +65,23 @@ export default function SellerDashboard() {
         const total = Number(data.total) || 0;
         const commission = Number(data.commission) || 0;
 
-        // 🔥 TOTAL SALES
         totalRevenue += total;
 
-        // 🔥 PENDING = FULL ORDER AMOUNT
+        // 🔥 MOST IMPORTANT FIX
+        const status = data.orderStatus || data.status;
+
+        // 🔥 PENDING (FULL ORDER VALUE)
         if (
-          data.status === "PENDING" ||
-          data.status === "PLACED" ||
-          data.status === "Processing" ||
-          data.status === "Shipped"
+          status === "PLACED" ||
+          status === "Processing" ||
+          status === "Shipped" ||
+          status === "PENDING"
         ) {
-          pendingAmount += total; // ✅ FIXED
+          pendingAmount += total;
         }
 
-        // 🔥 AVAILABLE = SELLER EARNING
-        if (data.status === "DELIVERED") {
+        // 🔥 AVAILABLE (SELLER EARNING)
+        if (status === "DELIVERED") {
           availableAmount += commission;
         }
 
@@ -124,7 +125,7 @@ export default function SellerDashboard() {
         Seller Dashboard 🚀
       </h1>
 
-      {/* 🔥 STATS */}
+      {/* STATS */}
       <div className="grid grid-cols-2 gap-3 mb-5">
 
         <div className="glass p-3 rounded-xl text-center">
@@ -149,7 +150,7 @@ export default function SellerDashboard() {
 
       </div>
 
-      {/* 🔥 GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {cards.map((c, i) => (
