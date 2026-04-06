@@ -43,14 +43,24 @@ export default function SellerEarnings(){
 
         const total = Number(data.total) || 0;
         const commission = Number(data.commission) || 0;
-        const status = data.status || "PENDING";
+
+        // 🔥 FIX (IMPORTANT)
+        const status = data.orderStatus || data.status || "PENDING";
 
         totalRevenue += total;
 
-        // 🔥 CORE LOGIC
+        // ✅ AVAILABLE (ONLY DELIVERED)
         if(status === "DELIVERED"){
           availableAmount += commission;
-        } else {
+        }
+
+        // ✅ PENDING (ALL OTHER STATES)
+        else if(
+          status === "PLACED" ||
+          status === "Processing" ||
+          status === "Shipped" ||
+          status === "PENDING"
+        ){
           pendingAmount += commission;
         }
 
