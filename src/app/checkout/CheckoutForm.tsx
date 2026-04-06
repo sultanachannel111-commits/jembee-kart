@@ -46,7 +46,6 @@ export default function CheckoutPage() {
       if (!u) return router.push("/login");
 
       setUser(u);
-
       setRefSeller(localStorage.getItem("refSeller"));
 
       const buyNow = localStorage.getItem("buy-now");
@@ -206,7 +205,7 @@ export default function CheckoutPage() {
         sellerRef: refSeller || null
       };
 
-      // ================= COD =================
+      // COD
       if (paymentMethod === "COD") {
 
         const res = await fetch("/api/orders/cod", {
@@ -226,7 +225,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // ================= ONLINE =================
+      // ONLINE
       const res = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -280,52 +279,73 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-800 via-pink-600 to-orange-400 p-4 pb-36 text-white">
 
-      <h1 className="text-3xl font-bold text-center mb-6">
+      <h1 className="text-3xl font-extrabold text-center mb-6">
         Checkout 🛍
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl mb-4">
+      <div className="bg-white/20 backdrop-blur-3xl p-5 rounded-3xl shadow-xl border border-white/30 mb-4">
         <div className="flex justify-between mb-3">
-          <p className="font-semibold text-lg">Delivery Address</p>
-
-          <button onClick={() => router.push("/account")}>
+          <p className="font-semibold text-lg">Delivery Address 📍</p>
+          <button onClick={() => router.push("/account")} className="underline text-sm">
             Change
           </button>
         </div>
 
-        <div>
-          <p>{address?.name}</p>
-          <p>{address?.phone}</p>
-          <p>{address?.address}</p>
-        </div>
+        <p className="font-bold">{address?.name}</p>
+        <p>{address?.phone}</p>
+        <p>{address?.address}</p>
       </div>
 
       {/* PAYMENT */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+      <div className="bg-white/20 backdrop-blur-3xl p-4 rounded-3xl mb-4">
         <div className="flex gap-3">
-          <button onClick={() => setPaymentMethod("ONLINE")}>
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 py-3 rounded-xl ${
+              paymentMethod === "ONLINE" ? "bg-green-500" : "bg-white/20"
+            }`}
+          >
             Online 💳
           </button>
-          <button onClick={() => setPaymentMethod("COD")}>
+
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 py-3 rounded-xl ${
+              paymentMethod === "COD" ? "bg-yellow-500" : "bg-white/20"
+            }`}
+          >
             COD 🚚
           </button>
         </div>
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white/20 p-4 rounded-2xl mb-4">
-        <p>Items: ₹{itemsTotal}</p>
-        <p>Shipping: ₹{shipping}</p>
-        <p className="text-xl font-bold">Total: ₹{total}</p>
+      <div className="bg-white/20 backdrop-blur-3xl p-5 rounded-3xl mb-4">
+        <p className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </p>
+
+        <p className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </p>
+
+        <hr className="my-2 border-white/30" />
+
+        <p className="flex justify-between text-xl font-bold">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </p>
       </div>
 
       {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-4">
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
         <button
           onClick={handlePayment}
           disabled={loading}
-          className="w-full py-4 bg-black rounded-xl"
+          className="w-full py-4 bg-gradient-to-r from-purple-700 to-pink-600 rounded-xl font-bold"
         >
           {loading ? "Processing..." : `Pay ₹${total}`}
         </button>
