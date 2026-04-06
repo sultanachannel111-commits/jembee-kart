@@ -16,66 +16,111 @@ export async function POST(req: Request) {
 
     const {
       userId,
-      items,
-      itemsTotal,
-      shipping,
-      total,
+      items = [],
+      itemsTotal = 0,
+      shipping = 0,
+      total = 0,
       address,
       sellerRef
     } = body;
 
+    // =========================
+    // ❌ VALIDATION
+    // =========================
+    if (!userId) {
+      return NextResponse.json({ success: false, message: "User missing" });
+    }
+
+    if (!items || items.length === 0) {
+      return NextResponse.json({ success: false, message: "Cart empty" });
+    }
+
+    if (!address) {
+      return NextResponse.json({ success: false, message: "Address missing" });
+    }
+
     const orderId = "COD_" + Date.now();
 
-    // 💰 PROFIT
+    // =========================
+    // 💰 PROFIT CALCULATION
+    // =========================
     const totalProfit = items.reduce((sum: number, item: any) => {
-      return sum + (item.price - item.basePrice) * item.qty;
+
+      const sell = Number(item.price) || 0;
+      const base = Number(item.basePrice) || 0;
+      const qty = Number(item.qty) || 1;
+
+      return sum + (sell - base) * qty;
+
     }, 0);
 
+    // =========================
+    // 💸 SELLER COMMISSION
+    // =========================
     const commission = sellerRef
-      ? Math.floor(totalProfit * 0.5)
+      ? Math.floor(totalProfit * 0.5) // 50% seller earning
       : 0;
 
+    // =========================
     // 🧾 SAVE ORDER
+    // =========================
     await setDoc(doc(db, "orders", orderId), {
       orderId,
       userId,
       items,
-      itemsTotal,
-      shipping,
-      total,
+      itemsTotal: Number(itemsTotal) || 0,
+      shipping: Number(shipping) || 0,
+      total: Number(total) || 0,
       address,
+
+      // 🔥 SELLER
       sellerRef: sellerRef || null,
       commission,
+
+      // 🔥 PAYMENT
       paymentMethod: "COD",
       paymentStatus: "PENDING",
+
+      // 🔥 ORDER STATUS (UI)
       orderStatus: "PLACED",
+
+      // 🔥 EARNING STATUS (VERY IMPORTANT)
+      status: "PENDING", // 👉 seller earnings ke liye
+
       createdAt: serverTimestamp()
     });
 
     // =========================
-    // 🧹 CART CLEAR (🔥 ADD THIS)
+    // 🧹 CART CLEAR
     // =========================
     const snap = await getDocs(
       collection(db, "carts", userId, "items")
     );
 
-    const promises = snap.docs.map((d) =>
+    const deletePromises = snap.docs.map((d) =>
       deleteDoc(doc(db, "carts", userId, "items", d.id))
     );
 
-    await Promise.all(promises);
+    await Promise.all(deletePromises);
 
     console.log("🧹 Cart Cleared");
 
+    // =========================
+    // ✅ RESPONSE
+    // =========================
     return NextResponse.json({
       success: true,
       orderId
     });
 
   } catch (err: any) {
+
+    console.error("❌ ORDER ERROR:", err);
+
     return NextResponse.json({
       success: false,
-      message: err.message
+      message: err.message || "Something went wrong"
     });
+
   }
 }
