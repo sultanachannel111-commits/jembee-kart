@@ -3,114 +3,136 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
-collection,
-query,
-where,
-getDocs
+  collection,
+  query,
+  where,
+  getDocs
 } from "firebase/firestore";
 
 export default function SellerEarnings(){
 
-const [orders,setOrders] = useState(0);
-const [revenue,setRevenue] = useState(0);
-const [loading,setLoading] = useState(true);
+  const [orders,setOrders] = useState(0);
+  const [revenue,setRevenue] = useState(0);
 
-useEffect(()=>{
+  const [available,setAvailable] = useState(0);
+  const [pending,setPending] = useState(0);
 
-const loadEarnings = async()=>{
+  const [loading,setLoading] = useState(true);
 
-const user = auth.currentUser;
+  useEffect(()=>{
 
-if(!user) return;
+    const loadEarnings = async()=>{
 
-const q = query(
-collection(db,"orders"),
-where("sellerId","==",user.uid)
-);
+      const user = auth.currentUser;
+      if(!user) return;
 
-const snap = await getDocs(q);
+      const q = query(
+        collection(db,"orders"),
+        where("sellerRef","==",user.uid)
+      );
 
-let totalRevenue = 0;
+      const snap = await getDocs(q);
 
-snap.forEach((doc)=>{
+      let totalRevenue = 0;
+      let availableAmount = 0;
+      let pendingAmount = 0;
 
-const data:any = doc.data();
+      snap.forEach((doc)=>{
 
-totalRevenue += data.price || 0;
+        const data:any = doc.data();
 
-});
+        const total = Number(data.total) || 0;
+        const commission = Number(data.commission) || 0;
+        const status = data.status || "PENDING";
 
-setOrders(snap.size);
-setRevenue(totalRevenue);
-setLoading(false);
+        totalRevenue += total;
 
-};
+        // 🔥 CORE LOGIC
+        if(status === "DELIVERED"){
+          availableAmount += commission;
+        } else {
+          pendingAmount += commission;
+        }
 
-loadEarnings();
+      });
 
-},[]);
+      setOrders(snap.size);
+      setRevenue(totalRevenue);
+      setAvailable(availableAmount);
+      setPending(pendingAmount);
 
+      setLoading(false);
 
-if(loading){
-return(
-<div className="p-6">
-Loading earnings...
-</div>
-);
-}
+    };
 
-return(
+    loadEarnings();
 
-<div>
+  },[]);
 
-<h1 className="text-2xl font-bold mb-6">
-Seller Earnings
-</h1>
+  if(loading){
+    return(
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Loading earnings...
+      </div>
+    );
+  }
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  return(
 
-<div className="bg-white p-6 rounded-xl shadow">
+    <div className="min-h-screen bg-gradient-to-br from-purple-800 via-pink-600 to-orange-400 p-6 text-white">
 
-<p className="text-gray-500">
-Total Orders
-</p>
+      {/* HEADER */}
+      <h1 className="text-3xl font-bold mb-8">
+        Seller Earnings 💰
+      </h1>
 
-<h2 className="text-2xl font-bold">
-{orders}
-</h2>
+      {/* CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
-</div>
+        {/* ORDERS */}
+        <div className="bg-white/20 backdrop-blur-2xl p-6 rounded-2xl shadow-xl border border-white/30">
+          <p className="text-sm opacity-80">
+            Total Orders
+          </p>
+          <h2 className="text-3xl font-bold">
+            {orders}
+          </h2>
+        </div>
 
+        {/* SALES */}
+        <div className="bg-white/20 backdrop-blur-2xl p-6 rounded-2xl shadow-xl border border-white/30">
+          <p className="text-sm opacity-80">
+            Total Sales
+          </p>
+          <h2 className="text-3xl font-bold">
+            ₹{revenue}
+          </h2>
+        </div>
 
-<div className="bg-white p-6 rounded-xl shadow">
+        {/* AVAILABLE */}
+        <div className="bg-white/20 backdrop-blur-2xl p-6 rounded-2xl shadow-xl border border-white/30">
+          <p className="text-sm opacity-80">
+            Available Balance ✅
+          </p>
+          <h2 className="text-3xl font-bold text-green-300">
+            ₹{available}
+          </h2>
+        </div>
 
-<p className="text-gray-500">
-Total Revenue
-</p>
+        {/* PENDING */}
+        <div className="bg-white/20 backdrop-blur-2xl p-6 rounded-2xl shadow-xl border border-white/30">
+          <p className="text-sm opacity-80">
+            Pending Earnings ⏳
+          </p>
+          <h2 className="text-3xl font-bold text-yellow-300">
+            ₹{pending}
+          </h2>
+        </div>
 
-<h2 className="text-2xl font-bold">
-₹{revenue}
-</h2>
+      </div>
 
-</div>
+    </div>
 
-
-<div className="bg-white p-6 rounded-xl shadow">
-
-<p className="text-gray-500">
-Available Balance
-</p>
-
-<h2 className="text-2xl font-bold">
-₹{revenue}
-</h2>
-
-</div>
-
-</div>
-
-</div>
-
-);
+  );
 
 }
