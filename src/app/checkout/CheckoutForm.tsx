@@ -6,7 +6,8 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc
+  getDoc,
+  onSnapshot
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,10 +19,8 @@ export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
   const [address, setAddress] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-
   const [items, setItems] = useState<any[]>([]);
-  const [refSeller, setRefSeller] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
@@ -34,142 +33,101 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 LOAD DATA (FIXED)
-  // =========================
-  const loadData = async (u: any) => {
-
-    console.log("🔥 LOAD START");
-
-    const buyNow = localStorage.getItem("buy-now");
-    const cart = localStorage.getItem("cart");
-
-    // =====================
-    // ✅ ITEMS FIX (MAIN BUG FIX)
-    // =====================
-    try {
-
-      if (buyNow) {
-        const parsed = JSON.parse(buyNow);
-
-        const item = {
-          ...parsed,
-          qty: Number(parsed.quantity) || 1,
-          price: Number(parsed.price) || 0,
-          basePrice: Number(parsed.basePrice || parsed.price) || 0,
-          image: parsed.image || "/no-image.png"
-        };
-
-        console.log("✅ BUY NOW ITEM:", item);
-        setItems([item]);
-
-      } else if (cart) {
-
-        const parsedCart = JSON.parse(cart);
-
-        const clean = Array.isArray(parsedCart)
-          ? parsedCart.map((i: any) => ({
-              ...i,
-              price: Number(i.price) || 0,
-              qty: Number(i.qty || i.quantity) || 1,
-              image: i.image || "/no-image.png"
-            }))
-          : [];
-
-        console.log("✅ CART ITEMS:", clean);
-
-        setItems(clean);
-
-      } else {
-        console.log("❌ NO CART FOUND");
-        setItems([]);
-      }
-
-    } catch (err) {
-      console.log("❌ CART PARSE ERROR:", err);
-      setItems([]);
-    }
-
-    // =====================
-    // 📍 ADDRESS
-    // =====================
-    const addrSnap = await getDocs(
-      collection(db, "users", u.uid, "addresses")
-    );
-
-    let all: any[] = [];
-    let defaultAddr: any = null;
-
-    addrSnap.forEach(d => {
-      const data = { id: d.id, ...d.data() };
-      all.push(data);
-      if (data.isDefault) defaultAddr = data;
-    });
-
-    console.log("📍 ADDRESSES:", all);
-
-    setAddresses(all);
-
-    setAddress(prev => {
-      if (prev && all.find(a => a.id === prev.id)) return prev;
-      return defaultAddr || all[0] || null;
-    });
-
-    // =====================
-    // 🚚 SHIPPING
-    // =====================
-    const shipSnap = await getDoc(doc(db, "config", "shipping"));
-
-    if (shipSnap.exists()) {
-      const data = shipSnap.data();
-
-      setShippingConfig({
-        prepaid: Number(data.prepaid) || 0,
-        cod: Number(data.cod) || 0,
-        freeShippingAbove: Number(data.freeShippingAbove) || 0
-      });
-    }
-
-    console.log("🔥 LOAD END");
-  };
-
-  // =========================
-  // INIT
+  // 🔥 AUTH + LOAD
   // =========================
   useEffect(() => {
 
-    const seller = localStorage.getItem("refSeller");
-    setRefSeller(seller);
+    let unsubscribe: any;
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+
       if (!u) return router.push("/login");
+
       setUser(u);
-      await loadData(u);
+
+      // =====================
+      // 🛒 LIVE CART (Firestore)
+      // =====================
+      const ref = collection(db, "carts", u.uid, "items");
+
+      unsubscribe = onSnapshot(ref, (snap) => {
+
+        const data: any[] = [];
+
+        snap.forEach(docSnap => {
+
+          const d: any = docSnap.data();
+
+          const price =
+            d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+            d.price ||
+            0;
+
+          data.push({
+            id: docSnap.id,
+            productId: d.productId,
+            name: d.name,
+            image: d.image || "/no-image.png",
+            price: Number(price) || 0,
+            qty: Number(d.quantity) || 1
+          });
+
+        });
+
+        console.log("🔥 FIRESTORE CART:", data);
+
+        setItems(data);
+
+      });
+
+      // =====================
+      // 📍 ADDRESS
+      // =====================
+      const addrSnap = await getDocs(
+        collection(db, "users", u.uid, "addresses")
+      );
+
+      let all: any[] = [];
+      let defaultAddr: any = null;
+
+      addrSnap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        all.push(data);
+        if (data.isDefault) defaultAddr = data;
+      });
+
+      setAddresses(all);
+      setAddress(defaultAddr || all[0] || null);
+
+      // =====================
+      // 🚚 SHIPPING
+      // =====================
+      const shipSnap = await getDoc(doc(db, "config", "shipping"));
+
+      if (shipSnap.exists()) {
+        const data = shipSnap.data();
+
+        setShippingConfig({
+          prepaid: Number(data.prepaid) || 0,
+          cod: Number(data.cod) || 0,
+          freeShippingAbove: Number(data.freeShippingAbove) || 0
+        });
+      }
+
     });
 
-    return () => unsub();
-
-  }, []);
-
-  // =========================
-  // BACK FIX
-  // =========================
-  useEffect(() => {
-    const handleFocus = () => {
-      if (auth.currentUser) {
-        console.log("🔄 REFRESH");
-        loadData(auth.currentUser);
-      }
+    return () => {
+      unsub();
+      if (unsubscribe) unsubscribe();
     };
 
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   // =========================
-  // 💰 TOTAL FIXED
+  // 💰 TOTAL
   // =========================
   const itemsTotal = items.reduce((sum, i) => {
-    return sum + (Number(i.price) || 0) * (Number(i.qty) || 1);
+    return sum + i.price * i.qty;
   }, 0);
 
   let shipping =
@@ -186,14 +144,10 @@ export default function CheckoutPage() {
 
   const total = itemsTotal + shipping;
 
-  console.log("💰 TOTAL:", total);
-
   // =========================
-  // 🚀 PAYMENT (DEBUG SAFE)
+  // 🚀 PAYMENT
   // =========================
   const handlePayment = async () => {
-
-    console.log("🔥 PAYMENT CLICK");
 
     if (!address) return alert("Add address ❌");
     if (items.length === 0) return alert("Cart empty ❌");
@@ -207,11 +161,10 @@ export default function CheckoutPage() {
         itemsTotal,
         shipping,
         total,
-        address,
-        sellerRef: refSeller || null
+        address
       };
 
-      console.log("📦 ORDER DATA:", orderData);
+      console.log("📦 ORDER:", orderData);
 
       // COD
       if (paymentMethod === "COD") {
@@ -224,12 +177,7 @@ export default function CheckoutPage() {
 
         const data = await res.json();
 
-        console.log("✅ COD RESPONSE:", data);
-
         if (!data.success) return alert("Order failed ❌");
-
-        localStorage.removeItem("buy-now");
-        localStorage.removeItem("cart");
 
         router.replace(`/order-success/${data.orderId}`);
         return;
@@ -252,13 +200,6 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      console.log("💳 PAYMENT RESPONSE:", data);
-
-      if (!data.payment_session_id) {
-        alert("Payment error ❌");
-        return;
-      }
-
       const cashfree = await load({ mode: "production" });
 
       await cashfree.checkout({
@@ -267,7 +208,7 @@ export default function CheckoutPage() {
       });
 
     } catch (err) {
-      console.log("❌ PAYMENT ERROR:", err);
+      console.log(err);
       alert("Payment error ❌");
     }
 
@@ -275,7 +216,7 @@ export default function CheckoutPage() {
   };
 
   // =========================
-  // UI (UNCHANGED)
+  // 🎨 UI
   // =========================
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-700 via-pink-600 to-orange-400 p-4 pb-32 text-white">
@@ -284,73 +225,66 @@ export default function CheckoutPage() {
         Checkout 🛍
       </h1>
 
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
+      {/* ADDRESS */}
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl mb-4">
 
-        <div className="flex justify-between items-center mb-3">
-          <p className="font-semibold text-lg">Delivery Address 📍</p>
+        <div className="flex justify-between mb-3">
+          <p className="font-semibold">Delivery Address 📍</p>
 
-          <button
-            onClick={() => router.push("/account")}
-            className="text-sm text-blue-300 underline"
-          >
+          <button onClick={() => router.push("/account")}>
             Change
           </button>
         </div>
 
-        {address ? (
-          <div className="text-sm space-y-1">
+        {address && (
+          <div className="text-sm">
             <p className="font-bold">{address.name}</p>
             <p>{address.phone}</p>
             <p>{address.address}</p>
-            <p>{address.city}, {address.state}</p>
           </div>
-        ) : (
-          <p>No address ❌</p>
         )}
 
-        <div className="flex gap-3 mt-4 overflow-x-auto">
-          {addresses.map((a) => (
-            <div
-              key={a.id}
-              onClick={() => setAddress(a)}
-              className={`p-3 min-w-[160px] rounded-2xl cursor-pointer ${
-                address?.id === a.id
-                  ? "bg-green-500 scale-105"
-                  : "bg-white/20"
-              }`}
-            >
-              <p className="text-xs font-bold">{a.name}</p>
-              <p className="text-xs">{a.city}</p>
-            </div>
-          ))}
+      </div>
+
+      {/* PAYMENT */}
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+        <div className="flex gap-3">
+          <button onClick={() => setPaymentMethod("ONLINE")}>
+            Online 💳
+          </button>
+          <button onClick={() => setPaymentMethod("COD")}>
+            COD 🚚
+          </button>
         </div>
-
       </div>
 
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
-        <p className="flex justify-between">
-          <span>Items</span>
-          <span>₹{itemsTotal}</span>
-        </p>
-
-        <p className="flex justify-between">
-          <span>Shipping</span>
-          <span>₹{shipping}</span>
-        </p>
-
-        <hr className="my-3 border-white/30"/>
-
-        <p className="flex justify-between text-xl font-bold">
-          <span>Total</span>
-          <span>₹{total}</span>
-        </p>
+      {/* SUMMARY */}
+      <div className="bg-white/20 p-4 rounded-2xl mb-4">
+        <p>Items: ₹{itemsTotal}</p>
+        <p>Shipping: ₹{shipping}</p>
+        <p className="text-xl font-bold">Total: ₹{total}</p>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
+      {/* ITEMS */}
+      {items.map((item) => (
+        <div key={item.id} className="bg-white/20 p-3 rounded mb-2 flex gap-3">
+
+          <img src={item.image} className="w-16 h-16 rounded"/>
+
+          <div>
+            <p>{item.name}</p>
+            <p>Qty: {item.qty}</p>
+            <p>₹{item.price}</p>
+          </div>
+
+        </div>
+      ))}
+
+      {/* BUTTON */}
+      <div className="fixed bottom-0 left-0 w-full p-4">
         <button
           onClick={handlePayment}
-          disabled={loading}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-lg"
+          className="w-full py-4 bg-black rounded-xl"
         >
           {loading ? "Processing..." : `Pay ₹${total}`}
         </button>
