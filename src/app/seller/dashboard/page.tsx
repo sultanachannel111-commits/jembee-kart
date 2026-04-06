@@ -38,7 +38,7 @@ export default function SellerDashboard() {
   const [pending, setPending] = useState(0);
   const [available, setAvailable] = useState(0);
 
-  // 🔥 LOAD DATA
+  // 🔥 LOAD DATA (SYNC WITH EARNINGS PAGE)
   useEffect(() => {
 
     const loadDashboard = async () => {
@@ -48,7 +48,7 @@ export default function SellerDashboard() {
 
       const q = query(
         collection(db, "orders"),
-        where("sellerRef", "==", user.uid) // ✅ correct
+        where("sellerRef", "==", user.uid)
       );
 
       const snap = await getDocs(q);
@@ -56,31 +56,35 @@ export default function SellerDashboard() {
       let totalRevenue = 0;
       let pendingAmount = 0;
       let availableAmount = 0;
+      let totalOrders = 0;
 
       snap.forEach((doc) => {
 
         const data: any = doc.data();
 
-        totalRevenue += data.total || 0;
+        totalOrders++;
 
-        // 🔥 UPDATED PENDING LOGIC (IMPORTANT FIX)
+        // 🔥 TOTAL SALES
+        totalRevenue += Number(data.total) || 0;
+
+        // 🔥 PENDING (EARNINGS PAGE SAME LOGIC)
         if (
           data.status === "PENDING" ||
           data.status === "PLACED" ||
           data.status === "Processing" ||
           data.status === "Shipped"
         ) {
-          pendingAmount += data.commission || 0;
+          pendingAmount += Number(data.commission) || 0;
         }
 
-        // ✅ AVAILABLE (NO CHANGE)
+        // 🔥 AVAILABLE (DELIVERED ONLY)
         if (data.status === "DELIVERED") {
-          availableAmount += data.commission || 0;
+          availableAmount += Number(data.commission) || 0;
         }
 
       });
 
-      setOrders(snap.size);
+      setOrders(totalOrders);
       setRevenue(totalRevenue);
       setPending(pendingAmount);
       setAvailable(availableAmount);
