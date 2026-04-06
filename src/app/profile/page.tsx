@@ -22,57 +22,78 @@ export default function TrackPage() {
 
   const created = order.createdAt?.toDate?.() || new Date();
 
-  // 🔥 AUTO ROUTE (INDIA STYLE)
+  // 🔥 REAL ROUTE FLOW
   const trackingData = order.tracking || [
     { status: "Order Placed", location: "Jamshedpur", date: created },
-    { status: "Shipped", location: "Kolkata", date: addDays(created, 1) },
-    { status: "In Transit", location: "Delhi", date: addDays(created, 2) },
-    { status: "In Transit", location: "Nagpur", date: addDays(created, 3) },
-    { status: "In Transit", location: "Mumbai", date: addDays(created, 4) },
+    { status: "Shipped", location: "Kolkata Hub", date: addDays(created, 1) },
+    { status: "In Transit", location: "Delhi Hub", date: addDays(created, 2) },
+    { status: "In Transit", location: "Nagpur Hub", date: addDays(created, 3) },
+    { status: "In Transit", location: "Mumbai Hub", date: addDays(created, 4) },
     { status: "Out for Delivery", location: "Your City", date: addDays(created, 5) },
     { status: "Delivered", location: "Home", date: addDays(created, 6) },
   ];
 
-  const currentIndex = trackingData.findIndex(t =>
-    t.status.toUpperCase() === (order.status || "PENDING").toUpperCase()
+  const currentIndex = Math.max(
+    0,
+    trackingData.findIndex(
+      t =>
+        t.status.toUpperCase().includes(
+          (order.status || "PENDING").toUpperCase()
+        )
+    )
   );
 
   const deliveryDate = addDays(created, 6);
 
   return (
-    <div className="p-4 min-h-screen bg-gradient-to-br from-purple-300 via-pink-200 to-white">
 
-      <div className="glass p-5 rounded-2xl">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-300 via-pink-200 to-orange-100">
+
+      <div className="glass p-5 rounded-2xl shadow-xl">
 
         {/* HEADER */}
-        <h1 className="text-xl font-bold mb-2">
+        <h1 className="text-2xl font-bold mb-1">
           🚚 Live Tracking
         </h1>
 
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-600 mb-4">
           Expected Delivery: <b>{deliveryDate.toDateString()}</b>
         </p>
 
         {/* CURRENT STATUS */}
-        <div className="mb-4">
+        <div className="glass p-3 rounded-xl mb-4 text-center">
           <p className="text-green-600 font-semibold text-lg">
-            {trackingData[currentIndex]?.status || "Processing"}
+            {trackingData[currentIndex]?.status}
           </p>
           <p className="text-sm text-gray-500">
             📍 {trackingData[currentIndex]?.location}
           </p>
         </div>
 
-        {/* PROGRESS */}
-        <div className="h-2 bg-gray-300 rounded-full">
+        {/* PROGRESS BAR */}
+        <div className="relative h-2 bg-gray-300 rounded-full overflow-hidden">
           <div
-            className="h-2 bg-green-500 rounded-full transition-all duration-700"
-            style={{ width: `${((currentIndex + 1) / trackingData.length) * 100}%` }}
+            className="h-2 bg-gradient-to-r from-green-400 to-green-600 transition-all duration-700"
+            style={{
+              width: `${((currentIndex + 1) / trackingData.length) * 100}%`
+            }}
           />
         </div>
 
-        {/* TIMELINE */}
-        <div className="mt-6">
+        {/* STEPS */}
+        <div className="flex justify-between text-[10px] mt-2">
+          {trackingData.map((t: any, i: number) => (
+            <span
+              key={i}
+              className={i <= currentIndex ? "text-green-600" : "text-gray-400"}
+            >
+              {t.location.split(" ")[0]}
+            </span>
+          ))}
+        </div>
+
+        {/* 🔥 TIMELINE */}
+        <div className="mt-6 space-y-4">
 
           {trackingData.map((t: any, i: number) => {
 
@@ -80,11 +101,18 @@ export default function TrackPage() {
             const done = i < currentIndex;
 
             return (
-              <div key={i} className="flex gap-3 mb-5">
+              <div
+                key={i}
+                className={`flex gap-4 p-3 rounded-xl transition ${
+                  active
+                    ? "glass border border-green-400"
+                    : "bg-white/40"
+                }`}
+              >
 
                 {/* DOT */}
                 <div
-                  className={`w-4 h-4 mt-1 rounded-full ${
+                  className={`w-4 h-4 mt-2 rounded-full ${
                     active
                       ? "bg-green-600 animate-pulse"
                       : done
@@ -93,9 +121,13 @@ export default function TrackPage() {
                   }`}
                 />
 
-                {/* CONTENT */}
+                {/* TEXT */}
                 <div>
-                  <p className={`font-semibold ${active ? "text-green-600" : ""}`}>
+                  <p
+                    className={`font-semibold ${
+                      active ? "text-green-600" : ""
+                    }`}
+                  >
                     {t.status}
                   </p>
 
@@ -115,17 +147,17 @@ export default function TrackPage() {
         </div>
 
         {/* EXTRA STATUS */}
-        <div className="mt-4 text-center">
+        <div className="mt-6 text-center">
 
           {trackingData[currentIndex]?.status === "Out for Delivery" && (
             <p className="text-green-600 font-semibold animate-pulse">
-              🛵 Rider is coming to your location!
+              🛵 Rider is out for delivery!
             </p>
           )}
 
           {trackingData[currentIndex]?.status === "Delivered" && (
             <p className="text-green-700 font-bold">
-              🎉 Package Delivered Successfully
+              🎉 Delivered Successfully
             </p>
           )}
 
@@ -137,7 +169,7 @@ export default function TrackPage() {
   );
 }
 
-// 🔥 HELPER
+// HELPER
 function addDays(date: Date, days: number) {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
