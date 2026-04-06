@@ -1,191 +1,173 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  DollarSign,
+  Wallet,
+  BadgeCheck,
+  Star,
+  BarChart3,
+  MessageCircle,
+  Megaphone,
+  Tag,
+  Bell,
+  User,
+  Settings,
+  Trophy
+} from "lucide-react";
+
 import { db, auth } from "@/lib/firebase";
 import {
   collection,
   query,
   where,
-  getDocs,
-  doc,
-  updateDoc
+  getDocs
 } from "firebase/firestore";
 
-export default function SellerOrders(){
+export default function SellerDashboard() {
 
-  const [orders,setOrders] = useState<any[]>([]);
-  const [loading,setLoading] = useState(true);
+  const router = useRouter();
 
-  // ================= LOAD ORDERS =================
-  const loadOrders = async()=>{
+  // 🔥 STATES
+  const [orders, setOrders] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [available, setAvailable] = useState(0);
 
-    const user = auth.currentUser;
-    if(!user) return;
+  useEffect(() => {
 
-    try{
+    const loadDashboard = async () => {
+
+      const user = auth.currentUser;
+      if (!user) return;
 
       const q = query(
-        collection(db,"orders"),
-        where("sellerRef","==",user.uid)
+        collection(db, "orders"),
+        where("sellerRef", "==", user.uid)
       );
 
       const snap = await getDocs(q);
 
-      let list:any = [];
+      let totalRevenue = 0;
+      let pendingAmount = 0;
+      let availableAmount = 0;
+      let totalOrders = 0;
 
-      snap.forEach((d)=>{
+      snap.forEach((doc) => {
 
-        const data:any = d.data();
+        const data: any = doc.data();
 
-        list.push({
-          id:d.id,
-          ...data
-        });
+        totalOrders++;
+
+        const total = Number(data.total) || 0;
+        const commission = Number(data.commission) || 0;
+
+        // 🔥 STATUS NORMALIZE (IMPORTANT)
+        const status = (data.orderStatus || data.status || "PENDING").toUpperCase();
+
+        // ✅ TOTAL SALES (sirf display ke liye)
+        totalRevenue += total;
+
+        // ✅ SAME LOGIC AS EARNINGS PAGE
+        if (status === "DELIVERED") {
+          availableAmount += commission;
+        } else {
+          pendingAmount += commission;
+        }
 
       });
 
-      setOrders(list);
+      setOrders(totalOrders);
+      setRevenue(totalRevenue);
+      setPending(pendingAmount);
+      setAvailable(availableAmount);
 
-    }catch(err){
-      console.log("Order Load Error:",err);
-    }
+    };
 
-    setLoading(false);
-  };
+    loadDashboard();
 
-  useEffect(()=>{
-    loadOrders();
-  },[]);
+  }, []);
 
-  // ================= UPDATE STATUS =================
-  const updateStatus = async(id:string,status:string)=>{
+  // 🔥 CARDS
+  const cards = [
+    { title: "Dashboard", icon: <LayoutDashboard />, path: "/seller/dashboard" },
+    { title: "Add Product", icon: <Package />, path: "/seller/add-product" },
+    { title: "All Products", icon: <Package />, path: "/seller/products" },
+    { title: "Orders", icon: <ShoppingCart />, path: "/seller/orders" },
+    { title: "Inventory", icon: <Package />, path: "/seller/inventory" },
+    { title: "Earnings", icon: <DollarSign />, path: "/seller/earnings" },
+    { title: "Withdraw", icon: <Wallet />, path: "/seller/withdraw" },
+    { title: "KYC", icon: <BadgeCheck />, path: "/seller/kyc" },
+    { title: "Reviews", icon: <Star />, path: "/seller/reviews" },
+    { title: "Analytics", icon: <BarChart3 />, path: "/seller/analytics" },
+    { title: "Messages", icon: <MessageCircle />, path: "/seller/messages" },
+    { title: "Promotions", icon: <Megaphone />, path: "/seller/promotions" },
+    { title: "Coupons", icon: <Tag />, path: "/seller/coupons" },
+    { title: "Notifications", icon: <Bell />, path: "/seller/notifications" },
+    { title: "Profile", icon: <User />, path: "/seller/profile" },
+    { title: "Settings", icon: <Settings />, path: "/seller/settings" },
+    { title: "Ranking", icon: <Trophy />, path: "/seller/ranking" },
+  ];
 
-    try{
+  return (
+    <div className="min-h-screen p-4 bg-gradient-to-br from-purple-200 via-pink-100 to-white">
 
-      await updateDoc(
-        doc(db,"orders",id),
-        {
-          status:status,
-
-          ...(status === "DELIVERED" && {
-            orderStatus:"DELIVERED",
-            paymentStatus:"SUCCESS"
-          })
-        }
-      );
-
-      loadOrders();
-
-    }catch(err){
-      console.log("Status Update Error:",err);
-    }
-  };
-
-  // ================= LOADING =================
-  if(loading){
-    return(
-      <div className="p-6 text-center">
-        Loading orders...
-      </div>
-    );
-  }
-
-  // ================= EMPTY =================
-  if(orders.length === 0){
-    return(
-      <div className="p-6 text-center">
-        No orders found ❌
-      </div>
-    );
-  }
-
-  // ================= UI =================
-  return(
-
-    <div className="min-h-screen p-4 bg-gray-50">
-
-      <h1 className="text-2xl font-bold mb-6">
-        Seller Orders 📦
+      {/* HEADER */}
+      <h1 className="text-2xl font-bold mb-4">
+        Seller Dashboard 🚀
       </h1>
 
-      <div className="space-y-4">
+      {/* 🔥 STATS (FIXED) */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
 
-        {orders.map((o:any)=>{
+        <div className="glass p-3 rounded-xl text-center">
+          <p className="text-sm">Orders</p>
+          <p className="font-bold text-lg">{orders}</p>
+        </div>
 
-          // 🔥 FIX STATUS
-          const status = o.orderStatus || o.status || "PENDING";
+        <div className="glass p-3 rounded-xl text-center">
+          <p className="text-sm">Revenue</p>
+          <p className="font-bold text-lg text-blue-600">₹{revenue}</p>
+        </div>
 
-          return(
+        <div className="glass p-3 rounded-xl text-center">
+          <p className="text-sm text-yellow-600">Pending Earnings ⏳</p>
+          <p className="font-bold text-lg">₹{pending}</p>
+        </div>
 
-            <div
-              key={o.id}
-              className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
-            >
+        <div className="glass p-3 rounded-xl text-center">
+          <p className="text-sm text-green-600">Available Earnings 💸</p>
+          <p className="font-bold text-lg">₹{available}</p>
+        </div>
 
-              {/* LEFT */}
-              <div>
+      </div>
 
-                <h2 className="font-bold">
-                  {o.productName || "Product"}
-                </h2>
+      {/* 🔥 GRID */}
+      <div className="grid grid-cols-2 gap-4">
 
-                <p className="text-gray-500 text-sm">
-                  Customer: {o.address?.name || o.customerName || "N/A"}
-                </p>
-
-                <p className="text-gray-500 text-sm">
-                  Price: ₹{o.total || o.price || 0}
-                </p>
-
-                {/* 🔥 NEW: COMMISSION */}
-                <p className="text-green-600 text-sm font-semibold">
-                  Commission: ₹{o.commission || 0}
-                </p>
-
-                {/* 🔥 NEW: EARNING STATUS */}
-                <p className={`text-sm ${
-                  status === "DELIVERED"
-                    ? "text-green-600"
-                    : "text-yellow-600"
-                }`}>
-                  Earning: {status === "DELIVERED" ? "Available 💸" : "Pending ⏳"}
-                </p>
-
-                <p className="text-sm text-gray-400">
-                  Status: {status}
-                </p>
-
-              </div>
-
-              {/* RIGHT BUTTONS */}
-              <div className="space-x-2">
-
-                <button
-                  onClick={()=>updateStatus(o.id,"Shipped")}
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
-                >
-                  Ship
-                </button>
-
-                <button
-                  onClick={()=>updateStatus(o.id,"DELIVERED")}
-                  className="bg-green-500 text-white px-3 py-1 rounded"
-                >
-                  Deliver
-                </button>
-
-              </div>
-
+        {cards.map((c, i) => (
+          <div
+            key={i}
+            onClick={() => router.push(c.path)}
+            className="cursor-pointer p-4 rounded-2xl shadow-md 
+                       backdrop-blur-lg bg-white/70 border hover:scale-105 transition"
+          >
+            <div className="text-pink-600 mb-2">
+              {c.icon}
             </div>
 
-          );
-
-        })}
+            <p className="font-semibold text-sm">
+              {c.title}
+            </p>
+          </div>
+        ))}
 
       </div>
 
     </div>
-
   );
-
 }
