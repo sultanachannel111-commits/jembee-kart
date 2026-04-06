@@ -1,3 +1,7 @@
+*Profile page 
+
+
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,14 +20,13 @@ import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
 
-  const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]);
 
   const [name, setName] = useState("");
-  const [address, setAddress] = useState(""); // 🔥 NEW
   const [editing, setEditing] = useState(false);
 
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [reason, setReason] = useState("");
   const [issue, setIssue] = useState("");
@@ -38,12 +41,12 @@ export default function ProfilePage() {
 
       setUser(u);
 
+      // 👤 NAME
       const userRef = doc(db, "users", u.uid);
       const snap = await getDoc(userRef);
 
       if (snap.exists()) {
-        setName(snap.data().name || "");
-        setAddress(snap.data().address || ""); // 🔥 LOAD ADDRESS
+        setName(snap.data().name);
       } else {
         setName(u.email.split("@")[0]);
       }
@@ -51,7 +54,7 @@ export default function ProfilePage() {
       // 📦 ORDERS
       const snapOrders = await getDocs(collection(db, "orders"));
 
-      const arr: any[] = [];
+      const arr = [];
       snapOrders.forEach(d => {
         const data = d.data();
         if (data.userId === u.uid) {
@@ -67,11 +70,42 @@ export default function ProfilePage() {
   }, []);
 
   // 🚚 DELIVERY DATE
-  const getDeliveryDate = (order: any) => {
+  const getDeliveryDate = (order) => {
     if (!order.createdAt?.toDate) return "N/A";
     const d = order.createdAt.toDate();
     d.setDate(d.getDate() + 5);
     return d.toDateString();
+  };
+
+  // 📊 STATUS TEXT
+  const getTrackingText = (status) => {
+    switch (status) {
+      case "Pending":
+        return "Order placed, preparing 📦";
+      case "Placed":
+        return "Order confirmed ✅";
+      case "Shipped":
+        return "Shipped from warehouse 🚚";
+      case "Out for Delivery":
+        return "Out for delivery 🛵";
+      case "Delivered":
+        return "Delivered successfully 🎉";
+      default:
+        return "Processing...";
+    }
+  };
+
+  // 📅 TIMELINE
+  const getDates = (order) => {
+    if (!order.createdAt?.toDate) return {};
+    const base = order.createdAt.toDate();
+
+    return {
+      ordered: base.toDateString(),
+      shipped: new Date(base.getTime() + 2 * 86400000).toDateString(),
+      out: new Date(base.getTime() + 4 * 86400000).toDateString(),
+      delivered: new Date(base.getTime() + 5 * 86400000).toDateString()
+    };
   };
 
   const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
@@ -86,48 +120,25 @@ export default function ProfilePage() {
           <>
             <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-            {/* 🔥 ADDRESS SHOW */}
-            {address && (
-              <p className="text-sm text-gray-600 mt-1">
-                📍 {address}
-              </p>
-            )}
-
             <button
               onClick={() => setEditing(true)}
               className="text-blue-600 text-sm mt-1"
             >
-              Edit Profile
+              Edit Name
             </button>
           </>
         ) : (
           <>
-            {/* NAME */}
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter name"
-              className="border p-2 rounded w-full mb-2"
-            />
-
-            {/* 🔥 ADDRESS INPUT */}
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter address"
-              className="border p-2 rounded w-full mb-2"
+              className="border p-2 rounded w-full"
             />
 
             <button
               onClick={async () => {
-
-                await setDoc(doc(db, "users", user.uid), {
-                  name,
-                  address // 🔥 SAVE ADDRESS
-                }, { merge: true });
-
+                await setDoc(doc(db, "users", user.uid), { name });
                 setEditing(false);
-
               }}
               className="bg-green-600 text-white px-4 py-1 rounded mt-2"
             >
@@ -166,6 +177,8 @@ export default function ProfilePage() {
         const progress =
           current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
 
+        const d = getDates(o);
+
         return (
           <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
 
@@ -198,13 +211,53 @@ export default function ProfilePage() {
               🚚 Expected Delivery: {getDeliveryDate(o)}
             </p>
 
-            {/* PROGRESS */}
+            {/* TRACK BAR */}
             <div className="mt-3">
               <div className="h-2 bg-gray-300 rounded-full" />
               <div
                 className="h-2 bg-green-500 rounded-full -mt-2"
                 style={{ width: `${progress}%` }}
               />
+            </div>
+
+            <div className="flex justify-between text-[10px] mt-2">
+              {steps.map((s, i) => (
+                <span key={i} className={i <= current ? "text-green-600" : ""}>
+                  {s}
+                </span>
+              ))}
+            </div>
+
+            {/* 🚚 LIVE STATUS */}
+            <div className="mt-3 bg-gray-50 p-3 rounded-xl">
+              <p className="text-green-600 font-semibold">
+                {getTrackingText(o.status)}
+              </p>
+
+              <p className="text-xs mt-2 text-gray-500">
+                📍 Rider near your area
+              </p>
+
+              {/* TIMELINE */}
+              <div className="mt-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Ordered</span>
+                  <span>{d.ordered}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipped</span>
+                  <span>{d.shipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Out</span>
+                  <span>{d.out}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>Delivery</span>
+                  <span>{d.delivered}</span>
+                </div>
+              </div>
+
             </div>
 
             {/* BUTTONS */}
@@ -230,6 +283,60 @@ export default function ProfilePage() {
           </div>
         );
       })}
+
+      {/* HELP MODAL */}
+      {showHelp && selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md">
+
+            <button
+              onClick={async () => {
+                await updateDoc(doc(db, "orders", selectedOrder.id), {
+                  status: "Cancelled"
+                });
+                alert("Cancelled ✅");
+                setShowHelp(false);
+              }}
+              className="w-full bg-red-500 text-white p-2 rounded mb-3"
+            >
+              Cancel Order
+            </button>
+
+            <select
+              className="w-full border p-2 mb-2"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            >
+              <option value="">Select Reason</option>
+              <option>Wrong Product</option>
+              <option>Damaged Product</option>
+              <option>Other</option>
+            </select>
+
+            <button
+              onClick={async () => {
+                if (!reason) return alert("Select reason");
+
+                await addDoc(collection(db, "returns"), {
+                  orderId: selectedOrder.id,
+                  userId: selectedOrder.userId,
+                  reason,
+                  issue,
+                  status: "Requested",
+                  createdAt: new Date()
+                });
+
+                alert("Return sent ✅");
+                setShowHelp(false);
+              }}
+              className="w-full bg-green-600 text-white p-2 rounded"
+            >
+              Request Return
+            </button>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
