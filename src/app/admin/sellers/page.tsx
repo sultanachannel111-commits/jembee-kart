@@ -1,158 +1,190 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+  setDoc,
+  increment
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function SellersPage() {
 
-const [sellers,setSellers]=useState<any[]>([]);
-const [loading,setLoading]=useState(false);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-useEffect(()=>{
-loadSellers();
-},[]);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
-async function loadSellers(){
+  // ================= LOAD ALL =================
+  async function loadAll() {
 
-const snap = await getDocs(collection(db,"users"));
+    // USERS
+    const userSnap = await getDocs(collection(db, "users"));
 
-const list = snap.docs
-.map(d=>({
-id:d.id,
-...d.data()
-}))
-.filter((u:any)=>u.role==="seller");
+    const sellerList = userSnap.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .filter((u: any) => u.role === "seller");
 
-setSellers(list);
+    setSellers(sellerList);
 
-}
+    // ORDERS
+    const orderSnap = await getDocs(collection(db, "orders"));
 
-async function toggleSeller(id:string,active:boolean){
+    const orderList = orderSnap.docs.map(d => d.data());
 
-setLoading(true);
+    setOrders(orderList);
+  }
 
-await updateDoc(doc(db,"users",id),{
-active:!active
-});
+  // ================= TOGGLE SELLER =================
+  async function toggleSeller(id: string, active: boolean) {
+    setLoading(true);
 
-await loadSellers();
+    await updateDoc(doc(db, "users", id), {
+      active: !active
+    });
 
-setLoading(false);
+    await loadAll();
+    setLoading(false);
+  }
 
-}
+  // ================= CALCULATE DATA =================
+  const sellerStats: any = {};
 
-return(
+  orders.forEach((o: any) => {
 
-<div className="p-6">
+    if (!o.sellerRef) return;
 
-{/* HEADER */}
+    if (!sellerStats[o.sellerRef]) {
+      sellerStats[o.sellerRef] = {
+        orders: 0,
+        commission: 0
+      };
+    }
 
-<div className="mb-8">
+    sellerStats[o.sellerRef].orders += 1;
+    sellerStats[o.sellerRef].commission += o.commission || 0;
 
-<h1 className="text-3xl font-bold text-purple-600">
-Seller Management
-</h1>
+  });
 
-<p className="text-gray-500 text-sm">
-View and manage all platform sellers
-</p>
+  // ================= PAYOUT =================
+  async function markPaid(sellerId: string, amount: number) {
 
-</div>
+    if (!confirm("Mark payout as paid?")) return;
 
+    await setDoc(doc(db, "payouts", sellerId), {
+      sellerId,
+      amount,
+      paidAt: new Date(),
+    });
 
-{/* SELLERS GRID */}
+    alert("✅ Payout marked as paid");
+  }
 
-{sellers.length===0 && (
+  // ================= UI =================
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-800 via-pink-600 to-orange-400 p-6 text-white">
 
-<p className="text-gray-500">
-No sellers found
-</p>
+      {/* HEADER */}
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold">
+          Seller Dashboard 💼
+        </h1>
+        <p className="opacity-80">
+          Manage sellers, earnings & payouts
+        </p>
+      </div>
 
-)}
+      {/* GRID */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-<div className="grid md:grid-cols-2 gap-6">
+        {sellers.map((s) => {
 
-{sellers.map((s)=>(
+          const stats = sellerStats[s.id] || {
+            orders: 0,
+            commission: 0
+          };
 
-<div
-key={s.id}
-className="bg-white shadow rounded-xl p-5 space-y-4"
->
+          return (
+            <div
+              key={s.id}
+              className="backdrop-blur-2xl bg-white/20 border border-white/30 rounded-3xl p-6 shadow-xl space-y-4"
+            >
 
-{/* NAME */}
+              {/* NAME */}
+              <div>
+                <p className="text-xs opacity-70">Seller</p>
+                <p className="text-lg font-bold">
+                  {s.name || "Unknown"}
+                </p>
+              </div>
 
-<div>
+              {/* EMAIL */}
+              <div>
+                <p className="text-xs opacity-70">Email</p>
+                <p className="text-sm">{s.email}</p>
+              </div>
 
-<p className="text-sm text-gray-500">
-Seller Name
-</p>
+              {/* STATUS */}
+              <span className={`px-3 py-1 rounded-full text-xs ${
+                s.active
+                  ? "bg-green-400/20 text-green-200"
+                  : "bg-red-400/20 text-red-200"
+              }`}>
+                {s.active ? "Active" : "Blocked"}
+              </span>
 
-<p className="font-semibold">
-{s.name || "Unknown Seller"}
-</p>
+              {/* STATS */}
+              <div className="space-y-1 text-sm">
 
-</div>
+                <p>📦 Orders: {stats.orders}</p>
 
+                <p className="text-green-300 font-semibold">
+                  💰 Commission: ₹{stats.commission}
+                </p>
 
-{/* EMAIL */}
+              </div>
 
-<div>
+              {/* ACTIONS */}
+              <div className="space-y-2">
 
-<p className="text-sm text-gray-500">
-Email
-</p>
+                {/* TOGGLE */}
+                <button
+                  disabled={loading}
+                  onClick={() => toggleSeller(s.id, s.active)}
+                  className={`w-full py-2 rounded-xl font-semibold ${
+                    s.active
+                      ? "bg-red-500"
+                      : "bg-green-500"
+                  }`}
+                >
+                  {s.active ? "Block Seller" : "Activate Seller"}
+                </button>
 
-<p>
-{s.email}
-</p>
+                {/* PAYOUT */}
+                <button
+                  onClick={() => markPaid(s.id, stats.commission)}
+                  className="w-full py-2 rounded-xl bg-blue-500 font-semibold"
+                >
+                  Pay ₹{stats.commission}
+                </button>
 
-</div>
+              </div>
 
+            </div>
+          );
+        })}
 
-{/* STATUS */}
+      </div>
 
-<div>
-
-<span
-className={`text-xs px-3 py-1 rounded ${
-s.active
-? "bg-green-100 text-green-700"
-: "bg-red-100 text-red-700"
-}`}
->
-
-{s.active ? "Active" : "Blocked"}
-
-</span>
-
-</div>
-
-
-{/* ACTION */}
-
-<button
-disabled={loading}
-onClick={()=>toggleSeller(s.id,s.active)}
-className={`px-4 py-2 rounded text-white ${
-s.active
-? "bg-red-500"
-: "bg-green-600"
-}`}
->
-
-{s.active ? "Block Seller" : "Activate Seller"}
-
-</button>
-
-</div>
-
-))}
-
-</div>
-
-</div>
-
-);
-
+    </div>
+  );
 }
