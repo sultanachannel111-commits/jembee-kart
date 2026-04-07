@@ -27,11 +27,10 @@ export default function ProfilePage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [reason, setReason] = useState("");
-  const [issue, setIssue] = useState("");
 
   const router = useRouter();
 
-  // 🔥 LOAD DATA
+  // 🔥 LOAD USER + ORDERS
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
 
@@ -42,44 +41,54 @@ export default function ProfilePage() {
 
       setUser(u);
 
-      // 👤 USER DATA
-      const userRef = doc(db, "users", u.uid);
-      const snap = await getDoc(userRef);
+      try {
+        // 👤 USER DATA
+        const userRef = doc(db, "users", u.uid);
+        const snap = await getDoc(userRef);
 
-      if (snap.exists()) {
-        const data = snap.data();
-        setName(data?.name || u.email.split("@")[0]);
-        setAddress(data?.address || "");
-      } else {
-        setName(u.email.split("@")[0]);
-      }
-
-      // 📦 ORDERS
-      const snapOrders = await getDocs(collection(db, "orders"));
-      const arr = [];
-
-      snapOrders.forEach(d => {
-        const data = d.data();
-        if (data.userId === u.uid) {
-          arr.push({ id: d.id, ...data });
+        if (snap.exists()) {
+          const data = snap.data();
+          setName(data?.name || u.email?.split("@")[0]);
+          setAddress(data?.address || "");
+        } else {
+          setName(u.email?.split("@")[0]);
         }
-      });
 
-      setOrders(arr);
+        // 📦 ORDERS
+        const snapOrders = await getDocs(collection(db, "orders"));
+
+        const arr = [];
+        snapOrders.forEach(d => {
+          const data = d.data();
+          if (data?.userId === u.uid) {
+            arr.push({ id: d.id, ...data });
+          }
+        });
+
+        setOrders(arr);
+
+      } catch (err) {
+        console.error("🔥 Error loading profile:", err);
+      }
 
     });
 
     return () => unsub();
-  }, []);
+  }, [router]);
 
   // 🚚 DELIVERY DATE
   const getDeliveryDate = (order) => {
-    if (!order?.createdAt?.toDate) return "N/A";
-    const d = order.createdAt.toDate();
-    d.setDate(d.getDate() + 5);
-    return d.toDateString();
+    try {
+      if (!order?.createdAt?.toDate) return "N/A";
+      const d = order.createdAt.toDate();
+      d.setDate(d.getDate() + 5);
+      return d.toDateString();
+    } catch {
+      return "N/A";
+    }
   };
 
+  // 📊 STATUS TEXT
   const getTrackingText = (status) => {
     switch (status) {
       case "Pending": return "Order placed 📦";
@@ -103,6 +112,7 @@ export default function ProfilePage() {
           <>
             <h1 className="text-2xl font-bold">👤 {name}</h1>
 
+            {/* ADDRESS */}
             {address ? (
               <>
                 <p className="text-sm text-gray-600 mt-1">
@@ -188,7 +198,9 @@ export default function ProfilePage() {
       {/* 📦 ORDERS */}
       <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
 
-      {orders.length === 0 && <p>No orders found ❌</p>}
+      {orders.length === 0 && (
+        <p>No orders found ❌</p>
+      )}
 
       {orders.map(o => {
 
@@ -197,12 +209,14 @@ export default function ProfilePage() {
           (Number(o?.itemsTotal || 0) + Number(o?.shipping || 0));
 
         const current = steps.indexOf(o?.status || "Pending");
+
         const progress =
           current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
 
         return (
           <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
 
+            {/* PRODUCT */}
             {o?.items?.length > 0 && (
               <div className="flex gap-3 mb-3">
                 <img
@@ -210,7 +224,9 @@ export default function ProfilePage() {
                   className="w-16 h-16 rounded-lg border"
                 />
                 <div>
-                  <p className="font-semibold">{o?.items?.[0]?.name}</p>
+                  <p className="font-semibold">
+                    {o?.items?.[0]?.name}
+                  </p>
                   <p className="text-gray-500 text-sm">
                     Qty: {o?.items?.[0]?.qty}
                   </p>
@@ -218,31 +234,40 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <p className="text-green-600 font-bold">₹{total}</p>
-            <p className="text-yellow-600 font-semibold">{o?.status}</p>
+            {/* PRICE */}
+            <p className="text-green-600 font-bold">
+              ₹{total}
+            </p>
 
+            {/* STATUS */}
+            <p className="text-yellow-600 font-semibold">
+              {o?.status}
+            </p>
+
+            {/* DELIVERY */}
             <p className="text-xs mt-1">
               🚚 {getDeliveryDate(o)}
             </p>
 
+            {/* PROGRESS BAR */}
             <div className="mt-3">
-              <div className="h-2 bg-gray-300 rounded-full"></div>
+              <div className="h-2 bg-gray-300 rounded-full"/>
               <div
                 className="h-2 bg-green-500 rounded-full -mt-2"
                 style={{ width: `${progress}%` }}
-              ></div>
+              />
             </div>
 
+            {/* STATUS TEXT */}
             <div className="mt-3 bg-gray-50 p-3 rounded-xl">
               <p className="text-green-600 font-semibold">
-                {getTrackingText(o.status)}
+                {getTrackingText(o?.status)}
               </p>
             </div>
 
           </div>
         );
-
-      })} {/* ✅ IMPORTANT FIX */}
+      })}
 
     </div>
   );
