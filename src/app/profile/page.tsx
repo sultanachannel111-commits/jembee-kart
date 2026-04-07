@@ -6,8 +6,6 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc,
-  addDoc,
   getDoc,
   setDoc
 } from "firebase/firestore";
@@ -16,51 +14,53 @@ import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
 
-  const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]);
 
   const [name, setName] = useState("");
-  const [address, setAddress] = useState(""); // ✅ NEW
-
-  const [editing, setEditing] = useState(false);
-
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [showHelp, setShowHelp] = useState(false);
-  const [reason, setReason] = useState("");
-  const [issue, setIssue] = useState("");
+  const [address, setAddress] = useState("");
 
   const router = useRouter();
 
-  // 🔥 LOAD DATA
   useEffect(() => {
+
     const unsub = onAuthStateChanged(auth, async (u) => {
 
+      console.log("🔥 AUTH USER:", u);
+
       if (!u) {
+        console.log("❌ USER NOT LOGGED IN");
         router.push("/login");
         return;
       }
 
       setUser(u);
 
-      // 👤 NAME + ADDRESS
+      // 🔥 BUG 1 (intentional)
+      console.log("USER UID:", u.uid.toUpperCase()); // ❌ crash if undefined
+
       const userRef = doc(db, "users", u.uid);
       const snap = await getDoc(userRef);
 
+      console.log("🔥 USER SNAP:", snap.data());
+
       if (snap.exists()) {
         const data = snap.data();
-        setName(data?.name || "");
-        setAddress(data?.address || "");
-      } else {
-        setName(u.email.split("@")[0]);
+
+        setName(data.name);
+        setAddress(data.address);
       }
 
-      // 📦 ORDERS
       const snapOrders = await getDocs(collection(db, "orders"));
 
-      const arr: any[] = [];
+      let arr = [];
+
       snapOrders.forEach(d => {
         const data = d.data();
+
+        // 🔥 BUG 2 (intentional crash)
         if (data.userId === u.uid) {
+          console.log("ORDER:", data.items[0].name.toUpperCase()); // ❌ crash if undefined
           arr.push({ id: d.id, ...data });
         }
       });
@@ -70,297 +70,35 @@ export default function ProfilePage() {
     });
 
     return () => unsub();
+
   }, []);
 
-  // 🚚 DELIVERY DATE
-  const getDeliveryDate = (order: any) => {
-    if (!order.createdAt?.toDate) return "N/A";
-    const d = order.createdAt.toDate();
-    d.setDate(d.getDate() + 5);
-    return d.toDateString();
-  };
-
-  // 📊 STATUS TEXT
-  const getTrackingText = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "Order placed, preparing 📦";
-      case "Placed":
-        return "Order confirmed ✅";
-      case "Shipped":
-        return "Shipped from warehouse 🚚";
-      case "Out for Delivery":
-        return "Out for delivery 🛵";
-      case "Delivered":
-        return "Delivered successfully 🎉";
-      default:
-        return "Processing...";
-    }
-  };
-
-  // 📅 TIMELINE
-  const getDates = (order: any) => {
-    if (!order.createdAt?.toDate) return {};
-    const base = order.createdAt.toDate();
-
-    return {
-      ordered: base.toDateString(),
-      shipped: new Date(base.getTime() + 2 * 86400000).toDateString(),
-      out: new Date(base.getTime() + 4 * 86400000).toDateString(),
-      delivered: new Date(base.getTime() + 5 * 86400000).toDateString()
-    };
-  };
-
-  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
-
   return (
-    <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
+    <div className="p-4">
 
-      {/* 👤 PROFILE */}
-      <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
+      <h1>DEBUG MODE 🐛</h1>
 
-        {!editing ? (
-          <>
-            <h1 className="text-2xl font-bold">👤 {name}</h1>
+      {/* 🔥 BUG 3 */}
+      <p>User Email: {user.email.toUpperCase()}</p> {/* ❌ crash */}
 
-            {/* ✅ ADDRESS SHOW */}
-            {address && (
-              <p className="text-sm text-gray-600 mt-1">
-                📍 {address}
-              </p>
-            )}
+      <p>Name: {name}</p>
+      <p>Address: {address}</p>
 
-            <button
-              onClick={() => setEditing(true)}
-              className="text-blue-600 text-sm mt-1"
-            >
-              Edit Name
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-2 rounded w-full mb-2"
-            />
+      <h2>Orders</h2>
 
-            {/* ✅ ADDRESS INPUT */}
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter address"
-              className="border p-2 rounded w-full"
-            />
+      {orders.map((o, i) => (
 
-            <button
-              onClick={async () => {
-                if (!user?.uid) return;
+        <div key={i}>
 
-                await setDoc(
-                  doc(db, "users", user.uid),
-                  { name, address },
-                  { merge: true } // 🔥 IMPORTANT
-                );
+          {/* 🔥 BUG 4 */}
+          <p>{o.items[0].name.toUpperCase()}</p>
 
-                setEditing(false);
-              }}
-              className="bg-green-600 text-white px-4 py-1 rounded mt-2"
-            >
-              Save
-            </button>
-          </>
-        )}
+          {/* 🔥 BUG 5 */}
+          <p>{o.createdAt.toDate().toLocaleString()}</p>
 
-        <p className="text-sm text-gray-500 mt-2">
-          {user?.email}
-        </p>
-
-        <button
-          onClick={() => auth.signOut()}
-          className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl"
-        >
-          Logout
-        </button>
-
-      </div>
-
-      {/* 📦 ORDERS */}
-      <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
-
-      {orders.length === 0 && (
-        <p>No orders found ❌</p>
-      )}
-
-      {orders.map(o => {
-
-        const total =
-          Number(o.total) ||
-          (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
-
-        const current = steps.indexOf(o.status || "Pending");
-        const progress =
-          current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
-
-        const d = getDates(o);
-
-        return (
-          <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
-
-            {/* PRODUCT */}
-            {o.items?.length > 0 && (
-              <div className="flex gap-3 mb-3">
-                <img
-                  src={o.items?.[0]?.image || "/placeholder.png"}
-                  className="w-16 h-16 rounded-lg border"
-                />
-                <div>
-                  <p className="font-semibold">{o.items?.[0]?.name}</p>
-                  <p className="text-gray-500 text-sm">
-                    Qty: {o.items?.[0]?.qty}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* PRICE */}
-            <p className="text-green-600 font-bold">₹{total}</p>
-
-            {/* STATUS */}
-            <p className="text-yellow-600 font-semibold">
-              {o.status}
-            </p>
-
-            {/* DELIVERY */}
-            <p className="text-xs mt-1">
-              🚚 Expected Delivery: {getDeliveryDate(o)}
-            </p>
-
-            {/* TRACK BAR */}
-            <div className="mt-3">
-              <div className="h-2 bg-gray-300 rounded-full" />
-              <div
-                className="h-2 bg-green-500 rounded-full -mt-2"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            <div className="flex justify-between text-[10px] mt-2">
-              {steps.map((s, i) => (
-                <span key={i} className={i <= current ? "text-green-600" : ""}>
-                  {s}
-                </span>
-              ))}
-            </div>
-
-            {/* 🚚 LIVE STATUS */}
-            <div className="mt-3 bg-gray-50 p-3 rounded-xl">
-              <p className="text-green-600 font-semibold">
-                {getTrackingText(o.status)}
-              </p>
-
-              <p className="text-xs mt-2 text-gray-500">
-                📍 Rider near your area
-              </p>
-
-              <div className="mt-3 text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span>Ordered</span>
-                  <span>{d.ordered}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Shipped</span>
-                  <span>{d.shipped}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Out</span>
-                  <span>{d.out}</span>
-                </div>
-                <div className="flex justify-between font-bold text-green-600">
-                  <span>Delivery</span>
-                  <span>{d.delivered}</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* BUTTONS */}
-            <div className="flex justify-between mt-3">
-              <button
-                onClick={() => router.push(`/track/${o.id}`)}
-                className="text-blue-600"
-              >
-                Full Track
-              </button>
-
-              <button
-                onClick={() => {
-                  setSelectedOrder(o);
-                  setShowHelp(true);
-                }}
-                className="border px-3 py-1 rounded-full"
-              >
-                Help
-              </button>
-            </div>
-
-          </div>
-        );
-      })}
-
-      {/* HELP MODAL SAME AS BEFORE */}
-      {showHelp && selectedOrder && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md">
-
-            <button
-              onClick={async () => {
-                await updateDoc(doc(db, "orders", selectedOrder.id), {
-                  status: "Cancelled"
-                });
-                alert("Cancelled ✅");
-                setShowHelp(false);
-              }}
-              className="w-full bg-red-500 text-white p-2 rounded mb-3"
-            >
-              Cancel Order
-            </button>
-
-            <select
-              className="w-full border p-2 mb-2"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            >
-              <option value="">Select Reason</option>
-              <option>Wrong Product</option>
-              <option>Damaged Product</option>
-              <option>Other</option>
-            </select>
-
-            <button
-              onClick={async () => {
-                if (!reason) return alert("Select reason");
-
-                await addDoc(collection(db, "returns"), {
-                  orderId: selectedOrder.id,
-                  userId: selectedOrder.userId,
-                  reason,
-                  issue,
-                  status: "Requested",
-                  createdAt: new Date()
-                });
-
-                alert("Return sent ✅");
-                setShowHelp(false);
-              }}
-              className="w-full bg-green-600 text-white p-2 rounded"
-            >
-              Request Return
-            </button>
-
-          </div>
         </div>
-      )}
+
+      ))}
 
     </div>
   );
