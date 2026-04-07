@@ -6,8 +6,7 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc,
-  setDoc
+  getDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -30,14 +29,14 @@ export default function ProfilePage() {
 
       if (!u) {
         console.log("❌ USER NOT LOGGED IN");
-        router.push("/login");
+        setTimeout(() => router.push("/login"), 0);
         return;
       }
 
       setUser(u);
 
-      // 🔥 BUG 1 (intentional)
-      console.log("USER UID:", u.uid.toUpperCase()); // ❌ crash if undefined
+      // ✅ SAFE DEBUG
+      console.log("USER UID:", u?.uid);
 
       const userRef = doc(db, "users", u.uid);
       const snap = await getDoc(userRef);
@@ -45,10 +44,10 @@ export default function ProfilePage() {
       console.log("🔥 USER SNAP:", snap.data());
 
       if (snap.exists()) {
-        const data = snap.data();
+        const data = snap.data() || {};
 
-        setName(data.name);
-        setAddress(data.address);
+        setName(data?.name || "");
+        setAddress(data?.address || "");
       }
 
       const snapOrders = await getDocs(collection(db, "orders"));
@@ -58,9 +57,11 @@ export default function ProfilePage() {
       snapOrders.forEach(d => {
         const data = d.data();
 
-        // 🔥 BUG 2 (intentional crash)
-        if (data.userId === u.uid) {
-          console.log("ORDER:", data.items[0].name.toUpperCase()); // ❌ crash if undefined
+        if (data?.userId === u.uid) {
+
+          // ✅ SAFE LOG
+          console.log("ORDER:", data?.items?.[0]?.name);
+
           arr.push({ id: d.id, ...data });
         }
       });
@@ -78,23 +79,27 @@ export default function ProfilePage() {
 
       <h1>DEBUG MODE 🐛</h1>
 
-      {/* 🔥 BUG 3 */}
-      <p>User Email: {user.email.toUpperCase()}</p> {/* ❌ crash */}
+      {/* ✅ FIXED */}
+      <p>User Email: {user?.email?.toUpperCase() || "Loading..."}</p>
 
       <p>Name: {name}</p>
       <p>Address: {address}</p>
 
       <h2>Orders</h2>
 
-      {orders.map((o, i) => (
+      {Array.isArray(orders) && orders.map((o, i) => (
 
         <div key={i}>
 
-          {/* 🔥 BUG 4 */}
-          <p>{o.items[0].name.toUpperCase()}</p>
+          {/* ✅ SAFE */}
+          <p>{o?.items?.[0]?.name || "No name"}</p>
 
-          {/* 🔥 BUG 5 */}
-          <p>{o.createdAt.toDate().toLocaleString()}</p>
+          {/* ✅ SAFE */}
+          <p>
+            {o?.createdAt?.toDate
+              ? o.createdAt.toDate().toLocaleString()
+              : "No date"}
+          </p>
 
         </div>
 
