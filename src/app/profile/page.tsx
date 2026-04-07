@@ -16,15 +16,13 @@ import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
 
-  const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]);
 
   const [name, setName] = useState("");
-  const [address, setAddress] = useState(""); // ✅ NEW
-
   const [editing, setEditing] = useState(false);
 
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [reason, setReason] = useState("");
   const [issue, setIssue] = useState("");
@@ -39,13 +37,12 @@ export default function ProfilePage() {
 
       setUser(u);
 
-      // 👤 NAME + ADDRESS
+      // 👤 NAME
       const userRef = doc(db, "users", u.uid);
       const snap = await getDoc(userRef);
 
       if (snap.exists()) {
-        setName(snap.data().name || "");
-        setAddress(snap.data().address || ""); // ✅ LOAD ADDRESS
+        setName(snap.data().name);
       } else {
         setName(u.email.split("@")[0]);
       }
@@ -53,7 +50,7 @@ export default function ProfilePage() {
       // 📦 ORDERS
       const snapOrders = await getDocs(collection(db, "orders"));
 
-      const arr: any[] = [];
+      const arr = [];
       snapOrders.forEach(d => {
         const data = d.data();
         if (data.userId === u.uid) {
@@ -69,7 +66,7 @@ export default function ProfilePage() {
   }, []);
 
   // 🚚 DELIVERY DATE
-  const getDeliveryDate = (order: any) => {
+  const getDeliveryDate = (order) => {
     if (!order.createdAt?.toDate) return "N/A";
     const d = order.createdAt.toDate();
     d.setDate(d.getDate() + 5);
@@ -77,7 +74,7 @@ export default function ProfilePage() {
   };
 
   // 📊 STATUS TEXT
-  const getTrackingText = (status: string) => {
+  const getTrackingText = (status) => {
     switch (status) {
       case "Pending":
         return "Order placed, preparing 📦";
@@ -95,7 +92,7 @@ export default function ProfilePage() {
   };
 
   // 📅 TIMELINE
-  const getDates = (order: any) => {
+  const getDates = (order) => {
     if (!order.createdAt?.toDate) return {};
     const base = order.createdAt.toDate();
 
@@ -119,13 +116,6 @@ export default function ProfilePage() {
           <>
             <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-            {/* ✅ ADDRESS SHOW */}
-            {address && (
-              <p className="text-sm text-gray-600 mt-1">
-                📍 {address}
-              </p>
-            )}
-
             <button
               onClick={() => setEditing(true)}
               className="text-blue-600 text-sm mt-1"
@@ -138,29 +128,12 @@ export default function ProfilePage() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter name"
-              className="border p-2 rounded w-full mb-2"
-            />
-
-            {/* ✅ ADDRESS INPUT */}
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter address"
               className="border p-2 rounded w-full"
             />
 
             <button
               onClick={async () => {
-                await setDoc(
-                  doc(db, "users", user.uid),
-                  {
-                    name,
-                    address // ✅ SAVE
-                  },
-                  { merge: true } // 🔥 IMPORTANT
-                );
-
+                await setDoc(doc(db, "users", user.uid), { name });
                 setEditing(false);
               }}
               className="bg-green-600 text-white px-4 py-1 rounded mt-2"
@@ -261,6 +234,7 @@ export default function ProfilePage() {
                 📍 Rider near your area
               </p>
 
+              {/* TIMELINE */}
               <div className="mt-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span>Ordered</span>
@@ -279,6 +253,7 @@ export default function ProfilePage() {
                   <span>{d.delivered}</span>
                 </div>
               </div>
+
             </div>
 
             {/* BUTTONS */}
