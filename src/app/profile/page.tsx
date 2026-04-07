@@ -181,7 +181,7 @@ return (
       >
         Logout
       </button>
-
+      </div>
 
       {/* 📦 ORDERS */}
       <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
