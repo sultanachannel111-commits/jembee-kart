@@ -114,55 +114,78 @@ export default function ProfilePage() {
 
   const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
 
-  return (
-    <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
+return (
+  <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
 
-      {/* 👤 PROFILE */}
-      <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
+    {/* 👤 PROFILE */}
+    <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
 
-        {!editing ? (
-          <>
-            <h1 className="text-2xl font-bold">👤 {name}</h1>
+      {!editing ? (
+  <>
+    <h1 className="text-2xl font-bold">👤 {name}</h1>
 
-            <button
-              onClick={() => setEditing(true)}
-              className="text-blue-600 text-sm mt-1"
-            >
-              Edit Name
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-2 rounded w-full"
-            />
+    {address && (
+      <p className="text-sm text-gray-600 mt-1">
+        📍 {address}
+      </p>
+    )}
 
-            <button
-              onClick={async () => {
-                await setDoc(doc(db, "users", user.uid), { name });
-                setEditing(false);
-              }}
-              className="bg-green-600 text-white px-4 py-1 rounded mt-2"
-            >
-              Save
-            </button>
-          </>
-        )}
+    <button
+      onClick={() => setEditing(true)}
+      className="text-blue-600 text-sm mt-1"
+    >
+      Edit Name
+    </button>
+  </>
+) : (
+  <>
+    <input
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      className="border p-2 rounded w-full"
+    />
 
-        <p className="text-sm text-gray-500 mt-2">
-          {user?.email}
-        </p>
+    <input
+      value={address}
+      onChange={(e) => setAddress(e.target.value)}
+      placeholder="Enter address"
+      className="border p-2 rounded w-full mt-2"
+    />
 
-        <button
-          onClick={() => auth.signOut()}
-          className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl"
-        >
-          Logout
-        </button>
+    <button
+      onClick={async () => {
+        if (!user) return;
 
-      </div>
+        await setDoc(
+          doc(db, "users", user.uid),
+          { name, address },
+          { merge: true }
+        );
+
+        setEditing(false);
+      }}
+      className="bg-green-600 text-white px-4 py-1 rounded mt-2"
+    >
+      Save
+    </button>
+  </>
+)}
+
+      <p className="text-sm text-gray-500 mt-2">
+        {user?.email}
+      </p>
+
+      <button
+        onClick={() => auth.signOut()}
+        className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl"
+      >
+        Logout
+      </button>
+
+    </div>
+  </div>
+);
+
 
       {/* 📦 ORDERS */}
       <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
