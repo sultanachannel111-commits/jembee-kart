@@ -47,10 +47,13 @@ export default function ProfilePage() {
       const snap = await getDoc(userRef);
 
       if (snap.exists()) {
-        setName(snap.data().name);
-      } else {
-        setName(u.email.split("@")[0]);
-      }
+  const data = snap.data();
+
+  setName(data?.name || u.email.split("@")[0]);
+  setAddress(data?.address || "");
+} else {
+  setName(u.email.split("@")[0]);
+}
 
       // 📦 ORDERS
       const snapOrders = await getDocs(collection(db, "orders"));
