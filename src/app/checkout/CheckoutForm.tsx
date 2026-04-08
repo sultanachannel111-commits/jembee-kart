@@ -6,312 +6,268 @@ import {
   collection,
   getDocs,
   doc,
+  updateDoc,
+  addDoc,
   getDoc,
   setDoc,
-  addDoc,
   deleteDoc,
-  updateDoc
+  query,
+  where
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
-
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
 
-  // 🔥 ADDRESS SYSTEM
+  // Address States
   const [addresses, setAddresses] = useState([]);
-  const [newAddress, setNewAddress] = useState({
-    name: "",
-    phone: "",
-    address: ""
-  });
+  const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "" });
+  const [showAddressForm, setShowAddressForm] = useState(false);
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [reason, setReason] = useState("");
+  const [issue, setIssue] = useState("");
 
   const router = useRouter();
 
-  // ================= LOAD =================
   useEffect(() => {
-
     const unsub = onAuthStateChanged(auth, async (u) => {
-
-      if (!u) {
-        router.push("/login");
-        return;
-      }
-
+      if (!u) return router.push("/login");
       setUser(u);
 
-      try {
-        // 👤 USER
-        const snap = await getDoc(doc(db, "users", u.uid));
-        if (snap.exists()) {
-          setName(snap.data()?.name || u.email.split("@")[0]);
-        } else {
-          setName(u.email.split("@")[0]);
-        }
-
-        // 📦 ORDERS
-        const snapOrders = await getDocs(collection(db, "orders"));
-        const arr = [];
-
-        snapOrders.forEach(d => {
-          const data = d.data();
-          if (data.userId === u.uid) {
-            arr.push({ id: d.id, ...data });
-          }
-        });
-
-        setOrders(arr);
-
-        // 📍 ADDRESSES
-        const addrSnap = await getDocs(
-          collection(db, "users", u.uid, "addresses")
-        );
-
-        const list = [];
-        addrSnap.forEach(d => {
-          list.push({ id: d.id, ...d.data() });
-        });
-
-        setAddresses(list);
-
-      } catch (err) {
-        console.log("Error:", err);
+      // 👤 LOAD NAME
+      const userRef = doc(db, "users", u.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        setName(snap.data().name);
+      } else {
+        setName(u.email.split("@")[0]);
       }
 
+      // 📦 LOAD ORDERS
+      const snapOrders = await getDocs(collection(db, "orders"));
+      const arr = [];
+      snapOrders.forEach(d => {
+        const data = d.data();
+        if (data.userId === u.uid) {
+          arr.push({ id: d.id, ...data });
+        }
+      });
+      setOrders(arr);
+
+      // 🏠 LOAD ADDRESSES
+      fetchAddresses(u.uid);
     });
 
     return () => unsub();
-
   }, []);
 
-  // ================= ADD ADDRESS =================
-  const addAddress = async () => {
-
-    if (!newAddress.name || !newAddress.phone || !newAddress.address) {
-      return alert("Fill all fields ❌");
-    }
-
-    await addDoc(
-      collection(db, "users", user.uid, "addresses"),
-      {
-        ...newAddress,
-        isDefault: addresses.length === 0
-      }
-    );
-
-    setNewAddress({ name: "", phone: "", address: "" });
-
-    location.reload(); // simple refresh
+  const fetchAddresses = async (uid) => {
+    const q = query(collection(db, "addresses"), where("userId", "==", uid));
+    const snap = await getDocs(q);
+    const addrList = [];
+    snap.forEach(doc => addrList.push({ id: doc.id, ...doc.data() }));
+    setAddresses(addrList);
   };
 
-  // ================= DELETE ADDRESS =================
-  const deleteAddress = async (id) => {
-
-    await deleteDoc(doc(db, "users", user.uid, "addresses", id));
-
-    setAddresses(addresses.filter(a => a.id !== id));
-  };
-
-  // ================= SET DEFAULT =================
-  const setDefault = async (id) => {
-
-    const ref = collection(db, "users", user.uid, "addresses");
-    const snap = await getDocs(ref);
-
-    snap.forEach(async d => {
-      await updateDoc(doc(db, "users", user.uid, "addresses", d.id), {
-        isDefault: false
-      });
+  // 🏠 ADDRESS FUNCTIONS
+  const handleAddAddress = async () => {
+    if (!newAddress.street || !newAddress.city) return alert("Please fill details");
+    await addDoc(collection(db, "addresses"), {
+      ...newAddress,
+      userId: user.uid
     });
-
-    await updateDoc(doc(db, "users", user.uid, "addresses", id), {
-      isDefault: true
-    });
-
-    location.reload();
+    setNewAddress({ street: "", city: "", zip: "" });
+    setShowAddressForm(false);
+    fetchAddresses(user.uid);
   };
 
-  // ================= DELIVERY DATE =================
+  const handleDeleteAddress = async (id) => {
+    await deleteDoc(doc(db, "addresses", id));
+    fetchAddresses(user.uid);
+  };
+
   const getDeliveryDate = (order) => {
-    if (!order?.createdAt?.toDate) return "N/A";
+    if (!order.createdAt?.toDate) return "N/A";
     const d = order.createdAt.toDate();
     d.setDate(d.getDate() + 5);
     return d.toDateString();
   };
 
-  const steps = ["Pending","Placed","Shipped","Out for Delivery","Delivered"];
+  const getTrackingText = (status) => {
+    switch (status) {
+      case "Pending": return "Order placed, preparing 📦";
+      case "Placed": return "Order confirmed ✅";
+      case "Shipped": return "Shipped from warehouse 🚚";
+      case "Out for Delivery": return "Out for delivery 🛵";
+      case "Delivered": return "Delivered successfully 🎉";
+      default: return "Processing...";
+    }
+  };
 
-  // ================= UI =================
+  const getDates = (order) => {
+    if (!order.createdAt?.toDate) return {};
+    const base = order.createdAt.toDate();
+    return {
+      ordered: base.toDateString(),
+      shipped: new Date(base.getTime() + 2 * 86400000).toDateString(),
+      out: new Date(base.getTime() + 4 * 86400000).toDateString(),
+      delivered: new Date(base.getTime() + 5 * 86400000).toDateString()
+    };
+  };
+
+  const steps = ["Pending", "Placed", "Shipped", "Out for Delivery", "Delivered"];
+
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
-
-      {/* 👤 PROFILE */}
-      <div className="bg-white p-5 rounded-xl shadow mb-4 text-center">
-
+    <div className="p-4 pb-24 bg-gradient-to-br from-purple-200 via-pink-100 to-white min-h-screen">
+      
+      {/* 👤 PROFILE SECTION */}
+      <div className="bg-white p-5 rounded-2xl mb-5 shadow text-center">
         {!editing ? (
           <>
-            <h2 className="text-xl font-bold">👤 {name}</h2>
-
-            <button
-              onClick={() => setEditing(true)}
-              className="text-blue-600 text-sm mt-2"
-            >
-              Edit
-            </button>
+            <h1 className="text-2xl font-bold">👤 {name}</h1>
+            <button onClick={() => setEditing(true)} className="text-blue-600 text-sm mt-1">Edit Name</button>
           </>
         ) : (
           <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-2 w-full rounded"
-            />
-
-            <button
-              onClick={async () => {
-                await setDoc(
-                  doc(db, "users", user.uid),
-                  { name },
-                  { merge: true }
-                );
-                setEditing(false);
-              }}
-              className="bg-green-600 text-white px-4 py-1 mt-2 rounded"
-            >
-              Save
-            </button>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="border p-2 rounded w-full" />
+            <button onClick={async () => {
+              await setDoc(doc(db, "users", user.uid), { name }, { merge: true });
+              setEditing(false);
+            }} className="bg-green-600 text-white px-4 py-1 rounded mt-2">Save</button>
           </>
         )}
-
-        <p className="text-sm mt-2">{user?.email}</p>
-
-        <button
-          onClick={() => auth.signOut()}
-          className="bg-red-500 text-white px-4 py-2 mt-3 rounded"
-        >
-          Logout
-        </button>
-
+        <p className="text-sm text-gray-500 mt-2">{user?.email}</p>
+        <button onClick={() => auth.signOut()} className="mt-3 bg-red-500 text-white px-5 py-2 rounded-xl">Logout</button>
       </div>
 
-      {/* 📍 ADD ADDRESS */}
-      <div className="bg-white p-4 rounded-xl shadow mb-4">
+      {/* 🏠 ADDRESS SECTION */}
+      <div className="bg-white p-5 rounded-2xl mb-5 shadow">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-bold">Saved Addresses 🏠</h2>
+          <button onClick={() => setShowAddressForm(!showAddressForm)} className="text-blue-600 text-sm font-bold">
+            {showAddressForm ? "Close" : "+ Add New"}
+          </button>
+        </div>
 
-        <h3 className="font-bold mb-2">Add Address</h3>
-
-        <input
-          placeholder="Name"
-          value={newAddress.name}
-          onChange={(e) =>
-            setNewAddress({ ...newAddress, name: e.target.value })
-          }
-          className="border p-2 w-full mb-2 rounded"
-        />
-
-        <input
-          placeholder="Phone"
-          value={newAddress.phone}
-          onChange={(e) =>
-            setNewAddress({ ...newAddress, phone: e.target.value })
-          }
-          className="border p-2 w-full mb-2 rounded"
-        />
-
-        <input
-          placeholder="Full Address"
-          value={newAddress.address}
-          onChange={(e) =>
-            setNewAddress({ ...newAddress, address: e.target.value })
-          }
-          className="border p-2 w-full mb-2 rounded"
-        />
-
-        <button
-          onClick={addAddress}
-          className="bg-blue-600 text-white px-4 py-2 rounded w-full"
-        >
-          Save Address
-        </button>
-
-      </div>
-
-      {/* 📍 ADDRESS LIST */}
-      <div className="mb-4">
-        <h3 className="font-bold mb-2">My Addresses</h3>
-
-        {addresses.map(a => (
-          <div key={a.id} className="bg-white p-3 rounded mb-2 shadow">
-
-            <p className="font-bold">
-              {a.name} {a.isDefault && "⭐"}
-            </p>
-            <p>{a.phone}</p>
-            <p className="text-sm">{a.address}</p>
-
-            <div className="flex gap-2 mt-2">
-
-              {!a.isDefault && (
-                <button
-                  onClick={() => setDefault(a.id)}
-                  className="text-blue-600 text-sm"
-                >
-                  Set Default
-                </button>
-              )}
-
-              <button
-                onClick={() => deleteAddress(a.id)}
-                className="text-red-500 text-sm"
-              >
-                Delete
-              </button>
-
+        {showAddressForm && (
+          <div className="space-y-2 mb-4 p-3 border rounded-xl bg-gray-50">
+            <input placeholder="Street/Area" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-2 border rounded text-sm" />
+            <div className="flex gap-2">
+              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-2 border rounded text-sm" />
+              <input placeholder="Zip Code" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-2 border rounded text-sm" />
             </div>
-
+            <button onClick={handleAddAddress} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm">Save Address</button>
           </div>
-        ))}
+        )}
+
+        {addresses.length === 0 ? <p className="text-gray-400 text-sm">No addresses saved.</p> : (
+          <div className="space-y-3">
+            {addresses.map(addr => (
+              <div key={addr.id} className="flex justify-between items-center border-b pb-2">
+                <div className="text-sm">
+                  <p className="font-medium">{addr.street}</p>
+                  <p className="text-gray-500">{addr.city}, {addr.zip}</p>
+                </div>
+                <button onClick={() => handleDeleteAddress(addr.id)} className="text-red-500 text-xs">Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 📦 ORDERS */}
-      <h2 className="font-bold mb-2">My Orders</h2>
+      {/* 📦 ORDERS SECTION */}
+      <h2 className="text-xl font-bold mb-3">My Orders 📦</h2>
+      {orders.length === 0 && <p>No orders found ❌</p>}
 
       {orders.map(o => {
-
-        const total =
-          Number(o?.total) ||
-          (Number(o?.itemsTotal || 0) + Number(o?.shipping || 0));
-
-        const current = steps.indexOf(o?.status || "Pending");
-        const progress =
-          current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
+        const total = Number(o.total) || (Number(o.itemsTotal || 0) + Number(o.shipping || 0));
+        const current = steps.indexOf(o.status || "Pending");
+        const progress = current <= 0 ? 5 : (current / (steps.length - 1)) * 100;
+        const d = getDates(o);
 
         return (
-          <div key={o.id} className="bg-white p-3 rounded mb-3 shadow">
+          <div key={o.id} className="bg-white p-4 rounded-2xl mb-4 shadow">
+            {o.items?.length > 0 && (
+              <div className="flex gap-3 mb-3">
+                <img src={o.items[0]?.image} className="w-16 h-16 rounded-lg border" alt="product" />
+                <div>
+                  <p className="font-semibold">{o.items[0]?.name}</p>
+                  <p className="text-gray-500 text-sm">Qty: {o.items[0]?.qty}</p>
+                </div>
+              </div>
+            )}
+            <p className="text-green-600 font-bold">₹{total}</p>
+            <p className="text-yellow-600 font-semibold">{o.status}</p>
+            <p className="text-xs mt-1">🚚 Expected Delivery: {getDeliveryDate(o)}</p>
 
-            <p className="font-bold">₹{total}</p>
-            <p>{o.status}</p>
-
-            <p className="text-xs">
-              🚚 {getDeliveryDate(o)}
-            </p>
-
-            <div className="mt-2">
-              <div className="h-2 bg-gray-300 rounded"/>
-              <div
-                className="h-2 bg-green-500 rounded -mt-2"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="mt-3">
+              <div className="h-2 bg-gray-300 rounded-full" />
+              <div className="h-2 bg-green-500 rounded-full -mt-2" style={{ width: `${progress}%` }} />
             </div>
 
+            <div className="flex justify-between text-[10px] mt-2">
+              {steps.map((s, i) => (
+                <span key={i} className={i <= current ? "text-green-600" : ""}>{s}</span>
+              ))}
+            </div>
+
+            <div className="mt-3 bg-gray-50 p-3 rounded-xl">
+              <p className="text-green-600 font-semibold">{getTrackingText(o.status)}</p>
+              <div className="mt-3 text-xs space-y-1">
+                <div className="flex justify-between"><span>Ordered</span><span>{d.ordered}</span></div>
+                <div className="flex justify-between"><span>Shipped</span><span>{d.shipped}</span></div>
+                <div className="flex justify-between"><span>Out</span><span>{d.out}</span></div>
+                <div className="flex justify-between font-bold text-green-600"><span>Delivery</span><span>{d.delivered}</span></div>
+              </div>
+            </div>
+
+            <div className="flex justify-between mt-3">
+              <button onClick={() => router.push(`/track/${o.id}`)} className="text-blue-600">Full Track</button>
+              <button onClick={() => { setSelectedOrder(o); setShowHelp(true); }} className="border px-3 py-1 rounded-full">Help</button>
+            </div>
           </div>
         );
       })}
 
+      {/* HELP MODAL */}
+      {showHelp && selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md">
+            <button onClick={async () => {
+              await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Cancelled" });
+              alert("Cancelled ✅");
+              setShowHelp(false);
+            }} className="w-full bg-red-500 text-white p-2 rounded mb-3">Cancel Order</button>
+
+            <select className="w-full border p-2 mb-2" value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option value="">Select Reason</option>
+              <option>Wrong Product</option>
+              <option>Damaged Product</option>
+              <option>Other</option>
+            </select>
+
+            <button onClick={async () => {
+              if (!reason) return alert("Select reason");
+              await addDoc(collection(db, "returns"), {
+                orderId: selectedOrder.id,
+                userId: selectedOrder.userId,
+                reason,
+                status: "Requested",
+                createdAt: new Date()
+              });
+              alert("Return sent ✅");
+              setShowHelp(false);
+            }} className="w-full bg-green-600 text-white p-2 rounded">Request Return</button>
+            <button onClick={() => setShowHelp(false)} className="w-full mt-2 text-gray-500 text-sm">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
