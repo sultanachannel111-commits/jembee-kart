@@ -268,7 +268,7 @@ export default function CheckoutPage() {
         <div className="flex justify-between mb-3">
           <p className="font-semibold text-lg">Delivery Address 📍</p>
           <button
-            onClick={() => router.push("/account")}
+            onClick={() => router.push("/profile")}
             className="underline text-sm"
           >
             Change
