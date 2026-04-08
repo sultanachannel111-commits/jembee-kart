@@ -1,3 +1,5 @@
+*Checkout page*
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -23,6 +25,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
+  const [refSeller, setRefSeller] = useState<string | null>(null);
 
   const [shippingConfig, setShippingConfig] = useState({
     prepaid: 0,
@@ -32,9 +35,7 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // =========================
-  // 🔥 LOAD DATA (BUY NOW + CART)
-  // =========================
+  // ================= LOAD DATA =================
   useEffect(() => {
 
     let unsubscribe: any;
@@ -45,33 +46,24 @@ export default function CheckoutPage() {
 
       setUser(u);
 
-      // =====================
-      // 🟢 BUY NOW (PRIORITY)
-      // =====================
+      const seller = localStorage.getItem("refSeller");
+      setRefSeller(seller);
+
       const buyNow = localStorage.getItem("buy-now");
 
       if (buyNow) {
         try {
           const parsed = JSON.parse(buyNow);
 
-          if (parsed && parsed.price > 0) {
-
-            const item = {
-              id: "buy-now",
-              productId: parsed.productId,
-              name: parsed.name,
-              image: parsed.image || "/no-image.png",
-              price: Number(parsed.price) || 0,
-              qty: Number(parsed.quantity) || 1
-            };
-
-            console.log("🔥 BUY NOW:", item);
-
-            setItems([item]);
-
-          } else {
-            setItems([]);
-          }
+          setItems([{
+            id: "buy-now",
+            productId: parsed.productId,
+            name: parsed.name,
+            image: parsed.image || "/no-image.png",
+            price: Number(parsed.price) || 0,
+            basePrice: Number(parsed.basePrice || parsed.price) || 0,
+            qty: Number(parsed.quantity) || 1
+          }]);
 
         } catch {
           setItems([]);
@@ -79,9 +71,6 @@ export default function CheckoutPage() {
 
       } else {
 
-        // =====================
-        // 🛒 FIRESTORE CART
-        // =====================
         const ref = collection(db, "carts", u.uid, "items");
 
         unsubscribe = onSnapshot(ref, (snap) => {
@@ -94,29 +83,29 @@ export default function CheckoutPage() {
 
             const price =
               d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
-              d.price ||
-              0;
+              d.price || 0;
+
+            const basePrice =
+              d?.variations?.[0]?.sizes?.[0]?.basePrice ||
+              d.basePrice || price;
 
             data.push({
               id: docSnap.id,
               productId: d.productId,
               name: d.name,
               image: d.image || "/no-image.png",
-              price: Number(price) || 0,
+              price: Number(price),
+              basePrice: Number(basePrice),
               qty: Number(d.quantity) || 1
             });
 
           });
 
           setItems(data);
-
         });
-
       }
 
-      // =====================
-      // 📍 ADDRESS
-      // =====================
+      // ADDRESS
       const addrSnap = await getDocs(
         collection(db, "users", u.uid, "addresses")
       );
@@ -133,9 +122,7 @@ export default function CheckoutPage() {
       setAddresses(all);
       setAddress(defaultAddr || all[0] || null);
 
-      // =====================
-      // 🚚 SHIPPING
-      // =====================
+      // SHIPPING
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
 
       if (shipSnap.exists()) {
@@ -157,12 +144,8 @@ export default function CheckoutPage() {
 
   }, []);
 
-  // =========================
-  // 💰 TOTAL FIX
-  // =========================
-  const itemsTotal = items.reduce((sum, i) => {
-    return sum + (Number(i.price) || 0) * (Number(i.qty) || 1);
-  }, 0);
+  // ================= TOTAL =================
+  const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   let shipping =
     items.length === 0
@@ -180,9 +163,7 @@ export default function CheckoutPage() {
 
   const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
-  // =========================
-  // 🚀 PAYMENT
-  // =========================
+  // ================= PAYMENT =================
   const handlePayment = async () => {
 
     if (!address) return alert("Add address ❌");
@@ -197,7 +178,8 @@ export default function CheckoutPage() {
         itemsTotal,
         shipping,
         total,
-        address
+        address,
+        sellerRef: refSeller || null
       };
 
       // COD
@@ -213,8 +195,7 @@ export default function CheckoutPage() {
 
         if (!data.success) return alert("Order failed ❌");
 
-        localStorage.removeItem("buy-now"); // 🔥 clear
-
+        localStorage.removeItem("buy-now");
         router.replace(`/order-success/${data.orderId}`);
         return;
       }
@@ -245,31 +226,29 @@ export default function CheckoutPage() {
 
       localStorage.removeItem("buy-now");
 
-    } catch (err) {
-      console.log(err);
+    } catch {
       alert("Payment error ❌");
     }
 
     setLoading(false);
   };
 
-  // =========================
-  // 🎨 PREMIUM UI
-  // =========================
+  // ================= UI =================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-700 via-pink-600 to-orange-400 p-4 pb-32 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-800 via-pink-600 to-orange-400 p-4 pb-36 text-white">
 
       <h1 className="text-3xl font-bold text-center mb-6">
         Checkout 🛍
       </h1>
 
       {/* ADDRESS */}
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
+      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl shadow-2xl border border-white/30 mb-4">
         <div className="flex justify-between mb-3">
-          <p className="font-semibold text-lg">Delivery Address 📍</p>
+          <p className="font-semibold text-lg">Delivery Address</p>
+
           <button
             onClick={() => router.push("/account")}
-            className="underline text-sm"
+            className="text-sm underline text-blue-300"
           >
             Change
           </button>
@@ -287,15 +266,15 @@ export default function CheckoutPage() {
       </div>
 
       {/* PAYMENT */}
-      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-3xl mb-4">
-        <p className="mb-2 font-semibold">Payment Method</p>
+      <div className="bg-white/20 backdrop-blur-2xl p-4 rounded-3xl shadow-xl border border-white/30 mb-4">
+        <p className="font-semibold mb-2">Payment Method</p>
 
         <div className="flex gap-3">
           <button
             onClick={() => setPaymentMethod("ONLINE")}
-            className={`flex-1 py-2 rounded-xl ${
+            className={`flex-1 py-3 rounded-xl ${
               paymentMethod === "ONLINE"
-                ? "bg-green-500"
+                ? "bg-green-500 shadow-lg"
                 : "bg-white/20"
             }`}
           >
@@ -304,9 +283,9 @@ export default function CheckoutPage() {
 
           <button
             onClick={() => setPaymentMethod("COD")}
-            className={`flex-1 py-2 rounded-xl ${
+            className={`flex-1 py-3 rounded-xl ${
               paymentMethod === "COD"
-                ? "bg-yellow-500"
+                ? "bg-yellow-500 shadow-lg"
                 : "bg-white/20"
             }`}
           >
@@ -316,30 +295,33 @@ export default function CheckoutPage() {
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl mb-4">
-        <p className="flex justify-between">
-          <span>Items</span>
+      <div className="bg-white/20 backdrop-blur-2xl p-5 rounded-3xl shadow-xl border border-white/30 mb-4">
+        <div className="flex justify-between">
+          <span>Items Total</span>
           <span>₹{itemsTotal}</span>
-        </p>
+        </div>
 
-        <p className="flex justify-between">
+        <div className="flex justify-between">
           <span>Shipping</span>
           <span>₹{shipping}</span>
-        </p>
+        </div>
 
-        <hr className="my-2 border-white/30"/>
+        <hr className="my-3 border-white/30" />
 
-        <p className="flex justify-between text-xl font-bold">
+        <div className="flex justify-between text-xl font-bold">
           <span>Total</span>
           <span>₹{total}</span>
-        </p>
+        </div>
       </div>
 
       {/* ITEMS */}
       {items.map((item) => (
-        <div key={item.id} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3">
+        <div key={item.id} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3 shadow-lg">
 
-          <img src={item.image} className="w-16 h-16 rounded-xl object-cover"/>
+          <img
+            src={item.image}
+            className="w-16 h-16 rounded-xl object-cover border"
+          />
 
           <div>
             <p className="font-semibold">{item.name}</p>
@@ -351,14 +333,16 @@ export default function CheckoutPage() {
       ))}
 
       {/* BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-2xl border-t border-white/30">
+
         <button
           onClick={handlePayment}
-          disabled={loading || items.length === 0}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-lg"
+          disabled={loading}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-xl"
         >
           {loading ? "Processing..." : `Pay ₹${total}`}
         </button>
+
       </div>
 
     </div>
