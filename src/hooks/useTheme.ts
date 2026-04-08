@@ -10,20 +10,20 @@ export default function useTheme(initialTheme:any = {}) {
 
   useEffect(() => {
 
-    // 🔥 1. instant load from cache
     const saved = localStorage.getItem("theme-cache");
     if (saved) {
-      setTheme(JSON.parse(saved));
+      const parsed = JSON.parse(saved);
+      setTheme(parsed);
+      applyTheme(parsed); // 🔥 apply cached theme
     }
 
-    // 🔥 2. realtime update
     const unsub = onSnapshot(doc(db, "settings", "theme"), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
 
         setTheme(data);
+        applyTheme(data); // 🔥 apply live theme
 
-        // 💾 save offline
         localStorage.setItem("theme-cache", JSON.stringify(data));
       }
     });
@@ -31,6 +31,15 @@ export default function useTheme(initialTheme:any = {}) {
     return () => unsub();
 
   }, []);
+
+  // 🔥 APPLY FUNCTION
+  function applyTheme(t:any) {
+    const root = document.documentElement;
+
+    Object.keys(t).forEach((key) => {
+      root.style.setProperty(`--${key}`, t[key]);
+    });
+  }
 
   return theme;
 }
