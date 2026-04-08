@@ -12,13 +12,14 @@ import {
   setDoc,
   deleteDoc,
   query,
-  where
+  where,
+  serverTimestamp
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const [mounted, setMounted] = useState(false); // 🔥 Crash rokne ke liye
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -26,212 +27,222 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
 
-  // 🏠 Address States
+  // 🏠 Address States (Synced with Checkout)
   const [addresses, setAddresses] = useState([]);
-  const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "" });
+  const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "", phone: "" });
   const [showAddressForm, setShowAddressForm] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [reason, setReason] = useState("");
+  const [returnReason, setReturnReason] = useState("");
 
   const router = useRouter();
 
-  // 🛠️ 1. MOUNT CHECK (Next.js Hydration Fix)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  // 🛠️ 2. LOAD DATA
   useEffect(() => {
     if (!mounted) return;
-
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        router.push("/login");
-        return;
-      }
+      if (!u) return router.push("/login");
       setUser(u);
 
       try {
-        // Load Profile Name
+        // User Info
         const userRef = doc(db, "users", u.uid);
         const snap = await getDoc(userRef);
-        if (snap.exists()) {
-          setName(snap.data().name);
-        } else {
-          setName(u.email?.split("@")[0] || "User");
-        }
+        setName(snap.exists() ? snap.data().name : u.email?.split("@")[0]);
 
-        // Load Orders
+        // Orders
         const snapOrders = await getDocs(collection(db, "orders"));
         const arr = [];
         snapOrders.forEach(d => {
-          const data = d.data();
-          if (data.userId === u.uid) {
-            arr.push({ id: d.id, ...data });
-          }
+          if (d.data().userId === u.uid) arr.push({ id: d.id, ...d.data() });
         });
-        setOrders(arr);
+        setOrders(arr.sort((a, b) => b.createdAt - a.createdAt));
 
-        // Load Addresses
+        // Addresses (Order by default/recent)
         const q = query(collection(db, "addresses"), where("userId", "==", u.uid));
         const addrSnap = await getDocs(q);
         const addrList = [];
         addrSnap.forEach(doc => addrList.push({ id: doc.id, ...doc.data() }));
         setAddresses(addrList);
 
-      } catch (err) {
-        console.error("Fetch Error:", err);
-      } finally {
-        setLoading(false);
-      }
+      } catch (err) { console.error(err); } 
+      finally { setLoading(false); }
     });
-
     return () => unsub();
   }, [mounted, router]);
 
-  // 🏠 ADDRESS FUNCTIONS
+  // --- ADDRESS ACTIONS (Synced for Checkout) ---
   const handleAddAddress = async () => {
-    if (!newAddress.street || !newAddress.city) return alert("Please fill details");
+    if (!newAddress.street || !newAddress.phone) return alert("Fill essential details");
     try {
-      const docRef = await addDoc(collection(db, "addresses"), {
-        ...newAddress,
-        userId: user.uid
-      });
-      setAddresses([...addresses, { id: docRef.id, ...newAddress }]);
-      setNewAddress({ street: "", city: "", zip: "" });
+      const addrData = { ...newAddress, userId: user.uid, lastUsed: serverTimestamp() };
+      const docRef = await addDoc(collection(db, "addresses"), addrData);
+      setAddresses([{ id: docRef.id, ...addrData }, ...addresses]);
+      setNewAddress({ street: "", city: "", zip: "", phone: "" });
       setShowAddressForm(false);
-    } catch (e) {
-      alert("Error adding address");
-    }
+    } catch (e) { alert("Error saving address"); }
   };
 
-  const handleDeleteAddress = async (id) => {
+  const deleteAddr = async (id) => {
+    await deleteDoc(doc(db, "addresses", id));
+    setAddresses(addresses.filter(a => a.id !== id));
+  };
+
+  // --- RETURN LOGIC ---
+  const handleReturnRequest = async () => {
+    if (!returnReason) return alert("Please select a reason");
     try {
-      await deleteDoc(doc(db, "addresses", id));
-      setAddresses(addresses.filter(a => a.id !== id));
-    } catch (e) {
-      alert("Error deleting address");
-    }
+      await addDoc(collection(db, "returns"), {
+        orderId: selectedOrder.id,
+        userId: user.uid,
+        reason: returnReason,
+        status: "Pending Approval",
+        requestDate: serverTimestamp(),
+      });
+      // Update order status to show return in progress
+      await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Return Requested" });
+      alert("Return Request Submitted Successfully ✅");
+      setShowHelp(false);
+      setReturnReason("");
+    } catch (e) { alert("Return failed. Try again."); }
   };
 
-  // 🚀 RENDER LOGIC
-  if (!mounted || loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-white font-bold">
-        Loading...
-      </div>
-    );
-  }
+  if (!mounted || loading) return <div className="h-screen flex items-center justify-center bg-purple-50">✨ Loading Luxury...</div>;
 
   const steps = ["Pending", "Placed", "Shipped", "Out for Delivery", "Delivered"];
 
   return (
-    <div className="p-4 pb-24 bg-gradient-to-br from-purple-100 to-white min-h-screen">
+    <div className="min-h-screen bg-[#f8f9ff] p-4 pb-28 font-sans">
       
-      {/* 👤 PROFILE */}
-      <div className="bg-white p-6 rounded-3xl mb-5 shadow-sm text-center">
+      {/* 👤 PREMIUM PROFILE CARD */}
+      <div className="relative overflow-hidden bg-white/40 backdrop-blur-xl border border-white/60 p-8 rounded-[2rem] shadow-2xl shadow-purple-100 text-center mb-8">
+        <div className="w-24 h-24 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl text-white shadow-lg">
+          {name.charAt(0).toUpperCase()}
+        </div>
         {!editing ? (
-          <>
-            <h1 className="text-2xl font-bold">👤 {name}</h1>
-            <button onClick={() => setEditing(true)} className="text-blue-600 text-sm mt-1">Edit Name</button>
-          </>
+          <h1 className="text-2xl font-black text-gray-800" onClick={() => setEditing(true)}>{name} ✏️</h1>
         ) : (
-          <div className="flex flex-col gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="border p-2 rounded-xl text-center" />
-            <button onClick={async () => {
-              await setDoc(doc(db, "users", user.uid), { name }, { merge: true });
-              setEditing(false);
-            }} className="bg-green-600 text-white py-2 rounded-xl">Save</button>
+          <div className="flex gap-2 justify-center">
+            <input value={name} onChange={e => setName(e.target.value)} className="bg-white/50 border-none rounded-lg p-1 text-center focus:ring-2 ring-purple-400" />
+            <button onClick={async () => { await setDoc(doc(db, "users", user.uid), { name }, { merge: true }); setEditing(false); }} className="text-green-600 font-bold">✓</button>
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-2">{user?.email}</p>
-        <button onClick={() => auth.signOut()} className="mt-4 bg-red-50 text-red-600 px-6 py-2 rounded-2xl font-bold text-xs">LOGOUT</button>
+        <p className="text-gray-500 text-sm">{user?.email}</p>
+        <button onClick={() => auth.signOut()} className="mt-6 px-8 py-2 bg-red-500/10 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all">LOGOUT</button>
       </div>
 
-      {/* 🏠 ADDRESS SECTION */}
-      <div className="bg-white p-5 rounded-3xl mb-5 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-bold text-lg">My Addresses 🏠</h2>
-          <button onClick={() => setShowAddressForm(!showAddressForm)} className="text-blue-600 font-bold">
-            {showAddressForm ? "✕" : "+ Add"}
+      {/* 🏠 ADDRESS BOX (Synced) */}
+      <div className="bg-white/60 backdrop-blur-md border border-white p-6 rounded-[1.5rem] mb-8 shadow-xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-bold text-gray-700">Delivery Addresses</h2>
+          <button onClick={() => setShowAddressForm(!showAddressForm)} className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center shadow-lg">
+            {showAddressForm ? "✕" : "+"}
           </button>
         </div>
 
         {showAddressForm && (
-          <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-2xl">
-            <input placeholder="Street/Area" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-2 border rounded-xl text-sm" />
-            <div className="flex gap-2">
-              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-2 border rounded-xl text-sm" />
-              <input placeholder="Zip" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-2 border rounded-xl text-sm" />
+          <div className="space-y-3 mb-6 animate-in fade-in zoom-in duration-300">
+            <input placeholder="House No / Street" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
+            <div className="flex gap-3">
+              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
+              <input placeholder="PIN" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
             </div>
-            <button onClick={handleAddAddress} className="w-full bg-blue-600 text-white py-2 rounded-xl">Save Address</button>
+            <input placeholder="Active Phone Number" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
+            <button onClick={handleAddAddress} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl font-bold shadow-xl">Save & Sync</button>
           </div>
         )}
 
-        <div className="space-y-3">
-          {addresses.length === 0 ? <p className="text-gray-400 text-xs">No address saved.</p> : (
-            addresses.map(a => (
-              <div key={a.id} className="flex justify-between items-center border-b border-gray-50 pb-2">
-                <div className="text-sm">
-                  <p className="font-medium text-gray-700">{a.street}</p>
-                  <p className="text-gray-400 text-xs">{a.city}, {a.zip}</p>
-                </div>
-                <button onClick={() => handleDeleteAddress(a.id)} className="text-red-400 text-xs">Delete</button>
+        <div className="space-y-4">
+          {addresses.map(a => (
+            <div key={a.id} className="flex justify-between p-4 bg-white/40 rounded-2xl border border-white/20">
+              <div>
+                <p className="text-sm font-bold text-gray-700">{a.street}</p>
+                <p className="text-xs text-gray-400">{a.city}, {a.zip} | {a.phone}</p>
               </div>
-            ))
-          )}
+              <button onClick={() => deleteAddr(a.id)} className="text-red-400">🗑️</button>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 📦 ORDERS SECTION */}
-      <h2 className="text-xl font-bold mb-4 ml-1">My Orders 📦</h2>
-      {orders.length === 0 ? (
-        <div className="bg-white p-10 rounded-3xl text-center text-gray-400">No orders yet</div>
-      ) : (
-        orders.map(o => {
-          const current = steps.indexOf(o.status || "Pending");
+      {/* 📦 ORDERS LIST */}
+      <h2 className="text-xl font-black mb-4 px-2 text-gray-800">Order History</h2>
+      <div className="space-y-4">
+        {orders.map(o => {
+          const current = steps.indexOf(o.status);
+          const progress = ((current + 1) / steps.length) * 100;
           return (
-            <div key={o.id} className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-gray-50">
-              <div className="flex gap-4">
-                <img src={o.items?.[0]?.image} className="w-16 h-16 rounded-2xl object-cover border" />
-                <div>
-                  <p className="font-bold text-sm text-gray-800 line-clamp-1">{o.items?.[0]?.name}</p>
-                  <p className="text-green-600 font-bold">₹{o.total}</p>
-                  <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold uppercase">{o.status}</span>
+            <div key={o.id} className="bg-white/70 backdrop-blur-md p-5 rounded-[2rem] border border-white shadow-xl">
+              <div className="flex gap-4 mb-4">
+                <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden border border-white/50">
+                  <img src={o.items?.[0]?.image} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-sm text-gray-800 line-clamp-1">{o.items?.[0]?.name}</h3>
+                  <p className="text-purple-600 font-black text-lg">₹{o.total}</p>
+                  <div className="inline-block px-3 py-1 bg-white rounded-full text-[10px] font-bold shadow-sm uppercase tracking-widest text-gray-500">
+                    {o.status}
+                  </div>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mt-5 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div 
-                  className="bg-green-500 h-full transition-all duration-500" 
-                  style={{ width: `${(current / (steps.length - 1)) * 100}%` }}
-                ></div>
+              {/* Glassy Progress Bar */}
+              <div className="h-2 w-full bg-gray-200/50 rounded-full mb-4 overflow-hidden shadow-inner">
+                <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
               </div>
-              
-              <div className="flex justify-between mt-4">
-                <button onClick={() => router.push(`/track/${o.id}`)} className="text-blue-600 text-sm font-bold">Track Order</button>
-                <button onClick={() => { setSelectedOrder(o); setShowHelp(true); }} className="text-gray-300 text-sm">Help</button>
+
+              <div className="flex justify-between">
+                <button onClick={() => router.push(`/track/${o.id}`)} className="text-sm font-bold text-gray-700 underline decoration-purple-400 decoration-2">Details</button>
+                <button onClick={() => { setSelectedOrder(o); setShowHelp(true); }} className="px-6 py-2 bg-black text-white rounded-xl text-xs font-bold">Help & Returns</button>
               </div>
             </div>
           );
-        })
-      )}
+        })}
+      </div>
 
-      {/* HELP MODAL */}
+      {/* 🔮 PREMIUM HELP & RETURN MODAL */}
       {showHelp && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <div className="bg-white w-full rounded-3xl p-6 shadow-2xl">
-            <h3 className="font-bold text-lg mb-4 text-center">Order Support</h3>
-            <button onClick={async () => {
-              await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Cancelled" });
-              alert("Order Cancelled ✅");
-              setShowHelp(false);
-            }} className="w-full bg-red-100 text-red-600 p-4 rounded-2xl font-bold mb-3">Cancel Order</button>
-            
-            <button onClick={() => setShowHelp(false)} className="w-full text-gray-400 font-medium py-2">Close</button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-end sm:items-center justify-center z-50 animate-in slide-in-from-bottom duration-300">
+          <div className="bg-white/90 backdrop-blur-2xl w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl border border-white">
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden" onClick={() => setShowHelp(false)} />
+            <h3 className="text-xl font-black mb-2">Order Support</h3>
+            <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">ID: #{selectedOrder?.id.slice(-6)}</p>
+
+            <div className="space-y-4">
+              {/* Return Section */}
+              <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                <h4 className="font-bold text-purple-700 mb-2">Easy Return Policy</h4>
+                <select 
+                  value={returnReason} 
+                  onChange={e => setReturnReason(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-white border-none text-sm shadow-sm"
+                >
+                  <option value="">Select Reason for Return</option>
+                  <option>Defective/Damaged Product</option>
+                  <option>Wrong Item Received</option>
+                  <option>Size/Fit Issue</option>
+                  <option>Quality not as expected</option>
+                </select>
+                <button 
+                  onClick={handleReturnRequest}
+                  className="w-full mt-3 py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200"
+                >
+                  Submit Return Request
+                </button>
+              </div>
+
+              {/* Cancel Section */}
+              {selectedOrder?.status === "Pending" && (
+                <button onClick={async () => {
+                  await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Cancelled" });
+                  alert("Order Cancelled ✅"); setShowHelp(false);
+                }} className="w-full py-4 bg-red-50 text-red-500 rounded-2xl font-bold">Cancel Order</button>
+              )}
+              
+              <button onClick={() => setShowHelp(false)} className="w-full py-2 text-gray-400 text-sm">Dismiss</button>
+            </div>
           </div>
         </div>
       )}
