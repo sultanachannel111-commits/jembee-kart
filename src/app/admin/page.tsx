@@ -65,77 +65,87 @@ export default function AdminDashboard() {
       {/* 🔥 STATS */}
       <div className="grid grid-cols-3 gap-4 mb-8">
 
-        <div className="glass p-4 text-center">
-          <ShoppingCart className="mx-auto mb-2 text-purple-600"/>
-          <p className="text-lg font-bold">{stats.orders}</p>
-          <p className="text-xs text-gray-500">Orders</p>
-        </div>
-
-        <div className="glass p-4 text-center">
-          <Users className="mx-auto mb-2 text-blue-600"/>
-          <p className="text-lg font-bold">{stats.users}</p>
-          <p className="text-xs text-gray-500">Users</p>
-        </div>
-
-        <div className="glass p-4 text-center">
-          <DollarSign className="mx-auto mb-2 text-green-600"/>
-          <p className="text-lg font-bold">₹{stats.revenue}</p>
-          <p className="text-xs text-gray-500">Revenue</p>
-        </div>
+        <StatCard icon={<ShoppingCart/>} value={stats.orders} label="Orders"/>
+        <StatCard icon={<Users/>} value={stats.users} label="Users"/>
+        <StatCard icon={<DollarSign/>} value={`₹${stats.revenue}`} label="Revenue"/>
 
       </div>
 
       {/* ================== ECOMMERCE ================== */}
 
-      <h2 className="font-bold mb-3 text-lg">🛒 Ecommerce</h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <Section title="🛒 Ecommerce">
 
         <Card href="/admin/products" icon={<Package/>} title="Products"/>
         <Card href="/admin/orders" icon={<ShoppingCart/>} title="Orders"/>
         <Card href="/admin/users" icon={<Users/>} title="Users"/>
         <Card href="/admin/sellers" icon={<Store/>} title="Sellers"/>
+        <Card href="/admin/returns" icon={<Tag/>} title="Returns"/>
 
-      </div>
+      </Section>
 
       {/* ================== STORE ================== */}
 
-      <h2 className="font-bold mb-3 text-lg">🏪 Store</h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <Section title="🏪 Store">
 
         <Card href="/admin/categories" icon={<Tag/>} title="Categories"/>
         <Card href="/admin/banners" icon={<Image/>} title="Banners"/>
         <Card href="/admin/homepage" icon={<Home/>} title="Homepage"/>
         <Card href="/admin/shipping" icon={<Truck/>} title="Shipping"/>
+        <Card href="/admin/image-gallery" icon={<Image/>} title="Gallery"/>
+        <Card href="/admin/upload-image" icon={<Image/>} title="Upload Image"/>
 
-      </div>
+      </Section>
 
       {/* ================== MARKETING ================== */}
 
-      <h2 className="font-bold mb-3 text-lg">🔥 Marketing</h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <Section title="🔥 Marketing">
 
         <Card href="/admin/offers" icon={<Tag/>} title="Offers"/>
         <Card href="/admin/flash-sale" icon={<Tag/>} title="Flash Sale"/>
         <Card href="/admin/festival" icon={<Tag/>} title="Festival"/>
+        <Card href="/admin/ai-offers" icon={<Tag/>} title="AI Offers"/>
 
-      </div>
+      </Section>
 
       {/* ================== SYSTEM ================== */}
 
-      <h2 className="font-bold mb-3 text-lg">⚙️ System</h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Section title="⚙️ System">
 
         <Card href="/admin/settings" icon={<Settings/>} title="Settings"/>
         <Card href="/admin/theme" icon={<Palette/>} title="Theme"/>
         <Card href="/admin/payments" icon={<DollarSign/>} title="Payments"/>
+        <Card href="/admin/database" icon={<Store/>} title="Database"/>
+        <Card href="/admin/debug" icon={<Settings/>} title="Debug"/>
+        <Card href="/admin/diagnostics" icon={<Settings/>} title="Diagnostics"/>
+        <Card href="/admin/errors" icon={<Settings/>} title="Errors"/>
+        <Card href="/admin/runtime-check" icon={<Settings/>} title="Runtime Check"/>
+        <Card href="/admin/runtime-monitor" icon={<Settings/>} title="Runtime Monitor"/>
+        <Card href="/admin/system" icon={<Settings/>} title="System"/>
+        <Card href="/admin/speed-optimizer" icon={<Settings/>} title="Speed Optimizer"/>
+        <Card href="/admin/monitor" icon={<Settings/>} title="Monitor"/>
+        <Card href="/admin/search-monitor" icon={<Settings/>} title="Search Monitor"/>
+        <Card href="/admin/notifications" icon={<Settings/>} title="Notifications"/>
+        <Card href="/admin/project-scanner" icon={<Settings/>} title="Project Scanner"/>
+        <Card href="/admin/auto-fix" icon={<Settings/>} title="Auto Fix"/>
+        <Card href="/admin/fix-variation" icon={<Settings/>} title="Fix Variation"/>
 
-      </div>
+      </Section>
 
     </div>
+  );
+}
+
+
+/* 🔥 SECTION WRAPPER */
+function Section({ title, children }) {
+  return (
+    <>
+      <h2 className="font-bold mb-3 text-lg">{title}</h2>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -154,5 +164,19 @@ function Card({ href, icon, title }) {
 
       </div>
     </Link>
+  );
+}
+
+
+/* 🔥 STATS CARD */
+function StatCard({ icon, value, label }) {
+  return (
+    <div className="glass p-4 text-center rounded-xl">
+      <div className="mx-auto mb-2 text-purple-600 flex justify-center">
+        {icon}
+      </div>
+      <p className="text-lg font-bold">{value}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
   );
 }
