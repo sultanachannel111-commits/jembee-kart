@@ -74,7 +74,12 @@ export default function AdminDashboard() {
       {/* ================== ECOMMERCE ================== */}
 
       <Section title="🛒 Ecommerce">
-
+        
+        <Card 
+  href="/admin/qikink-products" 
+  icon={<Package/>} 
+  title="Qikink Products" 
+/>
         <Card href="/admin/products" icon={<Package/>} title="Products"/>
         <Card href="/admin/orders" icon={<ShoppingCart/>} title="Orders"/>
         <Card href="/admin/users" icon={<Users/>} title="Users"/>
