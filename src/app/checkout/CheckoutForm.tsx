@@ -7,169 +7,360 @@ import {
   getDocs,
   doc,
   getDoc,
-  setDoc,
-  addDoc,
-  deleteDoc,
-  query,
-  where,
-  updateDoc
+  onSnapshot
 } from "firebase/firestore";
+
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { load } from "@cashfreepayments/cashfree-js";
 
-export default function ProfilePage() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
-  const [addresses, setAddresses] = useState([]);
-  const [name, setName] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "" });
-  const [showAddressForm, setShowAddressForm] = useState(false);
-  
+export default function CheckoutPage() {
+
+  const [user, setUser] = useState<any>(null);
+  const [address, setAddress] = useState<any>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [paymentMethod, setPaymentMethod] = useState("ONLINE");
+
+  const [shippingConfig, setShippingConfig] = useState({
+    prepaid: 0,
+    cod: 0,
+    freeShippingAbove: 0
+  });
+
   const router = useRouter();
 
+  // =========================
+  // 🔥 LOAD DATA (BUY NOW + CART)
+  // =========================
   useEffect(() => {
+
+    let unsubscribe: any;
+
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        router.push("/login");
-        return;
-      }
+
+      if (!u) return router.push("/login");
+
       setUser(u);
 
-      try {
-        // 1. Get User Name
-        const userSnap = await getDoc(doc(db, "users", u.uid));
-        setName(userSnap.exists() ? userSnap.data().name : u.email?.split("@")[0]);
+      // =====================
+      // 🟢 BUY NOW (PRIORITY)
+      // =====================
+      const buyNow = localStorage.getItem("buy-now");
 
-        // 2. Get Orders (Safe Fetch)
-        const oRef = collection(db, "orders");
-        const oSnap = await getDocs(oRef);
-        const userOrders = [];
-        oSnap.forEach((d) => {
-          if (d.data().userId === u.uid) userOrders.push({ id: d.id, ...d.data() });
+      if (buyNow) {
+        try {
+          const parsed = JSON.parse(buyNow);
+
+          if (parsed && parsed.price > 0) {
+
+            const item = {
+              id: "buy-now",
+              productId: parsed.productId,
+              name: parsed.name,
+              image: parsed.image || "/no-image.png",
+              price: Number(parsed.price) || 0,
+              qty: Number(parsed.quantity) || 1
+            };
+
+            console.log("🔥 BUY NOW:", item);
+
+            setItems([item]);
+
+          } else {
+            setItems([]);
+          }
+
+        } catch {
+          setItems([]);
+        }
+
+      } else {
+
+        // =====================
+        // 🛒 FIRESTORE CART
+        // =====================
+        const ref = collection(db, "carts", u.uid, "items");
+
+        unsubscribe = onSnapshot(ref, (snap) => {
+
+          const data: any[] = [];
+
+          snap.forEach(docSnap => {
+
+            const d: any = docSnap.data();
+
+            const price =
+              d?.variations?.[0]?.sizes?.[0]?.sellPrice ||
+              d.price ||
+              0;
+
+            data.push({
+              id: docSnap.id,
+              productId: d.productId,
+              name: d.name,
+              image: d.image || "/no-image.png",
+              price: Number(price) || 0,
+              qty: Number(d.quantity) || 1
+            });
+
+          });
+
+          setItems(data);
+
         });
-        setOrders(userOrders);
 
-        // 3. Get Addresses
-        const aRef = collection(db, "addresses");
-        const q = query(aRef, where("userId", "==", u.uid));
-        const aSnap = await getDocs(q);
-        const addrList = [];
-        aSnap.forEach((d) => addrList.push({ id: d.id, ...d.data() }));
-        setAddresses(addrList);
-
-      } catch (error) {
-        console.error("Firebase Error:", error);
-      } finally {
-        setLoading(false);
       }
+
+      // =====================
+      // 📍 ADDRESS
+      // =====================
+      const addrSnap = await getDocs(
+        collection(db, "users", u.uid, "addresses")
+      );
+
+      let all: any[] = [];
+      let defaultAddr: any = null;
+
+      addrSnap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        all.push(data);
+        if (data.isDefault) defaultAddr = data;
+      });
+
+      setAddresses(all);
+      setAddress(defaultAddr || all[0] || null);
+
+      // =====================
+      // 🚚 SHIPPING
+      // =====================
+      const shipSnap = await getDoc(doc(db, "config", "shipping"));
+
+      if (shipSnap.exists()) {
+        const data = shipSnap.data();
+
+        setShippingConfig({
+          prepaid: Number(data.prepaid) || 0,
+          cod: Number(data.cod) || 0,
+          freeShippingAbove: Number(data.freeShippingAbove) || 0
+        });
+      }
+
     });
 
-    return () => unsub();
-  }, [router]);
+    return () => {
+      unsub();
+      if (unsubscribe) unsubscribe();
+    };
 
-  // Address Actions
-  const saveAddress = async () => {
-    if (!newAddress.street || !newAddress.city) return alert("Fill details");
+  }, []);
+
+  // =========================
+  // 💰 TOTAL FIX
+  // =========================
+  const itemsTotal = items.reduce((sum, i) => {
+    return sum + (Number(i.price) || 0) * (Number(i.qty) || 1);
+  }, 0);
+
+  let shipping =
+    items.length === 0
+      ? 0
+      : paymentMethod === "COD"
+      ? shippingConfig.cod
+      : shippingConfig.prepaid;
+
+  if (
+    shippingConfig.freeShippingAbove > 0 &&
+    itemsTotal >= shippingConfig.freeShippingAbove
+  ) {
+    shipping = 0;
+  }
+
+  const total = items.length === 0 ? 0 : itemsTotal + shipping;
+
+  // =========================
+  // 🚀 PAYMENT
+  // =========================
+  const handlePayment = async () => {
+
+    if (!address) return alert("Add address ❌");
+    if (items.length === 0) return alert("Cart empty ❌");
+
     try {
-      const docRef = await addDoc(collection(db, "addresses"), {
-        ...newAddress,
-        userId: user.uid
+      setLoading(true);
+
+      const orderData = {
+        userId: user.uid,
+        items,
+        itemsTotal,
+        shipping,
+        total,
+        address
+      };
+
+      // COD
+      if (paymentMethod === "COD") {
+
+        const res = await fetch("/api/orders/cod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderData)
+        });
+
+        const data = await res.json();
+
+        if (!data.success) return alert("Order failed ❌");
+
+        localStorage.removeItem("buy-now"); // 🔥 clear
+
+        router.replace(`/order-success/${data.orderId}`);
+        return;
+      }
+
+      // ONLINE
+      const res = await fetch("/api/cashfree/create-order", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          amount: total,
+          customer: {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+            phone: address.phone
+          }
+        })
       });
-      setAddresses([...addresses, { id: docRef.id, ...newAddress }]);
-      setNewAddress({ street: "", city: "", zip: "" });
-      setShowAddressForm(false);
-    } catch (e) { alert("Error saving address"); }
+
+      const data = await res.json();
+
+      const cashfree = await load({ mode: "production" });
+
+      await cashfree.checkout({
+        paymentSessionId: data.payment_session_id,
+        redirectTarget: "_self"
+      });
+
+      localStorage.removeItem("buy-now");
+
+    } catch (err) {
+      console.log(err);
+      alert("Payment error ❌");
+    }
+
+    setLoading(false);
   };
 
-  const deleteAddr = async (id) => {
-    try {
-      await deleteDoc(doc(db, "addresses", id));
-      setAddresses(addresses.filter(a => a.id !== id));
-    } catch (e) { alert("Error deleting"); }
-  };
-
-  if (loading) return <div className="flex h-screen items-center justify-center font-bold">Loading Profile...</div>;
-
+  // =========================
+  // 🎨 PREMIUM UI
+  // =========================
   return (
-    <div className="max-w-md mx-auto p-4 pb-20 bg-gray-50 min-h-screen">
-      
-      {/* 👤 Header */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm mb-4 border border-gray-100">
-        {!editing ? (
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-bold">Hi, {name}! 👋</h1>
-              <p className="text-xs text-gray-400">{user?.email}</p>
-            </div>
-            <button onClick={() => setEditing(true)} className="text-blue-600 text-sm">Edit</button>
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 via-pink-600 to-orange-400 p-4 pb-32 text-white">
+
+      <h1 className="text-3xl font-bold text-center mb-6">
+        Checkout 🛍
+      </h1>
+
+      {/* ADDRESS */}
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl mb-4">
+        <div className="flex justify-between mb-3">
+          <p className="font-semibold text-lg">Delivery Address 📍</p>
+          <button
+            onClick={() => router.push("/account")}
+            className="underline text-sm"
+          >
+            Change
+          </button>
+        </div>
+
+        {address ? (
+          <div className="text-sm space-y-1">
+            <p className="font-bold">{address.name}</p>
+            <p>{address.phone}</p>
+            <p>{address.address}</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-xl" />
-            <button onClick={async () => {
-              await setDoc(doc(db, "users", user.uid), { name }, { merge: true });
-              setEditing(false);
-            }} className="w-full bg-blue-600 text-white py-2 rounded-xl text-sm">Save Name</button>
-          </div>
+          <p>No address ❌</p>
         )}
-        <button onClick={() => auth.signOut()} className="mt-4 text-red-500 text-xs font-bold uppercase tracking-wider">Logout</button>
       </div>
 
-      {/* 🏠 Addresses */}
-      <div className="bg-white p-5 rounded-3xl shadow-sm mb-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-bold">Saved Addresses</h2>
-          <button onClick={() => setShowAddressForm(!showAddressForm)} className="text-blue-600 text-xl">{showAddressForm ? "×" : "+"}</button>
-        </div>
+      {/* PAYMENT */}
+      <div className="bg-white/20 backdrop-blur-xl p-4 rounded-3xl mb-4">
+        <p className="mb-2 font-semibold">Payment Method</p>
 
-        {showAddressForm && (
-          <div className="space-y-2 mb-4 bg-gray-50 p-3 rounded-2xl">
-            <input placeholder="Street" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-2 text-sm border rounded-lg" />
-            <div className="flex gap-2">
-              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-2 text-sm border rounded-lg" />
-              <input placeholder="Zip" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-2 text-sm border rounded-lg" />
-            </div>
-            <button onClick={saveAddress} className="w-full bg-black text-white py-2 rounded-xl text-sm">Add Address</button>
-          </div>
-        )}
+        <div className="flex gap-3">
+          <button
+            onClick={() => setPaymentMethod("ONLINE")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "ONLINE"
+                ? "bg-green-500"
+                : "bg-white/20"
+            }`}
+          >
+            Online 💳
+          </button>
 
-        <div className="space-y-3">
-          {addresses.length === 0 && <p className="text-xs text-gray-400">No addresses yet.</p>}
-          {addresses.map(a => (
-            <div key={a.id} className="flex justify-between items-start border-b border-gray-50 pb-2">
-              <div>
-                <p className="text-sm font-medium">{a.street}</p>
-                <p className="text-[10px] text-gray-400">{a.city}, {a.zip}</p>
-              </div>
-              <button onClick={() => deleteAddr(a.id)} className="text-red-400 text-xs">Remove</button>
-            </div>
-          ))}
+          <button
+            onClick={() => setPaymentMethod("COD")}
+            className={`flex-1 py-2 rounded-xl ${
+              paymentMethod === "COD"
+                ? "bg-yellow-500"
+                : "bg-white/20"
+            }`}
+          >
+            COD 🚚
+          </button>
         </div>
       </div>
 
-      {/* 📦 Orders */}
-      <h2 className="font-bold mb-3 px-1 text-lg">Your Orders</h2>
-      {orders.length === 0 ? (
-        <div className="bg-white p-10 rounded-3xl text-center text-gray-400 text-sm">No orders found.</div>
-      ) : (
-        orders.map(o => (
-          <div key={o.id} className="bg-white p-4 rounded-3xl mb-3 shadow-sm flex gap-4 items-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl overflow-hidden">
-              <img src={o.items?.[0]?.image || "/placeholder.png"} className="w-full h-full object-cover" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold truncate w-40">{o.items?.[0]?.name || "Order"}</p>
-              <p className="text-green-600 font-black">₹{o.total}</p>
-              <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">{o.status || "Processing"}</span>
-            </div>
-            <button onClick={() => router.push(`/track/${o.id}`)} className="bg-gray-100 p-2 rounded-full">
-              ➔
-            </button>
+      {/* SUMMARY */}
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl mb-4">
+        <p className="flex justify-between">
+          <span>Items</span>
+          <span>₹{itemsTotal}</span>
+        </p>
+
+        <p className="flex justify-between">
+          <span>Shipping</span>
+          <span>₹{shipping}</span>
+        </p>
+
+        <hr className="my-2 border-white/30"/>
+
+        <p className="flex justify-between text-xl font-bold">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </p>
+      </div>
+
+      {/* ITEMS */}
+      {items.map((item) => (
+        <div key={item.id} className="bg-white/20 backdrop-blur-xl p-3 rounded-2xl mb-3 flex gap-3">
+
+          <img src={item.image} className="w-16 h-16 rounded-xl object-cover"/>
+
+          <div>
+            <p className="font-semibold">{item.name}</p>
+            <p className="text-sm">Qty: {item.qty}</p>
+            <p className="text-green-300 font-bold">₹{item.price}</p>
           </div>
-        ))
-      )}
+
+        </div>
+      ))}
+
+      {/* BUTTON */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-white/20 backdrop-blur-xl">
+        <button
+          onClick={handlePayment}
+          disabled={loading || items.length === 0}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-pink-600 font-bold text-lg shadow-lg"
+        >
+          {loading ? "Processing..." : `Pay ₹${total}`}
+        </button>
+      </div>
+
     </div>
   );
 }
