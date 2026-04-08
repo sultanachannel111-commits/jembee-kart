@@ -10,274 +10,166 @@ import {
   setDoc,
   addDoc,
   deleteDoc,
-  updateDoc,
-  serverTimestamp
+  query,
+  where,
+  updateDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const [orders, setOrders] = useState([]);
   const [addresses, setAddresses] = useState([]);
-
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
-
-  const [newAddress, setNewAddress] = useState({
-    name: "",
-    phone: "",
-    address: ""
-  });
-
+  const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "" });
   const [showAddressForm, setShowAddressForm] = useState(false);
-
+  
   const router = useRouter();
 
-  // ================= LOAD =================
   useEffect(() => {
-
     const unsub = onAuthStateChanged(auth, async (u) => {
-
       if (!u) {
         router.push("/login");
         return;
       }
-
       setUser(u);
 
       try {
-
-        // 👤 USER
+        // 1. Get User Name
         const userSnap = await getDoc(doc(db, "users", u.uid));
-        setName(
-          userSnap.exists()
-            ? userSnap.data().name
-            : u.email.split("@")[0]
-        );
+        setName(userSnap.exists() ? userSnap.data().name : u.email?.split("@")[0]);
 
-        // 📦 ORDERS
-        const snapOrders = await getDocs(collection(db, "orders"));
-
-        const arr = [];
-        snapOrders.forEach(d => {
-          const data = d.data();
-          if (data.userId === u.uid) {
-            arr.push({ id: d.id, ...data });
-          }
+        // 2. Get Orders (Safe Fetch)
+        const oRef = collection(db, "orders");
+        const oSnap = await getDocs(oRef);
+        const userOrders = [];
+        oSnap.forEach((d) => {
+          if (d.data().userId === u.uid) userOrders.push({ id: d.id, ...d.data() });
         });
+        setOrders(userOrders);
 
-        setOrders(arr);
-
-        // 📍 ADDRESSES (✅ SAME AS CHECKOUT)
-        const addrSnap = await getDocs(
-          collection(db, "users", u.uid, "addresses")
-        );
-
+        // 3. Get Addresses
+        const aRef = collection(db, "addresses");
+        const q = query(aRef, where("userId", "==", u.uid));
+        const aSnap = await getDocs(q);
         const addrList = [];
-        addrSnap.forEach(d => {
-          addrList.push({ id: d.id, ...d.data() });
-        });
-
+        aSnap.forEach((d) => addrList.push({ id: d.id, ...d.data() }));
         setAddresses(addrList);
 
-      } catch (err) {
-        console.log(err);
+      } catch (error) {
+        console.error("Firebase Error:", error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
-
     });
 
     return () => unsub();
+  }, [router]);
 
-  }, []);
-
-  // ================= ADD ADDRESS =================
+  // Address Actions
   const saveAddress = async () => {
-
-    if (!newAddress.address || newAddress.phone.length < 10) {
-      alert("Fill address & phone properly");
-      return;
-    }
-
-    await addDoc(
-      collection(db, "users", user.uid, "addresses"),
-      {
+    if (!newAddress.street || !newAddress.city) return alert("Fill details");
+    try {
+      const docRef = await addDoc(collection(db, "addresses"), {
         ...newAddress,
-        createdAt: serverTimestamp()
-      }
-    );
-
-    setNewAddress({ name: "", phone: "", address: "" });
-    setShowAddressForm(false);
-
-    // reload
-    const snap = await getDocs(
-      collection(db, "users", user.uid, "addresses")
-    );
-
-    const arr = [];
-    snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
-
-    setAddresses(arr);
+        userId: user.uid
+      });
+      setAddresses([...addresses, { id: docRef.id, ...newAddress }]);
+      setNewAddress({ street: "", city: "", zip: "" });
+      setShowAddressForm(false);
+    } catch (e) { alert("Error saving address"); }
   };
 
-  // ================= DELETE ADDRESS =================
   const deleteAddr = async (id) => {
-
-    await deleteDoc(
-      doc(db, "users", user.uid, "addresses", id)
-    );
-
-    setAddresses(addresses.filter(a => a.id !== id));
+    try {
+      await deleteDoc(doc(db, "addresses", id));
+      setAddresses(addresses.filter(a => a.id !== id));
+    } catch (e) { alert("Error deleting"); }
   };
 
-  // ================= LOADING =================
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+  if (loading) return <div className="flex h-screen items-center justify-center font-bold">Loading Profile...</div>;
 
-  // ================= UI =================
   return (
-    <div className="max-w-md mx-auto p-4 pb-28 min-h-screen bg-gray-50">
-
-      {/* PROFILE */}
-      <div className="bg-white p-6 rounded-2xl shadow mb-5 text-center">
-
+    <div className="max-w-md mx-auto p-4 pb-20 bg-gray-50 min-h-screen">
+      
+      {/* 👤 Header */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm mb-4 border border-gray-100">
         {!editing ? (
-          <>
-            <h1 className="text-xl font-bold">{name}</h1>
-            <button onClick={() => setEditing(true)} className="text-blue-500 text-sm">
-              Edit
-            </button>
-          </>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-bold">Hi, {name}! 👋</h1>
+              <p className="text-xs text-gray-400">{user?.email}</p>
+            </div>
+            <button onClick={() => setEditing(true)} className="text-blue-600 text-sm">Edit</button>
+          </div>
         ) : (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-2 w-full rounded"
-            />
-
-            <button
-              onClick={async () => {
-                await setDoc(
-                  doc(db, "users", user.uid),
-                  { name },
-                  { merge: true }
-                );
-                setEditing(false);
-              }}
-              className="bg-green-500 text-white px-4 py-1 mt-2 rounded"
-            >
-              Save
-            </button>
-          </>
+          <div className="space-y-2">
+            <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-xl" />
+            <button onClick={async () => {
+              await setDoc(doc(db, "users", user.uid), { name }, { merge: true });
+              setEditing(false);
+            }} className="w-full bg-blue-600 text-white py-2 rounded-xl text-sm">Save Name</button>
+          </div>
         )}
-
-        <p className="text-xs text-gray-500">{user.email}</p>
-
-        <button
-          onClick={() => auth.signOut()}
-          className="mt-3 bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Logout
-        </button>
-
+        <button onClick={() => auth.signOut()} className="mt-4 text-red-500 text-xs font-bold uppercase tracking-wider">Logout</button>
       </div>
 
-      {/* ADDRESS */}
-      <div className="bg-white p-5 rounded-2xl shadow mb-5">
-
-        <div className="flex justify-between mb-3">
-          <h2 className="font-bold">Addresses</h2>
-          <button onClick={() => setShowAddressForm(!showAddressForm)}>
-            +
-          </button>
+      {/* 🏠 Addresses */}
+      <div className="bg-white p-5 rounded-3xl shadow-sm mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-bold">Saved Addresses</h2>
+          <button onClick={() => setShowAddressForm(!showAddressForm)} className="text-blue-600 text-xl">{showAddressForm ? "×" : "+"}</button>
         </div>
 
         {showAddressForm && (
-          <div className="space-y-2 mb-3">
-
-            <input
-              placeholder="Name"
-              value={newAddress.name}
-              onChange={(e) =>
-                setNewAddress({ ...newAddress, name: e.target.value })
-              }
-              className="border p-2 w-full rounded"
-            />
-
-            <input
-              placeholder="Phone"
-              value={newAddress.phone}
-              onChange={(e) =>
-                setNewAddress({
-                  ...newAddress,
-                  phone: e.target.value.replace(/\D/g, "")
-                })
-              }
-              className="border p-2 w-full rounded"
-            />
-
-            <input
-              placeholder="Full Address"
-              value={newAddress.address}
-              onChange={(e) =>
-                setNewAddress({ ...newAddress, address: e.target.value })
-              }
-              className="border p-2 w-full rounded"
-            />
-
-            <button
-              onClick={saveAddress}
-              className="bg-black text-white w-full py-2 rounded"
-            >
-              Save Address
-            </button>
-
+          <div className="space-y-2 mb-4 bg-gray-50 p-3 rounded-2xl">
+            <input placeholder="Street" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-2 text-sm border rounded-lg" />
+            <div className="flex gap-2">
+              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-2 text-sm border rounded-lg" />
+              <input placeholder="Zip" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-2 text-sm border rounded-lg" />
+            </div>
+            <button onClick={saveAddress} className="w-full bg-black text-white py-2 rounded-xl text-sm">Add Address</button>
           </div>
         )}
 
-        {addresses.map(a => (
-          <div key={a.id} className="flex justify-between border p-2 rounded mb-2">
-
-            <div className="text-sm">
-              <p>{a.name}</p>
-              <p>{a.phone}</p>
-              <p>{a.address}</p>
+        <div className="space-y-3">
+          {addresses.length === 0 && <p className="text-xs text-gray-400">No addresses yet.</p>}
+          {addresses.map(a => (
+            <div key={a.id} className="flex justify-between items-start border-b border-gray-50 pb-2">
+              <div>
+                <p className="text-sm font-medium">{a.street}</p>
+                <p className="text-[10px] text-gray-400">{a.city}, {a.zip}</p>
+              </div>
+              <button onClick={() => deleteAddr(a.id)} className="text-red-400 text-xs">Remove</button>
             </div>
-
-            <button onClick={() => deleteAddr(a.id)}>
-              🗑
-            </button>
-
-          </div>
-        ))}
-
+          ))}
+        </div>
       </div>
 
-      {/* ORDERS */}
-      <h2 className="font-bold mb-2">Orders</h2>
-
-      {orders.map(o => (
-        <div key={o.id} className="bg-white p-3 rounded-xl mb-3 shadow">
-
-          <p>{o.items?.[0]?.name}</p>
-          <p>₹{o.total}</p>
-          <p>{o.status}</p>
-
-        </div>
-      ))}
-
+      {/* 📦 Orders */}
+      <h2 className="font-bold mb-3 px-1 text-lg">Your Orders</h2>
+      {orders.length === 0 ? (
+        <div className="bg-white p-10 rounded-3xl text-center text-gray-400 text-sm">No orders found.</div>
+      ) : (
+        orders.map(o => (
+          <div key={o.id} className="bg-white p-4 rounded-3xl mb-3 shadow-sm flex gap-4 items-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl overflow-hidden">
+              <img src={o.items?.[0]?.image || "/placeholder.png"} className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold truncate w-40">{o.items?.[0]?.name || "Order"}</p>
+              <p className="text-green-600 font-black">₹{o.total}</p>
+              <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">{o.status || "Processing"}</span>
+            </div>
+            <button onClick={() => router.push(`/track/${o.id}`)} className="bg-gray-100 p-2 rounded-full">
+              ➔
+            </button>
+          </div>
+        ))
+      )}
     </div>
   );
 }
