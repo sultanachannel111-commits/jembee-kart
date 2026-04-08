@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
 
-  // 🏠 Address States (Synced with Checkout)
+  // 🏠 Address States
   const [addresses, setAddresses] = useState([]);
   const [newAddress, setNewAddress] = useState({ street: "", city: "", zip: "", phone: "" });
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -47,12 +47,10 @@ export default function ProfilePage() {
       setUser(u);
 
       try {
-        // User Info
         const userRef = doc(db, "users", u.uid);
         const snap = await getDoc(userRef);
         setName(snap.exists() ? snap.data().name : u.email?.split("@")[0]);
 
-        // Orders
         const snapOrders = await getDocs(collection(db, "orders"));
         const arr = [];
         snapOrders.forEach(d => {
@@ -60,7 +58,6 @@ export default function ProfilePage() {
         });
         setOrders(arr.sort((a, b) => b.createdAt - a.createdAt));
 
-        // Addresses (Order by default/recent)
         const q = query(collection(db, "addresses"), where("userId", "==", u.uid));
         const addrSnap = await getDocs(q);
         const addrList = [];
@@ -73,9 +70,19 @@ export default function ProfilePage() {
     return () => unsub();
   }, [mounted, router]);
 
-  // --- ADDRESS ACTIONS (Synced for Checkout) ---
+  // --- 🔥 MOBILE NUMBER FIX (Removes leading 0) ---
+  const handlePhoneChange = (e) => {
+    let val = e.target.value.replace(/\D/g, ""); // Sirf numbers allow honge
+    if (val.startsWith("0")) {
+      val = val.substring(1); // Agar 0 se shuru ho raha hai toh hata do
+    }
+    setNewAddress({ ...newAddress, phone: val });
+  };
+
   const handleAddAddress = async () => {
-    if (!newAddress.street || !newAddress.phone) return alert("Fill essential details");
+    if (!newAddress.street || newAddress.phone.length < 10) {
+      return alert("Please enter a valid address and 10-digit phone number");
+    }
     try {
       const addrData = { ...newAddress, userId: user.uid, lastUsed: serverTimestamp() };
       const docRef = await addDoc(collection(db, "addresses"), addrData);
@@ -86,11 +93,25 @@ export default function ProfilePage() {
   };
 
   const deleteAddr = async (id) => {
-    await deleteDoc(doc(db, "addresses", id));
-    setAddresses(addresses.filter(a => a.id !== id));
+    if(confirm("Delete this address?")) {
+      await deleteDoc(doc(db, "addresses", id));
+      setAddresses(addresses.filter(a => a.id !== id));
+    }
   };
 
-  // --- RETURN LOGIC ---
+  // --- 📦 CANCEL & RETURN LOGIC ---
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return;
+    if (confirm("Are you sure you want to cancel this order?")) {
+      try {
+        await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Cancelled" });
+        setOrders(orders.map(o => o.id === selectedOrder.id ? {...o, status: "Cancelled"} : o));
+        alert("Order Cancelled Successfully ✅");
+        setShowHelp(false);
+      } catch (e) { alert("Action failed"); }
+    }
+  };
+
   const handleReturnRequest = async () => {
     if (!returnReason) return alert("Please select a reason");
     try {
@@ -101,147 +122,162 @@ export default function ProfilePage() {
         status: "Pending Approval",
         requestDate: serverTimestamp(),
       });
-      // Update order status to show return in progress
       await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Return Requested" });
-      alert("Return Request Submitted Successfully ✅");
+      setOrders(orders.map(o => o.id === selectedOrder.id ? {...o, status: "Return Requested"} : o));
+      alert("Return Request Submitted ✅");
       setShowHelp(false);
       setReturnReason("");
-    } catch (e) { alert("Return failed. Try again."); }
+    } catch (e) { alert("Error submitting return"); }
   };
 
-  if (!mounted || loading) return <div className="h-screen flex items-center justify-center bg-purple-50">✨ Loading Luxury...</div>;
+  if (!mounted || loading) return <div className="h-screen flex items-center justify-center bg-white font-bold text-purple-600">✨ Syncing Profile...</div>;
 
   const steps = ["Pending", "Placed", "Shipped", "Out for Delivery", "Delivered"];
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] p-4 pb-28 font-sans">
+    <div className="min-h-screen bg-[#F0F2F5] p-4 pb-32 font-sans">
       
-      {/* 👤 PREMIUM PROFILE CARD */}
-      <div className="relative overflow-hidden bg-white/40 backdrop-blur-xl border border-white/60 p-8 rounded-[2rem] shadow-2xl shadow-purple-100 text-center mb-8">
-        <div className="w-24 h-24 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl text-white shadow-lg">
+      {/* 👤 PROFILE HEADER */}
+      <div className="bg-white/70 backdrop-blur-2xl border border-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 text-center mb-6">
+        <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
           {name.charAt(0).toUpperCase()}
         </div>
         {!editing ? (
-          <h1 className="text-2xl font-black text-gray-800" onClick={() => setEditing(true)}>{name} ✏️</h1>
+          <h1 className="text-xl font-black text-gray-800" onClick={() => setEditing(true)}>{name} ✏️</h1>
         ) : (
           <div className="flex gap-2 justify-center">
-            <input value={name} onChange={e => setName(e.target.value)} className="bg-white/50 border-none rounded-lg p-1 text-center focus:ring-2 ring-purple-400" />
-            <button onClick={async () => { await setDoc(doc(db, "users", user.uid), { name }, { merge: true }); setEditing(false); }} className="text-green-600 font-bold">✓</button>
+            <input value={name} onChange={e => setName(e.target.value)} className="bg-gray-100 border-none rounded-xl p-2 text-center text-sm w-40" autoFocus />
+            <button onClick={async () => { await setDoc(doc(db, "users", user.uid), { name }, { merge: true }); setEditing(false); }} className="bg-black text-white px-3 rounded-xl text-xs">Save</button>
           </div>
         )}
-        <p className="text-gray-500 text-sm">{user?.email}</p>
-        <button onClick={() => auth.signOut()} className="mt-6 px-8 py-2 bg-red-500/10 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all">LOGOUT</button>
+        <p className="text-gray-400 text-xs mt-1 font-medium">{user?.email}</p>
+        <button onClick={() => auth.signOut()} className="mt-4 px-6 py-2 bg-red-50 text-red-500 rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-red-500 hover:text-white transition-all">LOGOUT</button>
       </div>
 
-      {/* 🏠 ADDRESS BOX (Synced) */}
-      <div className="bg-white/60 backdrop-blur-md border border-white p-6 rounded-[1.5rem] mb-8 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-bold text-gray-700">Delivery Addresses</h2>
-          <button onClick={() => setShowAddressForm(!showAddressForm)} className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center shadow-lg">
+      {/* 🏠 SAVED ADDRESSES */}
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-[2rem] border border-white shadow-lg mb-6">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="font-black text-gray-800 tracking-tight">Saved Addresses</h2>
+          <button onClick={() => setShowAddressForm(!showAddressForm)} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all ${showAddressForm ? 'bg-gray-100 text-black' : 'bg-black text-white'}`}>
             {showAddressForm ? "✕" : "+"}
           </button>
         </div>
 
         {showAddressForm && (
-          <div className="space-y-3 mb-6 animate-in fade-in zoom-in duration-300">
-            <input placeholder="House No / Street" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
-            <div className="flex gap-3">
-              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
-              <input placeholder="PIN" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
+          <div className="space-y-3 mb-6 p-4 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 animate-in fade-in slide-in-from-top-2">
+            <input placeholder="Full Address / Landmark" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none shadow-sm text-sm" />
+            <div className="flex gap-2">
+              <input placeholder="City" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white border-none shadow-sm text-sm" />
+              <input placeholder="Pincode" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-4 rounded-2xl bg-white border-none shadow-sm text-sm" />
             </div>
-            <input placeholder="Active Phone Number" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full p-4 rounded-2xl bg-white/80 border-none shadow-inner" />
-            <button onClick={handleAddAddress} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl font-bold shadow-xl">Save & Sync</button>
+            {/* Phone input with 0-removal logic */}
+            <input 
+              type="tel" 
+              placeholder="Mobile Number (without 0)" 
+              value={newAddress.phone} 
+              onChange={handlePhoneChange} 
+              className="w-full p-4 rounded-2xl bg-white border-none shadow-sm text-sm font-bold text-indigo-600" 
+            />
+            <button onClick={handleAddAddress} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-sm shadow-lg shadow-indigo-100">SAVE ADDRESS</button>
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {addresses.map(a => (
-            <div key={a.id} className="flex justify-between p-4 bg-white/40 rounded-2xl border border-white/20">
-              <div>
-                <p className="text-sm font-bold text-gray-700">{a.street}</p>
-                <p className="text-xs text-gray-400">{a.city}, {a.zip} | {a.phone}</p>
+            <div key={a.id} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-50">
+              <div className="flex items-start gap-3">
+                <span className="mt-1">📍</span>
+                <div>
+                  <p className="text-xs font-bold text-gray-800">{a.street}</p>
+                  <p className="text-[10px] text-gray-400 font-medium">{a.city}, {a.zip} • {a.phone}</p>
+                </div>
               </div>
-              <button onClick={() => deleteAddr(a.id)} className="text-red-400">🗑️</button>
+              <button onClick={() => deleteAddr(a.id)} className="text-xs grayscale opacity-30 hover:opacity-100">🗑️</button>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 📦 ORDERS LIST */}
-      <h2 className="text-xl font-black mb-4 px-2 text-gray-800">Order History</h2>
+      {/* 📦 ORDER HISTORY */}
+      <h2 className="text-lg font-black text-gray-800 mb-4 px-2">Order History</h2>
       <div className="space-y-4">
-        {orders.map(o => {
-          const current = steps.indexOf(o.status);
+        {orders.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 text-sm italic">No orders yet...</div>
+        ) : orders.map(o => {
+          const current = steps.indexOf(o.status || "Pending");
           const progress = ((current + 1) / steps.length) * 100;
           return (
-            <div key={o.id} className="bg-white/70 backdrop-blur-md p-5 rounded-[2rem] border border-white shadow-xl">
+            <div key={o.id} className="bg-white/90 backdrop-blur-md p-5 rounded-[2.2rem] border border-white shadow-xl shadow-gray-100">
               <div className="flex gap-4 mb-4">
-                <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden border border-white/50">
-                  <img src={o.items?.[0]?.image} className="w-full h-full object-cover" />
-                </div>
+                <img src={o.items?.[0]?.image} className="w-16 h-16 rounded-2xl object-cover bg-gray-50 border" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-sm text-gray-800 line-clamp-1">{o.items?.[0]?.name}</h3>
-                  <p className="text-purple-600 font-black text-lg">₹{o.total}</p>
-                  <div className="inline-block px-3 py-1 bg-white rounded-full text-[10px] font-bold shadow-sm uppercase tracking-widest text-gray-500">
-                    {o.status}
+                  <h3 className="font-bold text-xs text-gray-800 line-clamp-1">{o.items?.[0]?.name}</h3>
+                  <div className="flex justify-between items-end mt-1">
+                    <p className="text-indigo-600 font-black text-base">₹{o.total}</p>
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.status === 'Cancelled' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-600'}`}>
+                      {o.status || "Pending"}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Glassy Progress Bar */}
-              <div className="h-2 w-full bg-gray-200/50 rounded-full mb-4 overflow-hidden shadow-inner">
-                <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
+              {/* Glassy Progress */}
+              <div className="h-1.5 w-full bg-gray-100 rounded-full mb-4 overflow-hidden">
+                <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${o.status === 'Cancelled' ? 0 : progress}%` }} />
               </div>
 
-              <div className="flex justify-between">
-                <button onClick={() => router.push(`/track/${o.id}`)} className="text-sm font-bold text-gray-700 underline decoration-purple-400 decoration-2">Details</button>
-                <button onClick={() => { setSelectedOrder(o); setShowHelp(true); }} className="px-6 py-2 bg-black text-white rounded-xl text-xs font-bold">Help & Returns</button>
+              <div className="flex justify-between items-center">
+                <button onClick={() => router.push(`/track/${o.id}`)} className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Track Pack</button>
+                <button onClick={() => { setSelectedOrder(o); setShowHelp(true); }} className="px-5 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-lg shadow-gray-200">Help & Return</button>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* 🔮 PREMIUM HELP & RETURN MODAL */}
+      {/* 🔮 HELP & RETURN MODAL (Bottom Sheet) */}
       {showHelp && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-end sm:items-center justify-center z-50 animate-in slide-in-from-bottom duration-300">
-          <div className="bg-white/90 backdrop-blur-2xl w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl border border-white">
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden" onClick={() => setShowHelp(false)} />
-            <h3 className="text-xl font-black mb-2">Order Support</h3>
-            <p className="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">ID: #{selectedOrder?.id.slice(-6)}</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-t-[3rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-8" onClick={() => setShowHelp(false)} />
+            
+            <h3 className="text-2xl font-black text-gray-800 mb-6 text-center tracking-tighter">Order Support</h3>
 
             <div className="space-y-4">
-              {/* Return Section */}
-              <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
-                <h4 className="font-bold text-purple-700 mb-2">Easy Return Policy</h4>
+              
+              {/* --- CANCEL SECTION (TOP) --- */}
+              {(selectedOrder?.status === "Pending" || selectedOrder?.status === "Placed") && (
+                <div className="p-1 bg-red-50 rounded-[1.8rem] border border-red-100">
+                  <button onClick={handleCancelOrder} className="w-full py-5 text-red-600 font-black text-sm uppercase tracking-widest">
+                    🚫 Cancel My Order
+                  </button>
+                </div>
+              )}
+
+              {/* --- RETURN SECTION --- */}
+              <div className="p-6 bg-indigo-50/50 rounded-[2rem] border border-indigo-100">
+                <h4 className="font-black text-indigo-900 text-sm mb-4 uppercase">Return Policy Request</h4>
                 <select 
                   value={returnReason} 
                   onChange={e => setReturnReason(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-white border-none text-sm shadow-sm"
+                  className="w-full p-4 rounded-2xl bg-white border-none text-xs font-bold shadow-sm mb-4"
                 >
-                  <option value="">Select Reason for Return</option>
-                  <option>Defective/Damaged Product</option>
-                  <option>Wrong Item Received</option>
-                  <option>Size/Fit Issue</option>
+                  <option value="">Select a reason...</option>
+                  <option>Defective/Damaged</option>
                   <option>Quality not as expected</option>
+                  <option>Wrong item received</option>
+                  <option>Changed my mind</option>
                 </select>
                 <button 
                   onClick={handleReturnRequest}
-                  className="w-full mt-3 py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200"
+                  disabled={selectedOrder?.status === "Cancelled" || selectedOrder?.status === "Return Requested"}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-indigo-200 disabled:opacity-50"
                 >
-                  Submit Return Request
+                  CONFIRM RETURN
                 </button>
               </div>
-
-              {/* Cancel Section */}
-              {selectedOrder?.status === "Pending" && (
-                <button onClick={async () => {
-                  await updateDoc(doc(db, "orders", selectedOrder.id), { status: "Cancelled" });
-                  alert("Order Cancelled ✅"); setShowHelp(false);
-                }} className="w-full py-4 bg-red-50 text-red-500 rounded-2xl font-bold">Cancel Order</button>
-              )}
               
-              <button onClick={() => setShowHelp(false)} className="w-full py-2 text-gray-400 text-sm">Dismiss</button>
+              <button onClick={() => setShowHelp(false)} className="w-full py-4 text-gray-400 text-[10px] font-black uppercase tracking-widest">Close Menu</button>
             </div>
           </div>
         </div>
