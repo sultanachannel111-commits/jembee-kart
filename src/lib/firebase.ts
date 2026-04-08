@@ -1,11 +1,8 @@
-// src/lib/firebase.ts
-
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getMessaging, isSupported } from "firebase/messaging";
 
-// 🔥 Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ",
   authDomain: "studio-4213097962-b1ad6.firebaseapp.com",
@@ -15,31 +12,22 @@ const firebaseConfig = {
   appId: "1:805890394961:web:81d5ff06d6b8336804e170",
 };
 
-// ✅ Prevent multiple initialization (Next.js safe)
-const app =
-  getApps().length === 0
-    ? initializeApp(firebaseConfig)
-    : getApps()[0];
+// ✅ Next.js Safe Initialization
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// ✅ Core Firebase Services
+// ✅ Initialize services only when 'app' is ready
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// ✅ Messaging (Safe for SSR)
-let messaging: any = null;
-
+// ✅ Messaging (Strict Client Check)
 export const getFirebaseMessaging = async () => {
-  if (typeof window === "undefined") return null;
-
-  const supported = await isSupported();
-
-  if (!supported) return null;
-
-  if (!messaging) {
-    messaging = getMessaging(app);
+  if (typeof window !== "undefined") {
+    const supported = await isSupported();
+    if (supported) {
+      return getMessaging(app);
+    }
   }
-
-  return messaging;
+  return null;
 };
 
 export default app;
