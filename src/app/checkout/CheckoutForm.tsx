@@ -40,7 +40,10 @@ export default function CheckoutPage() {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
 
-      if (!u) return router.push("/login");
+      if (!u) {
+  router.push("/login");
+  return;
+}
 
       setUser(u);
 
@@ -217,16 +220,22 @@ export default function CheckoutPage() {
 
       const cashfree = await load({ mode: "production" });
 
-      await cashfree.checkout({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self"
-      });
+      if (!data.payment_session_id) {
+  alert("Payment failed ❌");
+  return;
+}
+
+await cashfree.checkout({
+  paymentSessionId: data.payment_session_id,
+  redirectTarget: "_self"
+});
 
       localStorage.removeItem("buy-now");
 
-    } catch {
-      alert("Payment error ❌");
-    }
+    catch (err) {
+  console.log(err);
+  alert("Payment error ❌");
+}
 
     setLoading(false);
   };
@@ -245,7 +254,7 @@ export default function CheckoutPage() {
           <p className="font-semibold text-lg">Delivery Address</p>
 
           <button
-            onClick={() => router.push("/account")}
+            onClick={() => router.push("/profile")}
             className="text-sm underline text-blue-300"
           >
             Change
