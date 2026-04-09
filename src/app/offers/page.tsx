@@ -18,7 +18,7 @@ export default function OffersPage(){
 
   const loadData = async()=>{
 
-    // 🔥 OFFERS
+    // 🔥 OFFERS LOAD
     const offerSnap = await getDocs(collection(db,"offers"));
     const offerList = offerSnap.docs.map(d=>({
       id:d.id,
@@ -27,7 +27,7 @@ export default function OffersPage(){
 
     setOffers(offerList);
 
-    // 🔥 PRODUCTS
+    // 🔥 PRODUCTS LOAD
     const productSnap = await getDocs(collection(db,"products"));
 
     const map:any = {};
@@ -39,12 +39,14 @@ export default function OffersPage(){
   };
 
   return(
-    <div className="p-4">
+    <div className="p-4 min-h-screen bg-gray-50">
 
+      {/* 🔥 TITLE */}
       <h1 className="text-2xl font-bold mb-4">
         🔥 Today Offers
       </h1>
 
+      {/* 🔥 GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {offers.map((o:any)=>{
@@ -53,42 +55,27 @@ export default function OffersPage(){
 
           if(!product) return null;
 
-          const finalPrice =
-            product.price - (product.price * o.discount)/100;
-
           return(
 
             <div
               key={o.id}
               onClick={()=>router.push(`/product/${o.productId}`)}
-              className="bg-white rounded-xl shadow p-3 cursor-pointer"
+              className="bg-white rounded-xl shadow p-3 cursor-pointer hover:scale-105 transition"
             >
 
-              {/* IMAGE */}
+              {/* 🖼 IMAGE */}
               <img
                 src={product.image || "/no-image.png"}
+                alt={product.name}
                 className="w-full h-32 object-cover rounded-lg"
               />
 
-              {/* NAME */}
-              <p className="font-semibold text-sm mt-2">
+              {/* 🏷 NAME */}
+              <p className="font-semibold text-sm mt-2 line-clamp-2">
                 {product.name}
               </p>
 
-              {/* PRICE */}
-              <div className="mt-1">
-
-                <span className="text-green-600 font-bold">
-                  ₹{Math.floor(finalPrice)}
-                </span>
-
-                <span className="line-through text-gray-400 text-xs ml-2">
-                  ₹{product.price}
-                </span>
-
-              </div>
-
-              {/* DISCOUNT BADGE */}
+              {/* 🔥 DISCOUNT BADGE */}
               <div className="mt-2 text-xs bg-red-500 text-white px-2 py-1 rounded w-fit">
                 {o.discount}% OFF
               </div>
