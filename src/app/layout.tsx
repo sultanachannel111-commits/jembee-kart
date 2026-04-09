@@ -24,11 +24,6 @@ export default function RootLayout({
   useEffect(() => {
     loadTheme();
 
-    // 🔥 vConsole (ONLY DEV)
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      const VConsole = require("vconsole");
-      new VConsole();
-    }
 
     // 🔴 JS Error capture
     window.onerror = function (msg, url, line, col, error) {
@@ -93,3 +88,4 @@ export default function RootLayout({
     </html>
   );
 }
+
