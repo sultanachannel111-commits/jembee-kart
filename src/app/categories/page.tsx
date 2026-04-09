@@ -6,47 +6,39 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function CategoriesPage() {
+
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
     const fetchCategories = async () => {
       try {
+
         const snap = await getDocs(collection(db, "products"));
 
-        const data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // 🔥 AUTO CATEGORY FROM PRODUCT NAME
         const categoryMap: any = {};
 
-        data.forEach((product) => {
-          if (!product.name) return;
+        snap.forEach(doc => {
+          const data: any = doc.data();
 
-          const words = product.name.toLowerCase().split(" ");
+          if (!data.category) return;
 
-          words.forEach((word: string) => {
-            if (!categoryMap[word]) {
-              categoryMap[word] = 1;
-            } else {
-              categoryMap[word]++;
-            }
-          });
+          if (!categoryMap[data.category]) {
+            categoryMap[data.category] = 1;
+          } else {
+            categoryMap[data.category]++;
+          }
         });
 
-        // Convert object → array
-        const finalCategories = Object.keys(categoryMap)
-          .filter((key) => categoryMap[key] >= 1) // minimum 1 product
-          .map((key) => ({
-            name: key.charAt(0).toUpperCase() + key.slice(1),
-            slug: key,
-            count: categoryMap[key],
-          }))
-          .slice(0, 8); // limit to 8 categories
+        const finalCategories = Object.keys(categoryMap).map((key) => ({
+          name: key,
+          slug: key.toLowerCase().replace(/\s/g, "-"),
+          count: categoryMap[key],
+        }));
 
         setCategories(finalCategories);
+
       } catch (err) {
         console.log("Category error:", err);
       } finally {
@@ -55,6 +47,7 @@ export default function CategoriesPage() {
     };
 
     fetchCategories();
+
   }, []);
 
   if (loading) {
@@ -77,13 +70,17 @@ export default function CategoriesPage() {
           No categories found
         </div>
       ) : (
+
         <div className="grid grid-cols-2 gap-6">
+
           {categories.map((cat) => (
+
             <Link
               key={cat.slug}
               href={`/category/${cat.slug}`}
               className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl shadow-lg hover:shadow-2xl transition flex flex-col items-center justify-center"
             >
+
               <span className="text-lg font-semibold text-gray-800">
                 {cat.name}
               </span>
@@ -91,10 +88,15 @@ export default function CategoriesPage() {
               <span className="text-sm text-gray-500 mt-1">
                 {cat.count} Products
               </span>
+
             </Link>
+
           ))}
+
         </div>
+
       )}
+
     </div>
   );
 }
