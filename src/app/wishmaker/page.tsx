@@ -1,171 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
-import {
-  collection,
-  getDocs,
-  query,
-  where
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { useState } from "react";
+import { db } from "@/lib/firebase";
+import { addDoc, collection } from "firebase/firestore";
 
 export default function WishMaker() {
-
-  const [message, setMessage] = useState("");
   const [theme, setTheme] = useState("birthday");
+  const [message, setMessage] = useState("");
+  const [name, setName] = useState("");
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any[]>([]);
+  // 🔥 DEFAULT THEMES
+  const [themes, setThemes] = useState([
+    "birthday",
+    "love",
+    "diwali",
+    "eid",
+    "ramzan",
+    "independence",
+    "durga"
+  ]);
 
-  const [loading, setLoading] = useState(true);
-  const [debug, setDebug] = useState<any>({});
+  // 🔥 CUSTOM THEME INPUT
+  const [newTheme, setNewTheme] = useState("");
 
-  // ================= AUTH FIX =================
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        loadOrders(user);
-      } else {
-        setDebug({ error: "User not logged in ❌" });
-        setLoading(false);
-      }
+  // ✅ ADD CUSTOM FESTIVAL
+  const addTheme = () => {
+    if (!newTheme) return;
+
+    if (themes.includes(newTheme.toLowerCase())) {
+      alert("Already exists");
+      return;
+    }
+
+    setThemes([...themes, newTheme.toLowerCase()]);
+    setNewTheme("");
+  };
+
+  // ✅ CREATE WISH
+  const createWish = async () => {
+    if (!message || !name) return alert("Fill all");
+
+    const docRef = await addDoc(collection(db, "wishes"), {
+      message,
+      theme,
+      from: name,
+      createdAt: new Date()
     });
 
-    return () => unsub();
-  }, []);
-
-  // ================= LOAD PRODUCTS =================
-  const loadOrders = async (user: any) => {
-    try {
-      const q = query(
-        collection(db, "orders"),
-        where("userId", "==", user.uid)
-      );
-
-      const snap = await getDocs(q);
-
-      let items: any[] = [];
-      let rawOrders: any[] = [];
-
-      snap.forEach((doc) => {
-        const data: any = doc.data();
-        rawOrders.push(data);
-
-        if (data.paymentMode !== "ONLINE") return;
-        if (data.status === "delivered") return;
-
-        if (data.items) {
-          items = [...items, ...data.items];
-        }
-      });
-
-      setProducts(items);
-
-      setDebug({
-        userId: user.uid,
-        totalOrders: snap.size,
-        productsFound: items.length,
-        rawOrders
-      });
-
-    } catch (err: any) {
-      setDebug({ error: err.message });
-    }
-
-    setLoading(false);
-  };
-
-  // ================= SELECT =================
-  const toggleSelect = (p: any) => {
-    const exists = selected.find(
-      (x) => x.productId === p.productId
-    );
-
-    if (exists) {
-      setSelected(
-        selected.filter((x) => x.productId !== p.productId)
-      );
-    } else {
-      setSelected([...selected, p]);
-    }
-  };
-
-  // ================= SHARE =================
-  const shareWhatsApp = () => {
-    let text = `🎁 ${message || "Special Wish"}\n\n✨ Theme: ${theme}\n`;
-
-    if (selected.length > 0) {
-      text += "\n🛍️ Gifts:\n";
-      selected.forEach((p) => {
-        text += `• ${p.name}\n`;
-      });
-    }
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
-  };
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(message);
-    alert("Copied 🔗");
-  };
-
-  // ================= ANIMATION =================
-  const renderTheme = () => {
-    switch (theme) {
-      case "birthday":
-        return (
-          <div className="text-center text-6xl animate-bounce">
-            🎂🎈🎉
-          </div>
-        );
-
-      case "love":
-        return (
-          <div className="text-center text-6xl animate-pulse">
-            ❤️💖💘💝
-          </div>
-        );
-
-      case "diwali":
-        return (
-          <div className="text-center text-6xl animate-pulse">
-            🪔✨🎆🎇
-          </div>
-        );
-
-      case "independence":
-        return (
-          <div className="text-center text-6xl animate-bounce">
-            🇮🇳 🇮🇳 🇮🇳
-          </div>
-        );
-
-      default:
-        return null;
-    }
+    const link = `${window.location.origin}/wish/${docRef.id}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200">
+    <div className="min-h-screen bg-gradient-to-br from-pink-200 to-purple-200 p-4">
 
-      {/* GLASS CARD */}
-      <div className="backdrop-blur-2xl bg-white/20 border border-white/30 p-5 rounded-3xl shadow-2xl">
+      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl">
 
-        <h1 className="text-3xl font-bold text-center mb-4">
-          🎁 Wish Maker
+        <h1 className="text-3xl text-center font-bold mb-4">
+          🎁 Create Wish
         </h1>
+
+        {/* NAME */}
+        <input
+          placeholder="Your Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full p-3 rounded-xl mb-3"
+        />
+
+        {/* MESSAGE */}
+        <textarea
+          placeholder="Write your wish..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full p-3 rounded-xl mb-4"
+        />
+
+        {/* 🔥 ADD CUSTOM FESTIVAL */}
+        <div className="flex gap-2 mb-3">
+          <input
+            placeholder="Add festival (ex: holi)"
+            value={newTheme}
+            onChange={(e) => setNewTheme(e.target.value)}
+            className="flex-1 p-2 rounded-xl"
+          />
+
+          <button
+            onClick={addTheme}
+            className="bg-blue-500 text-white px-3 rounded-xl"
+          >
+            Add
+          </button>
+        </div>
 
         {/* THEMES */}
         <div className="flex gap-2 overflow-x-auto mb-4">
-          {["birthday", "love", "diwali", "independence"].map((t) => (
+          {themes.map((t) => (
             <button
               key={t}
               onClick={() => setTheme(t)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                theme === t
-                  ? "bg-black text-white"
-                  : "bg-white/60"
+              className={`px-3 py-1 rounded-full whitespace-nowrap ${
+                theme === t ? "bg-black text-white" : "bg-white"
               }`}
             >
               {t}
@@ -173,96 +108,58 @@ export default function WishMaker() {
           ))}
         </div>
 
-        {/* MESSAGE */}
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Write your wish..."
-          className="w-full p-3 rounded-xl mb-4 bg-white/60 backdrop-blur"
-        />
+        {/* PREVIEW */}
+        <ThemeUI theme={theme} />
 
-        {/* ANIMATION */}
-        {renderTheme()}
-
-        {/* LOADING */}
-        {loading && (
-          <p className="text-center mt-4">Loading products...</p>
-        )}
-
-        {/* PRODUCTS */}
-        {!loading && products.length > 0 && (
-          <>
-            <h2 className="mt-4 font-bold">Select Gift 🎁</h2>
-
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              {products.map((p, i) => {
-                const active = selected.find(
-                  (x) => x.productId === p.productId
-                );
-
-                return (
-                  <div
-                    key={i}
-                    onClick={() => toggleSelect(p)}
-                    className={`p-2 rounded-xl cursor-pointer transition ${
-                      active
-                        ? "border-2 border-green-500 scale-105"
-                        : "border"
-                    }`}
-                  >
-                    <img
-                      src={p.image}
-                      className="w-full h-28 object-cover rounded"
-                    />
-                    <p className="text-sm">{p.name}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* NO PRODUCT */}
-        {!loading && products.length === 0 && (
-          <p className="text-center mt-4 text-red-500">
-            No eligible products ❌
-          </p>
-        )}
-
-        {/* SELECTED */}
-        {selected.length > 0 && (
-          <div className="mt-4 bg-white/40 p-3 rounded-xl">
-            <p className="font-bold">🎁 Selected Gifts</p>
-            {selected.map((p, i) => (
-              <p key={i}>• {p.name}</p>
-            ))}
-          </div>
-        )}
-
-        {/* BUTTONS */}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={shareWhatsApp}
-            className="flex-1 bg-green-500 text-white py-2 rounded-xl"
-          >
-            WhatsApp 📲
-          </button>
-
-          <button
-            onClick={copyLink}
-            className="flex-1 bg-blue-500 text-white py-2 rounded-xl"
-          >
-            Copy 🔗
-          </button>
-        </div>
-
+        <button
+          onClick={createWish}
+          className="w-full mt-4 bg-green-500 text-white py-3 rounded-xl"
+        >
+          Share on WhatsApp 🚀
+        </button>
       </div>
-
-      {/* DEBUG PANEL */}
-      <div className="mt-6 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
-        <pre>{JSON.stringify(debug, null, 2)}</pre>
-      </div>
-
     </div>
   );
+}
+
+/* 🎬 ANIMATION SYSTEM */
+function ThemeUI({ theme }: any) {
+
+  // 🎯 CUSTOM THEMES (fallback animation)
+  const custom = (
+    <div className="text-center text-5xl animate-pulse">
+      🎉✨ {theme} ✨🎉
+    </div>
+  );
+
+  if (theme === "birthday") {
+    return <div className="text-6xl text-center animate-bounce">🎂🎈🎉</div>;
+  }
+
+  if (theme === "love") {
+    return <div className="text-6xl text-center animate-pulse">❤️💖💘</div>;
+  }
+
+  if (theme === "diwali") {
+    return <div className="text-6xl text-center animate-pulse">🪔✨🎆</div>;
+  }
+
+  if (theme === "eid") {
+    return <div className="text-6xl text-center animate-bounce">🌙🕌✨</div>;
+  }
+
+  if (theme === "ramzan") {
+    return <div className="text-6xl text-center animate-pulse">🌙✨🕌</div>;
+  }
+
+  if (theme === "independence") {
+    return <div className="text-6xl text-center animate-bounce">🇮🇳🇮🇳🇮🇳</div>;
+  }
+
+  if (theme === "durga") {
+    return <div className="text-6xl text-center animate-pulse">🙏🪔✨</div>;
+  }
+
+  // 🔥 CUSTOM FALLBACK
+  return custom;
 }
