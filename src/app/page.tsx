@@ -20,44 +20,37 @@ import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 export default function HomePage() {
-
   const theme = useTheme();
 
-  const [categories,setCategories] = useState<any[]>([]);
-  const [banners,setBanners] = useState<any[]>([]);
-  const [products,setProducts] = useState<any[]>([]);
-  const [festival,setFestival] = useState<any>(null);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [festival, setFestival] = useState<any>(null);
 
-  const [search,setSearch] = useState("");
-  const [selectedCategory,setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const [trending,setTrending] = useState<any[]>([]);
-  const [clearance,setClearance] = useState<any[]>([]);
-  const [recommended,setRecommended] = useState<any[]>([]);
-  const [lightning,setLightning] = useState<any[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
+  const [clearance, setClearance] = useState<any[]>([]);
+  const [recommended, setRecommended] = useState<any[]>([]);
+  const [lightning, setLightning] = useState<any[]>([]);
   const [offers, setOffers] = useState<any>({});
 
-  // 🚀 INSTANT LOAD (LOCAL CACHE FIRST)
-  useEffect(()=>{
-
+  // 🚀 INSTANT LOAD
+  useEffect(() => {
     const saved = localStorage.getItem("home-cache");
-
-    if(saved){
+    if (saved) {
       const data = JSON.parse(saved);
-
       setCategories(data.categories || []);
       setBanners(data.banners || []);
       setProducts(data.products || []);
       setFestival(data.festival || null);
     }
-
-    // 🌍 BACKGROUND FETCH
     loadData();
+  }, []);
 
-  },[]);
-
-  const loadData = async()=>{
-    try{
+  const loadData = async () => {
+    try {
       const res = await fetch("/api/home");
       const data = await res.json();
 
@@ -66,129 +59,99 @@ export default function HomePage() {
       setProducts(data.products || []);
       setFestival(data.festival || null);
 
-      // 💾 SAVE CACHE
       localStorage.setItem("home-cache", JSON.stringify(data));
 
-      console.log("⚡ Fresh data loaded");
-
-      // 🔥 FETCH OFFERS (FIXED WITHOUT BREAKING FLOW)
       const offerSnap = await getDocs(collection(db, "offers"));
+      const offerMap: any = {};
 
-      const offerMap:any = {};
-
-      offerSnap.forEach(doc => {
-        const data:any = doc.data();
-
-        console.log("🧪 OFFER CHECK:", data);
-
+      offerSnap.forEach((doc) => {
+        const data: any = doc.data();
         let isValid = true;
-
-        // ❌ inactive check
-        if (data.active === false) {
-          isValid = false;
-        }
-
-        // ❌ expiry check (safe for both string + timestamp)
+        if (data.active === false) isValid = false;
         if (data.endDate) {
-          let endTime;
-
-          if (data.endDate?.seconds) {
-            // firestore timestamp
-            endTime = data.endDate.toDate().getTime();
-          } else {
-            // string date
-            endTime = new Date(data.endDate).getTime();
-          }
-
-          if (endTime < Date.now()) {
-            isValid = false;
-          }
+          let endTime = data.endDate?.seconds
+            ? data.endDate.toDate().getTime()
+            : new Date(data.endDate).getTime();
+          if (endTime < Date.now()) isValid = false;
         }
-
-        // ✅ only valid offer
-        if (isValid) {
-          offerMap[data.productId] = data.discount;
-        }
-
+        if (isValid) offerMap[data.productId] = data.discount;
       });
 
       setOffers(offerMap);
 
-      console.log("🔥 FINAL OFFERS:", offerMap);
-
-      // 🔥 EXTRA SERVICES (parallel)
-      const [t,c,r,l] = await Promise.all([
+      const [t, c, r, l] = await Promise.all([
         getTrendingProducts(),
         getClearanceProducts(),
         getRecommendedProducts(),
-        getLightningDeals()
+        getLightningDeals(),
       ]);
 
       setTrending(t);
       setClearance(c);
       setRecommended(r);
       setLightning(l);
-
-    }catch(err){
-      console.log("❌ LOAD ERROR",err);
+    } catch (err) {
+      console.log("❌ LOAD ERROR", err);
     }
   };
 
-  // 🔍 SEARCH
-  const normalize = (text:string)=>
-    text?.toLowerCase().replace(/\s|-/g,"");
+  const normalize = (text: string) => text?.toLowerCase().replace(/\s|-/g, "");
 
-  const filteredProducts = products.filter(p=>{
+  const filteredProducts = products.filter((p) => {
     const matchSearch = normalize(p.name).includes(normalize(search));
     const matchCategory =
       selectedCategory === "All" || p.category === selectedCategory;
     return matchSearch && matchCategory;
   });
 
-  // 🎨 BACKGROUND
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
     : theme?.background || "#0f172a";
 
-  return(
+  return (
     <div
       style={{ background: backgroundStyle }}
-      className="min-h-screen pb-[80px] transition-all duration-300"
+      className="min-h-screen pb-[100px] transition-all duration-500 ease-in-out"
     >
+      <Header theme={theme} />
 
-      <Header theme={theme}/>
-
-      <div className="pt-[80px] px-4 space-y-4">
-
+      {/* Main Container with subtle glass overlay for depth */}
+      <div className="pt-[90px] px-4 space-y-6 relative z-10">
+        
+        {/* PREMIUM SEARCH GLASS BOX */}
         <div
           style={{
-            background: theme?.searchBg || "#ffffff10",
+            background: theme?.searchBg || "rgba(255, 255, 255, 0.08)",
             color: theme?.searchText || "#fff",
-            borderColor: theme?.searchBorder || "#ffffff20"
+            borderColor: theme?.searchBorder || "rgba(255, 255, 255, 0.15)",
           }}
-          className="rounded-xl p-2 border backdrop-blur-md"
+          className="rounded-2xl p-1 border backdrop-blur-xl shadow-2xl transition-transform active:scale-[0.98]"
         >
-          <SearchBar search={search} setSearch={setSearch}/>
+          <SearchBar search={search} setSearch={setSearch} />
         </div>
 
+        {/* TRENDING CHIPS GLASS BOX */}
         <div
           style={{
-            background: theme?.trendingBg || "#ffffff10",
-            color: theme?.trendingText || "#fff"
+            background: theme?.trendingBg || "rgba(255, 255, 255, 0.05)",
+            color: theme?.trendingText || "#fff",
           }}
-          className="rounded-xl shadow p-3 backdrop-blur-md"
+          className="rounded-2xl shadow-lg p-4 backdrop-blur-lg border border-white/10"
         >
-          <p className="text-sm font-semibold mb-2">🔥 Trending</p>
+          <div className="flex items-center gap-2 mb-3">
+             <span className="animate-pulse text-lg">🔥</span>
+             <p className="text-sm font-bold tracking-wide uppercase opacity-90">Trending Now</p>
+          </div>
 
           <div className="flex flex-wrap gap-2">
-            {["black tshirt","oversize tshirt","hoodie"].map(item=>(
+            {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
               <button
                 key={item}
                 style={{
-                  background: theme?.trendingChipBg || "#ffffff20",
-                  color: theme?.trendingChipText || "#fff"
+                  background: theme?.trendingChipBg || "rgba(255, 255, 255, 0.12)",
+                  color: theme?.trendingChipText || "#fff",
                 }}
-                className="px-3 py-1 rounded-full text-xs backdrop-blur-md"
+                className="px-4 py-1.5 rounded-xl text-[11px] font-medium border border-white/5 backdrop-blur-md hover:bg-white/20 transition-all active:scale-90 shadow-sm"
               >
                 {item}
               </button>
@@ -196,33 +159,62 @@ export default function HomePage() {
           </div>
         </div>
 
-        <CategoryList
-          categories={categories}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-        />
+        {/* CATEGORY LIST SECTION */}
+        <div className="relative py-2">
+           <CategoryList
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+          />
+        </div>
 
+        {/* BANNER SECTION WITH RADIUS */}
         {Array.isArray(banners) && banners.length > 0 && (
-          <BannerSlider banners={banners} />
+          <div className="rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            <BannerSlider banners={banners} />
+          </div>
         )}
 
-        <FlashSale/>
+        {/* FLASH SALE GLASS BOX */}
+        <div className="relative overflow-hidden rounded-3xl">
+           <FlashSale />
+        </div>
 
+        {/* FESTIVAL BANNER */}
         {festival?.active && (
-          <FestivalBanner festival={festival}/>
+          <div className="animate-in fade-in zoom-in duration-500">
+            <FestivalBanner festival={festival} />
+          </div>
         )}
 
-        {/* ✅ OFFERS FIX APPLIED */}
-        <ProductGrid products={filteredProducts} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers}/>
-        <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers}/>
-        <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers}/>
-        <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers}/>
+        {/* PRODUCT GRIDS WITH GLASS CARD WRAPPERS */}
+        <div className="space-y-8">
+          <section className="animate-in slide-in-from-bottom-4 duration-700">
+            <ProductGrid products={filteredProducts} theme={theme} offers={offers} />
+          </section>
 
+          {lightning.length > 0 && (
+            <div className="bg-white/5 backdrop-blur-md rounded-[32px] p-4 border border-white/10 shadow-inner">
+               <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers} />
+            </div>
+          )}
+
+          <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers} />
+          
+          <div className="bg-white/5 backdrop-blur-md rounded-[32px] p-4 border border-white/10">
+            <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
+          </div>
+
+          <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers} />
+        </div>
       </div>
 
-      <BottomNav theme={theme}/>
-
+      {/* BLURRY BOTTOM NAV HOLDER */}
+      <div className="fixed bottom-0 left-0 w-full z-[100] px-4 pb-4">
+        <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
+           <BottomNav theme={theme} />
+        </div>
+      </div>
     </div>
   );
 }
