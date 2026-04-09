@@ -34,7 +34,7 @@ export default function WishMaker() {
     return () => unsub();
   }, []);
 
-  // ================= LOAD ORDERS =================
+  // ================= LOAD PRODUCTS =================
   const loadOrders = async (uid: string) => {
     try {
       const q = query(
@@ -94,11 +94,12 @@ export default function WishMaker() {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-pink-200 to-purple-200">
+    <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200 p-4">
 
-      <div className="bg-white/20 backdrop-blur-xl p-5 rounded-3xl shadow-xl">
+      {/* GLASS CARD */}
+      <div className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-3xl p-5 shadow-2xl">
 
-        <h1 className="text-3xl text-center font-bold mb-4">
+        <h1 className="text-3xl font-bold text-center mb-4">
           🎁 Create Wish
         </h1>
 
@@ -107,7 +108,7 @@ export default function WishMaker() {
           placeholder="Your Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 rounded-xl mb-3"
+          className="w-full p-3 rounded-xl mb-3 bg-white/60"
         />
 
         {/* MESSAGE */}
@@ -115,7 +116,7 @@ export default function WishMaker() {
           placeholder="Write your wish..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="w-full p-3 rounded-xl mb-4"
+          className="w-full p-3 rounded-xl mb-4 bg-white/60"
         />
 
         {/* THEMES */}
@@ -124,8 +125,10 @@ export default function WishMaker() {
             <button
               key={t}
               onClick={() => setTheme(t)}
-              className={`px-3 py-1 rounded-full ${
-                theme === t ? "bg-black text-white" : "bg-white"
+              className={`px-4 py-1 rounded-full ${
+                theme === t
+                  ? "bg-black text-white"
+                  : "bg-white/60"
               }`}
             >
               {t}
@@ -133,11 +136,16 @@ export default function WishMaker() {
           ))}
         </div>
 
+        {/* 🎬 ANIMATION */}
+        <ThemeUI theme={theme} />
+
         {/* PRODUCTS */}
+        <h2 className="mt-4 font-bold">🎁 Select Gift</h2>
+
         {loading ? (
-          <p>Loading gifts...</p>
+          <p>Loading...</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3 mt-2">
             {products.map((p, i) => {
               const active = selected.find(
                 (x) => x.productId === p.productId
@@ -147,16 +155,18 @@ export default function WishMaker() {
                 <div
                   key={i}
                   onClick={() => toggleProduct(p)}
-                  className={`p-2 rounded-xl border cursor-pointer ${
-                    active ? "border-green-500 scale-105" : ""
+                  className={`p-2 rounded-xl cursor-pointer transition ${
+                    active
+                      ? "border-2 border-green-500 scale-105"
+                      : "border"
                   }`}
                 >
                   <img
                     src={p.image}
-                    className="h-24 w-full object-cover rounded"
+                    className="w-full h-28 object-cover rounded"
                   />
 
-                  {/* ❌ NO PRICE */}
+                  {/* ❌ PRICE HIDDEN */}
                   <p className="text-sm">{p.name}</p>
                 </div>
               );
@@ -164,14 +174,90 @@ export default function WishMaker() {
           </div>
         )}
 
+        {/* SELECTED */}
+        {selected.length > 0 && (
+          <div className="mt-4 bg-white/40 p-3 rounded-xl">
+            <p className="font-bold">Selected Gifts 🎁</p>
+            {selected.map((p, i) => (
+              <p key={i}>• {p.name}</p>
+            ))}
+          </div>
+        )}
+
+        {/* BUTTON */}
         <button
           onClick={createWish}
           className="w-full mt-4 bg-green-500 text-white py-3 rounded-xl"
         >
-          Share 🚀
+          Share on WhatsApp 🚀
         </button>
 
       </div>
+
+      {/* CSS */}
+      <style jsx>{`
+        @keyframes float {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-25px); }
+          100% { transform: translateY(0); }
+        }
+
+        @keyframes wave {
+          0% { transform: rotate(0deg); }
+          50% { transform: rotate(5deg); }
+          100% { transform: rotate(0deg); }
+        }
+      `}</style>
+
     </div>
   );
+}
+
+/* 🎬 ANIMATION */
+function ThemeUI({ theme }: any) {
+
+  if (theme === "birthday") {
+    return (
+      <div className="relative h-40 flex justify-center items-center">
+        <div className="text-7xl animate-bounce">🎂</div>
+
+        <div className="absolute left-6 bottom-0 text-4xl animate-[float_4s_infinite]">🎈</div>
+        <div className="absolute right-6 bottom-0 text-4xl animate-[float_5s_infinite]">🎈</div>
+      </div>
+    );
+  }
+
+  if (theme === "love") {
+    return (
+      <div className="text-6xl text-center animate-pulse">
+        ❤️💖💘
+      </div>
+    );
+  }
+
+  if (theme === "diwali") {
+    return (
+      <div className="text-6xl text-center animate-pulse">
+        🪔✨🎆
+      </div>
+    );
+  }
+
+  if (theme === "eid") {
+    return (
+      <div className="text-6xl text-center animate-bounce">
+        🌙🕌✨
+      </div>
+    );
+  }
+
+  if (theme === "independence") {
+    return (
+      <div className="text-6xl text-center animate-[wave_2s_infinite]">
+        🇮🇳
+      </div>
+    );
+  }
+
+  return null;
 }
