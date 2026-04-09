@@ -11,34 +11,25 @@ export default function WishPage() {
 
   const { id }: any = useParams();
   const [data, setData] = useState<any>(null);
+  const [showGifts, setShowGifts] = useState(true);
 
   const cardRef = useRef<any>(null);
   const audioRef = useRef<any>(null);
 
-  // ================= LOAD =================
   useEffect(() => {
     load();
 
-    // 🎆 CONFETTI
     setTimeout(() => {
-      confetti({
-        particleCount: 120,
-        spread: 100,
-      });
+      confetti({ particleCount: 120, spread: 100 });
     }, 800);
-
   }, []);
 
   const load = async () => {
     const ref = doc(db, "wishes", id);
     const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-      setData(snap.data());
-    }
+    if (snap.exists()) setData(snap.data());
   };
 
-  // ================= DOWNLOAD =================
   const downloadImage = async () => {
     const canvas = await html2canvas(cardRef.current);
     const link = document.createElement("a");
@@ -47,44 +38,53 @@ export default function WishPage() {
     link.click();
   };
 
-  // ================= PLAY MUSIC =================
-  const playMusic = () => {
-    audioRef.current.play();
-  };
-
   if (!data) return <p className="text-center mt-20">Loading...</p>;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative">
 
-      {/* 🎵 MUSIC */}
       <audio ref={audioRef} src="/music.mp3" loop />
 
-      <button
-        onClick={playMusic}
-        className="absolute top-4 right-4 bg-white text-black px-3 py-1 rounded"
-      >
-        🔊 Play Music
-      </button>
-
-      {/* 🎥 REEL STYLE CARD */}
+      {/* MAIN */}
       <div
         ref={cardRef}
         className="w-full h-screen flex flex-col items-center justify-center text-center px-4"
       >
 
-        {/* 🎬 ANIMATION */}
         <ThemeUI theme={data.theme} name={data.from} />
 
-        {/* MESSAGE */}
         <h1 className="text-4xl font-bold mt-4 animate-pulse">
           {data.message}
         </h1>
 
-        {/* FROM */}
         <p className="mt-4 text-lg">
           From: <span className="text-yellow-400">{data.from}</span>
         </p>
+
+        {/* TOGGLE */}
+        {data.gifts?.length > 0 && (
+          <button
+            onClick={() => setShowGifts(!showGifts)}
+            className="mt-4 bg-white text-black px-3 py-1 rounded"
+          >
+            {showGifts ? "Hide Gifts ❌" : "Show Gifts 🎁"}
+          </button>
+        )}
+
+        {/* GIFTS */}
+        {showGifts && data.gifts?.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 mt-6">
+            {data.gifts.map((p: any, i: number) => (
+              <div key={i} className="bg-white text-black p-2 rounded-xl">
+                <img
+                  src={p.image}
+                  className="h-24 w-full object-cover rounded"
+                />
+                <p className="text-xs">{p.name}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
 
@@ -100,51 +100,29 @@ export default function WishPage() {
   );
 }
 
-/* ================= THEME ================= */
-
+/* THEME */
 function ThemeUI({ theme, name }: any) {
 
   if (theme === "birthday") {
-    return (
-      <div className="text-8xl animate-bounce">
-        🎂🎈🎉
-      </div>
-    );
+    return <div className="text-8xl animate-bounce">🎂🎈🎉</div>;
   }
 
   if (theme === "love") {
-    return (
-      <div className="text-8xl animate-pulse">
-        ❤️💖💘
-      </div>
-    );
+    return <div className="text-8xl animate-pulse">❤️💖💘</div>;
   }
 
   if (theme === "diwali") {
-    return (
-      <div className="text-8xl animate-pulse">
-        🪔✨🎆
-      </div>
-    );
+    return <div className="text-8xl animate-pulse">🪔✨🎆</div>;
   }
 
   if (theme === "independence") {
     return (
       <div className="flex flex-col items-center">
         <div className="text-8xl animate-[wave_2s_infinite]">🇮🇳</div>
-
-        {/* 🔥 NAME ON FLAG */}
-        <h2 className="text-2xl mt-2 animate-pulse text-orange-400">
-          {name}
-        </h2>
+        <h2 className="text-2xl mt-2 text-orange-400">{name}</h2>
       </div>
     );
   }
 
-  // DEFAULT
-  return (
-    <div className="text-6xl animate-pulse">
-      🎉 {theme} 🎉
-    </div>
-  );
+  return <div className="text-6xl animate-pulse">🎉 {theme} 🎉</div>;
 }
