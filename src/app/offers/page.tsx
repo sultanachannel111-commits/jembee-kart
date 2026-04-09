@@ -1,254 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import {
-  collection,
-  getDocs,
-  setDoc,
-  doc,
-  deleteDoc,
-  Timestamp
-} from "firebase/firestore";
+export default function OffersPage(){
 
-export default function OfferPage(){
-
-  const [products,setProducts] = useState<any[]>([]);
   const [offers,setOffers] = useState<any[]>([]);
 
-  const [selectedProduct,setSelectedProduct] = useState("");
-  const [discount,setDiscount] = useState(0);
-
-  const [startDate,setStartDate] = useState("");
-  const [startTime,setStartTime] = useState("");
-
-  const [endDate,setEndDate] = useState("");
-  const [endTime,setEndTime] = useState("");
-
   useEffect(()=>{
-    loadData();
+    loadOffers();
   },[]);
 
-  const loadData = async()=>{
+  const loadOffers = async()=>{
+    const snap = await getDocs(collection(db,"offers"));
 
-    const pSnap = await getDocs(collection(db,"products"));
-    const arr:any[] = [];
+    const arr = snap.docs.map(d=>({
+      id:d.id,
+      ...d.data()
+    }));
 
-    pSnap.forEach(d=>{
-      arr.push({ id:d.id, ...d.data() });
-    });
-
-    setProducts(arr);
-
-    const oSnap = await getDocs(collection(db,"offers"));
-    const off:any[] = [];
-
-    oSnap.forEach(d=>{
-      off.push({ id:d.id, ...d.data() });
-    });
-
-    setOffers(off);
-  };
-
-  const makeTimestamp = (date:string,time:string)=>{
-    const full = new Date(`${date}T${time}`);
-    return Timestamp.fromDate(full);
-  };
-
-  const addOffer = async()=>{
-
-    if(!selectedProduct) return alert("Select product ❌");
-    if(!discount) return alert("Enter discount ❌");
-
-    if(!startDate || !startTime || !endDate || !endTime){
-      return alert("Select date & time ❌");
-    }
-
-    try{
-
-      const existing = await getDocs(collection(db,"offers"));
-
-      const already = existing.docs.find(
-        d => d.id === selectedProduct && d.data().active
-      );
-
-      if(already){
-        return alert("Offer already exists ❌");
-      }
-
-      const startAt = makeTimestamp(startDate,startTime);
-      const endAt = makeTimestamp(endDate,endTime);
-
-      await setDoc(
-        doc(db,"offers",selectedProduct),
-        {
-          productId: selectedProduct, // 🔥 FIXED
-          discount: Number(discount),
-
-          startAt,
-          endAt,
-
-          endDate: endAt.toDate().toISOString(),
-
-          active: true,
-          type: "product",
-          createdAt: new Date()
-        }
-      );
-
-      alert("Offer Added ✅");
-
-      setSelectedProduct("");
-      setDiscount(0);
-
-      loadData();
-
-    }catch(err){
-      alert("Error ❌");
-    }
-  };
-
-  const deleteOffer = async(id:string)=>{
-    await deleteDoc(doc(db,"offers",id));
-    loadData();
-  };
-
-  const isActive = (o:any)=>{
-    const now = new Date();
-    const start = o.startAt?.toDate();
-    const end = o.endAt?.toDate();
-
-    if(!start || !end) return false;
-
-    return now >= start && now <= end;
+    setOffers(arr);
   };
 
   return(
-<div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-white p-4">
+    <div className="p-4">
 
-<h1 className="text-3xl font-bold text-center mb-6">
-🔥 Offer Management
-</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        🔥 Today Offers
+      </h1>
 
-{/* FORM */}
-<div className="backdrop-blur-xl bg-white/60 border border-white/30 p-5 rounded-3xl shadow-xl space-y-4">
+      {offers.map((o:any)=>(
+        <div key={o.id} className="border p-3 rounded mb-3">
 
-<select
-value={selectedProduct}
-onChange={e=>setSelectedProduct(e.target.value)}
-className="w-full p-3 rounded-xl border bg-white/70">
-<option value="">Select Product</option>
-{products.map(p=>(
-<option key={p.id} value={p.id}>
-{p.name}
-</option>
-))}
-</select>
+          <p className="font-semibold">
+            {o.type==="product"
+              ? `Product: ${o.productId}`
+              : `Category: ${o.category}`}
+          </p>
 
-{selectedProduct && (
-<p className="text-xs text-green-600">
-Selected ID: {selectedProduct}
-</p>
-)}
+          <p className="text-pink-600 font-bold">
+            {o.discount}% OFF
+          </p>
 
-<input
-type="number"
-placeholder="Discount %"
-value={discount}
-onChange={e=>setDiscount(Number(e.target.value))}
-className="w-full p-3 rounded-xl border"
-/>
+        </div>
+      ))}
 
-{/* START */}
-<div>
-<p className="text-sm font-semibold">Start Time</p>
-<input
-type="date"
-onChange={e=>setStartDate(e.target.value)}
-className="w-full p-2 rounded border"
-/>
-<input
-type="time"
-onChange={e=>setStartTime(e.target.value)}
-className="w-full p-2 rounded border mt-1"
-/>
-</div>
-
-{/* END */}
-<div>
-<p className="text-sm font-semibold">End Time</p>
-<input
-type="date"
-onChange={e=>setEndDate(e.target.value)}
-className="w-full p-2 rounded border"
-/>
-<input
-type="time"
-onChange={e=>setEndTime(e.target.value)}
-className="w-full p-2 rounded border mt-1"
-/>
-</div>
-
-<button
-onClick={addOffer}
-className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl font-bold shadow-lg">
-Add Offer 🚀
-</button>
-
-</div>
-
-{/* OFFERS LIST */}
-<div className="mt-6 space-y-4">
-
-{offers.map(o=>{
-  const active = isActive(o);
-
-  return(
-<div key={o.id}
-className="backdrop-blur-xl bg-white/70 border border-white/30 p-4 rounded-2xl shadow">
-
-{/* 🔥 THIS YOU ASKED */}
-<p className="text-xs text-gray-500">
-Product ID: {o.productId}
-</p>
-
-<p className="font-bold text-sm">{o.productId}</p>
-
-<p className="text-pink-600 font-bold text-xl mt-1">
-{o.discount}% OFF
-</p>
-
-<p className="text-xs mt-1">
-Start: {o.startAt?.toDate().toLocaleString()}
-</p>
-
-<p className="text-xs">
-End: {o.endAt?.toDate().toLocaleString()}
-</p>
-
-<div className="flex gap-2 mt-3">
-
-<span className={`px-3 py-1 text-white rounded text-xs ${
-active ? "bg-green-500" : "bg-gray-400"
-}`}>
-{active ? "Active" : "Expired"}
-</span>
-
-<button
-onClick={()=>deleteOffer(o.id)}
-className="bg-red-500 text-white px-3 py-1 rounded text-xs">
-Delete
-</button>
-
-</div>
-
-</div>
-  );
-})}
-
-</div>
-
-</div>
+    </div>
   );
 }
