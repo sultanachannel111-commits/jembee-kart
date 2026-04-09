@@ -110,45 +110,44 @@ export default function HomePage() {
   return (
     <div
       style={{ background: backgroundStyle }}
-      className="min-h-screen relative transition-all duration-500"
+      className="min-h-screen relative transition-all duration-500 overflow-x-hidden"
     >
       <Header theme={theme} />
 
-      {/* Main Content Area - Added padding bottom to ensure nothing is hidden under BottomNav */}
+      {/* Main Content Area */}
       <div className="pt-[90px] px-4 space-y-6 pb-28 relative z-10">
         
-        {/* Search Bar Glassmorphism */}
+        {/* Updated Search Bar Wrapper */}
         <div
           style={{
-            background: theme?.searchBg || "rgba(255, 255, 255, 0.15)",
-            color: theme?.searchText || "#fff",
-            borderColor: theme?.searchBorder || "rgba(255, 255, 255, 0.2)"
+            background: theme?.searchBg || "rgba(255, 255, 255, 0.1)",
+            borderColor: theme?.searchBorder || "rgba(255, 255, 255, 0.15)"
           }}
-          className="rounded-2xl p-1 border backdrop-blur-xl shadow-lg"
+          className="rounded-[22px] p-1 border backdrop-blur-2xl shadow-xl overflow-hidden"
         >
           <SearchBar search={search} setSearch={setSearch} />
         </div>
 
-        {/* Trending Tags Glassmorphism */}
+        {/* Trending Tags */}
         <div
           style={{
-            background: theme?.trendingBg || "rgba(255, 255, 255, 0.1)",
+            background: theme?.trendingBg || "rgba(255, 255, 255, 0.08)",
             color: theme?.trendingText || "#fff",
           }}
-          className="rounded-2xl shadow-lg p-4 backdrop-blur-lg border border-white/10"
+          className="rounded-3xl shadow-lg p-5 backdrop-blur-xl border border-white/10"
         >
-          <p className="text-sm font-bold mb-3 uppercase tracking-wider opacity-80 flex items-center gap-2">
-            <span>🔥</span> Trending Now
+          <p className="text-[10px] font-black mb-3 uppercase tracking-[0.2em] opacity-60 flex items-center gap-2">
+            <span className="text-base animate-bounce">🔥</span> Trending Now
           </p>
           <div className="flex flex-wrap gap-2">
             {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
               <button
                 key={item}
                 style={{
-                  background: theme?.trendingChipBg || "rgba(255, 255, 255, 0.15)",
+                  background: theme?.trendingChipBg || "rgba(255, 255, 255, 0.12)",
                   color: theme?.trendingChipText || "#fff",
                 }}
-                className="px-4 py-1.5 rounded-full text-[11px] font-semibold backdrop-blur-md border border-white/5 active:scale-90 transition"
+                className="px-4 py-1.5 rounded-xl text-[11px] font-bold backdrop-blur-md border border-white/5 active:scale-90 transition-all duration-200"
               >
                 {item}
               </button>
@@ -163,7 +162,7 @@ export default function HomePage() {
         />
 
         {Array.isArray(banners) && banners.length > 0 && (
-          <div className="rounded-3xl overflow-hidden shadow-xl border border-white/10">
+          <div className="rounded-[32px] overflow-hidden shadow-2xl border border-white/10 mx-1">
             <BannerSlider banners={banners} />
           </div>
         )}
@@ -171,24 +170,29 @@ export default function HomePage() {
         <FlashSale />
 
         {festival?.active && (
-          <FestivalBanner festival={festival} />
+          <div className="animate-pulse">
+            <FestivalBanner festival={festival} />
+          </div>
         )}
 
         {/* Product Sections */}
-        <div className="space-y-10">
+        <div className="space-y-12">
           <ProductGrid products={filteredProducts} theme={theme} offers={offers} />
           <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers} />
           <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers} />
-          <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
+          <div className="bg-white/5 p-4 rounded-[40px] border border-white/5 shadow-inner">
+             <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
+          </div>
           <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers} />
         </div>
       </div>
 
-      {/* FIXED BOTTOM NAV - Isko z-50 diya hai taaki ye top par rahe */}
-      <div className="fixed bottom-0 left-0 w-full z-50">
-         <BottomNav theme={theme} />
+      {/* FIXED BOTTOM NAV */}
+      <div className="fixed bottom-0 left-0 w-full z-50 px-2 pb-2">
+         <div className="bg-white/10 backdrop-blur-3xl rounded-[30px] border border-white/10 shadow-2xl">
+            <BottomNav theme={theme} />
+         </div>
       </div>
-
     </div>
   );
 }
