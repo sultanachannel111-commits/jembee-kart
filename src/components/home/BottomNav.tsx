@@ -1,36 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Grid, Flame, User } from "lucide-react";
+import { Home, Gift, Flame, User } from "lucide-react";
 
-export default function BottomNav(){
+export default function BottomNav() {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
 
-return(
+      {/* Home */}
+      <Link href="/" className="flex flex-col items-center text-xs">
+        <Home size={20} />
+        Home
+      </Link>
 
-<div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
+      {/* Wish Maker */}
+      <Link href="/create" className="flex flex-col items-center text-xs">
+        <Gift size={20} />
+        Wishes
+      </Link>
 
-<Link href="/" className="flex flex-col items-center text-xs">
-<Home size={20}/>
-Home
-</Link>
+      {/* Offers */}
+      <Link href="/offers" className="flex flex-col items-center text-xs">
+        <Flame size={20} />
+        Offers
+      </Link>
 
-<Link href="/categories" className="flex flex-col items-center text-xs">
-<Grid size={20}/>
-Categories
-</Link>
+      {/* Profile */}
+      <Link href="/profile" className="flex flex-col items-center text-xs">
+        <User size={20} />
+        Profile
+      </Link>
 
-<Link href="/offers" className="flex flex-col items-center text-xs">
-<Flame size={20}/>
-Offers
-</Link>
-
-<Link href="/profile" className="flex flex-col items-center text-xs">
-<User size={20}/>
-Profile
-</Link>
-
-</div>
-
-);
-
+    </div>
+  );
 }
