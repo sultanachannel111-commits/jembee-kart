@@ -1,28 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useParams } from "next/navigation";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Link from "next/link";
 
-export default function CategoriesPage() {
+export default function CategoryPage() {
+  const params = useParams();
+  const slug = typeof params?.slug === "string" ? params.slug : "";
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 SLUG CLEAN FUNCTION (MAIN FIX)
-  const makeSlug = (text: string) =>
-    text
-      ?.toLowerCase()
-      .replace(/&/g, "and")   // FIX: & → and
-      .replace(/[^\w\s]/g, "") // remove special chars
-      .replace(/\s+/g, "-");   // space → dash
+  // 🔥 SLUG → CATEGORY FORMAT (MAIN FIX)
+  const slugToCategory = (slug: string) =>
+    slug
+      ?.replace(/-/g, " ")      // hoodies-and-jackets → hoodies and jackets
+      .replace("and", "&")      // and → &
+      .toLowerCase();
 
   useEffect(() => {
+    if (!slug) {
+      setLoading(false);
+      return;
+    }
 
-    const fetchCategories = async () => {
+    const fetchProducts = async () => {
       try {
-
         const snap = await getDocs(collection(db, "products"));
 
         const data = snap.docs.map((doc) => ({
@@ -30,46 +35,40 @@ export default function CategoriesPage() {
           ...doc.data(),
         }));
 
-        // 🔥 CATEGORY MAP (REAL CATEGORY FIELD USE)
-        const categoryMap: any = {};
+        const targetCategory = slugToCategory(slug);
 
-        data.forEach((product: any) => {
-          if (!product.category) return;
+        // ✅ FIXED FILTER
+        const filtered = data.filter((product: any) => {
+          if (!product.category) return false;
 
-          const cat = product.category.trim();
-
-          if (!categoryMap[cat]) {
-            categoryMap[cat] = 1;
-          } else {
-            categoryMap[cat]++;
-          }
+          return (
+            product.category.toLowerCase() === targetCategory
+          );
         });
 
-        // 🔥 FINAL CATEGORY ARRAY
-        const finalCategories = Object.keys(categoryMap).map((key) => ({
-          name: key,
-          slug: makeSlug(key), // 🔥 CLEAN SLUG
-          count: categoryMap[key],
-        }));
+        setProducts(filtered);
 
-        setCategories(finalCategories);
-
-      } catch (err) {
-        console.log("Category error:", err);
+      } catch (error) {
+        console.log("Category fetch error:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
+    fetchProducts();
+  }, [slug]);
 
-  }, []);
+  // 🔥 TITLE FIX
+  const formatTitle = (slug: string) =>
+    slug
+      ?.replace(/-/g, " ")
+      .replace("and", "&")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
 
-  // ⏳ LOADING
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading categories...
+      <div className="min-h-screen flex items-center justify-center text-lg">
+        Loading...
       </div>
     );
   }
@@ -77,51 +76,45 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6 pt-[90px]">
 
-      {/* 🔥 TITLE */}
       <h1 className="text-4xl font-extrabold mb-8 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-        All Categories
+        {formatTitle(slug)}
       </h1>
 
-      {/* ❌ EMPTY */}
-      {categories.length === 0 ? (
-        <div className="text-gray-500 text-center">
-          No categories found
+      {products.length === 0 ? (
+        <div className="text-center text-gray-500 mt-10">
+          No products found
         </div>
       ) : (
+        <div className="grid grid-cols-2 gap-6">
 
-        /* ✅ GRID */
-        <div className="grid grid-cols-2 gap-5">
-
-          {categories.map((cat) => (
-
+          {products.map((product) => (
             <Link
-              key={cat.slug}
-              href={`/category/${cat.slug}`}
-              className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl shadow-md hover:shadow-2xl transition active:scale-95 flex flex-col items-center justify-center"
+              key={product.id}
+              href={`/product/${product.id}`}
+              className="bg-white rounded-2xl shadow-lg overflow-hidden"
             >
 
-              {/* ICON */}
-              <div className="text-3xl mb-2">
-                📦
+              <img
+                src={product.image || product.images?.[0]}
+                alt={product.name}
+                className="w-full h-40 object-cover"
+              />
+
+              <div className="p-4">
+                <h2 className="font-semibold text-sm line-clamp-2">
+                  {product.name}
+                </h2>
+
+                <p className="text-pink-600 font-bold mt-2">
+                  ₹{product.sellPrice || product.price}
+                </p>
               </div>
 
-              {/* NAME */}
-              <span className="text-lg font-semibold text-gray-800 text-center">
-                {cat.name}
-              </span>
-
-              {/* COUNT */}
-              <span className="text-sm text-gray-500 mt-1">
-                {cat.count} Products
-              </span>
-
             </Link>
-
           ))}
 
         </div>
       )}
-
     </div>
   );
 }
