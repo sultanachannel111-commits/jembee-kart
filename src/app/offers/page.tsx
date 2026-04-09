@@ -9,6 +9,7 @@ export default function OffersPage(){
 
   const [offers,setOffers] = useState<any[]>([]);
   const [products,setProducts] = useState<any>({});
+  const [loading,setLoading] = useState(true);
 
   const router = useRouter();
 
@@ -18,16 +19,12 @@ export default function OffersPage(){
 
   const loadData = async()=>{
 
-    // 🔥 OFFERS LOAD
     const offerSnap = await getDocs(collection(db,"offers"));
     const offerList = offerSnap.docs.map(d=>({
       id:d.id,
       ...d.data()
     }));
 
-    setOffers(offerList);
-
-    // 🔥 PRODUCTS LOAD
     const productSnap = await getDocs(collection(db,"products"));
 
     const map:any = {};
@@ -35,56 +32,136 @@ export default function OffersPage(){
       map[d.id] = d.data();
     });
 
+    setOffers(offerList);
     setProducts(map);
+
+    setLoading(false);
   };
 
   return(
-    <div className="p-4 min-h-screen bg-gray-50">
+
+    <div className="min-h-screen p-4 pb-20 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#020617]">
 
       {/* 🔥 TITLE */}
-      <h1 className="text-2xl font-bold mb-4">
-        🔥 Today Offers
+      <h1 className="text-3xl font-bold text-white mb-6">
+        🔥 Premium Offers
       </h1>
 
-      {/* 🔥 GRID */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* ================= SHIMMER ================= */}
+      {loading && (
+        <div className="flex gap-4 overflow-x-auto">
+          {[1,2,3].map(i=>(
+            <div key={i} className="min-w-[220px] h-[260px] bg-white/10 rounded-2xl animate-pulse"/>
+          ))}
+        </div>
+      )}
+
+      {/* ================= CAROUSEL ================= */}
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
 
         {offers.map((o:any)=>{
 
           const product = products[o.productId];
-
           if(!product) return null;
 
           return(
-
-            <div
+            <OfferCard
               key={o.id}
-              onClick={()=>router.push(`/product/${o.productId}`)}
-              className="bg-white rounded-xl shadow p-3 cursor-pointer hover:scale-105 transition"
-            >
-
-              {/* 🖼 IMAGE */}
-              <img
-                src={product.image || "/no-image.png"}
-                alt={product.name}
-                className="w-full h-32 object-cover rounded-lg"
-              />
-
-              {/* 🏷 NAME */}
-              <p className="font-semibold text-sm mt-2 line-clamp-2">
-                {product.name}
-              </p>
-
-              {/* 🔥 DISCOUNT BADGE */}
-              <div className="mt-2 text-xs bg-red-500 text-white px-2 py-1 rounded w-fit">
-                {o.discount}% OFF
-              </div>
-
-            </div>
+              product={product}
+              offer={o}
+              router={router}
+            />
           );
         })}
 
       </div>
+
+    </div>
+  );
+}
+
+
+/* ================= CARD ================= */
+
+function OfferCard({ product, offer, router }:any){
+
+  const [timeLeft,setTimeLeft] = useState("");
+
+  useEffect(()=>{
+
+    const interval = setInterval(()=>{
+
+      if(!offer.endDate){
+        setTimeLeft("");
+        return;
+      }
+
+      const end = new Date(offer.endDate).getTime();
+      const now = Date.now();
+
+      const diff = end - now;
+
+      if(diff <= 0){
+        setTimeLeft("Expired");
+        return;
+      }
+
+      const h = Math.floor(diff / (1000*60*60));
+      const m = Math.floor((diff % (1000*60*60))/(1000*60));
+      const s = Math.floor((diff % (1000*60))/1000);
+
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+
+    },1000);
+
+    return ()=>clearInterval(interval);
+
+  },[offer]);
+
+  return(
+
+    <div
+      onClick={()=>router.push(`/product/${offer.productId}`)}
+      className="min-w-[220px] snap-center backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-3 shadow-xl cursor-pointer hover:scale-105 transition"
+    >
+
+      {/* IMAGE */}
+      <div className="relative">
+
+        <img
+          src={product.image || "/no-image.png"}
+          className="w-full h-36 object-cover rounded-xl"
+        />
+
+        {/* DISCOUNT */}
+        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full shadow">
+          {offer.discount}% OFF
+        </div>
+
+      </div>
+
+      {/* NAME */}
+      <p className="text-white text-sm font-semibold mt-2 line-clamp-2">
+        {product.name}
+      </p>
+
+      {/* TIMER */}
+      {timeLeft && (
+        <p className="text-xs text-yellow-400 mt-1">
+          ⏳ {timeLeft}
+        </p>
+      )}
+
+      {/* BUTTON */}
+      <button
+        onClick={(e)=>{
+          e.stopPropagation();
+          router.push(`/product/${offer.productId}`);
+        }}
+        className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm py-2 rounded-xl shadow-lg"
+      >
+        Shop Now 🚀
+      </button>
 
     </div>
   );
