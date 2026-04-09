@@ -14,7 +14,7 @@ export default function BottomNav() {
       </Link>
 
       {/* Wish Maker */}
-      <Link href="/create" className="flex flex-col items-center text-xs">
+      <Link href="/wishmaker" className="flex flex-col items-center text-xs">
         <Gift size={20} />
         Wishes
       </Link>
