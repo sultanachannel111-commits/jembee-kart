@@ -83,7 +83,7 @@ export default function CheckoutPage() {
 
   const grandTotal = itemsTotal + shippingCharge;
 
-  // 🔔 NOTIFICATION LOGIC FOR ADMIN (7061369213)
+  // 🔔 NOTIFICATION LOGIC FOR ADMIN (7061369212)
   const sendAdminNotification = async (orderId: string, type: string) => {
     try {
       // 1. Firestore Notification (For Admin Panel)
