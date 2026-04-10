@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
@@ -83,6 +83,28 @@ export default function CheckoutPage() {
 
   const grandTotal = itemsTotal + shippingCharge;
 
+  // 🔔 NOTIFICATION LOGIC FOR ADMIN (7061369213)
+  const sendAdminNotification = async (orderId: string, type: string) => {
+    try {
+      // 1. Firestore Notification (For Admin Panel)
+      await addDoc(collection(db, "notifications"), {
+        type: type,
+        message: `🚀 Naya ${type === "COD_ORDER" ? "COD" : "Online"} Order!`,
+        amount: grandTotal,
+        orderId: orderId,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. WhatsApp Alert
+      const adminMobile = "917061369213";
+      const msg = `🔥 *JembeeKart Alert*\n\nNaya Order mila hai!\n*Type:* ${type}\n*Order ID:* ${orderId}\n*Total:* ₹${grandTotal}\n*Customer:* ${address.name}\n\nDashboard check karein!`;
+      window.open(`https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`, "_blank");
+    } catch (err) {
+      console.log("Notification Error:", err);
+    }
+  };
+
   const handlePayment = async () => {
     if (!address) return alert("Please select a delivery address!");
     setLoading(true);
@@ -110,6 +132,8 @@ export default function CheckoutPage() {
         });
         const data = await res.json();
         if (data.success) {
+          // Send Alert for COD
+          await sendAdminNotification(data.orderId, "COD_ORDER");
           localStorage.removeItem("buy-now");
           router.replace(`/order-success/${data.orderId}`);
         }
@@ -121,6 +145,10 @@ export default function CheckoutPage() {
         });
         const data = await res.json();
         const cashfree = await load({ mode: "production" });
+        
+        // Send Alert for Online (Attempt)
+        await sendAdminNotification(data.cf_order_id || "CF_INITIATED", "ONLINE_ORDER");
+        
         await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
         localStorage.removeItem("buy-now");
       }
