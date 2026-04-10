@@ -7,12 +7,13 @@ import { db } from "@/lib/firebase";
 
 export default function TrackPage() {
   const { id } = useParams();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState(null);
 
   useEffect(() => {
     if (!id) return;
 
-    const unsub = onSnapshot(doc(db, "orders", id as string), (snap) => {
+    // Yahan se 'as string' hata diya hai kyunki aapki file .jsx hai
+    const unsub = onSnapshot(doc(db, "orders", id), (snap) => {
       if (snap.exists()) {
         setOrder({ id: snap.id, ...snap.data() });
       }
@@ -59,7 +60,7 @@ export default function TrackPage() {
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Order Items</h2>
           <div className="space-y-4">
-            {order.items?.map((item: any, i: number) => (
+            {order.items?.map((item, i) => (
               <div key={i} className="flex items-center gap-4">
                 <img
                   src={item.image || "/placeholder.png"}
@@ -76,7 +77,7 @@ export default function TrackPage() {
           </div>
         </div>
 
-        {/* 🚚 MODERN TRACKING BAR */}
+        {/* 🚚 TRACKING BAR */}
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
           <div className="flex justify-between items-end mb-6">
             <div>
@@ -125,11 +126,6 @@ export default function TrackPage() {
             <span className="text-lg font-black text-black">₹{order.total}</span>
           </div>
         </div>
-
-        <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-          Thank you for shopping with Jembee
-        </p>
-
       </div>
     </div>
   );
