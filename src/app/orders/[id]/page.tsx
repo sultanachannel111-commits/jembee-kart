@@ -4,23 +4,27 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import toast from "react-hot-toast";
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
+    // Check if id exists
     if (!id) return;
 
-    // Fixed: 'as string' hata diya hai build error solve karne ke liye
-    const unsub = onSnapshot(doc(db, "orders", id), (snap) => {
+    // IMPORTANT: No 'as string' or ':' types here for .jsx
+    const docRef = doc(db, "orders", id);
+    
+    const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
         const data = { id: snap.id, ...snap.data() };
         let total = 0;
-        data.items?.forEach((item) => {
-          total += Number(item.price || 0) * (item.quantity || 1);
-        });
+        if (data.items) {
+          data.items.forEach((item) => {
+            total += Number(item.price || 0) * (item.quantity || 1);
+          });
+        }
         setOrder({ ...data, total });
       }
     });
@@ -28,18 +32,20 @@ export default function OrderDetailsPage() {
     return () => unsub();
   }, [id]);
 
-  if (!order) return (
-    <div className="h-screen flex items-center justify-center bg-[#0f172a] text-white/50 font-bold tracking-tighter uppercase italic animate-pulse">
-      Initialising Secure Link...
-    </div>
-  );
+  if (!order) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#020617] text-white/50 font-bold uppercase italic animate-pulse">
+        Initialising Secure Link...
+      </div>
+    );
+  }
 
   const steps = ["Pending", "Confirmed", "Shipped", "Out for Delivery", "Delivered"];
   const currentStep = steps.indexOf(order.status || "Pending");
   const progress = (currentStep / (steps.length - 1)) * 100;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 p-4 pb-12 overflow-hidden relative">
+    <div className="min-h-screen bg-[#020617] text-slate-200 p-4 pb-12 overflow-hidden relative font-sans">
       
       {/* 🔮 Background Glow Effects */}
       <div className="absolute top-0 -left-20 w-80 h-80 bg-blue-600/10 blur-[120px] rounded-full"></div>
@@ -54,10 +60,10 @@ export default function OrderDetailsPage() {
               <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-1">Package Tracker</p>
               <h1 className="text-2xl font-black text-white italic tracking-tighter">ORDER ACTIVE</h1>
             </div>
-            <div className="bg-white/5 p-2 rounded-2xl border border-white/5">📦</div>
+            <div className="bg-white/5 p-2 rounded-2xl border border-white/5 uppercase text-[10px] font-bold">Jembee</div>
           </div>
-          <p className="text-[9px] font-mono text-white/20 tracking-widest bg-black/40 p-2 rounded-lg inline-block">
-            UID: {order.id.toUpperCase()}
+          <p className="text-[9px] font-mono text-white/20 tracking-widest bg-black/40 p-2 rounded-lg inline-block uppercase">
+            UID: {order.id}
           </p>
         </div>
 
@@ -111,20 +117,20 @@ export default function OrderDetailsPage() {
                   </div>
                   <span className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</span>
                 </div>
-                <span className="text-xs font-black text-white italic">₹{Number(item.price) * (item.quantity || 1)}</span>
+                <span className="text-xs font-black text-white italic">₹{Number(item.price || 0) * (item.quantity || 1)}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 🛡️ Secure Badge (Replaced Map/Delivery Partner) */}
+        {/* 🛡️ Secure Badge */}
         <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex items-center gap-5">
            <div className="w-14 h-14 bg-gradient-to-tr from-green-500/20 to-emerald-500/20 rounded-2xl flex items-center justify-center text-2xl border border-green-500/20">
              🔐
            </div>
            <div>
-             <h4 className="text-[11px] font-black text-white uppercase italic tracking-tighter">Secure Logistics</h4>
-             <p className="text-[9px] text-white/40 leading-relaxed mt-0.5">Aapka order fully insured hai. Delivery ke waqt tamper-evident packaging check karein.</p>
+             <h4 className="text-[11px] font-black text-white uppercase italic tracking-tighter text-left">Secure Logistics</h4>
+             <p className="text-[9px] text-white/40 leading-relaxed mt-0.5 text-left">Aapka order fully insured hai. Delivery ke waqt tamper-evident packaging check karein.</p>
            </div>
         </div>
 
@@ -132,7 +138,7 @@ export default function OrderDetailsPage() {
         <div className="space-y-3">
           <a 
             href={`https://wa.me/917061369212?text=Order Help ID: ${order.id}`}
-            className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-all shadow-xl active:scale-95"
+            className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95"
           >
             Contact Support 📲
           </a>
