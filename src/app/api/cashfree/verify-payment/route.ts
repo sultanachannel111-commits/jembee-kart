@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   try {
     const { orderId, orderData } = await req.json();
 
-    // 🔥 Cashfree verify API
+    // 🔥 Cashfree verify API URL
     const CASHFREE_URL =
       process.env.NODE_ENV === "production"
         ? `https://api.cashfree.com/pg/orders/${orderId}/payments`
@@ -23,10 +23,8 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    console.log("🔍 VERIFY RESPONSE:", data);
-
-    // ✅ check payment success
-    const paid = data?.some((p: any) => p.payment_status === "SUCCESS");
+    // Check if data is an array (Cashfree returns array of payments)
+    const paid = Array.isArray(data) && data.some((p: any) => p.payment_status === "SUCCESS");
 
     if (!paid) {
       return NextResponse.json({
@@ -38,45 +36,42 @@ export async function POST(req: Request) {
     // =========================
     // 💰 SELLER PROFIT CALC
     // =========================
-
-    const items = orderData.items || [];
-
+    // Safety check: items array exist karna chahiye
+    const items = orderData?.items || [];
     let totalProfit = 0;
 
     items.forEach((item: any, i: number) => {
-      const profit =
-        (Number(item.price) - Number(item.basePrice)) *
-        Number(item.qty);
+      // Numbers ensure karne ke liye Number() wrap karna achha hai
+      const salePrice = Number(item.price) || 0;
+      const basePrice = Number(item.basePrice) || 0;
+      const quantity = Number(item.qty) || 1;
 
-      console.log(`🧾 Item ${i + 1} Profit:`, profit);
-
+      const profit = (salePrice - basePrice) * quantity;
       totalProfit += profit;
     });
 
-    const commission = orderData.sellerRef
+    // Commission logic: 50% profit share for affiliate
+    const commission = (orderData?.sellerRef && totalProfit > 0)
       ? Math.floor(totalProfit * 0.5)
       : 0;
 
-    console.log("💰 TOTAL PROFIT:", totalProfit);
-    console.log("💸 COMMISSION:", commission);
-
     // =========================
-    // 🧾 SAVE ORDER
+    // 🧾 SAVE ORDER TO FIREBASE
     // =========================
-
     const orderRef = await addDoc(collection(db, "orders"), {
       ...orderData,
+      cashfreeOrderId: orderId, // Store mapping
       totalProfit,
       commission,
-      status: "Paid",
+      paymentStatus: "paid", // Direct confirm status
+      orderStatus: "READY_FOR_MANUAL_QIKINK",
       createdAt: serverTimestamp()
     });
 
     // =========================
-    // 💸 SAVE COMMISSION
+    // 💸 SAVE COMMISSION RECORD
     // =========================
-
-    if (orderData.sellerRef && commission > 0) {
+    if (orderData?.sellerRef && commission > 0) {
       await addDoc(collection(db, "commissions"), {
         sellerId: orderData.sellerRef,
         orderId: orderRef.id,
@@ -95,7 +90,6 @@ export async function POST(req: Request) {
 
   } catch (err: any) {
     console.log("❌ VERIFY ERROR:", err);
-
     return NextResponse.json({
       success: false,
       message: err.message
