@@ -65,7 +65,7 @@ export default function OrderSuccess(){
         }
         localStorage.removeItem("buy-now");
 
-        // 🔔 ADMIN WHATSAPP NOTIFICATION (7061369213)
+        // 🔔 ADMIN WHATSAPP NOTIFICATION (7061369212)
         const adminMobile = "917061369213";
         const adminMsg = `✅ *PAISA AA GAYA!* \n\nOrder #${id} verified (₹${data.total}).\nManual order Qikink par place karein.`;
         
