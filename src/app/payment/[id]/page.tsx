@@ -97,11 +97,20 @@ export default function PaymentPage() {
     setProcessing(true);
 
     try {
-      /* 1️⃣ Update Order Status */
+      // 💰 SELLER COMMISSION LOGIC (Added for Dashboard sync)
+      const profit = (order.amount || 0) - (order.basePrice || 0);
+      const calculatedCommission = profit > 0 ? profit * 0.50 : 0;
+      
+      // Affiliate ID tracking
+      const sellerId = localStorage.getItem("affiliate") || order.sellerRef || "";
+
+      /* 1️⃣ Update Order Status & Seller Data (Dashboard fix) */
       await updateDoc(doc(db, "orders", order.id), {
         paymentStatus: "UNDER_REVIEW",
         transactionId: txn,
         submittedAt: new Date(),
+        commission: calculatedCommission,
+        sellerRef: sellerId,
       });
 
       /* 2️⃣ Reduce Product Stock */
