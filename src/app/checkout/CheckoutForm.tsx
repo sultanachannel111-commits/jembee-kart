@@ -14,10 +14,10 @@ import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
-  const [user, setUser] = useState<any>(null);
-  const [address, setAddress] = useState<any>(null);
-  const [addresses, setAddresses] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [address, setAddress] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
@@ -30,15 +30,14 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   // =========================
-  // 🔥 LOAD DATA (BUY NOW + CART)
+  // 🔥 LOAD DATA
   // =========================
   useEffect(() => {
-    let unsubscribe: any;
+    let unsubscribe;
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
       setUser(u);
 
-      // 🟢 BUY NOW (PRIORITY)
       const buyNow = localStorage.getItem("buy-now");
       if (buyNow) {
         try {
@@ -55,12 +54,11 @@ export default function CheckoutPage() {
           }
         } catch { setItems([]); }
       } else {
-        // 🛒 FIRESTORE CART
         const ref = collection(db, "carts", u.uid, "items");
         unsubscribe = onSnapshot(ref, (snap) => {
-          const data: any[] = [];
+          const data = [];
           snap.forEach(docSnap => {
-            const d: any = docSnap.data();
+            const d = docSnap.data();
             const price = d?.variations?.[0]?.sizes?.[0]?.sellPrice || d.price || 0;
             data.push({
               id: docSnap.id,
@@ -75,16 +73,14 @@ export default function CheckoutPage() {
         });
       }
 
-      // 📍 ADDRESS (Including Zip)
+      // 📍 FETCH ADDRESSES
       const addrSnap = await getDocs(collection(db, "addresses")); 
-      // Note: Make sure your query filters by userId if not using subcollections
-      const userAddresses: any[] = [];
+      const userAddresses = [];
       addrSnap.forEach(d => {
         if (d.data().userId === u.uid) {
           userAddresses.push({ id: d.id, ...d.data() });
         }
       });
-
       setAddresses(userAddresses);
       setAddress(userAddresses[0] || null);
 
@@ -107,17 +103,15 @@ export default function CheckoutPage() {
   }, [router]);
 
   // =========================
-  // 💰 CALCULATION LOGIC
+  // 💰 CALCULATION
   // =========================
   const itemsTotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
-  
   let shipping = items.length === 0 ? 0 : 
     (paymentMethod === "COD" ? shippingConfig.cod : shippingConfig.prepaid);
 
   if (shippingConfig.freeShippingAbove > 0 && itemsTotal >= shippingConfig.freeShippingAbove) {
     shipping = 0;
   }
-
   const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
   // =========================
@@ -131,11 +125,13 @@ export default function CheckoutPage() {
       setLoading(true);
       const orderData = {
         userId: user.uid,
+        email: user.email, // Added Email
         items,
         itemsTotal,
         shipping,
         total,
-        address
+        address, // Address object now includes landmark, street, phone etc.
+        paymentMethod
       };
 
       if (paymentMethod === "COD") {
@@ -148,9 +144,7 @@ export default function CheckoutPage() {
         if (data.success) {
           localStorage.removeItem("buy-now");
           router.replace(`/order-success/${data.orderId}`);
-        } else {
-          alert("Order failed ❌");
-        }
+        } else { alert("Order failed ❌"); }
       } else {
         const res = await fetch("/api/cashfree/create-order", {
           method: "POST",
@@ -159,7 +153,7 @@ export default function CheckoutPage() {
             amount: total,
             customer: {
               uid: user.uid,
-              name: user.displayName || address.name,
+              name: address.name || user.displayName,
               email: user.email,
               phone: address.phone
             }
@@ -180,7 +174,6 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white p-4 pb-36 font-sans">
-      {/* HEADER */}
       <header className="py-6 text-center">
         <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
           CHECKOUT
@@ -189,25 +182,39 @@ export default function CheckoutPage() {
 
       <div className="max-w-md mx-auto space-y-6">
         
-        {/* 📍 ADDRESS CARD */}
+        {/* 📍 ADDRESS SECTION */}
         <section className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-[2.5rem] shadow-2xl">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-indigo-300">Delivery Address</h2>
-            <button onClick={() => router.push("/profile")} className="text-xs bg-indigo-500/20 px-3 py-1 rounded-full text-indigo-300 border border-indigo-500/30">
-              Edit
+            <h2 className="text-sm font-bold uppercase tracking-widest text-indigo-300">Shipping Details</h2>
+            <button onClick={() => router.push("/profile")} className="text-xs bg-indigo-500/20 px-4 py-1.5 rounded-full text-indigo-300 border border-indigo-500/30">
+              Change
             </button>
           </div>
 
           {address ? (
-            <div className="space-y-1">
-              <p className="text-lg font-bold">{address.name || user?.displayName || "Customer"}</p>
-              <p className="text-white/60 text-sm leading-relaxed">{address.street}</p>
-              <p className="text-white/60 text-sm">{address.city} - <span className="text-white font-mono font-bold">{address.zip}</span></p>
-              <p className="text-indigo-400 text-sm font-medium mt-2">📞 {address.phone}</p>
+            <div className="space-y-2">
+              <div className="flex justify-between items-start">
+                <p className="text-lg font-bold">{address.name || "Customer"}</p>
+                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded uppercase font-bold tracking-tighter">Default</span>
+              </div>
+              
+              <div className="space-y-1 text-white/70 text-sm">
+                <p className="leading-tight">{address.street}</p>
+                {address.landmark && (
+                  <p className="text-indigo-300/80 italic">📍 Landmark: {address.landmark}</p>
+                )}
+                <p>{address.city}, {address.state} - <span className="text-white font-mono font-bold">{address.zip}</span></p>
+                
+                <div className="pt-2 flex flex-col gap-1 border-t border-white/5 mt-2">
+                  <p className="flex items-center gap-2"><span className="opacity-50 text-xs">📞 Phone:</span> <span className="text-white font-medium">{address.phone}</span></p>
+                  <p className="flex items-center gap-2"><span className="opacity-50 text-xs">✉️ Email:</span> <span className="text-white font-medium">{user?.email}</span></p>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="py-4 text-center border-2 border-dashed border-white/10 rounded-2xl">
-              <p className="text-white/40 text-sm">No address found ❌</p>
+            <div className="py-10 text-center border-2 border-dashed border-white/10 rounded-[2rem]">
+              <p className="text-white/40 text-sm">No saved address ❌</p>
+              <button onClick={() => router.push("/profile")} className="mt-3 text-indigo-400 font-bold text-xs underline">Add Address Now</button>
             </div>
           )}
         </section>
@@ -230,14 +237,16 @@ export default function CheckoutPage() {
 
         {/* 📦 ORDER ITEMS */}
         <section className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-white/40 ml-4">Your Items</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-white/40 ml-4">Order Summary</h2>
           {items.map((item) => (
             <div key={item.id} className="bg-white/5 backdrop-blur-md border border-white/5 p-3 rounded-3xl flex gap-4 items-center">
-              <img src={item.image} className="w-20 h-20 rounded-2xl object-cover bg-white/10" alt={item.name} />
+              <img src={item.image} className="w-16 h-16 rounded-2xl object-cover bg-white/10" alt={item.name} />
               <div className="flex-1">
                 <p className="font-bold text-sm line-clamp-1">{item.name}</p>
-                <p className="text-white/40 text-xs mt-1">Quantity: {item.qty}</p>
-                <p className="text-indigo-400 font-black mt-1">₹{item.price}</p>
+                <div className="flex justify-between items-center mt-1">
+                   <p className="text-white/40 text-[10px]">Qty: {item.qty}</p>
+                   <p className="text-indigo-400 font-black">₹{item.price}</p>
+                </div>
               </div>
             </div>
           ))}
@@ -247,18 +256,18 @@ export default function CheckoutPage() {
         <section className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-[2.5rem]">
           <div className="space-y-3 text-sm">
             <div className="flex justify-between text-white/60">
-              <span>Subtotal</span>
+              <span>Items Total</span>
               <span>₹{itemsTotal}</span>
             </div>
             <div className="flex justify-between text-white/60">
-              <span>Shipping Fee</span>
+              <span>Shipping Charge</span>
               <span className={shipping === 0 ? "text-green-400 font-bold" : ""}>
                 {shipping === 0 ? "FREE" : `₹${shipping}`}
               </span>
             </div>
             <div className="h-[1px] bg-white/10 my-2" />
             <div className="flex justify-between items-center text-xl font-black">
-              <span>Total</span>
+              <span>Grand Total</span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">
                 ₹{total}
               </span>
@@ -267,20 +276,20 @@ export default function CheckoutPage() {
         </section>
       </div>
 
-      {/* 🚀 ACTION BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/90 to-transparent">
+      {/* 🚀 FIXED BOTTOM ACTION */}
+      <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/95 to-transparent z-50">
         <button
           onClick={handlePayment}
           disabled={loading || items.length === 0}
-          className="w-full max-w-md mx-auto block py-5 rounded-3xl bg-indigo-600 font-black text-lg shadow-[0_10px_30px_rgba(79,70,229,0.4)] active:scale-95 transition-transform disabled:opacity-50 disabled:grayscale"
+          className="w-full max-w-md mx-auto block py-5 rounded-[2rem] bg-indigo-600 font-black text-lg shadow-[0_10px_40px_rgba(79,70,229,0.5)] active:scale-95 transition-transform disabled:opacity-50 disabled:grayscale"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              SECURE PAYING...
+              PROCESSING...
             </span>
           ) : (
-            `PAY ₹${total}`
+            `CONFIRM ORDER (₹${total})`
           )}
         </button>
       </div>
