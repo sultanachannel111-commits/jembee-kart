@@ -22,15 +22,12 @@ export default function WishMaker() {
   const [loading, setLoading] = useState(true);
   const [showProducts, setShowProducts] = useState(true);
 
-  const [debug, setDebug] = useState<any>({});
-
   // ================= USER =================
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         loadOrders(user.uid);
       } else {
-        setDebug({ error: "User not logged ❌" });
         setLoading(false);
       }
     });
@@ -38,7 +35,7 @@ export default function WishMaker() {
     return () => unsub();
   }, []);
 
-  // ================= LOAD =================
+  // ================= LOAD PRODUCTS =================
   const loadOrders = async (uid: string) => {
     try {
       const q = query(
@@ -49,15 +46,9 @@ export default function WishMaker() {
       const snap = await getDocs(q);
 
       let items: any[] = [];
-      let debugOrders: any[] = [];
 
       snap.forEach((doc) => {
         const data: any = doc.data();
-
-        debugOrders.push({
-          paymentStatus: data.paymentStatus,
-          status: data.status
-        });
 
         // ✅ ONLY ONLINE + NOT DELIVERED
         if (
@@ -72,14 +63,8 @@ export default function WishMaker() {
 
       setProducts(items);
 
-      setDebug({
-        totalOrders: snap.size,
-        productsFound: items.length,
-        ordersCheck: debugOrders
-      });
-
-    } catch (err: any) {
-      setDebug({ error: err.message });
+    } catch (err) {
+      console.log(err);
     }
 
     setLoading(false);
@@ -144,7 +129,9 @@ export default function WishMaker() {
               key={t}
               onClick={() => setTheme(t)}
               className={`px-4 py-1 rounded-full ${
-                theme === t ? "bg-black text-white" : "bg-white"
+                theme === t
+                  ? "bg-black text-white"
+                  : "bg-white"
               }`}
             >
               {t}
@@ -152,6 +139,7 @@ export default function WishMaker() {
           ))}
         </div>
 
+        {/* 🎬 ANIMATION */}
         <ThemeUI theme={theme} />
 
         {/* HEADER */}
@@ -177,6 +165,7 @@ export default function WishMaker() {
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 mt-2">
+
                 {products.map((p, i) => {
                   const active = selected.find(
                     (x) => x.productId === p.productId
@@ -185,12 +174,13 @@ export default function WishMaker() {
                   return (
                     <div
                       key={i}
-                      className={`p-2 rounded-xl ${
+                      className={`p-2 rounded-xl transition ${
                         active
-                          ? "border-2 border-green-500"
+                          ? "border-2 border-green-500 scale-105"
                           : "border"
                       }`}
                     >
+                      {/* OPEN PRODUCT PAGE */}
                       <div
                         onClick={() =>
                           window.open(`/product/${p.productId}`, "_blank")
@@ -198,12 +188,13 @@ export default function WishMaker() {
                         className="cursor-pointer"
                       >
                         <img
-                          src={p.image}
+                          src={p.image || "/no-image.png"}
                           className="w-full h-28 object-cover rounded"
                         />
                         <p className="text-sm">{p.name}</p>
                       </div>
 
+                      {/* SELECT */}
                       <button
                         onClick={() => toggleProduct(p)}
                         className="w-full mt-2 bg-green-500 text-white text-xs py-1 rounded"
@@ -213,6 +204,7 @@ export default function WishMaker() {
                     </div>
                   );
                 })}
+
               </div>
             )}
           </>
@@ -228,6 +220,7 @@ export default function WishMaker() {
           </div>
         )}
 
+        {/* BUTTON */}
         <button
           onClick={createWish}
           className="w-full mt-4 bg-green-500 text-white py-3 rounded-xl"
@@ -237,21 +230,32 @@ export default function WishMaker() {
 
       </div>
 
-      {/* DEBUG */}
-      <div className="mt-4 bg-black text-green-400 text-xs p-3 rounded-xl">
-        <pre>{JSON.stringify(debug, null, 2)}</pre>
-      </div>
-
     </div>
   );
 }
 
 /* 🎬 ANIMATION */
 function ThemeUI({ theme }: any) {
-  if (theme === "birthday") return <div className="text-6xl text-center">🎂🎈</div>;
-  if (theme === "love") return <div className="text-6xl text-center">❤️</div>;
-  if (theme === "diwali") return <div className="text-6xl text-center">🪔</div>;
-  if (theme === "eid") return <div className="text-6xl text-center">🌙</div>;
-  if (theme === "independence") return <div className="text-6xl text-center">🇮🇳</div>;
+
+  if (theme === "birthday") {
+    return <div className="text-6xl text-center animate-bounce">🎂🎈</div>;
+  }
+
+  if (theme === "love") {
+    return <div className="text-6xl text-center animate-pulse">❤️</div>;
+  }
+
+  if (theme === "diwali") {
+    return <div className="text-6xl text-center animate-pulse">🪔</div>;
+  }
+
+  if (theme === "eid") {
+    return <div className="text-6xl text-center animate-bounce">🌙</div>;
+  }
+
+  if (theme === "independence") {
+    return <div className="text-6xl text-center animate-bounce">🇮🇳</div>;
+  }
+
   return null;
 }
