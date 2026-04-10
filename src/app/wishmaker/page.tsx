@@ -22,16 +22,15 @@ export default function WishMaker() {
   const [loading, setLoading] = useState(true);
   const [showProducts, setShowProducts] = useState(true);
 
-  // 🔥 DEBUG
   const [debug, setDebug] = useState<any>({});
 
-  // ================= LOAD USER =================
+  // ================= USER =================
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         loadOrders(user.uid);
       } else {
-        setDebug({ error: "User not logged in ❌" });
+        setDebug({ error: "User not logged ❌" });
         setLoading(false);
       }
     });
@@ -39,7 +38,7 @@ export default function WishMaker() {
     return () => unsub();
   }, []);
 
-  // ================= LOAD PRODUCTS =================
+  // ================= LOAD =================
   const loadOrders = async (uid: string) => {
     try {
       const q = query(
@@ -49,42 +48,34 @@ export default function WishMaker() {
 
       const snap = await getDocs(q);
 
-      let filteredItems: any[] = [];
-      let allItems: any[] = [];
-      let rawOrders: any[] = [];
+      let items: any[] = [];
+      let debugOrders: any[] = [];
 
       snap.forEach((doc) => {
         const data: any = doc.data();
-        rawOrders.push(data);
 
-        // सभी items (debug)
-        if (data.items) {
-          allItems = [...allItems, ...data.items];
-        }
+        debugOrders.push({
+          paymentStatus: data.paymentStatus,
+          status: data.status
+        });
 
-        // FILTERED (real logic)
-        if (data.paymentMode === "ONLINE" && data.status !== "delivered") {
+        // ✅ ONLY ONLINE + NOT DELIVERED
+        if (
+          data.paymentStatus === "SUCCESS" &&
+          data.status !== "DELIVERED"
+        ) {
           if (data.items) {
-            filteredItems = [...filteredItems, ...data.items];
+            items = [...items, ...data.items];
           }
         }
       });
 
-      // 🔥 अगर filter में कुछ नहीं मिला → fallback use करो
-      if (filteredItems.length === 0 && allItems.length > 0) {
-        setProducts(allItems);
-      } else {
-        setProducts(filteredItems);
-      }
+      setProducts(items);
 
-      // 🔥 DEBUG DATA
       setDebug({
-        userId: uid,
         totalOrders: snap.size,
-        filteredProducts: filteredItems.length,
-        allProducts: allItems.length,
-        showing: filteredItems.length === 0 ? "fallback_all_products" : "filtered_products",
-        rawOrders
+        productsFound: items.length,
+        ordersCheck: debugOrders
       });
 
     } catch (err: any) {
@@ -124,9 +115,9 @@ export default function WishMaker() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200 p-4">
 
-      <div className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-3xl p-5 shadow-2xl">
+      <div className="bg-white/20 backdrop-blur-xl rounded-3xl p-5 shadow-xl">
 
-        <h1 className="text-3xl font-bold text-center mb-4">
+        <h1 className="text-3xl text-center font-bold mb-4">
           🎁 Create Wish
         </h1>
 
@@ -153,9 +144,7 @@ export default function WishMaker() {
               key={t}
               onClick={() => setTheme(t)}
               className={`px-4 py-1 rounded-full ${
-                theme === t
-                  ? "bg-black text-white"
-                  : "bg-white/60"
+                theme === t ? "bg-black text-white" : "bg-white"
               }`}
             >
               {t}
@@ -163,7 +152,6 @@ export default function WishMaker() {
           ))}
         </div>
 
-        {/* 🎬 ANIMATION */}
         <ThemeUI theme={theme} />
 
         {/* HEADER */}
@@ -172,7 +160,7 @@ export default function WishMaker() {
 
           <button
             onClick={() => setShowProducts(!showProducts)}
-            className="text-sm bg-black text-white px-3 py-1 rounded-full"
+            className="bg-black text-white px-3 py-1 rounded-full text-sm"
           >
             {showProducts ? "Hide" : "Show"}
           </button>
@@ -184,8 +172,8 @@ export default function WishMaker() {
             {loading ? (
               <p>Loading...</p>
             ) : products.length === 0 ? (
-              <p className="text-red-500 text-sm mt-2">
-                No products found ❌
+              <p className="text-red-500 mt-2">
+                No ONLINE products ❌
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 mt-2">
@@ -197,13 +185,12 @@ export default function WishMaker() {
                   return (
                     <div
                       key={i}
-                      className={`p-2 rounded-xl transition ${
+                      className={`p-2 rounded-xl ${
                         active
-                          ? "border-2 border-green-500 scale-105"
+                          ? "border-2 border-green-500"
                           : "border"
                       }`}
                     >
-                      {/* OPEN PRODUCT PAGE */}
                       <div
                         onClick={() =>
                           window.open(`/product/${p.productId}`, "_blank")
@@ -241,7 +228,6 @@ export default function WishMaker() {
           </div>
         )}
 
-        {/* BUTTON */}
         <button
           onClick={createWish}
           className="w-full mt-4 bg-green-500 text-white py-3 rounded-xl"
@@ -251,8 +237,8 @@ export default function WishMaker() {
 
       </div>
 
-      {/* 🔥 DEBUG PANEL */}
-      <div className="mt-6 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
+      {/* DEBUG */}
+      <div className="mt-4 bg-black text-green-400 text-xs p-3 rounded-xl">
         <pre>{JSON.stringify(debug, null, 2)}</pre>
       </div>
 
@@ -262,32 +248,10 @@ export default function WishMaker() {
 
 /* 🎬 ANIMATION */
 function ThemeUI({ theme }: any) {
-
-  if (theme === "birthday") {
-    return (
-      <div className="relative h-40 flex justify-center items-center">
-        <div className="text-7xl animate-bounce">🎂</div>
-        <div className="absolute left-6 bottom-0 text-4xl animate-[float_4s_infinite]">🎈</div>
-        <div className="absolute right-6 bottom-0 text-4xl animate-[float_5s_infinite]">🎈</div>
-      </div>
-    );
-  }
-
-  if (theme === "love") {
-    return <div className="text-6xl text-center animate-pulse">❤️💖💘</div>;
-  }
-
-  if (theme === "diwali") {
-    return <div className="text-6xl text-center animate-pulse">🪔✨🎆</div>;
-  }
-
-  if (theme === "eid") {
-    return <div className="text-6xl text-center animate-bounce">🌙🕌✨</div>;
-  }
-
-  if (theme === "independence") {
-    return <div className="text-6xl text-center">🇮🇳</div>;
-  }
-
+  if (theme === "birthday") return <div className="text-6xl text-center">🎂🎈</div>;
+  if (theme === "love") return <div className="text-6xl text-center">❤️</div>;
+  if (theme === "diwali") return <div className="text-6xl text-center">🪔</div>;
+  if (theme === "eid") return <div className="text-6xl text-center">🌙</div>;
+  if (theme === "independence") return <div className="text-6xl text-center">🇮🇳</div>;
   return null;
 }
