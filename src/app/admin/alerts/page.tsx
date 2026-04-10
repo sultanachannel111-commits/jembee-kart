@@ -8,150 +8,74 @@ import {
   query,
   orderBy,
   limit,
-  getDocs
 } from "firebase/firestore";
+import { Bell, ShoppingCart, RefreshCcw, Volume2 } from "lucide-react";
 
 export default function AdminAlerts() {
-
   const [alerts, setAlerts] = useState<any[]>([]);
   const [filter, setFilter] = useState("ALL");
   const [canPlay, setCanPlay] = useState(false);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
-
-  const lastOrderCount = useRef(0);
-  const lastReturnCount = useRef(0);
-
+  
+  // Ref to track if it's the very first data fetch from Firebase
+  const isInitialLoad = useRef(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 🔔 AUDIO LOAD
   useEffect(() => {
-    audioRef.current = new Audio(window.location.origin + "/notify.mp3");
+    audioRef.current = new Audio("/notify.mp3"); // Ensure file is in public folder
     audioRef.current.load();
   }, []);
 
   // 🔔 PLAY SOUND
   const playSound = () => {
     if (!canPlay || !audioRef.current) return;
-
-    try {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-    } catch (err) {
-      console.log("Sound blocked:", err);
-    }
-  };
-
-  // 🔥 DATA LOAD FUNCTION
-  const updateData = async (qOrders: any, qReturns: any) => {
-    try {
-      const oSnap = await getDocs(qOrders);
-      const rSnap = await getDocs(qReturns);
-
-      const combined: any[] = [];
-
-      oSnap.forEach((doc) => {
-        const d = doc.data();
-        combined.push({
-          id: doc.id,
-          type: "order",
-          text: `🛒 New Order - ${doc.id}`,
-          time: d.createdAt?.seconds || Date.now() / 1000
-        });
-      });
-
-      rSnap.forEach((doc) => {
-        const d = doc.data();
-        combined.push({
-          id: doc.id,
-          type: "return",
-          text: `🔁 Return (${d.status}) - ${doc.id}`,
-          time: d.createdAt?.seconds || Date.now() / 1000
-        });
-      });
-
-      setAlerts(combined.sort((a, b) => b.time - a.time));
-    } catch (err) {
-      console.log("Fetch error:", err);
-    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(e => console.log("Playback error:", e));
   };
 
   // 🔥 MAIN LISTENER
   useEffect(() => {
     if (!canPlay) return;
 
-    const qOrders = query(
-      collection(db, "orders"),
+    const qCombined = query(
+      collection(db, "notifications"), // Best practice: Ek notifications collection rakho
       orderBy("createdAt", "desc"),
-      limit(20)
+      limit(30)
     );
 
-    const qReturns = query(
-      collection(db, "returns"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
+    const unsub = onSnapshot(qCombined, (snap) => {
+      const newAlerts = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-    // 🛒 ORDERS
-    const unsubOrders = onSnapshot(qOrders, (snap) => {
-
-      if (isFirstLoad) {
-        lastOrderCount.current = snap.size;
-      } else if (snap.size > lastOrderCount.current) {
+      // 🚨 SOUND LOGIC: Agar naya document add hua hai aur ye pehla load nahi hai
+      if (!isInitialLoad.current && snap.docChanges().some(change => change.type === "added")) {
         playSound();
       }
 
-      lastOrderCount.current = snap.size;
-
-      updateData(qOrders, qReturns);
-      setIsFirstLoad(false);
+      setAlerts(newAlerts);
+      isInitialLoad.current = false;
     });
 
-    // 🔁 RETURNS
-    const unsubReturns = onSnapshot(qReturns, (snap) => {
-
-      if (isFirstLoad) {
-        lastReturnCount.current = snap.size;
-      } else if (snap.size > lastReturnCount.current) {
-        playSound();
-      }
-
-      lastReturnCount.current = snap.size;
-
-      updateData(qOrders, qReturns);
-      setIsFirstLoad(false);
-    });
-
-    return () => {
-      unsubOrders();
-      unsubReturns();
-    };
-
+    return () => unsub();
   }, [canPlay]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-
-      {/* 🔒 SOUND ENABLE SCREEN */}
+    <div className="min-h-screen bg-slate-50 p-6 pb-24">
+      
+      {/* 🔒 SOUND UNLOCK OVERLAY */}
       {!canPlay && (
-        <div className="fixed inset-0 bg-black/90 z-[999] flex items-center justify-center p-6">
-          <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full shadow-2xl">
-
-            <div className="text-4xl mb-4">🔔</div>
-
-            <h2 className="text-xl font-bold mb-2">
-              Enable Notifications
-            </h2>
-
-            <p className="text-gray-500 text-sm mb-6">
-              Sound enable karne ke liye button dabao
-            </p>
-
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[999] flex items-center justify-center p-6">
+          <div className="bg-white p-10 rounded-[40px] text-center max-w-sm w-full shadow-2xl border-4 border-purple-100">
+            <div className="w-20 h-20 bg-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Bell className="text-purple-600 animate-bounce" size={40} />
+            </div>
+            <h2 className="text-2xl font-black italic tracking-tighter mb-2">LIVE TERMINAL</h2>
+            <p className="text-slate-500 text-sm font-bold mb-8 uppercase tracking-widest">Enable sound for real-time order alerts</p>
             <button
-              onClick={() => {
-                setCanPlay(true);
-                playSound(); // first click unlock
-              }}
-              className="w-full bg-black text-white py-3 rounded-xl font-bold"
+              onClick={() => { setCanPlay(true); playSound(); }}
+              className="w-full bg-purple-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-tighter shadow-xl shadow-purple-200 active:scale-95 transition-all"
             >
               Start Monitoring
             </button>
@@ -160,20 +84,22 @@ export default function AdminAlerts() {
       )}
 
       {/* HEADER */}
-      <h1 className="text-2xl font-bold mb-4">
-        🔔 Live Alerts
-      </h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-black italic tracking-tighter">NOTIFICATIONS</h1>
+        <div className="bg-green-100 text-green-600 px-4 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          Live Connection
+        </div>
+      </div>
 
-      {/* FILTER */}
-      <div className="flex gap-2 mb-4">
+      {/* FILTERS */}
+      <div className="flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
         {["ALL", "order", "return"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`flex-1 py-2 rounded-xl ${
-              filter === f
-                ? "bg-black text-white"
-                : "bg-gray-200"
+            className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              filter === f ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             {f}
@@ -182,20 +108,41 @@ export default function AdminAlerts() {
       </div>
 
       {/* LIST */}
-      {alerts
-        .filter((a) => filter === "ALL" || a.type === filter)
-        .map((a, i) => (
-          <div
-            key={i}
-            className="bg-white p-4 rounded-xl shadow mb-3 flex justify-between"
-          >
-            <p className="text-sm">{a.text}</p>
-            <span className="text-xs text-gray-400">
-              {new Date(a.time * 1000).toLocaleTimeString()}
-            </span>
-          </div>
-        ))}
+      <div className="space-y-4">
+        {alerts
+          .filter((a) => filter === "ALL" || a.type === filter)
+          .map((a) => (
+            <div
+              key={a.id}
+              className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:shadow-md transition-all"
+            >
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                a.type === 'order' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+              }`}>
+                {a.type === 'order' ? <ShoppingCart size={20} /> : <RefreshCcw size={20} />}
+              </div>
+              
+              <div className="flex-1">
+                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{a.message || a.text}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                  ID: {a.id.slice(-8)}
+                </p>
+              </div>
 
+              <div className="text-right">
+                <span className="text-[10px] font-black text-slate-300 uppercase">
+                  {a.createdAt?.toDate ? a.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "Now"}
+                </span>
+              </div>
+            </div>
+          ))}
+          
+          {alerts.length === 0 && (
+            <div className="text-center py-20 text-slate-300 font-bold uppercase text-xs tracking-widest">
+              Waiting for new alerts...
+            </div>
+          )}
+      </div>
     </div>
   );
 }
