@@ -7,7 +7,9 @@ import {
   getDocs,
   doc,
   getDoc,
-  onSnapshot
+  onSnapshot,
+  setDoc,
+  addDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -38,35 +40,38 @@ export default function CheckoutPage() {
       if (!u) return router.push("/login");
       setUser(u);
 
-      // 1. Load Items (Buy Now or Cart)
-      const buyNow = localStorage.getItem("buy-now");
-      if (buyNow) {
+      // 1. Load Items (Priority: Buy Now > Cart)
+      const buyNowRaw = localStorage.getItem("buy-now");
+      
+      if (buyNowRaw) {
         try {
-          const parsed = JSON.parse(buyNow);
-          if (parsed && parsed.price > 0) {
+          const parsed = JSON.parse(buyNowRaw);
+          // FIX: Direct price usage to avoid mismatch
+          if (parsed && parsed.price) {
             setItems([{
               id: "buy-now",
               productId: parsed.productId,
               name: parsed.name,
               image: parsed.image || "/no-image.png",
-              price: Number(parsed.price) || 0,
+              price: Number(parsed.price),
               qty: Number(parsed.quantity) || 1
             }]);
           }
-        } catch { setItems([]); }
+        } catch (e) { setItems([]); }
       } else {
         const ref = collection(db, "carts", u.uid, "items");
         unsubscribe = onSnapshot(ref, (snap) => {
           const data = [];
           snap.forEach(docSnap => {
             const d = docSnap.data();
-            const price = d?.variations?.[0]?.sizes?.[0]?.sellPrice || d.price || 0;
+            // FIX: Checking for variation price first
+            const itemPrice = d.variations?.[0]?.sizes?.[0]?.sellPrice ?? d.price ?? 0;
             data.push({
               id: docSnap.id,
               productId: d.productId,
               name: d.name,
               image: d.image || "/no-image.png",
-              price: Number(price) || 0,
+              price: Number(itemPrice),
               qty: Number(d.quantity) || 1
             });
           });
@@ -121,6 +126,7 @@ export default function CheckoutPage() {
 
     try {
       setLoading(true);
+      
       const orderData = {
         userId: user.uid,
         email: user.email,
@@ -130,10 +136,12 @@ export default function CheckoutPage() {
         total,
         address, 
         paymentMethod,
-        createdAt: new Date()
+        status: paymentMethod === "COD" ? "PLACED" : "PENDING",
+        createdAt: new Date().toISOString()
       };
 
       if (paymentMethod === "COD") {
+        // COD Order Save logic
         const res = await fetch("/api/orders/cod", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -145,6 +153,7 @@ export default function CheckoutPage() {
           router.replace(`/order-success/${data.orderId}`);
         } else { alert("Order Failed ❌"); }
       } else {
+        // ONLINE Payment logic
         const res = await fetch("/api/cashfree/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -163,6 +172,8 @@ export default function CheckoutPage() {
         const data = await res.json();
         const cashfree = await load({ mode: "production" });
         localStorage.removeItem("buy-now");
+        
+        // Iske baad order successful tabhi hoga jab payment complete hoga
         await cashfree.checkout({ 
           paymentSessionId: data.payment_session_id, 
           redirectTarget: "_self" 
