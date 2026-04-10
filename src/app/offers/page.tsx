@@ -5,66 +5,69 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
-export default function OffersPage(){
-
-  const [offers,setOffers] = useState<any[]>([]);
-  const [products,setProducts] = useState<any>({});
-  const [loading,setLoading] = useState(true);
+export default function OffersPage() {
+  const [offers, setOffers] = useState([]);
+  const [products, setProducts] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
 
-  useEffect(()=>{
+  useEffect(() => {
     loadData();
-  },[]);
+  }, []);
 
-  const loadData = async()=>{
+  const loadData = async () => {
+    try {
+      const offerSnap = await getDocs(collection(db, "offers"));
+      const offerList = offerSnap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
 
-    const offerSnap = await getDocs(collection(db,"offers"));
-    const offerList = offerSnap.docs.map(d=>({
-      id:d.id,
-      ...d.data()
-    }));
+      const productSnap = await getDocs(collection(db, "products"));
+      const map = {};
+      productSnap.forEach(d => {
+        map[d.id] = d.data();
+      });
 
-    const productSnap = await getDocs(collection(db,"products"));
-
-    const map:any = {};
-    productSnap.forEach(d=>{
-      map[d.id] = d.data();
-    });
-
-    setOffers(offerList);
-    setProducts(map);
-
-    setLoading(false);
+      setOffers(offerList);
+      setProducts(map);
+    } catch (error) {
+      console.error("Error loading offers:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return(
-
-    <div className="min-h-screen p-4 pb-20 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#020617]">
-
+  return (
+    <div className="min-h-screen p-4 pb-20 bg-white text-black">
       {/* 🔥 TITLE */}
-      <h1 className="text-3xl font-bold text-white mb-6">
-        🔥 Premium Offers
-      </h1>
+      <div className="flex items-center gap-2 mb-6">
+        <span className="text-2xl">🔥</span>
+        <h1 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-600">
+          Premium Offers
+        </h1>
+      </div>
 
       {/* ================= SHIMMER ================= */}
       {loading && (
-        <div className="flex gap-4 overflow-x-auto">
-          {[1,2,3].map(i=>(
-            <div key={i} className="min-w-[220px] h-[260px] bg-white/10 rounded-2xl animate-pulse"/>
+        <div className="flex gap-4 overflow-x-auto no-scrollbar">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="min-w-[220px] h-[300px] bg-gray-100 rounded-3xl animate-pulse" />
           ))}
         </div>
       )}
 
       {/* ================= CAROUSEL ================= */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
-
-        {offers.map((o:any)=>{
-
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 no-scrollbar">
+        {!loading && offers.map((o) => {
           const product = products[o.productId];
-          if(!product) return null;
+          
+          // 1. Agar product nahi hai, toh render mat karo
+          if (!product) return null;
 
-          return(
+          // 2. Agar offer expire ho chuka hai, toh Card render hi nahi hoga
+          return (
             <OfferCard
               key={o.id}
               product={product}
@@ -73,96 +76,95 @@ export default function OffersPage(){
             />
           );
         })}
-
       </div>
 
+      {!loading && offers.length === 0 && (
+        <p className="text-gray-400 text-sm text-center py-10">No active offers right now.</p>
+      )}
     </div>
   );
 }
 
-
 /* ================= CARD ================= */
 
-function OfferCard({ product, offer, router }:any){
+function OfferCard({ product, offer, router }) {
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isExpired, setIsExpired] = useState(false);
 
-  const [timeLeft,setTimeLeft] = useState("");
-
-  useEffect(()=>{
-
-    const interval = setInterval(()=>{
-
-      if(!offer.endDate){
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!offer.endDate) {
         setTimeLeft("");
         return;
       }
 
       const end = new Date(offer.endDate).getTime();
       const now = Date.now();
-
       const diff = end - now;
 
-      if(diff <= 0){
-        setTimeLeft("Expired");
+      if (diff <= 0) {
+        setIsExpired(true); // Offer expire ho gaya
+        clearInterval(interval);
         return;
       }
 
-      const h = Math.floor(diff / (1000*60*60));
-      const m = Math.floor((diff % (1000*60*60))/(1000*60));
-      const s = Math.floor((diff % (1000*60))/1000);
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
 
       setTimeLeft(`${h}h ${m}m ${s}s`);
+    }, 1000);
 
-    },1000);
+    return () => clearInterval(interval);
+  }, [offer]);
 
-    return ()=>clearInterval(interval);
+  // 🔥 AGAR EXPIRED HAI TO NULL RETURN KARO (Card gayab ho jayega)
+  if (isExpired) return null;
 
-  },[offer]);
-
-  return(
-
+  return (
     <div
-      onClick={()=>router.push(`/product/${offer.productId}`)}
-      className="min-w-[220px] snap-center backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-3 shadow-xl cursor-pointer hover:scale-105 transition"
+      onClick={() => router.push(`/product/${offer.productId}`)}
+      className="min-w-[220px] snap-center bg-gray-50 border border-gray-100 rounded-[2rem] p-3 shadow-sm active:scale-95 transition-all"
     >
-
       {/* IMAGE */}
       <div className="relative">
-
         <img
           src={product.image || "/no-image.png"}
-          className="w-full h-36 object-cover rounded-xl"
+          className="w-full h-40 object-cover rounded-[1.5rem] bg-white border border-gray-100"
+          alt="offer"
         />
 
-        {/* DISCOUNT */}
-        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full shadow">
+        {/* DISCOUNT TAG */}
+        <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase">
           {offer.discount}% OFF
         </div>
-
       </div>
 
       {/* NAME */}
-      <p className="text-white text-sm font-semibold mt-2 line-clamp-2">
-        {product.name}
-      </p>
-
-      {/* TIMER */}
-      {timeLeft && (
-        <p className="text-xs text-yellow-400 mt-1">
-          ⏳ {timeLeft}
+      <div className="px-1 mt-3">
+        <p className="text-gray-900 text-sm font-bold uppercase truncate">
+          {product.name}
         </p>
-      )}
+
+        {/* TIMER */}
+        {timeLeft && (
+          <div className="flex items-center gap-1 mt-1 text-indigo-600 font-bold text-[11px]">
+            <span>⏳</span>
+            <span>{timeLeft}</span>
+          </div>
+        )}
+      </div>
 
       {/* BUTTON */}
       <button
-        onClick={(e)=>{
+        onClick={(e) => {
           e.stopPropagation();
           router.push(`/product/${offer.productId}`);
         }}
-        className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm py-2 rounded-xl shadow-lg"
+        className="mt-4 w-full bg-indigo-600 text-white text-[10px] font-black py-3 rounded-2xl shadow-xl shadow-indigo-100 uppercase tracking-widest"
       >
         Shop Now 🚀
       </button>
-
     </div>
   );
 }
