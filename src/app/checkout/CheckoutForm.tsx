@@ -14,10 +14,10 @@ import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
-  const [user, setUser] = useState<any>(null);
-  const [address, setAddress] = useState<any>(null);
-  const [addresses, setAddresses] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [address, setAddress] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("ONLINE");
 
@@ -29,12 +29,16 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
+  // =========================
+  // 🔥 DATA INITIALIZATION
+  // =========================
   useEffect(() => {
-    let unsubscribe: any;
+    let unsubscribe;
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
       setUser(u);
 
+      // 1. Load Items (Buy Now or Cart)
       const buyNow = localStorage.getItem("buy-now");
       if (buyNow) {
         try {
@@ -53,9 +57,9 @@ export default function CheckoutPage() {
       } else {
         const ref = collection(db, "carts", u.uid, "items");
         unsubscribe = onSnapshot(ref, (snap) => {
-          const data: any[] = [];
+          const data = [];
           snap.forEach(docSnap => {
-            const d: any = docSnap.data();
+            const d = docSnap.data();
             const price = d?.variations?.[0]?.sizes?.[0]?.sellPrice || d.price || 0;
             data.push({
               id: docSnap.id,
@@ -70,8 +74,9 @@ export default function CheckoutPage() {
         });
       }
 
+      // 2. Fetch Addresses
       const addrSnap = await getDocs(collection(db, "addresses")); 
-      const userAddresses: any[] = [];
+      const userAddresses = [];
       addrSnap.forEach(d => {
         if (d.data().userId === u.uid) {
           userAddresses.push({ id: d.id, ...d.data() });
@@ -80,6 +85,7 @@ export default function CheckoutPage() {
       setAddresses(userAddresses);
       setAddress(userAddresses[0] || null);
 
+      // 3. Shipping Config
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
       if (shipSnap.exists()) {
         const data = shipSnap.data();
@@ -94,6 +100,9 @@ export default function CheckoutPage() {
     return () => { unsub(); if (unsubscribe) unsubscribe(); };
   }, [router]);
 
+  // =========================
+  // 💰 PRICE CALCULATION
+  // =========================
   const itemsTotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
   let shipping = items.length === 0 ? 0 : 
     (paymentMethod === "COD" ? shippingConfig.cod : shippingConfig.prepaid);
@@ -103,6 +112,9 @@ export default function CheckoutPage() {
   }
   const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
+  // =========================
+  // 🚀 PAYMENT LOGIC
+  // =========================
   const handlePayment = async () => {
     if (!address) return alert("Please select a delivery address 📍");
     if (items.length === 0) return alert("Your cart is empty 🛒");
@@ -165,95 +177,69 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white p-4 pb-44 font-sans max-w-md mx-auto selection:bg-indigo-500">
+    <div className="min-h-screen bg-white text-black p-4 pb-44 font-sans max-w-md mx-auto">
       
       {/* HEADER */}
-      <header className="py-10 text-center relative">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-indigo-600/20 blur-[80px]" />
-        <h1 className="text-3xl font-black tracking-[0.25em] italic bg-gradient-to-b from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent uppercase">
-          Checkout
+      <header className="py-8 text-center border-b border-gray-100 mb-6">
+        <h1 className="text-xl font-black tracking-widest uppercase">
+          Finalize Order
         </h1>
-        <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 mt-2 font-bold">Secure Gateway</p>
+        <div className="h-1 w-12 bg-indigo-600 mx-auto mt-2 rounded-full" />
       </header>
 
       {/* 📍 ADDRESS SECTION */}
-      <section className="group bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] mb-6 shadow-2xl relative transition-all active:scale-[0.98]">
-        <div className="absolute -top-px left-10 right-10 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
-        
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Delivery To</h2>
-          </div>
-          <button onClick={() => router.push("/profile")} className="text-[10px] font-black bg-white/5 px-5 py-2.5 rounded-2xl uppercase tracking-tighter border border-white/10 hover:bg-indigo-600 hover:border-indigo-500 transition-all active:scale-90">
-            Edit
+      <section className="bg-gray-50 border border-gray-200 p-5 rounded-3xl mb-6 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Shipping To</h2>
+          <button onClick={() => router.push("/profile")} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full uppercase border border-indigo-100">
+            Change
           </button>
         </div>
 
         {address ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-               <p className="text-xl font-black italic uppercase tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-                {address.name}
-              </p>
-            </div>
-            <div className="text-sm text-white/50 space-y-1.5 font-medium leading-relaxed">
-              <p className="flex items-start gap-2">
-                <span className="opacity-40 mt-1">🏠</span>
-                {address.street}
-              </p>
-              {address.landmark && (
-                <p className="text-indigo-300/60 text-xs italic pl-6">Milo {address.landmark} ke paas</p>
-              )}
-              <p className="pl-6 text-white/80 font-bold">{address.city}, {address.state} • {address.zip}</p>
-              <div className="pt-2 flex items-center gap-2 text-indigo-400 font-black text-xs pl-6">
-                <span className="bg-indigo-500/10 px-3 py-1 rounded-full">📞 {address.phone}</span>
-              </div>
+          <div className="space-y-1">
+            <p className="text-lg font-extrabold uppercase tracking-tight text-gray-900">{address.name}</p>
+            <div className="text-sm text-gray-600 space-y-0.5">
+              <p className="leading-snug">{address.street}</p>
+              {address.landmark && <p className="text-indigo-600 text-xs font-medium">Near {address.landmark}</p>}
+              <p className="font-bold text-gray-800">{address.city}, {address.state} - {address.zip}</p>
+              <p className="pt-2 font-black text-gray-900">📞 {address.phone}</p>
             </div>
           </div>
         ) : (
-          <div className="py-10 text-center border-2 border-dashed border-white/10 rounded-[2.5rem] bg-white/[0.02]">
-            <p className="text-white/20 text-xs mb-4 font-bold uppercase tracking-widest">Address not found</p>
-            <button onClick={() => router.push("/profile")} className="bg-white text-black text-[10px] px-8 py-3 rounded-full font-black uppercase shadow-xl hover:bg-indigo-500 hover:text-white transition-colors">Setup Profile</button>
+          <div className="py-6 text-center border-2 border-dashed border-gray-200 rounded-2xl">
+            <button onClick={() => router.push("/profile")} className="text-indigo-600 text-xs font-black uppercase underline">Add Delivery Address</button>
           </div>
         )}
       </section>
 
       {/* 💳 PAYMENT TOGGLE */}
-      <section className="bg-black/40 border border-white/5 p-2 rounded-[2.2rem] flex gap-2 mb-8 shadow-inner">
+      <section className="bg-gray-100 p-1.5 rounded-2xl flex gap-2 mb-8 border border-gray-200">
         <button 
           onClick={() => setPaymentMethod("ONLINE")}
-          className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] tracking-widest transition-all duration-500 ${paymentMethod === "ONLINE" ? "bg-white text-black shadow-[0_10px_25px_-5px_rgba(255,255,255,0.3)]" : "text-white/20 hover:text-white/40"}`}
+          className={`flex-1 py-3.5 rounded-xl font-black text-xs tracking-widest transition-all ${paymentMethod === "ONLINE" ? "bg-white text-black shadow-md border border-gray-200" : "text-gray-400"}`}
         >
           ONLINE 💳
         </button>
         <button 
           onClick={() => setPaymentMethod("COD")}
-          className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] tracking-widest transition-all duration-500 ${paymentMethod === "COD" ? "bg-amber-500 text-black shadow-[0_10px_25px_-5px_rgba(245,158,11,0.3)]" : "text-white/20 hover:text-white/40"}`}
+          className={`flex-1 py-3.5 rounded-xl font-black text-xs tracking-widest transition-all ${paymentMethod === "COD" ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-400"}`}
         >
           CASH 🚚
         </button>
       </section>
 
       {/* 📦 ITEMS SUMMARY */}
-      <div className="space-y-4 mb-10">
-        <div className="flex items-center justify-between px-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Review Bag</h3>
-          <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">{items.length} Items</span>
-        </div>
+      <div className="space-y-3 mb-8">
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Bag Content</h3>
         {items.map((item) => (
-          <div key={item.id} className="group bg-white/[0.03] border border-white/[0.05] p-4 rounded-[2.2rem] flex gap-5 items-center hover:bg-white/[0.06] transition-all">
-            <div className="relative">
-              <img src={item.image} className="w-20 h-20 rounded-[1.5rem] object-cover bg-black ring-1 ring-white/10" alt="product" />
-              <span className="absolute -top-2 -right-2 w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#070b14]">
-                {item.qty}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="font-black text-xs uppercase truncate tracking-wide text-white/90">{item.name}</p>
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-tighter">Unit Price</p>
-                <p className="text-white font-black italic">₹{item.price}</p>
+          <div key={item.id} className="bg-white border border-gray-100 p-3 rounded-2xl flex gap-4 items-center shadow-sm">
+            <img src={item.image} className="w-14 h-14 rounded-xl object-cover bg-gray-50 border border-gray-100" alt="product" />
+            <div className="flex-1 overflow-hidden">
+              <p className="font-bold text-sm uppercase truncate text-gray-900">{item.name}</p>
+              <div className="flex justify-between items-center mt-0.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase">Qty: {item.qty}</p>
+                <p className="text-gray-900 font-black italic">₹{item.price}</p>
               </div>
             </div>
           </div>
@@ -261,53 +247,39 @@ export default function CheckoutPage() {
       </div>
 
       {/* 💰 TOTAL BILL */}
-      <section className="bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 p-8 rounded-[3rem] space-y-5 shadow-2xl relative overflow-hidden">
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-indigo-600/5 blur-[50px]" />
-        <div className="flex justify-between text-[11px] font-black text-white/30 uppercase tracking-widest">
+      <section className="bg-gray-50 border border-gray-200 p-6 rounded-3xl space-y-3 mb-10">
+        <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
           <span>Subtotal</span>
-          <span className="text-white/80">₹{itemsTotal}</span>
+          <span className="text-gray-900 font-black">₹{itemsTotal}</span>
         </div>
-        <div className="flex justify-between text-[11px] font-black text-white/30 uppercase tracking-widest">
+        <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
           <span>Delivery</span>
-          <span className={shipping === 0 ? "text-emerald-400" : "text-white/80"}>
-            {shipping === 0 ? "FREE" : `₹${shipping}`}
-          </span>
+          <span className={shipping === 0 ? "text-green-600" : "text-gray-900 font-black"}>{shipping === 0 ? "FREE" : `₹${shipping}`}</span>
         </div>
-        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400">Grand Total</span>
-          <div className="text-right">
-             <span className="text-3xl font-black italic tracking-tighter bg-gradient-to-r from-white to-indigo-400 bg-clip-text text-transparent block">
-              ₹{total}
-            </span>
-          </div>
+        <div className="h-px bg-gray-200" />
+        <div className="flex justify-between items-center pt-1">
+          <span className="text-sm font-black uppercase tracking-tighter text-gray-900">Total Amount</span>
+          <span className="text-2xl font-black italic tracking-tighter text-indigo-600">₹{total}</span>
         </div>
       </section>
 
       {/* 🚀 FIXED FOOTER BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-8 bg-gradient-to-t from-[#070b14] via-[#070b14]/95 to-transparent z-[100]">
+      <div className="fixed bottom-0 left-0 w-full p-6 bg-white border-t border-gray-100 z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <button
           onClick={handlePayment}
           disabled={loading || items.length === 0}
-          className="w-full max-w-md mx-auto relative group overflow-hidden py-6 rounded-[2.2rem] bg-indigo-600 font-black text-[11px] tracking-[0.3em] uppercase shadow-[0_20px_50px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+          className="w-full max-w-md mx-auto block py-5 rounded-2xl bg-indigo-600 text-white font-black text-xs tracking-widest uppercase shadow-xl shadow-indigo-100 active:scale-95 transition-all disabled:bg-gray-300"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
           {loading ? (
-            <span className="flex items-center justify-center gap-3">
-              <span className="w-5 h-5 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               Processing...
             </span>
           ) : (
-            `Confirm Order • ₹${total}`
+            `Place Order • ₹${total}`
           )}
         </button>
       </div>
-
-      <style jsx>{`
-        @keyframes shimmer {
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   );
 }
