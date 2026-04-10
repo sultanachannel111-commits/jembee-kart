@@ -20,7 +20,7 @@ export default function ProductPage() {
   const router = useRouter();
   const id = params?.id as string;
   const searchParams = useSearchParams();
-  const ref = searchParams.get("ref");
+  const ref = searchParams.get("ref"); // Affiliate Ref Code link se uthane ke liye
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -29,12 +29,20 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<any>(null);
   const [currentImage, setCurrentImage] = useState(0);
-  const [showViewer, setShowViewer] = useState(false); // Zoom viewer state
+  const [showViewer, setShowViewer] = useState(false);
   const [similar, setSimilar] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   const [pincode, setPincode] = useState("");
   const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
   const [checkingPin, setCheckingPin] = useState(false);
+
+  // 🔥 1. AFFILIATE TRACKING LOGIC (Naya addition bina flow tode)
+  useEffect(() => {
+    if (ref) {
+      localStorage.setItem("affiliate", ref);
+      console.log("Seller ID Tracked:", ref);
+    }
+  }, [ref]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -117,7 +125,9 @@ export default function ProductPage() {
     variant?.images?.model,
   ].filter(Boolean);
   
+  // 💰 PRICE CALCULATIONS
   const originalPrice = Number(selectedSize?.sellPrice || selectedSize?.price || product.price || 0);
+  const basePriceValue = Number(selectedSize?.basePrice || product.basePrice || 1); // Dashboard profit ke liye
   const finalPrice = Math.max(1, Math.round(originalPrice - (originalPrice * discount) / 100));
   const stock = Number(selectedSize?.stock) || 0;
 
@@ -132,10 +142,10 @@ export default function ProductPage() {
         image: images[0],
         quantity: 1,
         price: finalPrice,
-        basePrice: originalPrice,
+        basePrice: basePriceValue, // Isse commission 0 nahi aayega
         size: selectedSize.size,
         color: variant.color || "Default",
-        variations: [{ ...variant, sizes: [selectedSize] }], // Variant data intact
+        variations: [{ ...variant, sizes: [selectedSize] }],
         addedAt: new Date()
       });
       toast.success("Added to cart! 🛒");
@@ -153,7 +163,7 @@ export default function ProductPage() {
       image: images[0],
       quantity: 1,
       price: finalPrice,
-      basePrice: originalPrice,
+      basePrice: basePriceValue, // Commission tracking ke liye important
       size: selectedSize.size,
       variations: [{ ...variant, sizes: [selectedSize] }]
     };
@@ -164,7 +174,6 @@ export default function ProductPage() {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-32">
-      {/* IMAGE SECTION + ZOOM CLICK */}
       <div className="relative bg-white rounded-b-[40px] shadow-sm overflow-hidden">
         <div onScroll={(e: any) => setCurrentImage(Math.round(e.target.scrollLeft / e.target.clientWidth))}
           className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
@@ -186,7 +195,6 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* ZOOM VIEWER OVERLAY */}
       {showViewer && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col animate-in fade-in duration-300">
           <button onClick={() => setShowViewer(false)} className="self-end text-white text-3xl p-8">✕</button>
@@ -197,7 +205,6 @@ export default function ProductPage() {
       )}
 
       <div className="px-5 pt-6 space-y-6">
-        {/* VARIATION COLOR SELECTOR */}
         <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
           {product?.variations?.map((v: any, i: number) => (
             <div key={i} onClick={() => { setSelectedColor(i); setSelectedSize(v?.sizes?.[0] || null); }}
@@ -216,7 +223,6 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* PINCODE CHECKER */}
         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Delivery Check</label>
           <div className="flex gap-2">
@@ -231,7 +237,6 @@ export default function ProductPage() {
           )}
         </div>
 
-        {/* SIZE SELECTOR */}
         <div className="space-y-4">
           <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest">Select Size</h3>
           <div className="grid grid-cols-4 gap-3">
@@ -253,7 +258,6 @@ export default function ProductPage() {
         <ReviewSection productId={product.id} />
       </div>
 
-      {/* STICKY FOOTER */}
       <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-xl border-t p-4 flex gap-3 z-50">
         <button disabled={stock === 0} onClick={handleAddToCart}
           className="w-1/2 py-4 rounded-2xl font-black text-sm border-2 border-black text-black"
