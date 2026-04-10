@@ -20,8 +20,10 @@ export default function WishMaker() {
   const [products, setProducts] = useState<any[]>([]);
   const [selected, setSelected] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [showProducts, setShowProducts] = useState(true);
+
+  // 🔥 DEBUG
+  const [debug, setDebug] = useState<any>({});
 
   // ================= LOAD USER =================
   useEffect(() => {
@@ -29,6 +31,7 @@ export default function WishMaker() {
       if (user) {
         loadOrders(user.uid);
       } else {
+        setDebug({ error: "User not logged in ❌" });
         setLoading(false);
       }
     });
@@ -46,23 +49,46 @@ export default function WishMaker() {
 
       const snap = await getDocs(q);
 
-      let items: any[] = [];
+      let filteredItems: any[] = [];
+      let allItems: any[] = [];
+      let rawOrders: any[] = [];
 
       snap.forEach((doc) => {
         const data: any = doc.data();
+        rawOrders.push(data);
 
-        if (data.paymentMode !== "ONLINE") return;
-        if (data.status === "delivered") return;
-
+        // सभी items (debug)
         if (data.items) {
-          items = [...items, ...data.items];
+          allItems = [...allItems, ...data.items];
+        }
+
+        // FILTERED (real logic)
+        if (data.paymentMode === "ONLINE" && data.status !== "delivered") {
+          if (data.items) {
+            filteredItems = [...filteredItems, ...data.items];
+          }
         }
       });
 
-      setProducts(items);
+      // 🔥 अगर filter में कुछ नहीं मिला → fallback use करो
+      if (filteredItems.length === 0 && allItems.length > 0) {
+        setProducts(allItems);
+      } else {
+        setProducts(filteredItems);
+      }
 
-    } catch (err) {
-      console.log(err);
+      // 🔥 DEBUG DATA
+      setDebug({
+        userId: uid,
+        totalOrders: snap.size,
+        filteredProducts: filteredItems.length,
+        allProducts: allItems.length,
+        showing: filteredItems.length === 0 ? "fallback_all_products" : "filtered_products",
+        rawOrders
+      });
+
+    } catch (err: any) {
+      setDebug({ error: err.message });
     }
 
     setLoading(false);
@@ -98,7 +124,6 @@ export default function WishMaker() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200 p-4">
 
-      {/* GLASS CARD */}
       <div className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-3xl p-5 shadow-2xl">
 
         <h1 className="text-3xl font-bold text-center mb-4">
@@ -192,7 +217,6 @@ export default function WishMaker() {
                         <p className="text-sm">{p.name}</p>
                       </div>
 
-                      {/* SELECT */}
                       <button
                         onClick={() => toggleProduct(p)}
                         className="w-full mt-2 bg-green-500 text-white text-xs py-1 rounded"
@@ -227,20 +251,10 @@ export default function WishMaker() {
 
       </div>
 
-      {/* CSS */}
-      <style jsx>{`
-        @keyframes float {
-          0% { transform: translateY(0); }
-          50% { transform: translateY(-25px); }
-          100% { transform: translateY(0); }
-        }
-
-        @keyframes wave {
-          0% { transform: rotate(0deg); }
-          50% { transform: rotate(5deg); }
-          100% { transform: rotate(0deg); }
-        }
-      `}</style>
+      {/* 🔥 DEBUG PANEL */}
+      <div className="mt-6 p-3 bg-black text-green-400 text-xs rounded-xl overflow-auto">
+        <pre>{JSON.stringify(debug, null, 2)}</pre>
+      </div>
 
     </div>
   );
@@ -260,35 +274,19 @@ function ThemeUI({ theme }: any) {
   }
 
   if (theme === "love") {
-    return (
-      <div className="text-6xl text-center animate-pulse">
-        ❤️💖💘
-      </div>
-    );
+    return <div className="text-6xl text-center animate-pulse">❤️💖💘</div>;
   }
 
   if (theme === "diwali") {
-    return (
-      <div className="text-6xl text-center animate-pulse">
-        🪔✨🎆
-      </div>
-    );
+    return <div className="text-6xl text-center animate-pulse">🪔✨🎆</div>;
   }
 
   if (theme === "eid") {
-    return (
-      <div className="text-6xl text-center animate-bounce">
-        🌙🕌✨
-      </div>
-    );
+    return <div className="text-6xl text-center animate-bounce">🌙🕌✨</div>;
   }
 
   if (theme === "independence") {
-    return (
-      <div className="text-6xl text-center animate-[wave_2s_infinite]">
-        🇮🇳
-      </div>
-    );
+    return <div className="text-6xl text-center">🇮🇳</div>;
   }
 
   return null;
