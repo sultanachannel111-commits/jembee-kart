@@ -29,7 +29,7 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<any>(null);
   const [currentImage, setCurrentImage] = useState(0);
-  const [showViewer, setShowViewer] = useState(false);
+  const [showViewer, setShowViewer] = useState(false); // Zoom viewer state
   const [similar, setSimilar] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   const [pincode, setPincode] = useState("");
@@ -47,8 +47,8 @@ export default function ProductPage() {
       if (snap.exists()) {
         const data: any = { id: snap.id, ...snap.data() };
         setProduct(data);
-        const first = data?.variations?.[0];
-        setSelectedSize(first?.sizes?.[0] || null);
+        const firstVariant = data?.variations?.[0];
+        setSelectedSize(firstVariant?.sizes?.[0] || null);
         fetchSimilar(data.category);
       }
       setLoading(false);
@@ -77,20 +77,6 @@ export default function ProductPage() {
     fetchOffer();
   }, [product]);
 
-  useEffect(() => {
-    if (!ref || !user) return;
-    const saveAffiliate = async () => {
-      try {
-        localStorage.setItem("affiliate", ref);
-        await setDoc(doc(db, "userAffiliate", user.uid), {
-          refCode: ref,
-          updatedAt: new Date(),
-        }, { merge: true });
-      } catch (err) { console.log(err); }
-    };
-    saveAffiliate();
-  }, [ref, user]);
-
   const fetchSimilar = async (category: string) => {
     const snap = await getDocs(collection(db, "products"));
     const data = snap.docs
@@ -101,7 +87,7 @@ export default function ProductPage() {
   };
 
   const checkPincode = async () => {
-    if (!pincode || pincode.length !== 6) return toast.error("Enter valid 6-digit PIN");
+    if (!pincode || pincode.length !== 6) return toast.error("Enter 6-digit PIN");
     setCheckingPin(true);
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
@@ -109,30 +95,35 @@ export default function ProductPage() {
       if (data[0].Status === "Success") {
         setDeliveryInfo({
           place: data[0].PostOffice[0].District,
-          deliveryDays: Math.floor(Math.random() * 3) + 3,
+          deliveryDays: Math.floor(Math.random() * 2) + 3,
         });
       } else {
         setDeliveryInfo(null);
-        toast.error("Not deliverable here");
+        toast.error("Not available");
       }
     } catch (err) { toast.error("Error checking PIN"); }
     setCheckingPin(false);
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Loading...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Loading Experience...</div>;
   if (!product) return <div className="h-screen flex items-center justify-center">Product not found</div>;
 
   const variant = product?.variations?.[selectedColor] || {};
-  const images = [variant?.images?.main, variant?.images?.front, variant?.images?.back].filter(Boolean);
+  const images = [
+    variant?.images?.main,
+    variant?.images?.front,
+    variant?.images?.back,
+    variant?.images?.side,
+    variant?.images?.model,
+  ].filter(Boolean);
   
-  // 🔥 FIX: PRICE LOGIC
   const originalPrice = Number(selectedSize?.sellPrice || selectedSize?.price || product.price || 0);
   const finalPrice = Math.max(1, Math.round(originalPrice - (originalPrice * discount) / 100));
   const stock = Number(selectedSize?.stock) || 0;
 
   const handleAddToCart = async () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return toast.error("Select size first");
+    if (!selectedSize) return toast.error("Select size");
     
     try {
       await addDoc(collection(db, "carts", user.uid, "items"), {
@@ -140,10 +131,11 @@ export default function ProductPage() {
         name: product.name,
         image: images[0],
         quantity: 1,
-        price: finalPrice, // Discounted price save kar rahe hain
-        originalPrice: originalPrice,
+        price: finalPrice,
+        basePrice: originalPrice,
         size: selectedSize.size,
         color: variant.color || "Default",
+        variations: [{ ...variant, sizes: [selectedSize] }], // Variant data intact
         addedAt: new Date()
       });
       toast.success("Added to cart! 🛒");
@@ -153,9 +145,8 @@ export default function ProductPage() {
 
   const handleBuyNow = () => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
-    if (!selectedSize) return toast.error("Select size first");
+    if (!selectedSize) return toast.error("Select size");
 
-    // 🔥 FIX: BUY-NOW DATA SYNC
     const buyNowData = {
       productId: product.id,
       name: product.name,
@@ -163,7 +154,8 @@ export default function ProductPage() {
       quantity: 1,
       price: finalPrice,
       basePrice: originalPrice,
-      size: selectedSize.size
+      size: selectedSize.size,
+      variations: [{ ...variant, sizes: [selectedSize] }]
     };
     
     localStorage.setItem("buy-now", JSON.stringify(buyNowData));
@@ -172,14 +164,18 @@ export default function ProductPage() {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-32">
-      {/* IMAGE SECTION */}
+      {/* IMAGE SECTION + ZOOM CLICK */}
       <div className="relative bg-white rounded-b-[40px] shadow-sm overflow-hidden">
         <div onScroll={(e: any) => setCurrentImage(Math.round(e.target.scrollLeft / e.target.clientWidth))}
           className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
         >
           {images.map((img: any, i: number) => (
             <div key={i} className="min-w-full snap-center flex justify-center p-4">
-              <img src={img} onClick={() => setShowViewer(true)} className="w-full h-[350px] object-contain rounded-3xl cursor-pointer" />
+              <img 
+                src={img} 
+                onClick={() => setShowViewer(true)} 
+                className="w-full h-[400px] object-contain rounded-3xl cursor-zoom-in" 
+              />
             </div>
           ))}
         </div>
@@ -190,51 +186,58 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div className="px-5 pt-6 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-black text-blue-600">₹{finalPrice}</span>
-            {discount > 0 && <span className="text-gray-400 line-through text-lg">₹{originalPrice}</span>}
-            {discount > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-lg">{discount}% OFF</span>}
+      {/* ZOOM VIEWER OVERLAY */}
+      {showViewer && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col animate-in fade-in duration-300">
+          <button onClick={() => setShowViewer(false)} className="self-end text-white text-3xl p-8">✕</button>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <img src={images[currentImage]} className="max-w-full max-h-full object-contain" />
           </div>
         </div>
+      )}
 
-        {/* VARIATIONS */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar">
-          {product.variations?.map((v: any, i: number) => (
-            <div key={i} onClick={() => { setSelectedColor(i); setSelectedSize(v.sizes?.[0] || null); }}
-              className={`min-w-[65px] h-[65px] rounded-2xl border-2 p-1 transition-all ${selectedColor === i ? "border-blue-600 bg-blue-50" : "border-gray-100 bg-white"}`}
+      <div className="px-5 pt-6 space-y-6">
+        {/* VARIATION COLOR SELECTOR */}
+        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+          {product?.variations?.map((v: any, i: number) => (
+            <div key={i} onClick={() => { setSelectedColor(i); setSelectedSize(v?.sizes?.[0] || null); }}
+              className={`relative min-w-[70px] h-[70px] rounded-2xl border-2 transition-all p-1 ${selectedColor === i ? "border-blue-600 bg-blue-50" : "border-transparent bg-white shadow-sm"}`}
             >
-              <img src={v.images?.main} className="w-full h-full object-cover rounded-xl" />
+              <img src={v?.images?.main} className="w-full h-full object-cover rounded-xl" />
             </div>
           ))}
         </div>
 
+        <div className="space-y-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">{product.name}</h1>
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-black text-blue-600">₹{finalPrice}</span>
+            {discount > 0 && <span className="text-gray-400 line-through text-lg">₹{originalPrice}</span>}
+          </div>
+        </div>
+
         {/* PINCODE CHECKER */}
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Check Delivery</p>
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Delivery Check</label>
           <div className="flex gap-2">
             <input type="number" placeholder="Enter Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)}
               className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold" />
-            <button onClick={checkPincode} className="bg-slate-900 text-white px-6 rounded-xl font-bold text-sm">
+            <button onClick={checkPincode} className="bg-black text-white px-6 rounded-xl font-bold text-sm">
               {checkingPin ? "..." : "Check"}
             </button>
           </div>
           {deliveryInfo && (
-            <p className="mt-3 text-xs text-green-600 font-bold flex items-center gap-2">
-              🚚 Fast delivery to {deliveryInfo.place} in {deliveryInfo.deliveryDays} days
-            </p>
+            <p className="mt-4 text-xs text-green-600 font-bold">🚚 Fast delivery to {deliveryInfo.place} in {deliveryInfo.deliveryDays} days</p>
           )}
         </div>
 
         {/* SIZE SELECTOR */}
-        <div className="space-y-3">
-          <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest">Select Size</h3>
-          <div className="grid grid-cols-4 gap-2">
+        <div className="space-y-4">
+          <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest">Select Size</h3>
+          <div className="grid grid-cols-4 gap-3">
             {variant?.sizes?.map((s: any, i: number) => (
               <button key={i} onClick={() => setSelectedSize(s)}
-                className={`py-3 rounded-2xl font-bold border-2 transition-all ${selectedSize?.size === s.size ? "bg-slate-900 text-white border-slate-900" : "bg-white text-gray-500 border-gray-100"}`}
+                className={`py-3 rounded-2xl font-bold border-2 transition-all ${selectedSize?.size === s.size ? "bg-black text-white border-black shadow-lg" : "bg-white text-gray-600 border-gray-100"}`}
               >
                 {s.size}
               </button>
@@ -242,25 +245,25 @@ export default function ProductPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-          <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest mb-2">Description</h3>
-          <p className="text-gray-500 text-sm leading-relaxed">{product.description || "Premium quality product."}</p>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+          <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest mb-3">Description</h3>
+          <p className="text-gray-600 leading-relaxed text-sm">{product.description || "Premium quality product."}</p>
         </div>
 
         <ReviewSection productId={product.id} />
       </div>
 
-      {/* FOOTER BUTTONS */}
+      {/* STICKY FOOTER */}
       <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-xl border-t p-4 flex gap-3 z-50">
         <button disabled={stock === 0} onClick={handleAddToCart}
-          className="w-1/2 py-4 rounded-2xl font-black text-xs border-2 border-slate-900 text-slate-900 uppercase tracking-tighter"
+          className="w-1/2 py-4 rounded-2xl font-black text-sm border-2 border-black text-black"
         >
-          Add to Cart
+          ADD TO CART
         </button>
         <button disabled={stock === 0} onClick={handleBuyNow}
-          className="w-1/2 py-4 rounded-2xl font-black text-xs bg-blue-600 text-white uppercase tracking-tighter shadow-xl shadow-blue-100"
+          className="w-1/2 py-4 rounded-2xl font-black text-sm bg-blue-600 text-white shadow-xl"
         >
-          {stock === 0 ? "Out of Stock" : "Buy Now ⚡"}
+          {stock === 0 ? "SOLD OUT" : "BUY NOW ⚡"}
         </button>
       </div>
     </div>
