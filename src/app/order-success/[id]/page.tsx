@@ -8,7 +8,9 @@ import {
   getDoc,
   collection,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  addDoc,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 
@@ -27,27 +29,15 @@ export default function OrderSuccess(){
       if(!id || done) return;
 
       try{
-
-        // ✅ FETCH ORDER
         const snap = await getDoc(doc(db,"orders",id as string));
-
         if(!snap.exists()) return;
-
         const data = snap.data();
         setOrder(data);
 
-        // =========================
-        // 🔐 VERIFY PAYMENT (IMPORTANT)
-        // =========================
-
         const verifyRes = await fetch("/api/cashfree/verify-payment",{
           method:"POST",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body: JSON.stringify({
-            orderId: id
-          })
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ orderId: id })
         });
 
         const verifyData = await verifyRes.json();
@@ -57,118 +47,56 @@ export default function OrderSuccess(){
           return;
         }
 
-        // =========================
-        // ✅ UPDATE PAYMENT
-        // =========================
+        // ✅ UPDATE FIREBASE
+        await updateDoc(doc(db,"orders",id as string), {
+            paymentStatus:"paid",
+            orderStatus: "READY_FOR_MANUAL_QIKINK"
+        });
 
-        await updateDoc(
-          doc(db,"orders",id as string),
-          {
-            paymentStatus:"paid"
-          }
-        );
-
-        // =========================
-        // 🧹 CLEAR CART (ONLINE DB)
-        // =========================
-
+        // 🧹 CLEAR CART
         const user = auth.currentUser;
-
         if(user){
-          const cartSnap = await getDocs(
-            collection(db,"carts",user.uid,"items")
-          );
-
+          const cartSnap = await getDocs(collection(db,"carts",user.uid,"items"));
           for(const d of cartSnap.docs){
-            await deleteDoc(
-              doc(db,"carts",user.uid,"items",d.id)
-            );
+            await deleteDoc(doc(db,"carts",user.uid,"items",d.id));
           }
         }
-
-        // =====================================
-        // 🧹 CLEAR LOCAL STORAGE (FOR BUY NOW & AFFILIATE)
-        // =====================================
-        // Ye naya addition hai taaki agla order fresh start ho
         localStorage.removeItem("buy-now");
-        // Note: affiliate ID hum tabhi hatate hain jab hum chahte hon 
-        // ki commission sirf usi session ke liye ho. 
-        // Agar aap chahte hain ki seller ka link 1 baar click karne par 
-        // wo hamesha ke liye save rahe, toh niche wali line mat likhiye.
-        // localStorage.removeItem("affiliate"); 
 
-        // =========================
-        // 📲 WHATSAPP MESSAGE (FIXED)
-        // =========================
+        // 🔔 ADMIN WHATSAPP NOTIFICATION (7061369213)
+        const adminMobile = "917061369213";
+        const adminMsg = `✅ *PAISA AA GAYA!* \n\nOrder #${id} verified (₹${data.total}).\nManual order Qikink par place karein.`;
+        
+        await addDoc(collection(db, "notifications"), {
+          type: "ONLINE_PAID",
+          message: `💰 Payment Success! Order #${id.slice(0,6)}`,
+          amount: data.total,
+          orderId: id,
+          createdAt: serverTimestamp(),
+        });
 
-        const msg = `🛍️ Order Placed!
-Order ID: ${id}
-Total: ₹${data.total}`;
-
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+        window.open(`https://wa.me/${adminMobile}?text=${encodeURIComponent(adminMsg)}`, "_blank");
 
         setDone(true);
-
-      }catch(err){
-        console.log("Order success error:",err);
-      }
-
+      }catch(err){ console.log("Error:",err); }
     };
 
     handle();
-
   },[id,done]);
 
   return(
-
-<div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-emerald-200 flex items-center justify-center p-4">
-
-<div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl text-center max-w-md w-full">
-
-<div className="text-5xl mb-3">✅</div>
-
-<h1 className="text-green-600 text-2xl font-bold">
-Payment Successful 🎉
-</h1>
-
-<p className="mt-2 text-sm text-gray-600">
-Your order has been placed successfully
-</p>
-
-<div className="mt-4 bg-gray-100 p-3 rounded-xl text-sm">
-Order ID: <span className="font-bold">{id}</span>
-</div>
-
-{order && (
-  <p className="mt-2 font-semibold text-lg text-green-700">
-    Total: ₹{order.total}
-  </p>
-)}
-
-<p className="text-gray-500 mt-2 text-sm">
-Your order is being prepared 🚚
-</p>
-
-<div className="flex gap-3 mt-6">
-
-<button
-onClick={()=>router.push(`/orders/${id}`)}
-className="flex-1 bg-black text-white py-2 rounded-xl"
->
-Track Order
-</button>
-
-<button
-onClick={()=>router.push("/")}
-className="flex-1 bg-gray-200 py-2 rounded-xl"
->
-Shop More
-</button>
-
-</div>
-
-</div>
-
-</div>
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-emerald-200 flex items-center justify-center p-4">
+        <div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl text-center max-w-md w-full">
+            <div className="text-5xl mb-3">✅</div>
+            <h1 className="text-green-600 text-2xl font-bold">Payment Successful 🎉</h1>
+            <p className="mt-2 text-sm text-gray-600">Your order has been placed successfully</p>
+            <div className="mt-4 bg-gray-100 p-3 rounded-xl text-sm">Order ID: <span className="font-bold">{id}</span></div>
+            {order && <p className="mt-2 font-semibold text-lg text-green-700">Total: ₹{order.total}</p>}
+            <div className="flex gap-3 mt-6">
+                <button onClick={()=>router.push(`/orders/${id}`)} className="flex-1 bg-black text-white py-2 rounded-xl font-bold text-sm">Track Order</button>
+                <button onClick={()=>router.push("/")} className="flex-1 bg-gray-200 py-2 rounded-xl font-bold text-sm">Shop More</button>
+            </div>
+        </div>
+    </div>
   );
 }
