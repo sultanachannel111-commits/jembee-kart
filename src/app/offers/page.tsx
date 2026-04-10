@@ -165,4 +165,4 @@ function OfferCard({ product, offer, router }:any){
 
     </div>
   );
-} Agar isme problem hai to Sahi karke poora code likho background white 
+}
