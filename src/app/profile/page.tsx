@@ -65,6 +65,21 @@ export default function ProfilePage() {
     return () => unsub();
   }, [mounted, router]);
 
+  // 🔥 FAST DELETE LOGIC (Optimistic Update)
+  const removeAddress = async (id) => {
+    const originalAddresses = [...addresses];
+    // UI se turant hatao
+    setAddresses(addresses.filter(a => a.id !== id));
+
+    try {
+      await deleteDoc(doc(db, "addresses", id));
+    } catch (err) {
+      // Agar fail hua toh wapas le aao
+      setAddresses(originalAddresses);
+      alert("Delete failed. Try again.");
+    }
+  };
+
   const handleOrderAction = async (orderId, actionType) => {
     if (actionType === "CANCEL") {
       if (!confirm("Are you sure you want to cancel?")) return;
@@ -123,15 +138,24 @@ export default function ProfilePage() {
               <input placeholder="City" value={newAddress.city} onChange={(e) => setNewAddress({...newAddress, city: e.target.value})} className="w-1/2 p-3 rounded-xl ring-1 ring-gray-200" />
               <input placeholder="Zip" value={newAddress.zip} onChange={(e) => setNewAddress({...newAddress, zip: e.target.value})} className="w-1/2 p-3 rounded-xl ring-1 ring-gray-200" />
             </div>
+            {/* Added Phone Input Field */}
+            <input placeholder="Phone" value={newAddress.phone} onChange={(e) => setNewAddress({...newAddress, phone: e.target.value})} className="w-full p-3 rounded-xl ring-1 ring-gray-200 outline-none" />
             <button onClick={saveAddress} className="bg-black text-white w-full py-3 rounded-xl font-bold">Save</button>
           </div>
         )}
-        {addresses.map(a => (
-          <div key={a.id} className="py-2 flex justify-between">
-            <p className="text-sm font-medium">{a.street}, {a.zip}</p>
-            <button onClick={() => deleteDoc(doc(db, "addresses", a.id))} className="text-red-400 text-xs">Remove</button>
-          </div>
-        ))}
+        <div className="divide-y divide-gray-100">
+          {addresses.map(a => (
+            <div key={a.id} className="py-4 flex justify-between items-start">
+              <div className="text-sm">
+                <p className="font-bold text-slate-700">{a.street}</p>
+                <p className="text-gray-500">{a.city} - <span className="font-bold text-black">{a.zip}</span></p>
+                {/* 🔥 Phone Number Ab Yahan Show Hoga */}
+                <p className="text-gray-400 text-xs mt-1">📞 {a.phone}</p>
+              </div>
+              <button onClick={() => removeAddress(a.id)} className="text-red-400 text-xs font-medium">Remove</button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* 📦 ORDERS */}
