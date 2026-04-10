@@ -69,7 +69,7 @@ export default function OrderSuccess(){
         );
 
         // =========================
-        // 🧹 CLEAR CART
+        // 🧹 CLEAR CART (ONLINE DB)
         // =========================
 
         const user = auth.currentUser;
@@ -85,6 +85,17 @@ export default function OrderSuccess(){
             );
           }
         }
+
+        // =====================================
+        // 🧹 CLEAR LOCAL STORAGE (FOR BUY NOW & AFFILIATE)
+        // =====================================
+        // Ye naya addition hai taaki agla order fresh start ho
+        localStorage.removeItem("buy-now");
+        // Note: affiliate ID hum tabhi hatate hain jab hum chahte hon 
+        // ki commission sirf usi session ke liye ho. 
+        // Agar aap chahte hain ki seller ka link 1 baar click karne par 
+        // wo hamesha ke liye save rahe, toh niche wali line mat likhiye.
+        // localStorage.removeItem("affiliate"); 
 
         // =========================
         // 📲 WHATSAPP MESSAGE (FIXED)
