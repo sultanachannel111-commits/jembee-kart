@@ -14,22 +14,30 @@ export default function WishPage() {
   const [showGifts, setShowGifts] = useState(true);
 
   const cardRef = useRef<any>(null);
-  const audioRef = useRef<any>(null);
 
+  // ================= LOAD =================
   useEffect(() => {
     load();
 
+    // 🎆 Confetti blast
     setTimeout(() => {
-      confetti({ particleCount: 120, spread: 100 });
+      confetti({
+        particleCount: 150,
+        spread: 120,
+      });
     }, 800);
   }, []);
 
   const load = async () => {
     const ref = doc(db, "wishes", id);
     const snap = await getDoc(ref);
-    if (snap.exists()) setData(snap.data());
+
+    if (snap.exists()) {
+      setData(snap.data());
+    }
   };
 
+  // ================= DOWNLOAD =================
   const downloadImage = async () => {
     const canvas = await html2canvas(cardRef.current);
     const link = document.createElement("a");
@@ -38,30 +46,33 @@ export default function WishPage() {
     link.click();
   };
 
-  if (!data) return <p className="text-center mt-20">Loading...</p>;
+  if (!data) {
+    return <p className="text-center mt-20">Loading...</p>;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative">
 
-      <audio ref={audioRef} src="/music.mp3" loop />
-
-      {/* MAIN */}
+      {/* 🎥 MAIN CARD */}
       <div
         ref={cardRef}
         className="w-full h-screen flex flex-col items-center justify-center text-center px-4"
       >
 
+        {/* 🎬 ANIMATION */}
         <ThemeUI theme={data.theme} name={data.from} />
 
+        {/* MESSAGE */}
         <h1 className="text-4xl font-bold mt-4 animate-pulse">
           {data.message}
         </h1>
 
+        {/* FROM */}
         <p className="mt-4 text-lg">
           From: <span className="text-yellow-400">{data.from}</span>
         </p>
 
-        {/* TOGGLE */}
+        {/* 🎁 TOGGLE BUTTON */}
         {data.gifts?.length > 0 && (
           <button
             onClick={() => setShowGifts(!showGifts)}
@@ -71,24 +82,51 @@ export default function WishPage() {
           </button>
         )}
 
-        {/* GIFTS */}
+        {/* 🎁 GIFTS */}
         {showGifts && data.gifts?.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 mt-6">
+          <div className="grid grid-cols-2 gap-3 mt-6 w-full max-w-sm">
+
             {data.gifts.map((p: any, i: number) => (
-              <div key={i} className="bg-white text-black p-2 rounded-xl">
+              <div
+                key={i}
+                className="bg-white text-black p-2 rounded-xl cursor-pointer"
+                onClick={() =>
+                  window.open(`/product/${p.productId}`, "_blank")
+                }
+              >
                 <img
-                  src={p.image}
+                  src={p.image || "/no-image.png"}
                   className="h-24 w-full object-cover rounded"
                 />
-                <p className="text-xs">{p.name}</p>
+                <p className="text-xs mt-1">{p.name}</p>
               </div>
             ))}
+
           </div>
         )}
 
       </div>
 
-      {/* DOWNLOAD */}
+      {/* 🔻 BOTTOM BUTTONS */}
+      <div className="absolute bottom-20 flex gap-3">
+
+        <button
+          onClick={() => (window.location.href = "/")}
+          className="bg-white text-black px-4 py-2 rounded-xl"
+        >
+          🏠 Home
+        </button>
+
+        <button
+          onClick={() => (window.location.href = "/")}
+          className="bg-green-500 text-white px-4 py-2 rounded-xl"
+        >
+          🛍️ Shop
+        </button>
+
+      </div>
+
+      {/* 📸 DOWNLOAD */}
       <button
         onClick={downloadImage}
         className="absolute bottom-6 bg-green-500 px-4 py-2 rounded"
@@ -100,29 +138,60 @@ export default function WishPage() {
   );
 }
 
-/* THEME */
+/* ================= THEME ================= */
+
 function ThemeUI({ theme, name }: any) {
 
   if (theme === "birthday") {
-    return <div className="text-8xl animate-bounce">🎂🎈🎉</div>;
+    return (
+      <div className="text-8xl animate-bounce">
+        🎂🎈🎉
+      </div>
+    );
   }
 
   if (theme === "love") {
-    return <div className="text-8xl animate-pulse">❤️💖💘</div>;
+    return (
+      <div className="text-8xl animate-pulse">
+        ❤️💖💘
+      </div>
+    );
   }
 
   if (theme === "diwali") {
-    return <div className="text-8xl animate-pulse">🪔✨🎆</div>;
+    return (
+      <div className="text-8xl animate-pulse">
+        🪔✨🎆
+      </div>
+    );
+  }
+
+  if (theme === "eid") {
+    return (
+      <div className="text-8xl animate-bounce">
+        🌙🕌✨
+      </div>
+    );
   }
 
   if (theme === "independence") {
     return (
       <div className="flex flex-col items-center">
-        <div className="text-8xl animate-[wave_2s_infinite]">🇮🇳</div>
-        <h2 className="text-2xl mt-2 text-orange-400">{name}</h2>
+        <div className="text-8xl animate-[wave_2s_infinite]">
+          🇮🇳
+        </div>
+
+        {/* 🔥 NAME ON FLAG */}
+        <h2 className="text-2xl mt-2 text-orange-400 animate-pulse">
+          {name}
+        </h2>
       </div>
     );
   }
 
-  return <div className="text-6xl animate-pulse">🎉 {theme} 🎉</div>;
+  return (
+    <div className="text-6xl animate-pulse">
+      🎉 {theme} 🎉
+    </div>
+  );
 }
