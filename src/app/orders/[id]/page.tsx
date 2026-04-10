@@ -10,10 +10,9 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    // Check if id exists
     if (!id) return;
 
-    // IMPORTANT: No 'as string' or ':' types here for .jsx
+    // Fixed: Yahan 'id as string' bilkul nahi hona chahiye
     const docRef = doc(db, "orders", id);
     
     const unsub = onSnapshot(docRef, (snap) => {
@@ -94,13 +93,11 @@ export default function OrderDetailsPage() {
               🚀
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="flex justify-between mt-4">
             {steps.map((s, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-[7px] font-black uppercase tracking-tighter transition-colors ${i <= currentStep ? 'text-white' : 'text-white/20'}`}>
-                  {s}
-                </p>
-              </div>
+              <p key={i} className={`text-[7px] font-black uppercase tracking-tighter ${i <= currentStep ? 'text-white' : 'text-white/20'}`}>
+                {s}
+              </p>
             ))}
           </div>
         </div>
@@ -110,7 +107,7 @@ export default function OrderDetailsPage() {
           <h3 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Cart Manifest</h3>
           <div className="space-y-4">
             {order.items?.map((item, i) => (
-              <div key={i} className="flex justify-between items-center group">
+              <div key={i} className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="w-11 h-11 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 font-black text-xs text-blue-400">
                     {item.quantity || 1}
@@ -123,22 +120,23 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {/* 🛡️ Secure Badge */}
+        {/* 🛡️ Secure Badge (Morphism Style) */}
         <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex items-center gap-5">
            <div className="w-14 h-14 bg-gradient-to-tr from-green-500/20 to-emerald-500/20 rounded-2xl flex items-center justify-center text-2xl border border-green-500/20">
              🔐
            </div>
-           <div>
-             <h4 className="text-[11px] font-black text-white uppercase italic tracking-tighter text-left">Secure Logistics</h4>
-             <p className="text-[9px] text-white/40 leading-relaxed mt-0.5 text-left">Aapka order fully insured hai. Delivery ke waqt tamper-evident packaging check karein.</p>
+           <div className="text-left">
+             <h4 className="text-[11px] font-black text-white uppercase italic tracking-tighter">Secure Logistics</h4>
+             <p className="text-[9px] text-white/40 leading-relaxed mt-0.5">Aapka order fully insured hai. Delivery partner ka wait karein.</p>
            </div>
         </div>
 
         {/* 📲 Action Buttons */}
         <div className="space-y-3">
           <a 
-            href={`https://wa.me/917061369212?text=Order Help ID: ${order.id}`}
-            className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95"
+            href={`https://wa.me/917061369212?text=Hello Jembee, I need help with Order ID: ${order.id}`}
+            target="_blank"
+            className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
           >
             Contact Support 📲
           </a>
