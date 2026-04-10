@@ -29,16 +29,12 @@ export default function CheckoutPage() {
 
   const router = useRouter();
 
-  // =========================
-  // 🔥 DATA INITIALIZATION
-  // =========================
   useEffect(() => {
     let unsubscribe: any;
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
       setUser(u);
 
-      // 1. Load Items (Buy Now or Cart)
       const buyNow = localStorage.getItem("buy-now");
       if (buyNow) {
         try {
@@ -74,7 +70,6 @@ export default function CheckoutPage() {
         });
       }
 
-      // 2. Fetch Addresses (Sync with Profile)
       const addrSnap = await getDocs(collection(db, "addresses")); 
       const userAddresses: any[] = [];
       addrSnap.forEach(d => {
@@ -85,7 +80,6 @@ export default function CheckoutPage() {
       setAddresses(userAddresses);
       setAddress(userAddresses[0] || null);
 
-      // 3. Shipping Config
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
       if (shipSnap.exists()) {
         const data = shipSnap.data();
@@ -100,9 +94,6 @@ export default function CheckoutPage() {
     return () => { unsub(); if (unsubscribe) unsubscribe(); };
   }, [router]);
 
-  // =========================
-  // 💰 PRICE CALCULATION
-  // =========================
   const itemsTotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
   let shipping = items.length === 0 ? 0 : 
     (paymentMethod === "COD" ? shippingConfig.cod : shippingConfig.prepaid);
@@ -112,9 +103,6 @@ export default function CheckoutPage() {
   }
   const total = items.length === 0 ? 0 : itemsTotal + shipping;
 
-  // =========================
-  // 🚀 PAYMENT LOGIC
-  // =========================
   const handlePayment = async () => {
     if (!address) return alert("Please select a delivery address 📍");
     if (items.length === 0) return alert("Your cart is empty 🛒");
@@ -145,7 +133,6 @@ export default function CheckoutPage() {
           router.replace(`/order-success/${data.orderId}`);
         } else { alert("Order Failed ❌"); }
       } else {
-        // ONLINE FLOW
         const res = await fetch("/api/cashfree/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,15 +144,13 @@ export default function CheckoutPage() {
               email: user.email,
               phone: address.phone
             },
-            orderData // Bhej rahe hain taaki verify hone par save ho sake
+            orderData
           })
         });
         
         const data = await res.json();
-        const cashfree = await load({ mode: "production" }); // Change to "sandbox" for testing
-        
-        localStorage.removeItem("buy-now"); // User redirect ho raha hai, toh clear kar sakte hain
-
+        const cashfree = await load({ mode: "production" });
+        localStorage.removeItem("buy-now");
         await cashfree.checkout({ 
           paymentSessionId: data.payment_session_id, 
           redirectTarget: "_self" 
@@ -180,72 +165,95 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white p-4 pb-40 font-sans max-w-md mx-auto">
+    <div className="min-h-screen bg-[#070b14] text-white p-4 pb-44 font-sans max-w-md mx-auto selection:bg-indigo-500">
       
       {/* HEADER */}
-      <header className="py-8 text-center">
-        <h1 className="text-2xl font-black tracking-[0.2em] italic bg-gradient-to-r from-indigo-400 via-white to-cyan-400 bg-clip-text text-transparent uppercase">
-          Finalize Order
+      <header className="py-10 text-center relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-indigo-600/20 blur-[80px]" />
+        <h1 className="text-3xl font-black tracking-[0.25em] italic bg-gradient-to-b from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent uppercase">
+          Checkout
         </h1>
+        <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 mt-2 font-bold">Secure Gateway</p>
       </header>
 
       {/* 📍 ADDRESS SECTION */}
-      <section className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2.5rem] mb-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-3xl" />
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Shipping To</h2>
-          <button onClick={() => router.push("/profile")} className="text-[9px] font-black bg-white/10 px-4 py-2 rounded-full uppercase tracking-tighter border border-white/5 hover:bg-white/20">
-            Change
+      <section className="group bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] mb-6 shadow-2xl relative transition-all active:scale-[0.98]">
+        <div className="absolute -top-px left-10 right-10 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+        
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Delivery To</h2>
+          </div>
+          <button onClick={() => router.push("/profile")} className="text-[10px] font-black bg-white/5 px-5 py-2.5 rounded-2xl uppercase tracking-tighter border border-white/10 hover:bg-indigo-600 hover:border-indigo-500 transition-all active:scale-90">
+            Edit
           </button>
         </div>
 
         {address ? (
-          <div className="space-y-2">
-            <p className="text-lg font-black italic uppercase tracking-tight">{address.name}</p>
-            <div className="text-sm text-white/60 space-y-1">
-              <p className="leading-tight">{address.street}</p>
-              {address.landmark && <p className="text-indigo-300/80 text-xs italic">Near {address.landmark}</p>}
-              <p className="font-bold text-white">{address.city}, {address.state} - {address.zip}</p>
-              <div className="pt-3 flex items-center gap-2 text-indigo-400 font-black text-xs">
-                <span>📞 {address.phone}</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+               <p className="text-xl font-black italic uppercase tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                {address.name}
+              </p>
+            </div>
+            <div className="text-sm text-white/50 space-y-1.5 font-medium leading-relaxed">
+              <p className="flex items-start gap-2">
+                <span className="opacity-40 mt-1">🏠</span>
+                {address.street}
+              </p>
+              {address.landmark && (
+                <p className="text-indigo-300/60 text-xs italic pl-6">Milo {address.landmark} ke paas</p>
+              )}
+              <p className="pl-6 text-white/80 font-bold">{address.city}, {address.state} • {address.zip}</p>
+              <div className="pt-2 flex items-center gap-2 text-indigo-400 font-black text-xs pl-6">
+                <span className="bg-indigo-500/10 px-3 py-1 rounded-full">📞 {address.phone}</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="py-8 text-center border-2 border-dashed border-white/10 rounded-[2rem]">
-            <p className="text-white/30 text-xs mb-3 font-bold uppercase">No Address Selected</p>
-            <button onClick={() => router.push("/profile")} className="bg-indigo-600 text-[10px] px-6 py-2 rounded-full font-black uppercase shadow-lg shadow-indigo-600/20">Add New</button>
+          <div className="py-10 text-center border-2 border-dashed border-white/10 rounded-[2.5rem] bg-white/[0.02]">
+            <p className="text-white/20 text-xs mb-4 font-bold uppercase tracking-widest">Address not found</p>
+            <button onClick={() => router.push("/profile")} className="bg-white text-black text-[10px] px-8 py-3 rounded-full font-black uppercase shadow-xl hover:bg-indigo-500 hover:text-white transition-colors">Setup Profile</button>
           </div>
         )}
       </section>
 
       {/* 💳 PAYMENT TOGGLE */}
-      <section className="bg-white/5 border border-white/10 p-1.5 rounded-[2rem] flex gap-2 mb-8">
+      <section className="bg-black/40 border border-white/5 p-2 rounded-[2.2rem] flex gap-2 mb-8 shadow-inner">
         <button 
           onClick={() => setPaymentMethod("ONLINE")}
-          className={`flex-1 py-4 rounded-[1.6rem] font-black text-xs tracking-widest transition-all ${paymentMethod === "ONLINE" ? "bg-white text-black shadow-xl" : "text-white/30 hover:bg-white/5"}`}
+          className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] tracking-widest transition-all duration-500 ${paymentMethod === "ONLINE" ? "bg-white text-black shadow-[0_10px_25px_-5px_rgba(255,255,255,0.3)]" : "text-white/20 hover:text-white/40"}`}
         >
           ONLINE 💳
         </button>
         <button 
           onClick={() => setPaymentMethod("COD")}
-          className={`flex-1 py-4 rounded-[1.6rem] font-black text-xs tracking-widest transition-all ${paymentMethod === "COD" ? "bg-amber-500 text-black shadow-xl" : "text-white/30 hover:bg-white/5"}`}
+          className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] tracking-widest transition-all duration-500 ${paymentMethod === "COD" ? "bg-amber-500 text-black shadow-[0_10px_25px_-5px_rgba(245,158,11,0.3)]" : "text-white/20 hover:text-white/40"}`}
         >
           CASH 🚚
         </button>
       </section>
 
       {/* 📦 ITEMS SUMMARY */}
-      <div className="space-y-4 mb-8">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 ml-4">Bag Content</h3>
+      <div className="space-y-4 mb-10">
+        <div className="flex items-center justify-between px-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Review Bag</h3>
+          <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">{items.length} Items</span>
+        </div>
         {items.map((item) => (
-          <div key={item.id} className="bg-white/5 border border-white/5 p-4 rounded-[2rem] flex gap-4 items-center">
-            <img src={item.image} className="w-16 h-16 rounded-2xl object-cover bg-black" alt="product" />
-            <div className="flex-1">
-              <p className="font-black text-[11px] uppercase truncate tracking-tight">{item.name}</p>
-              <div className="flex justify-between items-end mt-1">
-                <p className="text-[10px] font-bold text-white/40">Qty: {item.qty}</p>
-                <p className="text-indigo-400 font-black italic">₹{item.price}</p>
+          <div key={item.id} className="group bg-white/[0.03] border border-white/[0.05] p-4 rounded-[2.2rem] flex gap-5 items-center hover:bg-white/[0.06] transition-all">
+            <div className="relative">
+              <img src={item.image} className="w-20 h-20 rounded-[1.5rem] object-cover bg-black ring-1 ring-white/10" alt="product" />
+              <span className="absolute -top-2 -right-2 w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#070b14]">
+                {item.qty}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-black text-xs uppercase truncate tracking-wide text-white/90">{item.name}</p>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-tighter">Unit Price</p>
+                <p className="text-white font-black italic">₹{item.price}</p>
               </div>
             </div>
           </div>
@@ -253,39 +261,53 @@ export default function CheckoutPage() {
       </div>
 
       {/* 💰 TOTAL BILL */}
-      <section className="bg-white/5 border border-white/10 p-7 rounded-[2.5rem] space-y-4">
-        <div className="flex justify-between text-xs font-bold text-white/40 uppercase tracking-widest">
+      <section className="bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 p-8 rounded-[3rem] space-y-5 shadow-2xl relative overflow-hidden">
+        <div className="absolute bottom-0 right-0 w-32 h-32 bg-indigo-600/5 blur-[50px]" />
+        <div className="flex justify-between text-[11px] font-black text-white/30 uppercase tracking-widest">
           <span>Subtotal</span>
-          <span className="text-white">₹{itemsTotal}</span>
+          <span className="text-white/80">₹{itemsTotal}</span>
         </div>
-        <div className="flex justify-between text-xs font-bold text-white/40 uppercase tracking-widest">
+        <div className="flex justify-between text-[11px] font-black text-white/30 uppercase tracking-widest">
           <span>Delivery</span>
-          <span className={shipping === 0 ? "text-green-400" : "text-white"}>{shipping === 0 ? "FREE" : `₹${shipping}`}</span>
+          <span className={shipping === 0 ? "text-emerald-400" : "text-white/80"}>
+            {shipping === 0 ? "FREE" : `₹${shipping}`}
+          </span>
         </div>
-        <div className="h-[1px] bg-white/10" />
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-black uppercase tracking-tighter">Total Amount</span>
-          <span className="text-2xl font-black italic tracking-tighter bg-gradient-to-l from-indigo-400 to-white bg-clip-text text-transparent">₹{total}</span>
+        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="flex justify-between items-center pt-2">
+          <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400">Grand Total</span>
+          <div className="text-right">
+             <span className="text-3xl font-black italic tracking-tighter bg-gradient-to-r from-white to-indigo-400 bg-clip-text text-transparent block">
+              ₹{total}
+            </span>
+          </div>
         </div>
       </section>
 
       {/* 🚀 FIXED FOOTER BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/90 to-transparent z-[100]">
+      <div className="fixed bottom-0 left-0 w-full p-8 bg-gradient-to-t from-[#070b14] via-[#070b14]/95 to-transparent z-[100]">
         <button
           onClick={handlePayment}
           disabled={loading || items.length === 0}
-          className="w-full max-w-md mx-auto block py-6 rounded-[2rem] bg-indigo-600 font-black text-sm tracking-[0.2em] uppercase shadow-2xl shadow-indigo-600/40 active:scale-95 transition-all disabled:opacity-50"
+          className="w-full max-w-md mx-auto relative group overflow-hidden py-6 rounded-[2.2rem] bg-indigo-600 font-black text-[11px] tracking-[0.3em] uppercase shadow-[0_20px_50px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
         >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
           {loading ? (
             <span className="flex items-center justify-center gap-3">
-              <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              Verifying...
+              <span className="w-5 h-5 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+              Processing...
             </span>
           ) : (
-            `Place Order • ₹${total}`
+            `Confirm Order • ₹${total}`
           )}
         </button>
       </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 }
