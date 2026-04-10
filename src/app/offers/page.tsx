@@ -6,8 +6,8 @@ import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
 export default function OffersPage() {
-  const [offers, setOffers] = useState([]);
-  const [products, setProducts] = useState({});
+  const [offers, setOffers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function OffersPage() {
       }));
 
       const productSnap = await getDocs(collection(db, "products"));
-      const map = {};
+      const map: any = {};
       productSnap.forEach(d => {
         map[d.id] = d.data();
       });
@@ -33,7 +33,7 @@ export default function OffersPage() {
       setOffers(offerList);
       setProducts(map);
     } catch (error) {
-      console.error("Error loading offers:", error);
+      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -41,32 +41,27 @@ export default function OffersPage() {
 
   return (
     <div className="min-h-screen p-4 pb-20 bg-white text-black">
-      {/* 🔥 TITLE */}
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-2xl">🔥</span>
-        <h1 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-600">
-          Premium Offers
-        </h1>
-      </div>
 
-      {/* ================= SHIMMER ================= */}
+      {/* 🔥 TITLE */}
+      <h1 className="text-2xl font-black mb-6 text-indigo-600">
+        🔥 Premium Offers
+      </h1>
+
+      {/* LOADING */}
       {loading && (
-        <div className="flex gap-4 overflow-x-auto no-scrollbar">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="min-w-[220px] h-[300px] bg-gray-100 rounded-3xl animate-pulse" />
+        <div className="flex gap-4 overflow-x-auto">
+          {[1,2,3].map(i => (
+            <div key={i} className="min-w-[220px] h-[300px] bg-gray-200 animate-pulse rounded-2xl"/>
           ))}
         </div>
       )}
 
-      {/* ================= CAROUSEL ================= */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 no-scrollbar">
+      {/* OFFERS */}
+      <div className="flex gap-4 overflow-x-auto">
         {!loading && offers.map((o) => {
           const product = products[o.productId];
-          
-          // 1. Agar product nahi hai, toh render mat karo
           if (!product) return null;
 
-          // 2. Agar offer expire ho chuka hai, toh Card render hi nahi hoga
           return (
             <OfferCard
               key={o.id}
@@ -78,39 +73,33 @@ export default function OffersPage() {
         })}
       </div>
 
-      {!loading && offers.length === 0 && (
-        <p className="text-gray-400 text-sm text-center py-10">No active offers right now.</p>
-      )}
     </div>
   );
 }
 
 /* ================= CARD ================= */
 
-function OfferCard({ product, offer, router }) {
-  const [timeLeft, setTimeLeft] = useState("");
-  const [isExpired, setIsExpired] = useState(false);
+function OfferCard({ product, offer, router }: any) {
 
+  const [timeLeft, setTimeLeft] = useState("");
+  const [expired, setExpired] = useState(false);
+
+  // 🔥 TIMER
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!offer.endDate) {
-        setTimeLeft("");
-        return;
-      }
+      if (!offer.endDate) return;
 
-      const end = new Date(offer.endDate).getTime();
-      const now = Date.now();
-      const diff = end - now;
+      const diff = new Date(offer.endDate).getTime() - Date.now();
 
       if (diff <= 0) {
-        setIsExpired(true); // Offer expire ho gaya
+        setExpired(true);
         clearInterval(interval);
         return;
       }
 
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
 
       setTimeLeft(`${h}h ${m}m ${s}s`);
     }, 1000);
@@ -118,53 +107,84 @@ function OfferCard({ product, offer, router }) {
     return () => clearInterval(interval);
   }, [offer]);
 
-  // 🔥 AGAR EXPIRED HAI TO NULL RETURN KARO (Card gayab ho jayega)
-  if (isExpired) return null;
+  if (expired) return null;
+
+  // 🔥 PRICE CALCULATION
+  const originalPrice = Number(product.price || 0);
+  const discount = Number(offer.discount || 0);
+
+  const finalPrice =
+    originalPrice - (originalPrice * discount) / 100;
 
   return (
     <div
-      onClick={() => router.push(`/product/${offer.productId}`)}
-      className="min-w-[220px] snap-center bg-gray-50 border border-gray-100 rounded-[2rem] p-3 shadow-sm active:scale-95 transition-all"
+      onClick={() =>
+        router.push(
+          `/product/${offer.productId}?price=${finalPrice}&offer=${discount}`
+        )
+      }
+      className="min-w-[220px] bg-gray-50 border rounded-2xl p-3 shadow-sm active:scale-95"
     >
+
       {/* IMAGE */}
       <div className="relative">
         <img
           src={product.image || "/no-image.png"}
-          className="w-full h-40 object-cover rounded-[1.5rem] bg-white border border-gray-100"
-          alt="offer"
+          className="w-full h-40 object-cover rounded-xl"
         />
 
-        {/* DISCOUNT TAG */}
-        <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase">
-          {offer.discount}% OFF
+        {/* DISCOUNT */}
+        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+          {discount}% OFF
         </div>
       </div>
 
       {/* NAME */}
-      <div className="px-1 mt-3">
-        <p className="text-gray-900 text-sm font-bold uppercase truncate">
-          {product.name}
+      <p className="mt-2 font-bold text-sm">
+        {product.name}
+      </p>
+
+      {/* PRICE */}
+      <div className="flex items-center gap-2 mt-1">
+
+        {/* FINAL */}
+        <p className="text-green-600 font-bold text-lg">
+          ₹{finalPrice}
         </p>
 
-        {/* TIMER */}
-        {timeLeft && (
-          <div className="flex items-center gap-1 mt-1 text-indigo-600 font-bold text-[11px]">
-            <span>⏳</span>
-            <span>{timeLeft}</span>
-          </div>
-        )}
+        {/* ORIGINAL */}
+        <p className="text-gray-400 line-through text-sm">
+          ₹{originalPrice}
+        </p>
+
       </div>
+
+      {/* SAVE */}
+      <p className="text-xs text-indigo-600 font-bold">
+        Save ₹{originalPrice - finalPrice}
+      </p>
+
+      {/* TIMER */}
+      {timeLeft && (
+        <p className="text-xs mt-1 text-red-500">
+          ⏳ {timeLeft}
+        </p>
+      )}
 
       {/* BUTTON */}
       <button
         onClick={(e) => {
           e.stopPropagation();
-          router.push(`/product/${offer.productId}`);
+
+          router.push(
+            `/product/${offer.productId}?price=${finalPrice}&offer=${discount}`
+          );
         }}
-        className="mt-4 w-full bg-indigo-600 text-white text-[10px] font-black py-3 rounded-2xl shadow-xl shadow-indigo-100 uppercase tracking-widest"
+        className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-xl"
       >
         Shop Now 🚀
       </button>
+
     </div>
   );
 }
