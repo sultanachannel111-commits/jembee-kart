@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  onSnapshot
-} from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 
 export default function AdminAlerts() {
 
@@ -14,75 +11,87 @@ export default function AdminAlerts() {
 
   const soundRef = useRef<any>(null);
 
-  // ================= 🔔 SOUND =================
+  // 🔔 SOUND FIX (force play)
   const playSound = () => {
-    if (soundRef.current) {
-      soundRef.current.play().catch(() => {});
+    if (!soundRef.current) return;
+
+    try {
+      soundRef.current.currentTime = 0;
+      soundRef.current.play();
+    } catch (err) {
+      console.log("Sound blocked");
     }
   };
 
-  // ================= 📲 WHATSAPP =================
-  const sendWhatsApp = (msg: string) => {
-    const phone = "917061369212"; // 👉 apna number daal
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(url);
-  };
-
-  // ================= 🔥 LIVE LISTENER =================
   useEffect(() => {
 
-    let allData: any[] = [];
-
-    // 🟢 ORDERS
+    // 🔥 ORDERS LISTENER
     const unsubOrders = onSnapshot(
       collection(db, "orders"),
       (snap) => {
 
         const list: any[] = [];
 
-        snap.forEach((doc) => {
-          const d: any = doc.data();
+        snap.docChanges().forEach((change) => {
+          if (change.type === "added" || change.type === "modified") {
 
-          list.push({
-            type: "order",
-            text: getOrderText(d),
-            time: d.createdAt?.seconds || Date.now() / 1000
-          });
+            const d: any = change.doc.data();
+
+            list.push({
+              id: change.doc.id,
+              type: "order",
+              text: getOrderText(d),
+              time:
+                d.createdAt?.seconds ||
+                d.createdAt ||
+                Date.now() / 1000
+            });
+          }
         });
 
-        allData = [...list, ...alerts];
+        if (list.length > 0) {
+          setAlerts((prev) => {
+            const merged = mergeUnique(prev, list);
+            return sortData(merged);
+          });
 
-        setAlerts(sortData(allData));
-        playSound();
+          playSound(); // 🔔 ONLY NEW DATA
+        }
       }
     );
 
-    // 🔄 RETURNS
+    // 🔥 RETURNS LISTENER
     const unsubReturns = onSnapshot(
       collection(db, "returns"),
       (snap) => {
 
         const list: any[] = [];
 
-        snap.forEach((doc) => {
-          const d: any = doc.data();
+        snap.docChanges().forEach((change) => {
+          if (change.type === "added" || change.type === "modified") {
 
-          const msg = `🔄 Return (${d.status}) - Order ${d.orderId}`;
+            const d: any = change.doc.data();
 
-          list.push({
-            type: "return",
-            text: msg,
-            time: d.createdAt?.seconds || Date.now() / 1000
-          });
-
-          // 📲 WhatsApp Alert
-          sendWhatsApp(msg);
+            list.push({
+              id: change.doc.id,
+              type: "return",
+              text: `🔄 Return (${d.status}) - Order ${d.orderId}`,
+              time:
+                d.createdAt?.seconds ||
+                d.createdAt ||
+                Date.now() / 1000
+            });
+          }
         });
 
-        allData = [...list, ...alerts];
+        if (list.length > 0) {
+          setAlerts((prev) => {
+            const merged = mergeUnique(prev, list);
+            return sortData(merged);
+          });
 
-        setAlerts(sortData(allData));
-        playSound();
+          playSound(); // 🔔
+        }
       }
     );
 
@@ -93,29 +102,39 @@ export default function AdminAlerts() {
 
   }, []);
 
-  // ================= SORT =================
+  // 🔥 REMOVE DUPLICATE
+  const mergeUnique = (oldList: any[], newList: any[]) => {
+    const map = new Map();
+
+    [...oldList, ...newList].forEach((item) => {
+      map.set(item.id + item.type, item);
+    });
+
+    return Array.from(map.values());
+  };
+
+  // 🔽 SORT
   const sortData = (list: any[]) => {
     return list.sort((a, b) => b.time - a.time);
   };
 
-  // ================= ORDER TEXT =================
+  // 📦 ORDER TEXT
   const getOrderText = (d: any) => {
 
-    if (d.status === "PLACED") return `🆕 New Order ₹${d.total}`;
-    if (d.status === "PENDING") return `⏳ Pending ₹${d.total}`;
-    if (d.status === "DELIVERED") return `✅ Delivered ₹${d.total}`;
-    if (d.status === "CANCELLED") return `❌ Cancelled ₹${d.total}`;
+    const status = (d.status || "").toUpperCase();
 
-    if (d.status === "RETURN_REQUESTED") return `🔄 Return Requested`;
-    if (d.status === "RETURN_APPROVED") return `✅ Return Approved`;
-    if (d.status === "RETURN_PICKUP") return `🚚 Pickup Started`;
-    if (d.status === "RETURN_DONE") return `📦 Received`;
-    if (d.status === "EXCHANGE_SHIPPED") return `🎁 Exchange Sent`;
+    if (status === "PLACED") return `🆕 New Order ₹${d.total || 0}`;
+    if (status === "PENDING") return `⏳ Pending ₹${d.total || 0}`;
+    if (status === "DELIVERED") return `✅ Delivered ₹${d.total || 0}`;
+    if (status === "CANCELLED") return `❌ Cancelled ₹${d.total || 0}`;
 
-    return "📦 Update";
+    if (status === "RETURN_REQUESTED") return `🔄 Return Requested`;
+    if (status === "RETURN_APPROVED") return `✅ Return Approved`;
+
+    return `📦 Order Update ₹${d.total || 0}`;
   };
 
-  // ================= FILTER =================
+  // 🎯 FILTER
   const filtered = alerts.filter((a) => {
     if (filter === "ALL") return true;
     return a.type === filter;
@@ -124,8 +143,8 @@ export default function AdminAlerts() {
   return (
     <div className="p-4">
 
-      {/* 🔊 SOUND */}
-      <audio ref={soundRef} src="/notify.mp3" />
+      {/* 🔊 SOUND FILE */}
+      <audio ref={soundRef} src="/notify.mp3" preload="auto" />
 
       <h1 className="text-2xl font-bold mb-4">
         🔔 Live Alerts
@@ -148,6 +167,10 @@ export default function AdminAlerts() {
 
       {/* LIST */}
       <div className="space-y-3">
+
+        {filtered.length === 0 && (
+          <p className="text-gray-500">No alerts yet</p>
+        )}
 
         {filtered.map((a, i) => (
           <div
