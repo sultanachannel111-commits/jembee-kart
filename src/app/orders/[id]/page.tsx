@@ -64,9 +64,6 @@ export default function OrderDetailsPage() {
     `Order Update\nID: ${order.id}\nStatus: ${order.status}`
   )}`;
 
-  const lat = order.location?.lat || 28.6139;
-  const lng = order.location?.lng || 77.2090;
-
   return (
 <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-pink-100 p-4">
 
@@ -130,7 +127,6 @@ className="h-2 bg-gradient-to-r from-green-400 to-green-600 absolute top-0 round
 style={{ width: `${progress}%` }}
 />
 
-{/* 🚚 TRUCK */}
 <div
 className="absolute -top-5 text-2xl transition-all duration-700"
 style={{ left: `${progress}%` }}
@@ -157,27 +153,36 @@ i <= currentStep
 
 </div>
 
-{/* 📍 MAP */}
+{/* 🆕 PREMIUM STATUS CARD */}
+<div className="backdrop-blur-xl bg-white/70 p-5 rounded-2xl shadow text-center">
+
+<div className="text-4xl mb-2">📦</div>
+
+<p className="font-bold text-lg">
+Status: {order.status}
+</p>
+
+<p className="text-sm text-gray-500 mt-1">
+Estimated Delivery: 3-5 days 🚀
+</p>
+
+</div>
+
+{/* 🆕 ORDER INFO */}
 <div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow">
 
-<h3 className="font-semibold mb-2">📍 Live Location</h3>
+<h3 className="font-semibold mb-2">Order Info</h3>
 
-<iframe
-className="w-full h-52 rounded-xl border"
-src={`https://www.google.com/maps/embed/v1/view?key=AIzaSyBj29BLR64WHyFPRTWszEHGkyrMMTCpwkQ&center=${lat},${lng}&zoom=14`}
-/>
+<p className="text-sm text-gray-600">
+Order ID: {order.id}
+</p>
 
-</div>
+<p className="text-sm text-gray-600">
+Payment: {order.paymentMethod || "Online"}
+</p>
 
-{/* 🚶 DELIVERY */}
-<div className="backdrop-blur-xl bg-white/70 p-4 rounded-2xl shadow text-center">
-
-<div className="text-5xl animate-bounce">
-🧍‍♂️📦
-</div>
-
-<p className="text-sm text-gray-600 mt-2">
-Delivery partner is on the way 🚀
+<p className="text-sm text-gray-600">
+Status: {order.status}
 </p>
 
 </div>
