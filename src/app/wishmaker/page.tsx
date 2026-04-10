@@ -21,6 +21,8 @@ export default function WishMaker() {
   const [selected, setSelected] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [showProducts, setShowProducts] = useState(true);
+
   // ================= LOAD USER =================
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -139,45 +141,76 @@ export default function WishMaker() {
         {/* 🎬 ANIMATION */}
         <ThemeUI theme={theme} />
 
+        {/* HEADER */}
+        <div className="flex justify-between items-center mt-4">
+          <h2 className="font-bold">🎁 Select Gift</h2>
+
+          <button
+            onClick={() => setShowProducts(!showProducts)}
+            className="text-sm bg-black text-white px-3 py-1 rounded-full"
+          >
+            {showProducts ? "Hide" : "Show"}
+          </button>
+        </div>
+
         {/* PRODUCTS */}
-        <h2 className="mt-4 font-bold">🎁 Select Gift</h2>
+        {showProducts && (
+          <>
+            {loading ? (
+              <p>Loading...</p>
+            ) : products.length === 0 ? (
+              <p className="text-red-500 text-sm mt-2">
+                No products found ❌
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                {products.map((p, i) => {
+                  const active = selected.find(
+                    (x) => x.productId === p.productId
+                  );
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            {products.map((p, i) => {
-              const active = selected.find(
-                (x) => x.productId === p.productId
-              );
+                  return (
+                    <div
+                      key={i}
+                      className={`p-2 rounded-xl transition ${
+                        active
+                          ? "border-2 border-green-500 scale-105"
+                          : "border"
+                      }`}
+                    >
+                      {/* OPEN PRODUCT PAGE */}
+                      <div
+                        onClick={() =>
+                          window.open(`/product/${p.productId}`, "_blank")
+                        }
+                        className="cursor-pointer"
+                      >
+                        <img
+                          src={p.image}
+                          className="w-full h-28 object-cover rounded"
+                        />
+                        <p className="text-sm">{p.name}</p>
+                      </div>
 
-              return (
-                <div
-                  key={i}
-                  onClick={() => toggleProduct(p)}
-                  className={`p-2 rounded-xl cursor-pointer transition ${
-                    active
-                      ? "border-2 border-green-500 scale-105"
-                      : "border"
-                  }`}
-                >
-                  <img
-                    src={p.image}
-                    className="w-full h-28 object-cover rounded"
-                  />
-
-                  {/* ❌ PRICE HIDDEN */}
-                  <p className="text-sm">{p.name}</p>
-                </div>
-              );
-            })}
-          </div>
+                      {/* SELECT */}
+                      <button
+                        onClick={() => toggleProduct(p)}
+                        className="w-full mt-2 bg-green-500 text-white text-xs py-1 rounded"
+                      >
+                        {active ? "Selected ✅" : "Select"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {/* SELECTED */}
         {selected.length > 0 && (
           <div className="mt-4 bg-white/40 p-3 rounded-xl">
-            <p className="font-bold">Selected Gifts 🎁</p>
+            <p className="font-bold">🎁 Selected Gifts</p>
             {selected.map((p, i) => (
               <p key={i}>• {p.name}</p>
             ))}
@@ -220,7 +253,6 @@ function ThemeUI({ theme }: any) {
     return (
       <div className="relative h-40 flex justify-center items-center">
         <div className="text-7xl animate-bounce">🎂</div>
-
         <div className="absolute left-6 bottom-0 text-4xl animate-[float_4s_infinite]">🎈</div>
         <div className="absolute right-6 bottom-0 text-4xl animate-[float_5s_infinite]">🎈</div>
       </div>
