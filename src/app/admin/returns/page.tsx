@@ -1,131 +1,115 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
 import {
   collection,
   getDocs,
   updateDoc,
   doc
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function AdminReturns() {
 
   const [returns, setReturns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // ================= LOAD =================
   const loadReturns = async () => {
     const snap = await getDocs(collection(db, "returns"));
-
-    const list: any[] = [];
-
-    snap.forEach((d) => {
-      list.push({ id: d.id, ...d.data() });
-    });
-
-    setReturns(list);
-    setLoading(false);
+    setReturns(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
     loadReturns();
   }, []);
 
-  // ================= APPROVE =================
+  // APPROVE
   const approveReturn = async (r: any) => {
+    await updateDoc(doc(db, "returns", r.id), {
+      status: "APPROVED"
+    });
 
-    try {
-      // 🔥 update returns
-      await updateDoc(doc(db, "returns", r.id), {
-        status: "APPROVED"
-      });
+    await updateDoc(doc(db, "orders", r.orderId), {
+      status: "RETURN_APPROVED"
+    });
 
-      // 🔥 update order
-      await updateDoc(doc(db, "orders", r.orderId), {
-        status: "RETURN_APPROVED"
-      });
-
-      alert("Return Approved ✅");
-
-      loadReturns();
-
-    } catch (err) {
-      alert("Error approving ❌");
-    }
+    loadReturns();
   };
 
-  // ================= REJECT =================
-  const rejectReturn = async (r: any) => {
+  // PICKUP
+  const startPickup = async (r: any) => {
+    await updateDoc(doc(db, "returns", r.id), {
+      status: "PICKUP"
+    });
 
-    try {
-      await updateDoc(doc(db, "returns", r.id), {
-        status: "REJECTED"
-      });
+    await updateDoc(doc(db, "orders", r.orderId), {
+      status: "RETURN_PICKUP"
+    });
 
-      await updateDoc(doc(db, "orders", r.orderId), {
-        status: "RETURN_REJECTED"
-      });
-
-      alert("Return Rejected ❌");
-
-      loadReturns();
-
-    } catch (err) {
-      alert("Error rejecting ❌");
-    }
+    loadReturns();
   };
 
-  if (loading) {
-    return <p className="p-4">Loading...</p>;
-  }
+  // RECEIVED
+  const completeReturn = async (r: any) => {
+    await updateDoc(doc(db, "returns", r.id), {
+      status: "DONE"
+    });
+
+    await updateDoc(doc(db, "orders", r.orderId), {
+      status: "RETURN_DONE"
+    });
+
+    loadReturns();
+  };
+
+  // EXCHANGE
+  const shipExchange = async (r: any) => {
+    await updateDoc(doc(db, "orders", r.orderId), {
+      status: "EXCHANGE_SHIPPED"
+    });
+
+    loadReturns();
+  };
 
   return (
     <div className="p-4">
 
-      <h1 className="text-2xl font-bold mb-4">
-        🔄 Return Requests (Admin)
+      <h1 className="text-xl font-bold mb-4">
+        Return / Exchange Panel
       </h1>
 
-      {returns.length === 0 ? (
-        <p>No return requests</p>
-      ) : (
-        returns.map((r) => (
-          <div
-            key={r.id}
-            className="bg-white p-4 shadow rounded mb-3"
-          >
-            <p><b>Order:</b> {r.orderId}</p>
-            <p><b>User:</b> {r.userId}</p>
-            <p><b>Reason:</b> {r.reason}</p>
+      {returns.map(r => (
+        <div key={r.id} className="border p-3 mb-3">
 
-            <p>
-              <b>Status:</b>{" "}
-              <span className="font-bold">{r.status}</span>
-            </p>
+          <p>Order: {r.orderId}</p>
+          <p>Reason: {r.reason}</p>
+          <p>Status: {r.status}</p>
 
-            {r.status === "PENDING" && (
-              <div className="flex gap-2 mt-2">
+          {r.status === "PENDING" && (
+            <button onClick={() => approveReturn(r)}>
+              Approve
+            </button>
+          )}
 
-                <button
-                  onClick={() => approveReturn(r)}
-                  className="bg-green-500 text-white px-3 py-1 rounded"
-                >
-                  Approve
-                </button>
+          {r.status === "APPROVED" && (
+            <button onClick={() => startPickup(r)}>
+              Pickup 🚚
+            </button>
+          )}
 
-                <button
-                  onClick={() => rejectReturn(r)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  Reject
-                </button>
+          {r.status === "PICKUP" && (
+            <button onClick={() => completeReturn(r)}>
+              Received ✅
+            </button>
+          )}
 
-              </div>
-            )}
-          </div>
-        ))
-      )}
+          {r.status === "DONE" && (
+            <button onClick={() => shipExchange(r)}>
+              Send Exchange 🎁
+            </button>
+          )}
+
+        </div>
+      ))}
 
     </div>
   );
