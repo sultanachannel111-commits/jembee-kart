@@ -5,186 +5,164 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
-export default function OffersPage() {
-  const [offers, setOffers] = useState<any[]>([]);
-  const [products, setProducts] = useState<any>({});
-  const [loading, setLoading] = useState(true);
+export default function OffersPage(){
 
-  const router = useRouter();
+  const [offers,setOffers] = useState<any[]>([]);
+  const [products,setProducts] = useState<any>({});
+  const [loading,setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const router = useRouter();
 
-  const loadData = async () => {
-    try {
-      const offerSnap = await getDocs(collection(db, "offers"));
-      const offerList = offerSnap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
+  useEffect(()=>{
+    loadData();
+  },[]);
 
-      const productSnap = await getDocs(collection(db, "products"));
-      const map: any = {};
-      productSnap.forEach(d => {
-        map[d.id] = d.data();
-      });
+  const loadData = async()=>{
 
-      setOffers(offerList);
-      setProducts(map);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const offerSnap = await getDocs(collection(db,"offers"));
+    const offerList = offerSnap.docs.map(d=>({
+      id:d.id,
+      ...d.data()
+    }));
 
-  return (
-    <div className="min-h-screen p-4 pb-20 bg-white text-black">
+    const productSnap = await getDocs(collection(db,"products"));
 
-      {/* 🔥 TITLE */}
-      <h1 className="text-2xl font-black mb-6 text-indigo-600">
-        🔥 Premium Offers
-      </h1>
+    const map:any = {};
+    productSnap.forEach(d=>{
+      map[d.id] = d.data();
+    });
 
-      {/* LOADING */}
-      {loading && (
-        <div className="flex gap-4 overflow-x-auto">
-          {[1,2,3].map(i => (
-            <div key={i} className="min-w-[220px] h-[300px] bg-gray-200 animate-pulse rounded-2xl"/>
-          ))}
-        </div>
-      )}
+    setOffers(offerList);
+    setProducts(map);
 
-      {/* OFFERS */}
-      <div className="flex gap-4 overflow-x-auto">
-        {!loading && offers.map((o) => {
-          const product = products[o.productId];
-          if (!product) return null;
+    setLoading(false);
+  };
 
-          return (
-            <OfferCard
-              key={o.id}
-              product={product}
-              offer={o}
-              router={router}
-            />
-          );
-        })}
-      </div>
+  return(
 
-    </div>
-  );
+    <div className="min-h-screen p-4 pb-20 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#020617]">
+
+      {/* 🔥 TITLE */}
+      <h1 className="text-3xl font-bold text-white mb-6">
+        🔥 Premium Offers
+      </h1>
+
+      {/* ================= SHIMMER ================= */}
+      {loading && (
+        <div className="flex gap-4 overflow-x-auto">
+          {[1,2,3].map(i=>(
+            <div key={i} className="min-w-[220px] h-[260px] bg-white/10 rounded-2xl animate-pulse"/>
+          ))}
+        </div>
+      )}
+
+      {/* ================= CAROUSEL ================= */}
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2">
+
+        {offers.map((o:any)=>{
+
+          const product = products[o.productId];
+          if(!product) return null;
+
+          return(
+            <OfferCard
+              key={o.id}
+              product={product}
+              offer={o}
+              router={router}
+            />
+          );
+        })}
+
+      </div>
+
+    </div>
+  );
 }
+
 
 /* ================= CARD ================= */
 
-function OfferCard({ product, offer, router }: any) {
+function OfferCard({ product, offer, router }:any){
 
-  const [timeLeft, setTimeLeft] = useState("");
-  const [expired, setExpired] = useState(false);
+  const [timeLeft,setTimeLeft] = useState("");
 
-  // 🔥 TIMER
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!offer.endDate) return;
+  useEffect(()=>{
 
-      const diff = new Date(offer.endDate).getTime() - Date.now();
+    const interval = setInterval(()=>{
 
-      if (diff <= 0) {
-        setExpired(true);
-        clearInterval(interval);
-        return;
-      }
+      if(!offer.endDate){
+        setTimeLeft("");
+        return;
+      }
 
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
+      const end = new Date(offer.endDate).getTime();
+      const now = Date.now();
 
-      setTimeLeft(`${h}h ${m}m ${s}s`);
-    }, 1000);
+      const diff = end - now;
 
-    return () => clearInterval(interval);
-  }, [offer]);
+      if(diff <= 0){
+        setTimeLeft("Expired");
+        return;
+      }
 
-  if (expired) return null;
+      const h = Math.floor(diff / (1000*60*60));
+      const m = Math.floor((diff % (1000*60*60))/(1000*60));
+      const s = Math.floor((diff % (1000*60))/1000);
 
-  // 🔥 PRICE CALCULATION
-  const originalPrice = Number(product.price || 0);
-  const discount = Number(offer.discount || 0);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
 
-  const finalPrice =
-    originalPrice - (originalPrice * discount) / 100;
+    },1000);
 
-  return (
-    <div
-      onClick={() =>
-        router.push(
-          `/product/${offer.productId}?price=${finalPrice}&offer=${discount}`
-        )
-      }
-      className="min-w-[220px] bg-gray-50 border rounded-2xl p-3 shadow-sm active:scale-95"
-    >
+    return ()=>clearInterval(interval);
 
-      {/* IMAGE */}
-      <div className="relative">
-        <img
-          src={product.image || "/no-image.png"}
-          className="w-full h-40 object-cover rounded-xl"
-        />
+  },[offer]);
 
-        {/* DISCOUNT */}
-        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-          {discount}% OFF
-        </div>
-      </div>
+  return(
 
-      {/* NAME */}
-      <p className="mt-2 font-bold text-sm">
-        {product.name}
-      </p>
+    <div
+      onClick={()=>router.push(`/product/${offer.productId}`)}
+      className="min-w-[220px] snap-center backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-3 shadow-xl cursor-pointer hover:scale-105 transition"
+    >
 
-      {/* PRICE */}
-      <div className="flex items-center gap-2 mt-1">
+      {/* IMAGE */}
+      <div className="relative">
 
-        {/* FINAL */}
-        <p className="text-green-600 font-bold text-lg">
-          ₹{finalPrice}
-        </p>
+        <img
+          src={product.image || "/no-image.png"}
+          className="w-full h-36 object-cover rounded-xl"
+        />
 
-        {/* ORIGINAL */}
-        <p className="text-gray-400 line-through text-sm">
-          ₹{originalPrice}
-        </p>
+        {/* DISCOUNT */}
+        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full shadow">
+          {offer.discount}% OFF
+        </div>
 
-      </div>
+      </div>
 
-      {/* SAVE */}
-      <p className="text-xs text-indigo-600 font-bold">
-        Save ₹{originalPrice - finalPrice}
-      </p>
+      {/* NAME */}
+      <p className="text-white text-sm font-semibold mt-2 line-clamp-2">
+        {product.name}
+      </p>
 
-      {/* TIMER */}
-      {timeLeft && (
-        <p className="text-xs mt-1 text-red-500">
-          ⏳ {timeLeft}
-        </p>
-      )}
+      {/* TIMER */}
+      {timeLeft && (
+        <p className="text-xs text-yellow-400 mt-1">
+          ⏳ {timeLeft}
+        </p>
+      )}
 
-      {/* BUTTON */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
+      {/* BUTTON */}
+      <button
+        onClick={(e)=>{
+          e.stopPropagation();
+          router.push(`/product/${offer.productId}`);
+        }}
+        className="mt-3 w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm py-2 rounded-xl shadow-lg"
+      >
+        Shop Now 🚀
+      </button>
 
-          router.push(
-            `/product/${offer.productId}?price=${finalPrice}&offer=${discount}`
-          );
-        }}
-        className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-xl"
-      >
-        Shop Now 🚀
-      </button>
-
-    </div>
-  );
-}
+    </div>
+  );
+} Agar isme problem hai to Sahi karke poora code likho background white 
