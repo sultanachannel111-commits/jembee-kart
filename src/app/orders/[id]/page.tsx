@@ -5,26 +5,22 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export default function OrderDetailsPage() {
-  const { id } = useParams();
+export default function TrackPage() {
+
+  const params = useParams();
+  const id = params?.id;
+
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
     if (!id) return;
 
-    // Fixed: Yahan 'id as string' bilkul nahi hona chahiye
-    const docRef = doc(db, "orders", id);
-    
-    const unsub = onSnapshot(docRef, (snap) => {
+    const unsub = onSnapshot(doc(db, "orders", id), (snap) => {
       if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() };
-        let total = 0;
-        if (data.items) {
-          data.items.forEach((item) => {
-            total += Number(item.price || 0) * (item.quantity || 1);
-          });
-        }
-        setOrder({ ...data, total });
+        setOrder({
+          id: snap.id,
+          ...snap.data()
+        });
       }
     });
 
@@ -33,118 +29,183 @@ export default function OrderDetailsPage() {
 
   if (!order) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#020617] text-white/50 font-bold uppercase italic animate-pulse">
-        Initialising Secure Link...
+      <div className="h-screen flex items-center justify-center font-bold">
+        Loading Order...
       </div>
     );
   }
 
-  const steps = ["Pending", "Confirmed", "Shipped", "Out for Delivery", "Delivered"];
-  const currentStep = steps.indexOf(order.status || "Pending");
-  const progress = (currentStep / (steps.length - 1)) * 100;
+  // 🔥 STATUS (Firestore matching)
+  const steps = [
+    "PENDING",
+    "CONFIRMED",
+    "SHIPPED",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED"
+  ];
+
+  const current = Math.max(steps.indexOf(order.status || "PENDING"), 0);
+
+  const progress =
+    current <= 0
+      ? 5
+      : current >= steps.length - 1
+      ? 100
+      : (current / (steps.length - 1)) * 100;
+
+  // 🎨 STEP COLOR
+  const getStepColor = (step, index) => {
+    if (index > current) return "text-gray-300";
+
+    switch (step) {
+      case "PENDING":
+        return "text-yellow-500";
+      case "CONFIRMED":
+        return "text-blue-500";
+      case "SHIPPED":
+        return "text-purple-500";
+      case "OUT_FOR_DELIVERY":
+        return "text-orange-500";
+      case "DELIVERED":
+        return "text-green-600";
+      default:
+        return "text-black";
+    }
+  };
+
+  // 🎨 BAR COLOR
+  const getBarColor = () => {
+    switch (steps[current]) {
+      case "PENDING":
+        return "bg-yellow-500";
+      case "CONFIRMED":
+        return "bg-blue-500";
+      case "SHIPPED":
+        return "bg-purple-500";
+      case "OUT_FOR_DELIVERY":
+        return "bg-orange-500";
+      case "DELIVERED":
+        return "bg-green-600";
+      default:
+        return "bg-black";
+    }
+  };
+
+  // 📅 DELIVERY DATE
+  let deliveryDate = "N/A";
+  if (order.createdAt?.toDate) {
+    const d = order.createdAt.toDate();
+    d.setDate(d.getDate() + 5);
+    deliveryDate = d.toDateString();
+  }
+
+  // 🔤 FORMAT TEXT
+  const formatStatus = (s) =>
+    s
+      ?.toLowerCase()
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 p-4 pb-12 overflow-hidden relative font-sans">
-      
-      {/* 🔮 Background Glow Effects */}
-      <div className="absolute top-0 -left-20 w-80 h-80 bg-blue-600/10 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-20 -right-20 w-80 h-80 bg-purple-600/10 blur-[120px] rounded-full"></div>
+    <div className="min-h-screen bg-slate-50 p-4 pb-10">
 
-      <div className="max-w-md mx-auto space-y-6 relative z-10">
-        
-        {/* 🏷️ Header Card */}
-        <div className="backdrop-blur-2xl bg-white/5 border border-white/10 p-6 rounded-[2.5rem] shadow-2xl">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-1">Package Tracker</p>
-              <h1 className="text-2xl font-black text-white italic tracking-tighter">ORDER ACTIVE</h1>
-            </div>
-            <div className="bg-white/5 p-2 rounded-2xl border border-white/5 uppercase text-[10px] font-bold">Jembee</div>
-          </div>
-          <p className="text-[9px] font-mono text-white/20 tracking-widest bg-black/40 p-2 rounded-lg inline-block uppercase">
-            UID: {order.id}
+      <div className="max-w-md mx-auto space-y-6">
+
+        {/* HEADER */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow text-center">
+          <h1 className="text-sm font-black uppercase text-gray-400 mb-2">
+            Track Order
+          </h1>
+
+          <p className="text-xs text-gray-300 mb-4">
+            ID: #{order.id.slice(0, 10)}
+          </p>
+
+          <p className="text-2xl font-black text-green-600">
+            ₹{order.total || 0}
           </p>
         </div>
 
-        {/* 💳 Price Morphism Card */}
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(37,99,235,0.3)]">
-          <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1 text-center">Final Settlement</p>
-          <p className="text-5xl font-black text-white text-center tracking-tighter italic">₹{order.total}</p>
-          <div className="mt-6 flex justify-center">
-            <div className="bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_#4ade80]"></span>
-              <span className="text-[9px] font-bold text-white uppercase tracking-tighter">Verified Order</span>
-            </div>
-          </div>
-        </div>
+        {/* ITEMS */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow">
+          <h2 className="text-xs font-black uppercase text-gray-400 mb-4">
+            Order Items
+          </h2>
 
-        {/* 🛤️ Tracking Timeline */}
-        <div className="backdrop-blur-2xl bg-white/5 border border-white/10 p-7 rounded-[2.5rem]">
-          <div className="relative mb-10 mt-4">
-            <div className="h-1 bg-white/5 rounded-full w-full"></div>
-            <div 
-              className="h-1 bg-gradient-to-r from-blue-500 to-cyan-400 absolute top-0 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(59,130,246,0.5)]" 
-              style={{ width: `${progress}%` }}
-            ></div>
-            <div 
-              className="absolute -top-3.5 w-8 h-8 bg-[#020617] border border-blue-500 rounded-full flex items-center justify-center text-xs shadow-xl transition-all duration-1000"
-              style={{ left: `calc(${progress}% - 16px)` }}
-            >
-              🚀
-            </div>
-          </div>
-          <div className="flex justify-between mt-4">
-            {steps.map((s, i) => (
-              <p key={i} className={`text-[7px] font-black uppercase tracking-tighter ${i <= currentStep ? 'text-white' : 'text-white/20'}`}>
-                {s}
-              </p>
-            ))}
-          </div>
-        </div>
-
-        {/* 📄 Items Summary */}
-        <div className="backdrop-blur-2xl bg-white/5 border border-white/10 p-6 rounded-[2.5rem]">
-          <h3 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Cart Manifest</h3>
           <div className="space-y-4">
-            {order.items?.map((item, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 font-black text-xs text-blue-400">
-                    {item.quantity || 1}
+            {order.items?.map((item, i) => {
+              const qty = item.qty || item.quantity || 1;
+
+              return (
+                <div key={i} className="flex gap-4 items-center">
+                  <img
+                    src={item.image || "/placeholder.png"}
+                    className="w-16 h-16 rounded-xl object-cover"
+                  />
+
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">{item.name}</p>
+                    <p className="text-xs text-gray-400">Qty: {qty}</p>
                   </div>
-                  <span className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</span>
+
+                  <p className="font-bold">₹{item.price * qty}</p>
                 </div>
-                <span className="text-xs font-black text-white italic">₹{Number(item.price || 0) * (item.quantity || 1)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* 🛡️ Secure Badge (Morphism Style) */}
-        <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex items-center gap-5">
-           <div className="w-14 h-14 bg-gradient-to-tr from-green-500/20 to-emerald-500/20 rounded-2xl flex items-center justify-center text-2xl border border-green-500/20">
-             🔐
-           </div>
-           <div className="text-left">
-             <h4 className="text-[11px] font-black text-white uppercase italic tracking-tighter">Secure Logistics</h4>
-             <p className="text-[9px] text-white/40 leading-relaxed mt-0.5">Aapka order fully insured hai. Delivery partner ka wait karein.</p>
-           </div>
+        {/* 🚚 TRACKING */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow">
+
+          <p className="text-sm font-bold mb-2">
+            {formatStatus(order.status || "PENDING")}
+          </p>
+
+          <p className="text-xs text-gray-400 mb-4">
+            Delivery by: {deliveryDate}
+          </p>
+
+          {/* BAR */}
+          <div className="h-3 bg-gray-200 rounded-full mb-4">
+            <div
+              className={`h-3 rounded-full transition-all duration-700 ${getBarColor()}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* STEPS */}
+          <div className="grid grid-cols-5 text-[10px] text-center">
+            {steps.map((s, i) => (
+              <span key={i} className={`font-bold ${getStepColor(s, i)}`}>
+                {formatStatus(s)}
+              </span>
+            ))}
+          </div>
+
         </div>
 
-        {/* 📲 Action Buttons */}
-        <div className="space-y-3">
-          <a 
-            href={`https://wa.me/917061369212?text=Hello Jembee, I need help with Order ID: ${order.id}`}
-            target="_blank"
-            className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
-          >
-            Contact Support 📲
-          </a>
-        </div>
+        {/* BILL */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow space-y-2">
 
-        <p className="text-center text-[9px] font-black text-white/10 uppercase tracking-[0.5em] pt-4">
-          Verified by Jembee Cloud
-        </p>
+          <div className="flex justify-between text-xs">
+            <span>Subtotal</span>
+            <span>
+              ₹{order.total ? order.total - (order.shipping || 0) : 0}
+            </span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span>Shipping</span>
+            <span>₹{order.shipping || 0}</span>
+          </div>
+
+          <div className="flex justify-between font-bold pt-2 border-t">
+            <span>Total</span>
+            <span>₹{order.total}</span>
+          </div>
+
+        </div>
 
       </div>
     </div>
