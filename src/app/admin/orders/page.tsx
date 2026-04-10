@@ -21,11 +21,9 @@ export default function AdminOrdersPage() {
   const [tab, setTab] = useState("All");
 
   /* ========================
-     REALTIME FETCH (🔥 Best for Business)
+     REALTIME FETCH
   ========================= */
   useEffect(() => {
-    // onSnapshot use karne se page refresh nahi karna padega, 
-    // naya order aate hi apne aap list mein aa jayega.
     const q = query(
       collection(db, "orders"),
       orderBy("createdAt", "desc")
@@ -45,7 +43,7 @@ export default function AdminOrdersPage() {
   }, []);
 
   /* ========================
-     SEND TO QIKINK (Manual Trigger)
+     SEND TO QIKINK
   ========================= */
   const sendToQikink = async (orderId: string) => {
     try {
@@ -59,7 +57,7 @@ export default function AdminOrdersPage() {
 
       if (data.success) {
         await updateDoc(doc(db, "orders", orderId), {
-          orderStatus: "Processing", // Aapka backend status
+          orderStatus: "Processing",
           updatedAt: new Date()
         });
         toast.success("Sent to Qikink 🚀");
@@ -125,7 +123,7 @@ export default function AdminOrdersPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {/* TABS FOR STATUS */}
+        {/* TABS */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
           {["All", "PLACED", "Processing", "Shipped", "Delivered"].map(t => (
             <button
@@ -189,7 +187,7 @@ export default function AdminOrdersPage() {
                   </div>
                 </div>
 
-                {/* ACTION BUTTONS */}
+                {/* ACTION BUTTONS (Sahi kiya hua section) */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-50">
                   <button
                     onClick={() => sendToQikink(order.id)}
@@ -206,7 +204,7 @@ export default function AdminOrdersPage() {
                   <button
                     onClick={() => updateStatus(order.id, "Delivered")}
                     className="bg-green-600 text-white px-5 py-2 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-green-700 active:scale-95 transition-all"
-                  )
+                  >
                     Mark Delivered
                   </button>
                 </div>
