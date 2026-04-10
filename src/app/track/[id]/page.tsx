@@ -32,19 +32,16 @@ export default function TrackPage() {
   useEffect(() => {
     if (!id) return;
 
-    const unsub = onSnapshot(
-      doc(db, "orders", id),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as Omit<OrderType, "id">;
+    const unsub = onSnapshot(doc(db, "orders", id), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as Omit<OrderType, "id">;
 
-          setOrder({
-            id: snap.id,
-            ...data
-          });
-        }
+        setOrder({
+          id: snap.id,
+          ...data
+        });
       }
-    );
+    });
 
     return () => unsub();
   }, [id]);
@@ -57,9 +54,19 @@ export default function TrackPage() {
     );
   }
 
-  // 🔥 STATUS
-  const steps = ["Pending", "Placed", "Shipped", "Out for Delivery", "Delivered"];
-  const current = steps.indexOf(order.status || "Pending");
+  // 🔥 FIXED STATUS (IMPORTANT)
+  const steps = [
+    "PENDING",
+    "CONFIRMED",
+    "SHIPPED",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED"
+  ];
+
+  const current = Math.max(
+    steps.indexOf((order.status || "PENDING").toUpperCase()),
+    0
+  );
 
   const progress =
     current <= 0
@@ -68,6 +75,31 @@ export default function TrackPage() {
       ? 100
       : (current / (steps.length - 1)) * 100;
 
+  // 🎨 COLOR FIX
+  const getColor = (step: string, i: number) => {
+    if (i > current) return "text-gray-300";
+
+    if (step === "PENDING") return "text-yellow-500";
+    if (step === "CONFIRMED") return "text-blue-500";
+    if (step === "SHIPPED") return "text-purple-500";
+    if (step === "OUT_FOR_DELIVERY") return "text-orange-500";
+    if (step === "DELIVERED") return "text-green-600";
+
+    return "text-black";
+  };
+
+  const getBarColor = () => {
+    const s = steps[current];
+
+    if (s === "PENDING") return "bg-yellow-500";
+    if (s === "CONFIRMED") return "bg-blue-500";
+    if (s === "SHIPPED") return "bg-purple-500";
+    if (s === "OUT_FOR_DELIVERY") return "bg-orange-500";
+    if (s === "DELIVERED") return "bg-green-600";
+
+    return "bg-black";
+  };
+
   // 📅 DELIVERY DATE
   let deliveryDate = "N/A";
   if (order.createdAt?.toDate) {
@@ -75,6 +107,13 @@ export default function TrackPage() {
     d.setDate(d.getDate() + 5);
     deliveryDate = d.toDateString();
   }
+
+  // 🔤 FORMAT STATUS
+  const formatStatus = (s?: string) =>
+    s
+      ?.toLowerCase()
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 pb-10">
@@ -114,17 +153,11 @@ export default function TrackPage() {
                   />
 
                   <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Qty: {qty}
-                    </p>
+                    <p className="font-bold text-sm">{item.name}</p>
+                    <p className="text-xs text-gray-400">Qty: {qty}</p>
                   </div>
 
-                  <p className="font-bold">
-                    ₹{item.price * qty}
-                  </p>
+                  <p className="font-bold">₹{item.price * qty}</p>
                 </div>
               );
             })}
@@ -135,27 +168,26 @@ export default function TrackPage() {
         <div className="bg-white p-6 rounded-[2.5rem] shadow">
 
           <p className="text-sm font-bold mb-2">
-            {order.status || "Pending"}
+            {formatStatus(order.status || "PENDING")}
           </p>
 
           <p className="text-xs text-gray-400 mb-4">
             Delivery by: {deliveryDate}
           </p>
 
+          {/* BAR */}
           <div className="h-3 bg-gray-200 rounded-full mb-4">
             <div
-              className="h-3 bg-black rounded-full"
+              className={`h-3 rounded-full transition-all duration-700 ${getBarColor()}`}
               style={{ width: `${progress}%` }}
             />
           </div>
 
-          <div className="grid grid-cols-5 text-[10px]">
+          {/* STEPS */}
+          <div className="grid grid-cols-5 text-[10px] text-center">
             {steps.map((s, i) => (
-              <span
-                key={i}
-                className={i <= current ? "text-black font-bold" : "text-gray-300"}
-              >
-                {s}
+              <span key={i} className={`font-bold ${getColor(s, i)}`}>
+                {formatStatus(s)}
               </span>
             ))}
           </div>
