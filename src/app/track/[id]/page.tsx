@@ -5,25 +5,59 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
+type OrderItem = {
+  name: string;
+  image?: string;
+  price: number;
+  qty?: number;
+  quantity?: number;
+};
+
+type OrderType = {
+  id: string;
+  status?: string;
+  total?: number;
+  shipping?: number;
+  items?: OrderItem[];
+  createdAt?: any;
+};
+
 export default function TrackPage() {
-  const { id } = useParams();
-  const [order, setOrder] = useState<any>(null);
+
+  const params = useParams();
+  const id = params?.id as string;
+
+  const [order, setOrder] = useState<OrderType | null>(null);
 
   useEffect(() => {
     if (!id) return;
 
-    const unsub = onSnapshot(doc(db, "orders", id as string), (snap) => {
-      if (snap.exists()) {
-        setOrder({ id: snap.id, ...snap.data() });
+    const unsub = onSnapshot(
+      doc(db, "orders", id),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as Omit<OrderType, "id">;
+
+          setOrder({
+            id: snap.id,
+            ...data
+          });
+        }
       }
-    });
+    );
 
     return () => unsub();
   }, [id]);
 
-  if (!order) return <div className="h-screen flex items-center justify-center font-bold">Loading Order...</div>;
+  if (!order) {
+    return (
+      <div className="h-screen flex items-center justify-center font-bold">
+        Loading Order...
+      </div>
+    );
+  }
 
-  // 🔥 STATUS STEPS
+  // 🔥 STATUS
   const steps = ["Pending", "Placed", "Shipped", "Out for Delivery", "Delivered"];
   const current = steps.indexOf(order.status || "Pending");
 
@@ -34,7 +68,7 @@ export default function TrackPage() {
       ? 100
       : (current / (steps.length - 1)) * 100;
 
-  // 🚚 DELIVERY DATE
+  // 📅 DELIVERY DATE
   let deliveryDate = "N/A";
   if (order.createdAt?.toDate) {
     const d = order.createdAt.toDate();
@@ -43,92 +77,112 @@ export default function TrackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 pb-10 font-sans">
+    <div className="min-h-screen bg-slate-50 p-4 pb-10">
+
       <div className="max-w-md mx-auto space-y-6">
-        
+
         {/* HEADER */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 text-center">
-          <h1 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-2">Track Order</h1>
-          <p className="text-xs font-mono text-gray-300 mb-4">ID: #{order.id.slice(0, 10)}</p>
-          <div className="bg-green-50 inline-block px-4 py-2 rounded-full">
-            <p className="text-2xl font-black text-green-600">₹{order.total || 0}</p>
-          </div>
+        <div className="bg-white p-6 rounded-[2.5rem] shadow text-center">
+          <h1 className="text-sm font-black uppercase text-gray-400 mb-2">
+            Track Order
+          </h1>
+
+          <p className="text-xs text-gray-300 mb-4">
+            ID: #{order.id.slice(0, 10)}
+          </p>
+
+          <p className="text-2xl font-black text-green-600">
+            ₹{order.total || 0}
+          </p>
         </div>
 
-        {/* 🛒 ITEMS LIST */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Order Items</h2>
+        {/* ITEMS */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow">
+          <h2 className="text-xs font-black uppercase text-gray-400 mb-4">
+            Order Items
+          </h2>
+
           <div className="space-y-4">
-            {order.items?.map((item: any, i: number) => (
-              <div key={i} className="flex items-center gap-4">
-                <img
-                  src={item.image || "/placeholder.png"}
-                  className="w-16 h-16 rounded-2xl object-cover border border-gray-50"
-                  alt={item.name}
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-800 uppercase leading-tight">{item.name}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Quantity: {item.qty}</p>
+            {order.items?.map((item, i) => {
+              const qty = item.qty || item.quantity || 1;
+
+              return (
+                <div key={i} className="flex gap-4 items-center">
+                  <img
+                    src={item.image || "/placeholder.png"}
+                    className="w-16 h-16 rounded-xl object-cover"
+                  />
+
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Qty: {qty}
+                    </p>
+                  </div>
+
+                  <p className="font-bold">
+                    ₹{item.price * qty}
+                  </p>
                 </div>
-                <p className="font-bold text-slate-800 text-sm">₹{item.price * item.qty}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* 🚚 MODERN TRACKING BAR */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-          <div className="flex justify-between items-end mb-6">
-            <div>
-              <p className="text-[10px] font-black uppercase text-gray-400">Current Status</p>
-              <p className="text-lg font-black text-slate-800 uppercase italic tracking-tighter">
-                {order.status || "Pending"}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase text-gray-400">Expected By</p>
-              <p className="text-xs font-bold text-slate-600 uppercase">{deliveryDate}</p>
-            </div>
-          </div>
+        {/* TRACK BAR */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow">
 
-          <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-6">
+          <p className="text-sm font-bold mb-2">
+            {order.status || "Pending"}
+          </p>
+
+          <p className="text-xs text-gray-400 mb-4">
+            Delivery by: {deliveryDate}
+          </p>
+
+          <div className="h-3 bg-gray-200 rounded-full mb-4">
             <div
-              className="h-full bg-black transition-all duration-1000 ease-out rounded-full"
+              className="h-3 bg-black rounded-full"
               style={{ width: `${progress}%` }}
             />
           </div>
 
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-5 text-[10px]">
             {steps.map((s, i) => (
-              <div key={i} className="text-center">
-                <div className={`h-1 mb-2 rounded-full ${i <= current ? 'bg-black' : 'bg-gray-200'}`} />
-                <p className={`text-[8px] font-black uppercase tracking-tighter ${i <= current ? 'text-black' : 'text-gray-300'}`}>
-                  {s}
-                </p>
-              </div>
+              <span
+                key={i}
+                className={i <= current ? "text-black font-bold" : "text-gray-300"}
+              >
+                {s}
+              </span>
             ))}
           </div>
+
         </div>
 
-        {/* 💰 BILLING BREAKDOWN */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-3">
-          <div className="flex justify-between text-xs font-bold uppercase text-gray-400">
-            <span>Items Subtotal</span>
-            <span>₹{order.itemsTotal || (order.total - (order.shipping || 0))}</span>
+        {/* BILL */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow space-y-2">
+
+          <div className="flex justify-between text-xs">
+            <span>Subtotal</span>
+            <span>
+              ₹{order.total ? order.total - (order.shipping || 0) : 0}
+            </span>
           </div>
-          <div className="flex justify-between text-xs font-bold uppercase text-gray-400">
-            <span>Shipping Fee</span>
+
+          <div className="flex justify-between text-xs">
+            <span>Shipping</span>
             <span>₹{order.shipping || 0}</span>
           </div>
-          <div className="pt-3 border-t border-dashed flex justify-between items-center">
-            <span className="text-sm font-black uppercase">Grand Total</span>
-            <span className="text-lg font-black text-black">₹{order.total}</span>
-          </div>
-        </div>
 
-        <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-          Thank you for shopping with Jembee
-        </p>
+          <div className="flex justify-between font-bold pt-2 border-t">
+            <span>Total</span>
+            <span>₹{order.total}</span>
+          </div>
+
+        </div>
 
       </div>
     </div>
