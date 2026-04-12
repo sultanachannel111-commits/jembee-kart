@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // GitHub Actions build ke liye 'export' mode
+  // GitHub Actions (APK) ke liye export mode, Vercel ke liye standard mode
   output: process.env.GITHUB_ACTIONS ? 'export' : undefined,
   
   trailingSlash: true, 
