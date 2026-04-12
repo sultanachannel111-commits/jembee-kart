@@ -19,14 +19,17 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Extreme Pre-Build Cleanup
+      - name: Manual Folder Cleanup
         run: |
-          # Sabhi problematic dynamic routes aur API folders ko delete karna
-          rm -rf src/app/api || true
+          # Sabhi problematic folders ko ek saath delete karna
+          rm -rf src/app/api \
+                 src/app/category \
+                 src/app/orders \
+                 src/app/order-success \
+                 src/app/product \
+                 src/app/payment || true
           
-          # Saare folders jinke naam mein brackets [] hain, unhe dhoond kar hatana
-          find src/app -type d -name "*[*]*" -exec rm -rf {} + || true
-          
+          # Next.js Static Export Config
           echo "/** @type {import('next').NextConfig} */
           const nextConfig = { 
             output: 'export',
@@ -56,10 +59,10 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar aur Title hatane ka native patch
+          # Address Bar hide karne ke liye styles patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Duplicate class conflict fix
+          # Gradle Conflict Fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
