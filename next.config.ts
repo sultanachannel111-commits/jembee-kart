@@ -1,23 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* Humne 'output: export' hata diya hai kyunki aapko APK nahi chahiye.
-     Ab Middleware aur saare Server-side functions Vercel par sahi chalenge.
-  */
-  
-  trailingSlash: true, // URLs ko clean rakhta hai (e.g., /seller/login/)
-
+  trailingSlash: true,
   images: {
-    unoptimized: true, // Images ko fast load karne ke liye
+    unoptimized: true,
   },
-
   typescript: {
-    ignoreBuildErrors: true, // Agar minor typing errors hain toh build nahi rukegi
+    ignoreBuildErrors: true,
   },
-
   eslint: {
-    ignoreDuringBuilds: true, // Build ke waqt linting errors ko ignore karega
+    ignoreDuringBuilds: true,
   },
 };
 
 export default nextConfig;
+
