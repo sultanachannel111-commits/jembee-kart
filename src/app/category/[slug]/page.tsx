@@ -6,20 +6,9 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 
-// ✅ REQUIRED for static export (APK build)
-export async function generateStaticParams() {
-  return [
-    { slug: "tshirt" },
-    { slug: "shoes" },
-    { slug: "mobile" },
-    { slug: "watch" },
-  ];
-}
-
 export default function CategoryPage() {
   const params = useParams();
-  const slug =
-    typeof params?.slug === "string" ? params.slug : "";
+  const slug = typeof params?.slug === "string" ? params.slug : "";
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +28,9 @@ export default function CategoryPage() {
           ...doc.data(),
         }));
 
-        // 🔥 FILTER BASED ON PRODUCT NAME (same logic)
-        const filtered = data.filter((product: any) =>
-          product?.name
+        // 🔥 FILTER BASED ON PRODUCT NAME
+        const filtered = data.filter((product) =>
+          product.name
             ?.toLowerCase()
             .includes(slug.toLowerCase())
         );
@@ -67,6 +56,7 @@ export default function CategoryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-6 pt-[90px]">
+
       <h1 className="text-4xl font-extrabold mb-8 capitalize bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
         {slug}
       </h1>
@@ -77,14 +67,14 @@ export default function CategoryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-6">
-          {products.map((product: any) => (
+          {products.map((product) => (
             <Link
               key={product.id}
               href={`/product/${product.id}`}
               className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition"
             >
               <img
-                src={product.image || "/placeholder.png"}
+                src={product.image}
                 alt={product.name}
                 className="w-full h-48 object-cover"
               />
