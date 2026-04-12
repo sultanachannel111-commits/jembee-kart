@@ -21,9 +21,9 @@ jobs:
 
       - name: Pre-Build Cleanup
         run: |
-          # Jo files build rok rahi hain unhe temporarily delete karna
+          # Saare dynamic routes aur API folders ko delete karna taaki build fail na ho
+          find src/app -type d -name "*[*]*" -exec rm -rf {} + || true
           rm -rf src/app/api || true
-          rm -rf "src/app/category/[slug]" || true
           
           echo "/** @type {import('next').NextConfig} */
           const nextConfig = { 
@@ -57,7 +57,7 @@ jobs:
           # Address Bar aur Title hatane ka patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Duplicate class fix
+          # Duplicate class conflict fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
