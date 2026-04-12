@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
-const isExport = process.env.GITHUB_ACTIONS === "true";
-
+// Sirf tab export karein jab aapko sach mein static files chahiye
+// Lekin yaad rahe, isse Middleware band ho jayega
 const nextConfig: NextConfig = {
-  output: isExport ? "export" : undefined,
+  // output: "export", // Ise comment kar dein agar Vercel use kar rahi hain
   trailingSlash: true,
   images: {
     unoptimized: true,
