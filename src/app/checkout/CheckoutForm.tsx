@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
@@ -26,7 +26,7 @@ export default function CheckoutPage() {
       if (!u) return router.push("/login");
       setUser(u);
 
-      // 1. Load Items (Buy Now or Cart)
+      // 1. Items Loading Logic
       const buyNow = localStorage.getItem("buy-now");
       if (buyNow) {
         const parsed = JSON.parse(buyNow);
@@ -45,30 +45,29 @@ export default function CheckoutPage() {
           const data: any[] = [];
           snap.forEach(docSnap => {
             const d = docSnap.data();
-            data.push({
-              id: docSnap.id,
-              productId: d.productId,
-              name: d.name,
-              image: d.image,
-              price: Number(d.price),
-              basePrice: Number(d.basePrice || d.price),
-              qty: Number(d.quantity) || 1
-            });
+            data.push({ id: docSnap.id, ...d, price: Number(d.price), qty: Number(d.quantity) || 1 });
           });
           setItems(data);
         });
       }
 
-      // 2. Real-time Address Sync (Takki Profile me change ho to yahan dikhe)
+      // 2. REAL-TIME ADDRESS SYNC (Fix: Added immediate fetch + snapshot)
       const addrRef = collection(db, "users", u.uid, "addresses");
+      
+      // Initial Immediate Load
+      const initialAddr = await getDocs(addrRef);
+      const initialAll: any[] = [];
+      initialAddr.forEach(d => initialAll.push({ id: d.id, ...d.data() }));
+      setAddress(initialAll.find(a => a.isDefault) || initialAll[0] || null);
+
+      // Live Listener for profile updates
       unsubscribeAddr = onSnapshot(addrRef, (snap) => {
         const all: any[] = [];
         snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-        const defaultAddr = all.find(a => a.isDefault) || all[0] || null;
-        setAddress(defaultAddr);
+        setAddress(all.find(a => a.isDefault) || all[0] || null);
       });
 
-      // 3. Load Shipping Config
+      // 3. Shipping Config
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
       if (shipSnap.exists()) setShippingConfig(shipSnap.data() as any);
     });
@@ -92,10 +91,10 @@ export default function CheckoutPage() {
 
   const grandTotal = itemsTotal + shippingCharge;
 
-  // 🔔 PROFESSIONAL WHATSAPP NOTIFICATION
-  const sendAdminNotification = (orderId: string, type: string) => {
+  // 🔔 SYNCED WHATSAPP NOTIFICATION
+  const sendAdminNotification = async (orderId: string, type: string) => {
     const adminMobile = "917061369212";
-    const msg = 
+    const message = 
 `📦 *NEW ORDER CONFIRMED* 📦
 ---------------------------
 🆔 *Order ID:* #${orderId.slice(-8).toUpperCase()}
@@ -106,15 +105,16 @@ export default function CheckoutPage() {
 
 📍 *Address:* ${address.address}, ${address.city} (${address.pincode})
 
-🚀 _Please process this in the Admin Panel._
+🚀 _Dashboard check karein!_
 *JembeeKart Notification*`;
 
-    const waUrl = `https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`;
+    // WhatsApp open hone se pehle 100ms ka wait taaki system hang na ho
+    const waUrl = `https://wa.me/${adminMobile}?text=${encodeURIComponent(message)}`;
     window.open(waUrl, "_blank");
   };
 
   const handlePayment = async () => {
-    if (!address) return alert("Please select/add a delivery address!");
+    if (!address) return alert("Please add an address in your profile first!");
     setLoading(true);
     
     try {
@@ -142,15 +142,14 @@ export default function CheckoutPage() {
         const data = await res.json();
         
         if (data.success) {
-          // ✅ WhatsApp tabhi jayega jab response SUCCESS aayega
-          sendAdminNotification(data.orderId, "COD");
+          // ✅ WhatsApp only AFTER DB success
+          await sendAdminNotification(data.orderId, "COD");
           localStorage.removeItem("buy-now");
           router.replace(`/order-success/${data.orderId}`);
         } else {
-          alert("Order placement failed. Try again.");
+          alert("Order failed. Please try again.");
         }
       } else {
-        // ONLINE PAYMENT
         const res = await fetch("/api/cashfree/create-order", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
@@ -159,14 +158,14 @@ export default function CheckoutPage() {
         const data = await res.json();
         const cashfree = await load({ mode: "production" });
         
-        // Online order case: Alert triggers before opening checkout
-        sendAdminNotification(data.cf_order_id || "ONLINE_INIT", "ONLINE");
+        // Online alert triggers before redirect
+        await sendAdminNotification(data.cf_order_id || "ONLINE", "ONLINE");
         
         await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
         localStorage.removeItem("buy-now");
       }
     } catch (e) { 
-      alert("Payment/Order Process Failed!"); 
+      alert("Something went wrong!"); 
     } finally {
       setLoading(false);
     }
@@ -180,19 +179,22 @@ export default function CheckoutPage() {
 
       <div className="max-w-md mx-auto px-4 -mt-6 space-y-4">
         
-        {/* ADDRESS: Is par click karne se user profile me edit kar sakega */}
+        {/* ADDRESS SECTION - Fixed Sync */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deliver to</span>
-            <button onClick={() => router.push("/profile")} className="text-blue-600 text-[10px] font-black uppercase underline">Edit / Change</button>
+            <button onClick={() => router.push("/profile")} className="text-blue-600 text-[10px] font-black uppercase underline">Change</button>
           </div>
           {address ? (
-            <div className="space-y-1">
+            <div className="space-y-1 animate-in fade-in duration-500">
               <p className="font-bold text-slate-800 text-sm">{address.name} <span className="opacity-30">|</span> {address.phone}</p>
               <p className="text-xs text-slate-500 leading-relaxed">{address.address}, {address.city} - {address.pincode}</p>
             </div>
           ) : (
-            <button onClick={() => router.push("/profile")} className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 text-xs font-bold">+ Add Address in Profile</button>
+            <div className="py-4 text-center">
+               <p className="text-xs text-slate-400 mb-2">No address found</p>
+               <button onClick={() => router.push("/profile")} className="text-[10px] font-black text-blue-600 uppercase border-b border-blue-600">Add Address in Profile</button>
+            </div>
           )}
         </div>
 
@@ -246,7 +248,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* TRUST BADGES */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 pb-10">
           <div className="bg-green-50/50 p-3 rounded-2xl flex items-center gap-2 border border-green-100">
             <ShieldCheck className="text-green-600" size={14} />
             <span className="text-[9px] font-black text-green-700 uppercase">Secure Payment</span>
@@ -258,7 +260,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* FIXED FOOTER */}
+      {/* FOOTER */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t p-5 flex items-center justify-between z-50">
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payable</span>
