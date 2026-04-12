@@ -19,19 +19,24 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Force Static Patch)
+      - name: Build Next.js (Logic Preservation)
         run: |
-          # API folder delete karein kyunki APK mein server nahi chalta
+          # 1. API folder delete karein (APK mein server nahi chalta)
           rm -rf src/app/api || true
           
-          # Sabhi page.tsx/jsx files mein dynamic settings inject karein
-          # Pehle check karein agar "use client" hai, toh uske niche add karein
-          find src/app -type f \( -name "page.tsx" -o -name "page.jsx" \) -exec sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' {} + || true
+          # 2. HAR PAGE KO PATCH KAREIN (Brackets [] handle karne ke liye)
+          # Ye script dhundega ki page "use client" hai ya nahi, aur uske hisaab se sahi jagah flag add karega.
+          find src/app -name "page.tsx" -o -name "page.jsx" | while read file; do
+            if grep -q '"use client"' "$file"; then
+              # Agar file ke top par "use client" hai
+              sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
+            else
+              # Agar normal page hai, toh sabse pehli line par add karein
+              sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
+            fi
+          done
           
-          # Phir un files mein top par add karein jahan "use client" nahi hai
-          find src/app -type f \( -name "page.tsx" -o -name "page.jsx" \) -exec grep -L "force-dynamic" {} + | xargs -I {} sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' {} || true
-          
-          # Next build chalaein
+          # 3. Next.js Build (Static Export)
           npx next build
         env:
           GITHUB_ACTIONS: true
@@ -51,10 +56,10 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # UI: Title bar hide karein
+          # UI: APK se status/title bar hide karein
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Kotlin duplicate class fix
+          # Android Build fixes (Kotlin Conflicts)
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -75,5 +80,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Final-App
+          name: Jembee-Full-Logic-App
           path: android/app/build/outputs/apk/debug/app-debug.apk
