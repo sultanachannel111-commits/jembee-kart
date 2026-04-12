@@ -19,15 +19,13 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Manual Folder Cleanup
+      - name: Master Cleanup
         run: |
-          # Sabhi problematic folders ko ek saath delete karna
-          rm -rf src/app/api \
-                 src/app/category \
-                 src/app/orders \
-                 src/app/order-success \
-                 src/app/product \
-                 src/app/payment || true
+          # Sabhi problematic API aur dynamic bracket folders ko delete karna
+          rm -rf src/app/api || true
+          
+          # Ye command kisi bhi folder ko delete kar degi jiske naam mein [ ya ] hai
+          find src -type d -name "*[*]*" -exec rm -rf {} + || true
           
           # Next.js Static Export Config
           echo "/** @type {import('next').NextConfig} */
@@ -59,10 +57,10 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar hide karne ke liye styles patch
+          # Address Bar aur Link hatane ka patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Gradle Conflict Fix
+          # Gradle conflict fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
