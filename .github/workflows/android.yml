@@ -2,7 +2,7 @@ name: Build Jembee APK
 
 on:
   push:
-    branches: [ main ] # Jab aap main branch par push karenge tab ye chalega
+    branches: [ main ]
 
 jobs:
   build:
@@ -15,11 +15,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Next.js Project
         run: npm run build
@@ -33,18 +33,27 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install & Sync Capacitor
+      - name: Initialize and Sync Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
+          # Agar capacitor.config.json nahi hai toh create karega
+          if [ ! -f "capacitor.config.json" ]; then
+            npx cap init Jembee com.jembee.app --web-dir out
+          fi
+          # Agar android folder nahi hai toh add karega
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
       - name: Build Debug APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Store-Debug-APK
+          name: Jembee-Store-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
