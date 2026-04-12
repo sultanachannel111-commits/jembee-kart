@@ -23,21 +23,20 @@ jobs:
 
       - name: Build Next.js Project
         run: npm run build
-        continue-on-error: true # API routes errors ko bypass karne ke liye
+        continue-on-error: true
 
       - name: Fix Out Directory
         run: |
-          # Agar build ne 'out' folder nahi banaya toh manually banayenge
           if [ ! -d "out" ]; then
             mkdir -p out
             echo "<html><head><script>window.location.href='https://jembee-kart.vercel.app'</script></head><body>Redirecting to App...</body></html>" > out/index.html
           fi
 
-      - name: Setup Java
+      - name: Setup Java 21 # Yahan humne Java version 17 se 21 kar diya hai
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -45,11 +44,9 @@ jobs:
       - name: Initialize and Sync Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          # Capacitor config initialize
           if [ ! -f "capacitor.config.json" ]; then
             npx cap init Jembee com.jembee.app --web-dir out
           fi
-          # Android platform add
           if [ ! -d "android" ]; then
             npx cap add android
           fi
