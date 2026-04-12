@@ -19,34 +19,20 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (with Nuclear Cleanup)
+      - name: Build Next.js (Smart Logic Preservation)
         run: |
-          # 1. Sabhi dynamic folders aur API ko delete karna jo build rokte hain
+          # 1. API folder ko delete karein (Kyunki APK mein server-side API nahi chalti)
           rm -rf src/app/api || true
-          rm -rf src/app/category || true
-          rm -rf src/app/product || true
-          rm -rf src/app/orders || true
-          rm -rf src/app/payment || true
-          rm -rf src/app/store || true
-          rm -rf src/app/track || true
-          rm -rf src/app/wish || true
-          rm -rf src/app/order-success || true
           
-          # 2. Kisi bhi bache huye [bracket] folder ko deeply dhoond kar delete karna
-          find src/app -name "*[*]*" -exec rm -rf {} + || true
+          # 2. SMART PATCH: Har page.tsx ke upar dynamic flags add karna
+          # Isse folders delete nahi honge, Next.js build ke waqt in pages ko skip karega
+          # Taaki aapka product aur logic APK mein maujood rahe.
+          find src/app -name "page.tsx" -o -name "page.jsx" | xargs sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
           
-          # 3. Next.js Build command chalana
+          # 3. Next.js Build
           npx next build
         env:
           GITHUB_ACTIONS: true
-
-      - name: Prepare Out Folder
-        run: |
-          # Ensure out directory exists for Capacitor even if export is minimal
-          if [ ! -d "out" ]; then
-            mkdir -p out
-            echo "<html><body>Jembee App Ready</body></html>" > out/index.html
-          fi
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -61,11 +47,11 @@ jobs:
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           
-          # Capacitor initialize aur Android platform add karna
+          # Capacitor init aur Android add
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # UI improvements: Address bar aur Title hide karna
+          # UI Improvement: Address bar hide karne ka native patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
           # Kotlin duplicate class conflict fix
@@ -80,7 +66,7 @@ jobs:
           
           npx cap sync android
 
-      - name: Build Final Debug APK
+      - name: Build Final APK
         run: |
           cd android
           chmod +x gradlew
@@ -89,5 +75,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Native-APK
+          name: Jembee-Full-Logic-App
           path: android/app/build/outputs/apk/debug/app-debug.apk
