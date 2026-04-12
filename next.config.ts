@@ -1,18 +1,22 @@
 import type { NextConfig } from "next";
 
-// Sirf tab export karein jab aapko sach mein static files chahiye
-// Lekin yaad rahe, isse Middleware band ho jayega
 const nextConfig: NextConfig = {
-  // output: "export", // Ise comment kar dein agar Vercel use kar rahi hain
-  trailingSlash: true,
+  /* Humne 'output: export' hata diya hai kyunki aapko APK nahi chahiye.
+     Ab Middleware aur saare Server-side functions Vercel par sahi chalenge.
+  */
+  
+  trailingSlash: true, // URLs ko clean rakhta hai (e.g., /seller/login/)
+
   images: {
-    unoptimized: true,
+    unoptimized: true, // Images ko fast load karne ke liye
   },
+
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // Agar minor typing errors hain toh build nahi rukegi
   },
+
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // Build ke waqt linting errors ko ignore karega
   },
 };
 
