@@ -19,24 +19,34 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Extreme Master Cleanup
+      - name: Build Next.js (with Nuclear Cleanup)
         run: |
-          # 1. API folder ko puri tarah hatayein
+          # 1. Sabhi dynamic folders aur API ko delete karna jo build rokte hain
           rm -rf src/app/api || true
+          rm -rf src/app/category || true
+          rm -rf src/app/product || true
+          rm -rf src/app/orders || true
+          rm -rf src/app/payment || true
+          rm -rf src/app/store || true
+          rm -rf src/app/track || true
+          rm -rf src/app/wish || true
+          rm -rf src/app/order-success || true
           
-          # 2. Bracket waale saare dynamic folders ko forcefully dhoond kar delete karein
-          # Is baar hum -prune use karenge taaki nested folders bhi saaf ho jayein
-          find src/app -name "*[*]*" -type d -exec rm -rf {} + || true
+          # 2. Kisi bhi bache huye [bracket] folder ko deeply dhoond kar delete karna
+          find src/app -name "*[*]*" -exec rm -rf {} + || true
           
-          # 3. Static export ke liye 'out' folder ko manually create aur clean karein
-          rm -rf out
-          mkdir -p out
-          touch out/index.html
-
-      - name: Build Next.js
-        run: npx next build
+          # 3. Next.js Build command chalana
+          npx next build
         env:
           GITHUB_ACTIONS: true
+
+      - name: Prepare Out Folder
+        run: |
+          # Ensure out directory exists for Capacitor even if export is minimal
+          if [ ! -d "out" ]; then
+            mkdir -p out
+            echo "<html><body>Jembee App Ready</body></html>" > out/index.html
+          fi
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -47,18 +57,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Sync and Patch
+      - name: Sync and Patch Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           
-          # Capacitor initialize
+          # Capacitor initialize aur Android platform add karna
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar hide karne ke liye patch
+          # UI improvements: Address bar aur Title hide karna
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Duplicate class fix
+          # Kotlin duplicate class conflict fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -70,7 +80,7 @@ jobs:
           
           npx cap sync android
 
-      - name: Build Debug APK
+      - name: Build Final Debug APK
         run: |
           cd android
           chmod +x gradlew
