@@ -19,17 +19,25 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Safe Logic Patch)
+      - name: Build Next.js (Force Static Bypass)
         run: |
-          # API folder delete karein kyunki APK mein server nahi hota
+          # 1. Server-only API folder delete karein
           rm -rf src/app/api || true
           
-          # SMART PATCH: Ye "use client" ke baad dynamic flags add karega taaki build fail na ho
-          find src/app -name "page.tsx" -o -name "page.jsx" | xargs sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
+          # 2. Mazboot Patching Logic:
+          # Hum har page file ko dhoondenge aur usme force-dynamic inject karenge
+          # Taaki "generateStaticParams" ki zaroorat na pade
+          for file in $(find src/app -name "page.tsx" -o -name "page.jsx"); do
+            if grep -q '"use client"' "$file"; then
+              # Agar file client component hai, toh "use client" ke baad add karein
+              sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
+            else
+              # Agar client component nahi hai, toh file ke top par add karein
+              sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
+            fi
+          done
           
-          # Un pages ke liye jinme "use client" nahi hai, wahan top par add karein
-          find src/app -name "page.tsx" -o -name "page.jsx" | xargs grep -L "force-dynamic" | xargs sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
-          
+          # 3. Next Build run karein
           npx next build
         env:
           GITHUB_ACTIONS: true
@@ -49,10 +57,10 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # UI: Hide Title Bar
+          # UI: Status bar/Title bar hide karein
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Fix Kotlin Conflicts
+          # Kotlin duplicate library fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
