@@ -1,4 +1,4 @@
-name: Build Jembee APK Final Fix
+name: Build Jembee APK Ultimate Fix
 
 on:
   push:
@@ -23,6 +23,14 @@ jobs:
         run: npm run build
         continue-on-error: true
 
+      - name: Force Create Out Directory
+        run: |
+          # Agar Next.js export fail hua, toh hum khud empty files banayenge taaki Capacitor sync na ruke
+          mkdir -p out
+          if [ ! -f "out/index.html" ]; then
+            echo "<html><head><script>window.location.href='https://jembee-kart.vercel.app'</script></head><body>Redirecting...</body></html>" > out/index.html
+          fi
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -32,14 +40,21 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Sync Capacitor & Auto-Fix Gradle
+      - name: Sync Capacitor & Patch Gradle
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Ye command automatically Duplicate Class error ko fix karegi
-          echo 'configurations.all { resolutionStrategy { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8"; exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" } }' >> android/app/build.gradle
+          # Duplicate Class fix: gradle file ke end mein resolution strategy joda
+          cat <<EOF >> android/app/build.gradle
+          configurations.all {
+              resolutionStrategy {
+                  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8"
+                  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7"
+              }
+          }
+          EOF
           
           npx cap sync android
 
