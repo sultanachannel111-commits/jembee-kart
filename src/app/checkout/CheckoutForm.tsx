@@ -19,11 +19,14 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   useEffect(() => {
-    let unsubscribe: any;
+    let unsubscribeCart: any;
+    let unsubscribeAddr: any;
+
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (!u) return router.push("/login");
       setUser(u);
 
+      // 1. Load Items (Buy Now or Cart)
       const buyNow = localStorage.getItem("buy-now");
       if (buyNow) {
         const parsed = JSON.parse(buyNow);
@@ -37,8 +40,8 @@ export default function CheckoutPage() {
           qty: Number(parsed.quantity) || 1
         }]);
       } else {
-        const ref = collection(db, "carts", u.uid, "items");
-        unsubscribe = onSnapshot(ref, (snap) => {
+        const cartRef = collection(db, "carts", u.uid, "items");
+        unsubscribeCart = onSnapshot(cartRef, (snap) => {
           const data: any[] = [];
           snap.forEach(docSnap => {
             const d = docSnap.data();
@@ -56,16 +59,25 @@ export default function CheckoutPage() {
         });
       }
 
-      const addrSnap = await getDocs(collection(db, "users", u.uid, "addresses"));
-      const all: any[] = [];
-      addrSnap.forEach(d => all.push({ id: d.id, ...d.data() }));
-      setAddress(all.find(a => a.isDefault) || all[0] || null);
+      // 2. Real-time Address Sync (Takki Profile me change ho to yahan dikhe)
+      const addrRef = collection(db, "users", u.uid, "addresses");
+      unsubscribeAddr = onSnapshot(addrRef, (snap) => {
+        const all: any[] = [];
+        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+        const defaultAddr = all.find(a => a.isDefault) || all[0] || null;
+        setAddress(defaultAddr);
+      });
 
+      // 3. Load Shipping Config
       const shipSnap = await getDoc(doc(db, "config", "shipping"));
       if (shipSnap.exists()) setShippingConfig(shipSnap.data() as any);
     });
 
-    return () => { unsubAuth(); if (unsubscribe) unsubscribe(); };
+    return () => { 
+      unsubAuth(); 
+      if (unsubscribeCart) unsubscribeCart(); 
+      if (unsubscribeAddr) unsubscribeAddr();
+    };
   }, []);
 
   const itemsTotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
@@ -80,45 +92,31 @@ export default function CheckoutPage() {
 
   const grandTotal = itemsTotal + shippingCharge;
 
-  // 🔔 PROFESSIONAL NOTIFICATION LOGIC
-  const sendAdminNotification = async (orderId: string, type: string) => {
-    try {
-      // 1. Firestore Admin Notification
-      await addDoc(collection(db, "notifications"), {
-        type: type,
-        message: `New ${type === "COD" ? "COD" : "Online"} Order Received`,
-        amount: grandTotal,
-        orderId: orderId,
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-
-      // 2. WhatsApp Professional Alert
-      const adminMobile = "917061369212";
-      const message = 
+  // 🔔 PROFESSIONAL WHATSAPP NOTIFICATION
+  const sendAdminNotification = (orderId: string, type: string) => {
+    const adminMobile = "917061369212";
+    const msg = 
 `📦 *NEW ORDER CONFIRMED* 📦
 ---------------------------
 🆔 *Order ID:* #${orderId.slice(-8).toUpperCase()}
 👤 *Customer:* ${address.name}
 📞 *Contact:* ${address.phone}
-💰 *Amount:* ₹${grandTotal}
-💳 *Method:* ${type === "COD" ? "Cash on Delivery" : "Paid Online"}
+💰 *Total Pay:* ₹${grandTotal}
+💳 *Method:* ${type === "COD" ? "Cash on Delivery" : "Online Paid"}
 
-📍 *Address:* ${address.address}, ${address.city} - ${address.pincode}
+📍 *Address:* ${address.address}, ${address.city} (${address.pincode})
 
-🚀 _Please process this order in the Admin Dashboard._
-*JembeeKart System*`;
+🚀 _Please process this in the Admin Panel._
+*JembeeKart Notification*`;
 
-      const encodedMsg = encodeURIComponent(message);
-      window.open(`https://wa.me/${adminMobile}?text=${encodedMsg}`, "_blank");
-    } catch (err) {
-      console.error("Notification Error:", err);
-    }
+    const waUrl = `https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, "_blank");
   };
 
   const handlePayment = async () => {
-    if (!address) return alert("Please select a delivery address!");
+    if (!address) return alert("Please select/add a delivery address!");
     setLoading(true);
+    
     try {
       const orderData = { 
         userId: user.uid, 
@@ -144,12 +142,15 @@ export default function CheckoutPage() {
         const data = await res.json();
         
         if (data.success) {
-          // ✅ Alert only after Success
-          await sendAdminNotification(data.orderId, "COD");
+          // ✅ WhatsApp tabhi jayega jab response SUCCESS aayega
+          sendAdminNotification(data.orderId, "COD");
           localStorage.removeItem("buy-now");
           router.replace(`/order-success/${data.orderId}`);
+        } else {
+          alert("Order placement failed. Try again.");
         }
       } else {
+        // ONLINE PAYMENT
         const res = await fetch("/api/cashfree/create-order", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
@@ -158,14 +159,14 @@ export default function CheckoutPage() {
         const data = await res.json();
         const cashfree = await load({ mode: "production" });
         
-        // Online order ke liye redirection se pehle alert
-        await sendAdminNotification(data.cf_order_id || "INITIATED", "ONLINE");
+        // Online order case: Alert triggers before opening checkout
+        sendAdminNotification(data.cf_order_id || "ONLINE_INIT", "ONLINE");
         
         await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
         localStorage.removeItem("buy-now");
       }
     } catch (e) { 
-      alert("Something went wrong. Please try again."); 
+      alert("Payment/Order Process Failed!"); 
     } finally {
       setLoading(false);
     }
@@ -178,11 +179,12 @@ export default function CheckoutPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 -mt-6 space-y-4">
-        {/* ADDRESS SECTION */}
+        
+        {/* ADDRESS: Is par click karne se user profile me edit kar sakega */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deliver to</span>
-            <button onClick={() => router.push("/profile")} className="text-blue-600 text-[10px] font-black uppercase">Change</button>
+            <button onClick={() => router.push("/profile")} className="text-blue-600 text-[10px] font-black uppercase underline">Edit / Change</button>
           </div>
           {address ? (
             <div className="space-y-1">
@@ -190,11 +192,11 @@ export default function CheckoutPage() {
               <p className="text-xs text-slate-500 leading-relaxed">{address.address}, {address.city} - {address.pincode}</p>
             </div>
           ) : (
-            <button onClick={() => router.push("/profile")} className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 text-xs font-bold">+ Add Address</button>
+            <button onClick={() => router.push("/profile")} className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 text-xs font-bold">+ Add Address in Profile</button>
           )}
         </div>
 
-        {/* PAYMENT SECTION */}
+        {/* PAYMENT */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Payment</span>
           <div className="grid grid-cols-2 gap-3">
@@ -209,7 +211,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* SUMMARY SECTION */}
+        {/* SUMMARY */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <div className="space-y-3">
             {items.map(item => (
@@ -256,7 +258,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* FOOTER ACTION */}
+      {/* FIXED FOOTER */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t p-5 flex items-center justify-between z-50">
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payable</span>
