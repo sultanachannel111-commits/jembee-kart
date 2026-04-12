@@ -19,19 +19,19 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Safe Logic Patch)
+      - name: Build Next.js (Force Static Fix)
         run: |
-          # API folder delete karein kyunki APK mein server nahi hota
+          # Server-side folders hatayein
           rm -rf src/app/api || true
           
-          # SMART PATCH: Ye har page file mein dynamic flag dalega
-          # Isse "missing generateStaticParams" error khatam ho jayega
+          # HAR PAGE KO BYPASS KAREIN: 
+          # Ye command dynamic folders ko build ke waqt ignore karwayegi
           find src/app -name "page.tsx" -o -name "page.jsx" | while read file; do
             if grep -q '"use client"' "$file"; then
-              # Agar "use client" hai, toh uske niche inject karein
+              # "use client" ke niche dynamic flags dalna
               sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             else
-              # Agar nahi hai, toh file ke top par add karein
+              # Normal files ke top par flags dalna
               sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             fi
           done
@@ -46,13 +46,16 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Sync and Build APK
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Kotlin Library Conflict Fix
+          # Kotlin conflict fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -65,8 +68,8 @@ jobs:
           npx cap sync android
           cd android && chmod +x gradlew && ./gradlew assembleDebug
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Kart-Final
+          name: Jembee-Final-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
