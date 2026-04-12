@@ -1,42 +1,22 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* GitHub Actions (APK build) ke liye 'export' use hoga.
-     Vercel deployment ke liye ise undefined rakha gaya hai.
-  */
+  // GitHub Actions (APK) ke liye export mode, Vercel ke liye standard mode
   output: process.env.GITHUB_ACTIONS ? 'export' : undefined,
   
-  trailingSlash: true, // APK navigation ke liye zaroori hai
+  trailingSlash: true, 
   
   images: {
-    unoptimized: true, // Firebase aur external images load karne ke liye
+    unoptimized: true, // App ke andar images dikhane ke liye
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-      },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'placehold.co' },
     ],
   },
 
-  // Build errors bypass karne ke liye
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;
