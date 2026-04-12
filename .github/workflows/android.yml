@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -19,30 +20,11 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Force Static Bypass)
-        run: |
-          # API folder hatayein kyunki APK offline chalta hai
-          rm -rf src/app/api || true
-          
-          # [slug] folders ko build pass karwane ke liye bypass
-          # Ye script har page mein static params ka error khatam kar degi
-          find src/app -name "page.tsx" -o -name "page.jsx" | while read file; do
-            # Purane dynamic settings saaf karein
-            sed -i '/export const dynamic/d' "$file" || true
-            
-            if grep -q '"use client"' "$file"; then
-              # Client component mein niche add karein
-              sed -i '/"use client"/a export const dynamic = "force-static";' "$file"
-            else
-              # Server component ke top par add karein
-              sed -i '1i export const dynamic = "force-static";' "$file"
-            fi
-          done
-          
-          # Next.js ko force karein ki wo missing params par fail na ho
-          NEXT_DISABLE_STATIC_EXPORT_ERROR=true npx next build
+      # ✅ CLEAN BUILD (NO HACKS)
+      - name: Build Next.js
+        run: npm run build
         env:
-          GITHUB_ACTIONS: true
+          GITHUB_ACTIONS: "true"
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -53,24 +35,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Sync and Build APK
+      - name: Setup Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
-          
-          # Kotlin duplicate error fix
-          cat <<EOF >> android/app/build.gradle
-          configurations.all {
-              resolutionStrategy {
-                  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8"
-                  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7"
-              }
-          }
-          EOF
-          
           npx cap sync android
-          cd android && chmod +x gradlew && ./gradlew assembleDebug
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
