@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* APK build ke liye zaroori settings */
-  output: 'export', 
+  /* Check karein ki kya ye GitHub Actions (APK build) hai.
+     Agar hai toh 'export' use karein, warna Vercel ke liye undefined rehne dein.
+  */
+  output: process.env.GITHUB_ACTIONS ? 'export' : undefined, 
   
   typescript: {
     ignoreBuildErrors: true,
@@ -11,24 +13,21 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: true, // Static export mein images ke liye ye zaroori hai
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'placehold.co',
-        port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'picsum.photos',
-        port: '',
         pathname: '/**',
       },
     ],
