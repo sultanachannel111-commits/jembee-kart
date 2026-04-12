@@ -83,7 +83,7 @@
     background: var(--admin-bg);
     color: hsl(var(--foreground));
     font-family: ui-sans-serif, system-ui, sans-serif;
-    padding-bottom: 80px;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
   }
 }
 
