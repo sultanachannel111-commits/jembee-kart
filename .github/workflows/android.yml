@@ -19,17 +19,17 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Smart Logic Preservation)
+      - name: Build Next.js (Safe Logic Patch)
         run: |
-          # 1. API folder ko delete karein (Kyunki APK mein server-side API nahi chalti)
+          # API folder delete karein kyunki APK mein server nahi hota
           rm -rf src/app/api || true
           
-          # 2. SMART PATCH: Har page.tsx ke upar dynamic flags add karna
-          # Isse folders delete nahi honge, Next.js build ke waqt in pages ko skip karega
-          # Taaki aapka product aur logic APK mein maujood rahe.
-          find src/app -name "page.tsx" -o -name "page.jsx" | xargs sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
+          # SMART PATCH: Ye "use client" ke baad dynamic flags add karega taaki build fail na ho
+          find src/app -name "page.tsx" -o -name "page.jsx" | xargs sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
           
-          # 3. Next.js Build
+          # Un pages ke liye jinme "use client" nahi hai, wahan top par add karein
+          find src/app -name "page.tsx" -o -name "page.jsx" | xargs grep -L "force-dynamic" | xargs sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' || true
+          
           npx next build
         env:
           GITHUB_ACTIONS: true
@@ -46,15 +46,13 @@ jobs:
       - name: Sync and Patch Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          
-          # Capacitor init aur Android add
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # UI Improvement: Address bar hide karne ka native patch
+          # UI: Hide Title Bar
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Kotlin duplicate class conflict fix
+          # Fix Kotlin Conflicts
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -75,5 +73,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Full-Logic-App
+          name: Jembee-Final-App
           path: android/app/build/outputs/apk/debug/app-debug.apk
