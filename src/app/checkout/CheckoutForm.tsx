@@ -6,7 +6,7 @@ import { collection, getDocs, doc, getDoc, onSnapshot, addDoc, serverTimestamp }
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { load } from "@cashfreepayments/cashfree-js";
-import { ShieldCheck, Truck, RefreshCcw, Clock } from "lucide-react";
+import { ShieldCheck, RefreshCcw } from "lucide-react";
 
 export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
@@ -33,7 +33,7 @@ export default function CheckoutPage() {
           name: parsed.name,
           image: parsed.image,
           price: Number(parsed.price),
-          basePrice: Number(parsed.basePrice || parsed.price), // Profit calculation ke liye
+          basePrice: Number(parsed.basePrice || parsed.price),
           qty: Number(parsed.quantity) || 1
         }]);
       } else {
@@ -68,11 +68,8 @@ export default function CheckoutPage() {
     return () => { unsubAuth(); if (unsubscribe) unsubscribe(); };
   }, []);
 
-  // 💰 PROFIT SHARING CALCULATION ENGINE
   const itemsTotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
   const totalBasePrice = items.reduce((sum, i) => sum + (i.basePrice * i.qty), 0);
-  
-  // Commission = (Sale Price - Base Price) ka 50%
   const profit = itemsTotal - totalBasePrice;
   const totalCommission = profit > 0 ? profit * 0.50 : 0;
 
@@ -83,25 +80,39 @@ export default function CheckoutPage() {
 
   const grandTotal = itemsTotal + shippingCharge;
 
-  // 🔔 NOTIFICATION LOGIC FOR ADMIN (7061369212)
+  // 🔔 PROFESSIONAL NOTIFICATION LOGIC
   const sendAdminNotification = async (orderId: string, type: string) => {
     try {
-      // 1. Firestore Notification (For Admin Panel)
+      // 1. Firestore Admin Notification
       await addDoc(collection(db, "notifications"), {
         type: type,
-        message: `🚀 Naya ${type === "COD_ORDER" ? "COD" : "Online"} Order!`,
+        message: `New ${type === "COD" ? "COD" : "Online"} Order Received`,
         amount: grandTotal,
         orderId: orderId,
         read: false,
         createdAt: serverTimestamp(),
       });
 
-      // 2. WhatsApp Alert
+      // 2. WhatsApp Professional Alert
       const adminMobile = "917061369212";
-      const msg = `🔥 *JembeeKart Alert*\n\nNaya Order mila hai!\n*Type:* ${type}\n*Order ID:* ${orderId}\n*Total:* ₹${grandTotal}\n*Customer:* ${address.name}\n\nDashboard check karein!`;
-      window.open(`https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`, "_blank");
+      const message = 
+`📦 *NEW ORDER CONFIRMED* 📦
+---------------------------
+🆔 *Order ID:* #${orderId.slice(-8).toUpperCase()}
+👤 *Customer:* ${address.name}
+📞 *Contact:* ${address.phone}
+💰 *Amount:* ₹${grandTotal}
+💳 *Method:* ${type === "COD" ? "Cash on Delivery" : "Paid Online"}
+
+📍 *Address:* ${address.address}, ${address.city} - ${address.pincode}
+
+🚀 _Please process this order in the Admin Dashboard._
+*JembeeKart System*`;
+
+      const encodedMsg = encodeURIComponent(message);
+      window.open(`https://wa.me/${adminMobile}?text=${encodedMsg}`, "_blank");
     } catch (err) {
-      console.log("Notification Error:", err);
+      console.error("Notification Error:", err);
     }
   };
 
@@ -115,8 +126,8 @@ export default function CheckoutPage() {
         itemsTotal, 
         shipping: shippingCharge, 
         total: grandTotal, 
-        basePrice: totalBasePrice, // For record
-        commission: totalCommission, // 50% Profit share
+        basePrice: totalBasePrice,
+        commission: totalCommission,
         sellerRef: localStorage.getItem("affiliate") || "",
         address, 
         paymentMethod,
@@ -131,9 +142,10 @@ export default function CheckoutPage() {
           body: JSON.stringify(orderData)
         });
         const data = await res.json();
+        
         if (data.success) {
-          // Send Alert for COD
-          await sendAdminNotification(data.orderId, "COD_ORDER");
+          // ✅ Alert only after Success
+          await sendAdminNotification(data.orderId, "COD");
           localStorage.removeItem("buy-now");
           router.replace(`/order-success/${data.orderId}`);
         }
@@ -146,14 +158,17 @@ export default function CheckoutPage() {
         const data = await res.json();
         const cashfree = await load({ mode: "production" });
         
-        // Send Alert for Online (Attempt)
-        await sendAdminNotification(data.cf_order_id || "CF_INITIATED", "ONLINE_ORDER");
+        // Online order ke liye redirection se pehle alert
+        await sendAdminNotification(data.cf_order_id || "INITIATED", "ONLINE");
         
         await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
         localStorage.removeItem("buy-now");
       }
-    } catch (e) { alert("Payment Failed!"); }
-    setLoading(false);
+    } catch (e) { 
+      alert("Something went wrong. Please try again."); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -163,8 +178,7 @@ export default function CheckoutPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 -mt-6 space-y-4">
-        
-        {/* ADDRESS */}
+        {/* ADDRESS SECTION */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deliver to</span>
@@ -180,7 +194,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* PAYMENT */}
+        {/* PAYMENT SECTION */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Payment</span>
           <div className="grid grid-cols-2 gap-3">
@@ -195,7 +209,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* SUMMARY */}
+        {/* SUMMARY SECTION */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           <div className="space-y-3">
             {items.map(item => (
@@ -242,6 +256,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* FOOTER ACTION */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t p-5 flex items-center justify-between z-50">
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payable</span>
