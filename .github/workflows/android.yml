@@ -21,7 +21,9 @@ jobs:
 
       - name: Configure Next.js Export
         run: |
-          # Next.js ko force karna ki wo static files banaye
+          # API files ko build se pehle temporarily hatana taaki export fail na ho
+          rm -rf src/app/api || true
+          
           echo "/** @type {import('next').NextConfig} */
           const nextConfig = { 
             output: 'export',
@@ -46,13 +48,12 @@ jobs:
       - name: Sync and Patch
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          # Agar out folder nahi bana toh empty folder bana dega sync ke liye
           mkdir -p out && touch out/index.html
           
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar hide karne ke liye styles patch
+          # Address Bar aur Link hatane ke liye configuration
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
           # Duplicate class conflict fix
