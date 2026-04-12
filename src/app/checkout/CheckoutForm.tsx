@@ -97,7 +97,7 @@ export default function CheckoutPage() {
       });
 
       // 2. WhatsApp Alert
-      const adminMobile = "917061369213";
+      const adminMobile = "917061369212";
       const msg = `🔥 *JembeeKart Alert*\n\nNaya Order mila hai!\n*Type:* ${type}\n*Order ID:* ${orderId}\n*Total:* ₹${grandTotal}\n*Customer:* ${address.name}\n\nDashboard check karein!`;
       window.open(`https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`, "_blank");
     } catch (err) {
