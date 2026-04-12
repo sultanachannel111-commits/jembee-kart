@@ -21,13 +21,16 @@ jobs:
 
       - name: Extreme Pre-Build Cleanup
         run: |
-          # Sabhi problematic dynamic aur API folders ko jad se khatam karna
+          # Saare dynamic routes aur API ko force delete karna
           rm -rf src/app/api || true
           rm -rf src/app/category || true
           rm -rf src/app/order-success || true
           rm -rf src/app/product || true
+          rm -rf src/app/orders || true
           
-          # Next.js Static Export setting
+          # Kisi bhi bracket [ ] wale folder ko dhoond kar hatana
+          find src/app -type d -name "*[*]*" -exec rm -rf {} + || true
+          
           echo "/** @type {import('next').NextConfig} */
           const nextConfig = { 
             output: 'export',
