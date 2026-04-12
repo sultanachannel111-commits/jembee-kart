@@ -86,17 +86,17 @@ export default function CheckoutPage() {
   }
   const grandTotal = itemsTotal + shippingCharge;
 
-  // 🔔 WHATSAPP ALERT (Simplified)
-  const sendAdminNotification = (orderId: string, type: string) => {
+  // 🔔 WHATSAPP ALERT (Separated to prevent instant pop-up)
+  const triggerWhatsApp = (orderId: string, type: string) => {
     const adminMobile = "917061369212";
     const msg = `📦 *NEW ORDER CONFIRMED*\n---------------------------\n🆔 *ID:* #${orderId.slice(-8).toUpperCase()}\n👤 *Name:* ${address.name}\n📞 *Phone:* ${address.phone}\n💰 *Total:* ₹${grandTotal}\n💳 *Method:* ${type === "COD_ORDER" ? "COD" : "Paid Online"}\n📍 *Loc:* ${address.street}, ${address.city}\n\n*JembeeKart*`;
     
-    // Naya window tabhi khulega jab order confirm ho chuka ho
-    window.open(`https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`, "_blank");
+    const whatsappUrl = `https://wa.me/${adminMobile}?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   const handlePayment = async () => {
-    if (!address) return alert("Address add karein!");
+    if (!address) return alert("Pehle Address add karein!");
     setLoading(true);
     try {
       const orderData = { 
@@ -117,8 +117,16 @@ export default function CheckoutPage() {
         const data = await res.json();
         if (data.success) {
           localStorage.removeItem("buy-now");
-          // Pehle Alert, fir Success Page
-          sendAdminNotification(data.orderId, "COD_ORDER");
+          // Pehle local database notification push hogi
+          await addDoc(collection(db, "notifications"), {
+             type: "COD_ORDER",
+             message: "🚀 Naya COD Order!",
+             orderId: data.orderId,
+             createdAt: serverTimestamp(),
+          });
+          
+          // Redirect se theek pehle WhatsApp (ispe user click karega tabhi open hoga browser policy ke hisaab se)
+          triggerWhatsApp(data.orderId, "COD_ORDER");
           router.replace(`/order-success/${data.orderId}`);
         }
       } else {
@@ -131,11 +139,16 @@ export default function CheckoutPage() {
         const cashfree = await load({ mode: "production" });
         
         localStorage.removeItem("buy-now");
-        // Online ke liye session start hone par alert
-        sendAdminNotification(data.cf_order_id || "ONLINE", "ONLINE_ORDER");
+        
+        // Online payment ke liye checkout process start hone se pehle WhatsApp open hoga
+        triggerWhatsApp(data.cf_order_id || "ONLINE", "ONLINE_ORDER");
+        
         await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
       }
-    } catch (e) { alert("Error!"); }
+    } catch (e) { 
+        console.error(e);
+        alert("Kuch gadbad hui!"); 
+    }
     setLoading(false);
   };
 
@@ -177,7 +190,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* SUMMARY (Your UI) */}
+        {/* SUMMARY */}
         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100">
           {items.map((item, idx) => (
             <div key={idx} className="flex justify-between items-center mb-3">
