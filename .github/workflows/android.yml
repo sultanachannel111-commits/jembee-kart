@@ -19,16 +19,17 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Master Deep Cleanup
+      - name: Extreme Master Cleanup
         run: |
-          # 1. Sabhi fixed folders ko hatana
+          # 1. API folder ko puri tarah hatayein
           rm -rf src/app/api || true
           
-          # 2. Next.js ko dokha dene ke liye saare dynamic folders ko recursively delete karna
-          # Ye command track/[id], wish/[id], etc. sabko saaf kar degi
-          find src/app -name "*[*]*" -exec rm -rf {} + || true
+          # 2. Bracket waale saare dynamic folders ko forcefully dhoond kar delete karein
+          # Is baar hum -prune use karenge taaki nested folders bhi saaf ho jayein
+          find src/app -name "*[*]*" -type d -exec rm -rf {} + || true
           
-          # 3. Ensure out directory exists
+          # 3. Static export ke liye 'out' folder ko manually create aur clean karein
+          rm -rf out
           mkdir -p out
           touch out/index.html
 
@@ -49,13 +50,15 @@ jobs:
       - name: Sync and Patch
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
+          
+          # Capacitor initialize
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar aur Title hide karne ka patch
+          # Address Bar hide karne ke liye patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Kotlin duplicate class fix
+          # Duplicate class fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
