@@ -19,19 +19,19 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Force Static Bypass)
+      - name: Build Next.js (Safe Logic Patch)
         run: |
-          # API folder hatayein kyunki APK mein server nahi chalta
+          # API folder delete karein kyunki APK mein server nahi hota
           rm -rf src/app/api || true
           
-          # [slug] aur dynamic folders ko build error se bachane ke liye patch
-          # Ye aapka logic delete nahi karega, bas build pass karwayega
+          # SMART PATCH: Ye har page file mein dynamic flag dalega
+          # Isse "missing generateStaticParams" error khatam ho jayega
           find src/app -name "page.tsx" -o -name "page.jsx" | while read file; do
             if grep -q '"use client"' "$file"; then
-              # "use client" ke baad dynamic flags add karna
+              # Agar "use client" hai, toh uske niche inject karein
               sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             else
-              # Normal page ke top par add karna
+              # Agar nahi hai, toh file ke top par add karein
               sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             fi
           done
@@ -46,16 +46,13 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Sync and Patch Capacitor
+      - name: Sync and Build APK
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Kotlin duplicate error fix
+          # Kotlin Library Conflict Fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -66,15 +63,10 @@ jobs:
           EOF
           
           npx cap sync android
-
-      - name: Build Final APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Kart-APK
+          name: Jembee-Kart-Final
           path: android/app/build/outputs/apk/debug/app-debug.apk
