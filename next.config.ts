@@ -1,17 +1,16 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // GitHub Actions par APK ke liye 'export', Vercel par normal mode
+  // GitHub Actions build ke liye 'export' mode
   output: process.env.GITHUB_ACTIONS ? 'export' : undefined,
   
   trailingSlash: true, 
   
   images: {
-    unoptimized: true, // App mein images dikhane ke liye mandatory hai
+    unoptimized: true, 
     remotePatterns: [
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'placehold.co' },
     ],
   },
 
