@@ -1,4 +1,4 @@
-name: Build Jembee APK Ultimate Fix
+name: Build Jembee Native APK
 
 on:
   push:
@@ -23,14 +23,6 @@ jobs:
         run: npm run build
         continue-on-error: true
 
-      - name: Force Create Out Directory
-        run: |
-          # Agar Next.js export fail hua, toh hum khud empty files banayenge taaki Capacitor sync na ruke
-          mkdir -p out
-          if [ ! -f "out/index.html" ]; then
-            echo "<html><head><script>window.location.href='https://jembee-kart.vercel.app'</script></head><body>Redirecting...</body></html>" > out/index.html
-          fi
-
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -40,13 +32,16 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Sync Capacitor & Patch Gradle
+      - name: Sync and Patch
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Duplicate Class fix: gradle file ke end mein resolution strategy joda
+          # Address Bar aur Title hatane ke liye configuration patch
+          sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
+          
+          # Duplicate class conflict fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -67,5 +62,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Store-APK
+          name: Jembee-Native-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
