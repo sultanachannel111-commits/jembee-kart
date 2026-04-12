@@ -21,14 +21,10 @@ jobs:
 
       - name: Extreme Pre-Build Cleanup
         run: |
-          # Saare dynamic routes aur API ko force delete karna
+          # Sabhi problematic dynamic routes aur API folders ko delete karna
           rm -rf src/app/api || true
-          rm -rf src/app/category || true
-          rm -rf src/app/order-success || true
-          rm -rf src/app/product || true
-          rm -rf src/app/orders || true
           
-          # Kisi bhi bracket [ ] wale folder ko dhoond kar hatana
+          # Saare folders jinke naam mein brackets [] hain, unhe dhoond kar hatana
           find src/app -type d -name "*[*]*" -exec rm -rf {} + || true
           
           echo "/** @type {import('next').NextConfig} */
