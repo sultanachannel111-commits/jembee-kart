@@ -19,24 +19,23 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Next.js (Logic Preservation)
+      - name: Build Next.js (Force Static Bypass)
         run: |
-          # 1. API folder delete karein (APK mein server nahi chalta)
+          # API folder hatayein kyunki APK mein server nahi chalta
           rm -rf src/app/api || true
           
-          # 2. HAR PAGE KO PATCH KAREIN (Brackets [] handle karne ke liye)
-          # Ye script dhundega ki page "use client" hai ya nahi, aur uske hisaab se sahi jagah flag add karega.
+          # [slug] aur dynamic folders ko build error se bachane ke liye patch
+          # Ye aapka logic delete nahi karega, bas build pass karwayega
           find src/app -name "page.tsx" -o -name "page.jsx" | while read file; do
             if grep -q '"use client"' "$file"; then
-              # Agar file ke top par "use client" hai
+              # "use client" ke baad dynamic flags add karna
               sed -i '/"use client"/a export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             else
-              # Agar normal page hai, toh sabse pehli line par add karein
+              # Normal page ke top par add karna
               sed -i '1i export const dynamic = "force-dynamic"; export const dynamicParams = true;' "$file"
             fi
           done
           
-          # 3. Next.js Build (Static Export)
           npx next build
         env:
           GITHUB_ACTIONS: true
@@ -56,10 +55,7 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # UI: APK se status/title bar hide karein
-          sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
-          
-          # Android Build fixes (Kotlin Conflicts)
+          # Kotlin duplicate error fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
@@ -80,5 +76,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Jembee-Full-Logic-App
+          name: Jembee-Kart-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
