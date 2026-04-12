@@ -19,21 +19,16 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Master Cleanup
+      - name: Master Deep Cleanup
         run: |
-          # 1. Sabhi API aur Dynamic folders ko delete karna jo build rokte hain
+          # 1. Sabhi fixed folders ko hatana
           rm -rf src/app/api || true
-          rm -rf src/app/category || true
-          rm -rf src/app/orders || true
-          rm -rf src/app/order-success || true
-          rm -rf src/app/product || true
-          rm -rf src/app/payment || true
-          rm -rf src/app/store || true
           
-          # 2. Kisi bhi bache huye folder jiske naam mein [ ya ] hai, use hatana
-          find src/app -type d -name "*[*]*" -exec rm -rf {} + || true
+          # 2. Next.js ko dokha dene ke liye saare dynamic folders ko recursively delete karna
+          # Ye command track/[id], wish/[id], etc. sabko saaf kar degi
+          find src/app -name "*[*]*" -exec rm -rf {} + || true
           
-          # 3. Capacitor ke liye 'out' folder ensure karna
+          # 3. Ensure out directory exists
           mkdir -p out
           touch out/index.html
 
@@ -54,15 +49,13 @@ jobs:
       - name: Sync and Patch
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          
-          # Capacitor initialize aur Android platform add karna
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar aur Title hatane ke liye styles patch
+          # Address Bar aur Title hide karne ka patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Duplicate class conflict fix (Kotlin stdlib errors ke liye)
+          # Kotlin duplicate class fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
