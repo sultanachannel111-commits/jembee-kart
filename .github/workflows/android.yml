@@ -19,10 +19,11 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Configure Next.js Export
+      - name: Pre-Build Cleanup
         run: |
-          # API files ko build se pehle temporarily hatana taaki export fail na ho
+          # Jo files build rok rahi hain unhe temporarily delete karna
           rm -rf src/app/api || true
+          rm -rf "src/app/category/[slug]" || true
           
           echo "/** @type {import('next').NextConfig} */
           const nextConfig = { 
@@ -53,10 +54,10 @@ jobs:
           npx cap init Jembee com.jembee.app --web-dir out || true
           npx cap add android || true
           
-          # Address Bar aur Link hatane ke liye configuration
+          # Address Bar aur Title hatane ka patch
           sed -i 's/<item name="android:windowNoTitle">false<\/item>/<item name="android:windowNoTitle">true<\/item>/' android/app/src/main/res/values/styles.xml || true
           
-          # Duplicate class conflict fix
+          # Duplicate class fix
           cat <<EOF >> android/app/build.gradle
           configurations.all {
               resolutionStrategy {
