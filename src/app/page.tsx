@@ -17,7 +17,7 @@ import { getLightningDeals } from "@/services/lightningService";
 
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function HomePage() {
   const theme = useTheme();
@@ -64,16 +64,16 @@ export default function HomePage() {
       const offerMap: any = {};
 
       offerSnap.forEach((doc) => {
-        const data: any = doc.data();
+        const d: any = doc.data();
         let isValid = true;
-        if (data.active === false) isValid = false;
-        if (data.endDate) {
-          let endTime = data.endDate?.seconds
-            ? data.endDate.toDate().getTime()
-            : new Date(data.endDate).getTime();
+        if (d.active === false) isValid = false;
+        if (d.endDate) {
+          let endTime = d.endDate?.seconds
+            ? d.endDate.toDate().getTime()
+            : new Date(d.endDate).getTime();
           if (endTime < Date.now()) isValid = false;
         }
-        if (isValid) offerMap[data.productId] = data.discount;
+        if (isValid) offerMap[d.productId] = d.discount;
       });
 
       setOffers(offerMap);
@@ -94,14 +94,33 @@ export default function HomePage() {
     }
   };
 
-  const normalize = (text: string) => text?.toLowerCase().replace(/\s|-/g, "");
+  // --- SMART FUZZY SEARCH LOGIC ---
+  const filteredProducts = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    
+    // Agar kuch search nahi ho raha aur category 'All' hai, toh saare products dikhao
+    if (!query && selectedCategory === "All") return products;
 
-  const filteredProducts = products.filter((p) => {
-    const matchSearch = normalize(p.name).includes(normalize(search));
-    const matchCategory =
-      selectedCategory === "All" || p.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
+    return products.filter((p) => {
+      const pName = p.name.toLowerCase();
+      
+      // 1. Exact Match check
+      const isMatch = pName.includes(query);
+
+      // 2. Simple Fuzzy (Check characters in order)
+      let i = 0, j = 0;
+      while (i < query.length && j < pName.length) {
+        if (query[i] === pName[j]) i++;
+        j++;
+      }
+      const isFuzzyMatch = i === query.length;
+
+      // 3. Category Match
+      const matchCategory = selectedCategory === "All" || p.category === selectedCategory;
+
+      return (isMatch || isFuzzyMatch) && matchCategory;
+    });
+  }, [search, products, selectedCategory]);
 
   const backgroundStyle = theme?.gradient
     ? `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`
@@ -117,7 +136,7 @@ export default function HomePage() {
       {/* Main Content Area */}
       <div className="pt-[90px] px-4 space-y-6 pb-28 relative z-10">
         
-        {/* Updated Search Bar Wrapper */}
+        {/* Search Bar Wrapper */}
         <div
           style={{
             background: theme?.searchBg || "rgba(255, 255, 255, 0.1)",
@@ -125,11 +144,10 @@ export default function HomePage() {
           }}
           className="rounded-[22px] p-1 border backdrop-blur-2xl shadow-xl overflow-hidden"
         >
-          {/* SEARCH BAR COMPONENT */}
           <SearchBar search={search} setSearch={setSearch} />
         </div>
 
-        {/* Trending Tags (Clickable for instant search) */}
+        {/* Trending Tags */}
         <div
           style={{
             background: theme?.trendingBg || "rgba(255, 255, 255, 0.08)",
@@ -144,7 +162,7 @@ export default function HomePage() {
             {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
               <button
                 key={item}
-                onClick={() => setSearch(item)} // Tag click par search filter trigger hoga
+                onClick={() => setSearch(item)}
                 style={{
                   background: theme?.trendingChipBg || "rgba(255, 255, 255, 0.12)",
                   color: theme?.trendingChipText || "#fff",
@@ -163,38 +181,70 @@ export default function HomePage() {
           setSelectedCategory={setSelectedCategory}
         />
 
-        {Array.isArray(banners) && banners.length > 0 && (
-          <div className="rounded-[32px] overflow-hidden shadow-2xl border border-white/10 mx-1">
-            <BannerSlider banners={banners} />
-          </div>
-        )}
-
-        <FlashSale />
-
-        {festival?.active && (
-          <div className="animate-pulse">
-            <FestivalBanner festival={festival} />
-          </div>
-        )}
-
-        {/* --- PRODUCT SECTIONS WITH SCROLL ID --- */}
+        {/* --- DYNAMIC VIEW --- */}
         <div id="product-list" className="space-y-12 scroll-mt-24">
-          {/* Main search results appear here first */}
-          <ProductGrid 
-            title={search ? `Results for "${search}"` : "Our Collection"} 
-            products={filteredProducts} 
-            theme={theme} 
-            offers={offers} 
-          />
           
-          <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers} />
-          <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers} />
-          
-          <div className="bg-white/5 p-4 rounded-[40px] border border-white/5 shadow-inner">
-             <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
-          </div>
-          
-          <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers} />
+          {search.trim() !== "" ? (
+            /* CASE A: USER IS SEARCHING */
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {filteredProducts.length > 0 ? (
+                <ProductGrid 
+                  title={`Results for "${search}"`} 
+                  products={filteredProducts} 
+                  theme={theme} 
+                  offers={offers} 
+                />
+              ) : (
+                /* NOT FOUND STATE */
+                <div className="text-center py-24 bg-white/5 rounded-[40px] border border-dashed border-white/20 mx-2">
+                  <div className="text-6xl mb-4">🔍</div>
+                  <h3 className="text-white text-xl font-bold">No results found</h3>
+                  <p className="text-white/50 text-sm mt-2 px-6">
+                    We couldn't find anything matching "{search}". Try checking the spelling or using different keywords.
+                  </p>
+                  <button 
+                    onClick={() => setSearch("")}
+                    className="mt-8 px-8 py-3 bg-white text-black rounded-full text-xs font-black uppercase tracking-widest active:scale-95 transition shadow-xl"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* CASE B: NORMAL HOME VIEW */
+            <>
+              {Array.isArray(banners) && banners.length > 0 && (
+                <div className="rounded-[32px] overflow-hidden shadow-2xl border border-white/10 mx-1">
+                  <BannerSlider banners={banners} />
+                </div>
+              )}
+
+              <FlashSale />
+
+              {festival?.active && (
+                <div className="animate-pulse">
+                  <FestivalBanner festival={festival} />
+                </div>
+              )}
+
+              <div className="space-y-12">
+                {/* Agar category selected hai par search nahi, toh category products dikhao */}
+                {selectedCategory !== "All" && (
+                   <ProductGrid title={`${selectedCategory} Collection`} products={filteredProducts} theme={theme} offers={offers} />
+                )}
+
+                <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers} />
+                <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers} />
+                
+                <div className="bg-white/5 p-4 rounded-[40px] border border-white/5 shadow-inner">
+                   <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
+                </div>
+                
+                <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
