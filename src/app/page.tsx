@@ -125,10 +125,11 @@ export default function HomePage() {
           }}
           className="rounded-[22px] p-1 border backdrop-blur-2xl shadow-xl overflow-hidden"
         >
+          {/* SEARCH BAR COMPONENT */}
           <SearchBar search={search} setSearch={setSearch} />
         </div>
 
-        {/* Trending Tags */}
+        {/* Trending Tags (Clickable for instant search) */}
         <div
           style={{
             background: theme?.trendingBg || "rgba(255, 255, 255, 0.08)",
@@ -143,6 +144,7 @@ export default function HomePage() {
             {["black tshirt", "oversize tshirt", "hoodie"].map((item) => (
               <button
                 key={item}
+                onClick={() => setSearch(item)} // Tag click par search filter trigger hoga
                 style={{
                   background: theme?.trendingChipBg || "rgba(255, 255, 255, 0.12)",
                   color: theme?.trendingChipText || "#fff",
@@ -175,14 +177,23 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Product Sections */}
-        <div className="space-y-12">
-          <ProductGrid products={filteredProducts} theme={theme} offers={offers} />
+        {/* --- PRODUCT SECTIONS WITH SCROLL ID --- */}
+        <div id="product-list" className="space-y-12 scroll-mt-24">
+          {/* Main search results appear here first */}
+          <ProductGrid 
+            title={search ? `Results for "${search}"` : "Our Collection"} 
+            products={filteredProducts} 
+            theme={theme} 
+            offers={offers} 
+          />
+          
           <ProductGrid title="⚡ Lightning Deals" products={lightning} theme={theme} offers={offers} />
           <ProductGrid title="🔥 Trending" products={trending} theme={theme} offers={offers} />
+          
           <div className="bg-white/5 p-4 rounded-[40px] border border-white/5 shadow-inner">
              <ProductGrid title="⚡ Clearance" products={clearance} theme={theme} offers={offers} />
           </div>
+          
           <ProductGrid title="⭐ Recommended" products={recommended} theme={theme} offers={offers} />
         </div>
       </div>
