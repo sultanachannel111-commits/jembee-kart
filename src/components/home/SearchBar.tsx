@@ -1,7 +1,7 @@
 "use client";
 
-import { Search, Mic, Camera, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Search, Mic, Camera, X, ArrowUpLeft } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
@@ -15,8 +15,8 @@ export default function SearchBar({ search, setSearch }: Props) {
   const [listening, setListening] = useState(false);
   const [showCameraMsg, setShowCameraMsg] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Next.js Hydration Fix: Portal sirf client-side par hi render ho sakta hai
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -26,18 +26,47 @@ export default function SearchBar({ search, setSearch }: Props) {
     "oversize tshirt",
     "hoodie",
     "anime tshirt",
-    "nike shoes"
+    "nike shoes",
+    "denim jacket",
+    "cargo pants"
   ];
 
+  // --- Scroll Logic ---
+  const scrollToProducts = () => {
+    const element = document.getElementById("product-list");
+    if (element) {
+      const offset = 80; // Header height ke liye space
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  const handleSearch = (value: string) => {
+    if (!value.trim()) return;
+    setSearch(value);
+    setFocused(false);
+    inputRef.current?.blur();
+    
+    // Instant scroll to results
+    setTimeout(scrollToProducts, 100);
+  };
+
   useEffect(() => {
-    if (!search) {
+    if (!search.trim()) {
       setSuggestions([]);
       return;
     }
     const filtered = demoSuggestions.filter((item) =>
       item.toLowerCase().includes(search.toLowerCase())
     );
-    setSuggestions(filtered.slice(0, 5));
+    setSuggestions(filtered.slice(0, 6));
   }, [search]);
 
   const handleVoice = () => {
@@ -45,7 +74,7 @@ export default function SearchBar({ search, setSearch }: Props) {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert("Voice search not supported 😢 (Use Chrome)");
+      alert("Voice search not supported in this browser.");
       return;
     }
 
@@ -53,46 +82,60 @@ export default function SearchBar({ search, setSearch }: Props) {
     recognition.lang = "en-IN";
     recognition.onstart = () => setListening(true);
     recognition.onresult = (event: any) => {
-      setSearch(event.results[0][0].transcript.toLowerCase());
+      const result = event.results[0][0].transcript.toLowerCase();
+      handleSearch(result);
     };
-    recognition.onerror = () => setListening(false);
     recognition.onend = () => setListening(false);
     recognition.start();
   };
 
   return (
-    <div className="w-full relative px-2">
+    <div className="w-full relative px-2 py-2">
+      {/* --- BACKGROUND OVERLAY (For Focus) --- */}
+      {focused && (
+        <div className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[70] transition-all" />
+      )}
+
       {/* --- SEARCH INPUT BOX --- */}
       <div 
-        className={`flex items-center bg-white rounded-[22px] h-12 border transition-all duration-300 shadow-sm
-        ${focused ? "border-green-500 ring-2 ring-green-50" : "border-gray-200"}`}
+        className={`relative flex items-center bg-white rounded-[20px] h-12 border transition-all duration-300 z-[80]
+        ${focused ? "border-green-500 shadow-lg scale-[1.01]" : "border-gray-200 shadow-sm"}`}
       >
         <div className="pl-4 pr-2 text-gray-400">
-          <Search size={18} strokeWidth={2.5} />
+          <Search size={18} strokeWidth={2.5} className={focused ? "text-green-500" : ""} />
         </div>
 
         <input
+          ref={inputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 200)}
-          placeholder="Search for products..."
-          className="flex-1 outline-none text-[13px] font-medium bg-transparent text-gray-800 h-full"
+          onKeyDown={(e) => e.key === "Enter" && handleSearch(search)}
+          placeholder="Search Jembee Kart..."
+          className="flex-1 outline-none text-[15px] font-medium bg-transparent text-gray-800 h-full w-full"
         />
 
-        <div className="flex items-center gap-3 pr-4 ml-2">
+        <div className="flex items-center gap-3 pr-3 ml-2">
           {search && (
-            <X size={16} className="text-gray-400 cursor-pointer" onClick={() => setSearch("")} />
+            <button onClick={() => setSearch("")} className="p-1 hover:bg-gray-100 rounded-full transition">
+              <X size={16} className="text-gray-500" />
+            </button>
           )}
-          <Camera 
-            size={20} 
-            className="text-gray-400 cursor-pointer hover:text-gray-600"
+          
+          <button 
             onClick={() => setShowCameraMsg(true)}
-          />
-          <div className="h-5 w-[1.5px] bg-gray-200" />
+            className="text-gray-400 hover:text-gray-600 active:scale-90 transition"
+          >
+            <Camera size={20} />
+          </button>
+
+          <div className="h-5 w-[1px] bg-gray-200 mx-1" />
+
           <button 
             onClick={handleVoice}
-            className={`transition active:scale-90 ${listening ? "text-red-500 animate-pulse" : "text-blue-500"}`}
+            className={`p-2 rounded-full transition active:scale-95 
+            ${listening ? "bg-red-50 text-red-500 animate-pulse" : "text-blue-600 hover:bg-blue-50"}`}
           >
             <Mic size={20} strokeWidth={2.5} />
           </button>
@@ -101,57 +144,63 @@ export default function SearchBar({ search, setSearch }: Props) {
 
       {/* --- SUGGESTIONS PANEL --- */}
       {focused && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 z-[80] overflow-hidden">
+        <div className="absolute left-2 right-2 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2 border-b border-gray-50 bg-gray-50/50 text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-4">
+            Quick Suggestions
+          </div>
           {suggestions.map((item, i) => (
             <div
               key={i}
-              onClick={() => { setSearch(item); setFocused(false); }}
-              className="px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 cursor-pointer border-b border-gray-50 last:border-0"
+              onMouseDown={() => handleSearch(item)}
+              className="px-5 py-3.5 text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between group cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
             >
-              <Search size={14} className="text-gray-300" /> {item}
+              <div className="flex items-center gap-3">
+                <Search size={14} className="text-gray-300 group-hover:text-green-500" />
+                <span className="font-medium">{item}</span>
+              </div>
+              <ArrowUpLeft size={14} className="text-gray-300 group-hover:text-green-500" />
             </div>
           ))}
         </div>
       )}
 
-      {/* --- 🎤 LISTENING OVERLAY (PORTAL SE FIX KIYA HAI) --- */}
+      {/* --- PORTALS (Voice & Camera) --- */}
       {listening && mounted && createPortal(
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-[999999]">
-          <div className="relative flex flex-col items-center animate-in zoom-in-95 duration-300">
-            {/* Pulsing Mic */}
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-white/20 rounded-full animate-ping scale-[2]" />
-              <div className="relative bg-white text-blue-600 w-24 h-24 rounded-full flex items-center justify-center text-4xl shadow-2xl">
-                🎤
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-md flex items-center justify-center z-[1000] animate-in fade-in duration-300">
+           <div className="flex flex-col items-center">
+              <div className="relative w-32 h-32 flex items-center justify-center mb-8">
+                <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" />
+                <div className="absolute inset-4 bg-blue-500/10 rounded-full animate-pulse" />
+                <div className="relative bg-blue-600 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-2xl">
+                  <Mic size={32} />
+                </div>
               </div>
-            </div>
-
-            <h2 className="text-white text-3xl font-black tracking-tight mb-2">Listening...</h2>
-            <p className="text-white/60 text-sm font-bold uppercase tracking-[4px] mb-12">Speak product name</p>
-
-            <button 
-              onClick={() => setListening(false)}
-              className="px-12 py-4 bg-red-500 text-white rounded-full font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition"
-            >
-              Cancel
-            </button>
-          </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Listening...</h2>
+              <p className="text-gray-500 font-medium">Try saying "Oversize T-shirt"</p>
+              <button 
+                onClick={() => setListening(false)}
+                className="mt-16 px-8 py-3 bg-gray-100 text-gray-600 rounded-full font-bold hover:bg-gray-200 transition"
+              >
+                Cancel Search
+              </button>
+           </div>
         </div>,
         document.body
       )}
 
-      {/* --- 📷 CAMERA COMING SOON (PORTAL) --- */}
       {showCameraMsg && mounted && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999999] p-6">
-          <div className="bg-white rounded-[40px] p-10 w-full max-w-xs text-center shadow-2xl animate-in zoom-in-95">
-            <div className="text-6xl mb-6">📸</div>
-            <p className="text-2xl font-black text-gray-900 leading-tight">Coming Soon!</p>
-            <p className="text-sm text-gray-500 mt-3 font-medium">Search by image is coming soon to Jembee Kart.</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1000] p-6">
+          <div className="bg-white rounded-[32px] p-8 w-full max-w-sm text-center shadow-2xl scale-up-center">
+            <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Camera size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Visual Search</h3>
+            <p className="text-gray-500 mb-8 leading-relaxed">Soon you'll be able to find products by just uploading a photo!</p>
             <button 
               onClick={() => setShowCameraMsg(false)}
-              className="mt-8 w-full py-4 bg-black text-white rounded-[20px] font-bold text-sm shadow-lg active:scale-95 transition"
+              className="w-full py-4 bg-black text-white rounded-2xl font-bold active:scale-95 transition"
             >
-              Okay, Thanks!
+              Got it!
             </button>
           </div>
         </div>,
