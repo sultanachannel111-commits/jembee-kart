@@ -6,9 +6,6 @@ import {
   getDocs,
   updateDoc,
   doc,
-  addDoc,
-  query,
-  where,
   writeBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -24,17 +21,21 @@ export default function SellersPage() {
 
   async function loadAll() {
     setLoading(true);
-    // 1. FETCH SELLERS
-    const userSnap = await getDocs(collection(db, "users"));
-    const sellerList = userSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter((u: any) => u.role === "seller");
-    setSellers(sellerList);
+    try {
+      // 1. FETCH SELLERS
+      const userSnap = await getDocs(collection(db, "users"));
+      const sellerList = userSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((u: any) => u.role === "seller");
+      setSellers(sellerList);
 
-    // 2. FETCH ONLY UNPAID ORDERS (Jo orders abhi tak pay nahi huye)
-    const orderSnap = await getDocs(collection(db, "orders"));
-    const orderList = orderSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    setOrders(orderList);
+      // 2. FETCH ALL ORDERS
+      const orderSnap = await getDocs(collection(db, "orders"));
+      const orderList = orderSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setOrders(orderList);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
     setLoading(false);
   }
 
@@ -45,31 +46,57 @@ export default function SellersPage() {
     setLoading(false);
   }
 
-  // ================= CALCULATE DATA (Updated Logic) =================
+  // ================= CALCULATE DATA (Advanced Logic for COD, Online & Returns) =================
   const sellerStats: any = {};
+  
   orders.forEach((o: any) => {
-    if (!o.sellerRef || o.paymentStatus !== "paid") return; // Sirf paid orders count karein
+    const sId = o.sellerRef;
+    if (!sId) return;
 
-    if (!sellerStats[o.sellerRef]) {
-      sellerStats[o.sellerRef] = {
+    // A. EXCLUDE RETURNS & CANCELLATIONS
+    // Agar order return ya cancel ho gaya hai, toh seller ko paisa nahi milega
+    const status = (o.orderStatus || o.status || "").toUpperCase();
+    if (["RETURNED", "CANCELLED", "REFUNDED", "RETURN_PENDING"].includes(status)) return;
+
+    // B. PAYMENT VALIDATION
+    // 1. Online: Agar paymentStatus 'paid' hai.
+    // 2. COD: Agar status 'DELIVERED' hai (kyunki tabhi cash collect hota hai).
+    const isOnlinePaid = o.paymentMethod !== "COD" && o.paymentStatus?.toLowerCase() === "paid";
+    const isCODDelivered = o.paymentMethod === "COD" && status === "DELIVERED";
+
+    if (!isOnlinePaid && !isCODDelivered) return;
+
+    // Initialize seller object if not exists
+    if (!sellerStats[sId]) {
+      sellerStats[sId] = {
         orders: 0,
         unpaidCommission: 0,
         totalEarned: 0,
-        orderIds: [] // Track orders for batch update
+        orderIds: [] 
       };
     }
 
-    // Agar order payoutStatus "PAID_TO_SELLER" nahi hai, toh use unpaid mein ginein
+    // C. COMMISSION CALCULATION
+    let orderComm = 0;
+    if (o.commission !== undefined) {
+      orderComm = Number(o.commission);
+    } else {
+      // Fallback: (Sale Price - Base Price) * 50%
+      const profit = (Number(o.total) || 0) - (Number(o.basePrice) || 0);
+      orderComm = profit > 0 ? profit * 0.50 : 0;
+    }
+
+    // D. PAYOUT TRACKING
     if (o.payoutStatus !== "PAID_TO_SELLER") {
-      sellerStats[o.sellerRef].unpaidCommission += o.commission || 0;
-      sellerStats[o.sellerRef].orderIds.push(o.id);
+      sellerStats[sId].unpaidCommission += orderComm;
+      sellerStats[sId].orderIds.push(o.id);
     }
     
-    sellerStats[o.sellerRef].totalEarned += o.commission || 0;
-    sellerStats[o.sellerRef].orders += 1;
+    sellerStats[sId].totalEarned += orderComm;
+    sellerStats[sId].orders += 1;
   });
 
-  // ================= PAYOUT (Fixing the Zeroing Logic) =================
+  // ================= PAYOUT FUNCTION =================
   async function markPaid(sellerId: string, amount: number, orderIds: string[]) {
     if (amount <= 0) return alert("Nothing to pay!");
     if (!confirm(`Mark ₹${amount} as paid? This will reset the pending balance.`)) return;
@@ -78,23 +105,24 @@ export default function SellersPage() {
     try {
       const batch = writeBatch(db);
 
-      // 1. Create Payout Record
+      // 1. Create Payout History Record
       const payoutRef = doc(collection(db, "payouts"));
       batch.set(payoutRef, {
         sellerId,
         amount,
         paidAt: new Date(),
-        status: "SUCCESS"
+        status: "SUCCESS",
+        orderCount: orderIds.length
       });
 
-      // 2. Update all processed orders as PAID_TO_SELLER
+      // 2. Update all processed orders to PAID_TO_SELLER
       orderIds.forEach(orderId => {
         const oRef = doc(db, "orders", orderId);
         batch.update(oRef, { payoutStatus: "PAID_TO_SELLER" });
       });
 
       await batch.commit();
-      alert("✅ Payout successful and balance updated!");
+      alert("✅ Payout successful! Balance updated.");
       await loadAll();
     } catch (err) {
       console.error(err);
@@ -105,6 +133,7 @@ export default function SellersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-6 text-white font-sans">
+      {/* HEADER */}
       <div className="mb-10 flex justify-between items-end">
         <div>
           <h1 className="text-4xl font-black tracking-tight">Seller Management 💼</h1>
@@ -115,6 +144,7 @@ export default function SellersPage() {
         </button>
       </div>
 
+      {/* SELLERS GRID */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sellers.map((s) => {
           const stats = sellerStats[s.id] || { orders: 0, unpaidCommission: 0, totalEarned: 0, orderIds: [] };
@@ -125,7 +155,7 @@ export default function SellersPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-[10px] font-black uppercase text-indigo-300 tracking-widest mb-1">Affiliate Seller</p>
-                    <p className="text-xl font-bold">{s.name || "Sadiya"}</p>
+                    <p className="text-xl font-bold">{s.name || "Seller Name"}</p>
                     <p className="text-xs opacity-50">{s.email}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${s.active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
@@ -136,7 +166,7 @@ export default function SellersPage() {
                 <div className="grid grid-cols-2 gap-4">
                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                       <p className="text-[10px] opacity-50 font-bold uppercase">Total Earned</p>
-                      <p className="text-lg font-black">₹{stats.totalEarned}</p>
+                      <p className="text-lg font-black">₹{stats.totalEarned.toFixed(2)}</p>
                    </div>
                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                       <p className="text-[10px] opacity-50 font-bold uppercase">Orders</p>
@@ -146,7 +176,7 @@ export default function SellersPage() {
 
                 <div className="bg-indigo-500/20 p-5 rounded-3xl border border-indigo-500/30">
                    <p className="text-xs font-bold text-indigo-200 mb-1">Current Pending Balance</p>
-                   <p className="text-3xl font-black text-white">₹{stats.unpaidCommission}</p>
+                   <p className="text-3xl font-black text-white">₹{stats.unpaidCommission.toFixed(2)}</p>
                 </div>
               </div>
 
