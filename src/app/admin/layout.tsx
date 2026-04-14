@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -13,7 +13,6 @@ import {
   Image as ImageIcon,
   Gift,
   LogOut,
-  Menu
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -21,17 +20,19 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   const pathname = usePathname();
+  const router = useRouter();
 
-  // 🔥 Login page par layout hide
+  // 🔥 Login page par layout hide logic
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
   const logout = () => {
     // Firebase logout logic yahan add kar sakte hain
-    window.location.href = "/auth";
+    if (confirm("Logout from Admin Panel?")) {
+      router.push("/auth");
+    }
   };
 
   const menu = [
@@ -47,11 +48,12 @@ export default function AdminLayout({
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
 
       {/* --- SIDEBAR (Desktop) --- */}
-      <aside className="w-72 bg-white shadow-xl hidden lg:flex flex-col sticky top-0 h-screen">
-
+      <aside className="w-72 bg-white shadow-xl hidden lg:flex flex-col sticky top-0 h-screen z-50">
+        
+        {/* Logo Section */}
         <div className="p-8 border-b">
           <h1 className="text-2xl font-black italic tracking-tighter text-slate-900">
             JEMBEE<span className="text-purple-600">KART</span>
@@ -64,6 +66,7 @@ export default function AdminLayout({
           </div>
         </div>
 
+        {/* Navigation Links */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           {menu.map((item, index) => {
             const Icon = item.icon;
@@ -73,9 +76,9 @@ export default function AdminLayout({
               <Link
                 key={index}
                 href={item.path}
-                className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-200 group
+                className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group
                 ${active 
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-200" 
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-200 translate-x-1" 
                   : "text-slate-500 hover:bg-purple-50 hover:text-purple-600"}`}
               >
                 <Icon size={20} strokeWidth={active ? 2.5 : 2} />
@@ -87,64 +90,89 @@ export default function AdminLayout({
           })}
         </nav>
 
+        {/* Bottom Action */}
         <div className="p-4 border-t">
           <button
             onClick={logout}
-            className="flex items-center gap-4 w-full p-4 rounded-2xl text-red-500 font-black text-xs uppercase tracking-widest hover:bg-red-50 transition-all"
+            className="flex items-center gap-4 w-full p-4 rounded-2xl text-red-500 font-black text-xs uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95"
           >
             <LogOut size={18} />
             Logout Account
           </button>
         </div>
-
       </aside>
 
       {/* --- MAIN CONTENT AREA --- */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* HEADER (Sticky) */}
-        <header className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-30 p-4 flex justify-between items-center lg:px-8">
+        {/* Top Header (Mobile & Desktop) */}
+        <header className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-40 p-4 flex justify-between items-center lg:px-8 shadow-sm">
           <div className="flex items-center gap-3 lg:hidden">
-             {/* Mobile Logo */}
              <h1 className="text-xl font-black italic tracking-tighter text-purple-600">JK</h1>
+             <div className="h-4 w-[1px] bg-slate-200"></div>
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Terminal</span>
           </div>
           
-          <h2 className="font-black text-slate-800 uppercase text-xs tracking-widest hidden sm:block">
-            {menu.find(m => m.path === pathname)?.name || "Management"}
+          <h2 className="font-black text-slate-800 uppercase text-xs tracking-[0.2em] hidden lg:block">
+            {menu.find(m => m.path === pathname)?.name || "Management Center"}
           </h2>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={logout}
-              className="lg:hidden text-slate-400 p-2"
-            >
+            <button onClick={logout} className="lg:hidden text-slate-400 p-2 hover:text-red-500 transition-colors">
               <LogOut size={20} />
             </button>
-            <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-black text-xs border-2 border-white shadow-sm">
+            <div className="h-10 w-10 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-black text-xs border-2 border-white shadow-md">
               SA
             </div>
           </div>
         </header>
 
-        {/* PAGE CONTENT */}
-        <main className="p-4 lg:p-10 max-w-7xl mx-auto w-full">
-          {children}
+        {/* Dynamic Page Content */}
+        <main className="p-4 lg:p-10 w-full mb-20 lg:mb-0">
+          <div className="max-w-6xl mx-auto">
+             {children}
+          </div>
         </main>
 
-        {/* MOBILE BOTTOM NAVIGATION (Quick Access) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t flex justify-around p-3 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        {/* --- MOBILE BOTTOM NAVIGATION --- */}
+        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t flex justify-around p-3 z-50 shadow-[0_-5px_25px_rgba(0,0,0,0.08)]">
            {menu.slice(0, 5).map((item, index) => {
              const Icon = item.icon;
              const active = pathname === item.path;
              return (
-               <Link key={index} href={item.path} className={`p-2 rounded-xl ${active ? "text-purple-600 bg-purple-50" : "text-slate-400"}`}>
-                 <Icon size={22} />
+               <Link 
+                key={index} 
+                href={item.path} 
+                className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all
+                ${active ? "text-purple-600" : "text-slate-400 opacity-70"}`}
+               >
+                 <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+                 <span className="text-[8px] font-black uppercase tracking-widest">
+                   {item.name.substring(0, 4)}
+                 </span>
+                 {active && <div className="h-1 w-1 bg-purple-600 rounded-full mt-0.5"></div>}
                </Link>
              );
            })}
         </nav>
 
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+      `}</style>
     </div>
   );
 }
