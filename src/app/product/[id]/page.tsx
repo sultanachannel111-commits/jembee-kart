@@ -7,7 +7,7 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
 import toast from "react-hot-toast";
-import { ShoppingCart, Zap, MapPin, Share2, X, Heart, Star, ShieldCheck, Eye, Flame, ChevronRight, Truck } from "lucide-react";
+import { ShoppingCart, Zap, MapPin, Share2, X, Heart, Star, ShieldCheck, Eye, Flame, ChevronRight, Truck, ChevronLeft, ChevronRight as RightIcon } from "lucide-react";
 
 export default function ProductPage() {
   const params = useParams();
@@ -31,10 +31,13 @@ export default function ProductPage() {
   const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
   const [checkingPin, setCheckingPin] = useState(false);
   const [viewCount, setViewCount] = useState(0);
+  
+  // New States
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   useEffect(() => {
     if (ref) localStorage.setItem("affiliate", ref);
-    setViewCount(Math.floor(Math.random() * 15) + 5); // Fake view count for urgency
+    setViewCount(Math.floor(Math.random() * 15) + 5);
   }, [ref]);
 
   useEffect(() => {
@@ -42,7 +45,6 @@ export default function ProductPage() {
     return () => unsub();
   }, []);
 
-  // Load Product, Similar items & Active Offers
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -52,12 +54,10 @@ export default function ProductPage() {
           setProduct(data);
           setSelectedSize(data?.variations?.[selectedColor]?.sizes?.[0] || null);
           
-          // Similar items
           const q = query(collection(db, "products"), where("category", "==", data.category), limit(6));
           const similarSnap = await getDocs(q);
           setSimilar(similarSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.id !== id));
 
-          // Fetch Active Offers
           const offerSnap = await getDocs(collection(db, "offers"));
           const activeOffer = offerSnap.docs
             .map(d => d.data())
@@ -68,7 +68,7 @@ export default function ProductPage() {
       finally { setLoading(false); }
     };
     if (id) fetchData();
-  }, [id]);
+  }, [id, selectedColor]);
 
   const handleShare = () => {
     const shareUrl = `${window.location.origin}/product/${id}${ref ? `?ref=${ref}` : ""}`;
@@ -103,6 +103,9 @@ export default function ProductPage() {
   const finalPrice = Math.max(1, Math.round(originalPrice - (originalPrice * discount) / 100));
   const stock = Number(selectedSize?.stock) || 0;
 
+  const nextImg = () => setCurrentImage((prev) => (prev + 1) % images.length);
+  const prevImg = () => setCurrentImage((prev) => (prev - 1 + images.length) % images.length);
+
   const handleAction = async (type: 'cart' | 'buy') => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return toast.error("Please select a size");
@@ -132,14 +135,17 @@ export default function ProductPage() {
 
   return (
     <div className="bg-white min-h-screen pb-32">
-      {/* Photo Viewer */}
+      {/* Photo Viewer with Zoom & Slide */}
       {showViewer && (
-        <div className="fixed inset-0 bg-black z-[100] flex flex-col">
-          <div className="flex justify-between p-6">
+        <div className="fixed inset-0 bg-black z-[100] flex flex-col justify-center items-center">
+          <div className="absolute top-0 w-full flex justify-between p-6 z-[110]">
              <span className="text-white font-bold text-sm uppercase tracking-widest">{currentImage + 1} / {images.length}</span>
-             <button onClick={() => setShowViewer(false)} className="text-white"><X size={32}/></button>
+             <button onClick={() => setShowViewer(false)} className="text-white bg-white/10 p-2 rounded-full"><X size={28}/></button>
           </div>
-          <img src={images[currentImage]} className="flex-1 object-contain" />
+          
+          <button onClick={prevImg} className="absolute left-4 text-white p-4 z-[110] bg-black/20 rounded-full"><ChevronLeft size={32}/></button>
+          <img src={images[currentImage]} className="w-full h-full object-contain transition-transform duration-300 transform scale-110" />
+          <button onClick={nextImg} className="absolute right-4 text-white p-4 z-[110] bg-black/20 rounded-full"><RightIcon size={32}/></button>
         </div>
       )}
 
@@ -150,7 +156,6 @@ export default function ProductPage() {
           <button className="p-3 bg-white/90 rounded-full shadow-xl text-red-500"><Heart size={18} /></button>
         </div>
         
-        {/* Hot Badge */}
         {stock < 5 && stock > 0 && (
           <div className="absolute top-6 left-6 z-10 bg-orange-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 animate-bounce">
             <Flame size={12} fill="white" /> Selling Fast
@@ -160,7 +165,7 @@ export default function ProductPage() {
         <div className="flex h-full overflow-x-auto snap-x snap-mandatory no-scrollbar" 
              onScroll={(e: any) => setCurrentImage(Math.round(e.target.scrollLeft / e.target.clientWidth))}>
           {images.map((img, i) => (
-            <img key={i} src={img} onClick={() => setShowViewer(true)} className="min-w-full h-full object-cover snap-center" />
+            <img key={i} src={img} onClick={() => setShowViewer(true)} className="min-w-full h-full object-cover snap-center cursor-zoom-in" />
           ))}
         </div>
         
@@ -172,12 +177,10 @@ export default function ProductPage() {
       </div>
 
       <div className="p-6 space-y-8">
-        {/* Urgency Text */}
         <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-tighter">
           <Eye size={14} /> {viewCount} people are looking at this right now
         </div>
 
-        {/* 2. Color Selection */}
         <div className="space-y-3">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Colors</p>
           <div className="flex gap-3 overflow-x-auto no-scrollbar">
@@ -190,12 +193,11 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* 3. Header Info */}
         <div className="space-y-2">
           <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">{product.name}</h1>
           <div className="flex items-center gap-2" onClick={() => reviewRef.current?.scrollIntoView({ behavior: 'smooth' })}>
             <div className="flex bg-green-600 text-white px-2 py-0.5 rounded font-black text-[10px]">4.8 ★</div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase underline decoration-dotted">See {product.reviewsCount || '142'} Verified Reviews</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase underline decoration-dotted">Real Reviews & Photos ({product.reviewsCount || '142'})</p>
           </div>
           <div className="flex items-center gap-3 pt-2">
             <span className="text-4xl font-black text-blue-600 tracking-tighter uppercase italic">₹{finalPrice}</span>
@@ -204,7 +206,17 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* 4. Size Selection */}
+        {/* Short & Full Description Logic */}
+        <div className="space-y-2">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">About Product</p>
+          <div className={`text-xs font-bold text-slate-600 leading-relaxed ${!showFullDesc && "line-clamp-2"}`}>
+            {product.description || "Premium quality product by Jembee Kart, designed for comfort and style with high-density puff printing."}
+          </div>
+          <button onClick={() => setShowFullDesc(!showFullDesc)} className="text-[10px] font-black text-blue-600 uppercase underline">
+            {showFullDesc ? "Read Less" : "Read Full Details"}
+          </button>
+        </div>
+
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Size: {selectedSize?.size || 'Select'}</p>
@@ -219,15 +231,16 @@ export default function ProductPage() {
             ))}
           </div>
           {stock < 10 && stock > 0 && <p className="text-[10px] font-black text-orange-500 uppercase tracking-tighter">⚡ Low Stock: Only {stock} items left!</p>}
+          {stock === 0 && <p className="text-xs font-black text-red-500 uppercase italic">❌ This size is currently Out of Stock</p>}
         </div>
 
-        {/* 5. Trust & Shipping */}
+        {/* 2 Days Exchange Logic */}
         <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 space-y-6">
            <div className="flex justify-around border-b border-slate-200 pb-4">
-              {['7 Days Return', 'Free Shipping', 'Verified'].map(t => (
-                <div key={t} className="flex flex-col items-center gap-1">
-                  <ShieldCheck size={16} className="text-blue-600" />
-                  <span className="text-[8px] font-black uppercase text-slate-400">{t}</span>
+              {[ {icon: <ShieldCheck size={16}/>, text: '2 Days Exchange'}, {icon: <Truck size={16}/>, text: 'Free Shipping'}, {icon: <Star size={16}/>, text: 'Fake-Free Reviews'} ].map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1 text-center">
+                  <span className="text-blue-600">{item.icon}</span>
+                  <span className="text-[8px] font-black uppercase text-slate-400">{item.text}</span>
                 </div>
               ))}
            </div>
@@ -237,11 +250,10 @@ export default function ProductPage() {
                <input type="number" placeholder="Enter PIN" value={pincode} onChange={(e)=>setPincode(e.target.value)} className="flex-1 bg-white rounded-xl px-4 py-3 text-xs font-bold shadow-sm" />
                <button onClick={checkPincode} className="bg-slate-900 text-white px-6 rounded-xl font-black text-[10px] uppercase">{checkingPin ? '...' : 'Check'}</button>
              </div>
-             {deliveryInfo && <p className="text-[11px] text-green-600 font-black italic uppercase italic">🚀 Fast Delivery to {deliveryInfo.place} by Wednesday</p>}
+             {deliveryInfo && <p className="text-[11px] text-green-600 font-black italic uppercase">🚀 Fast Delivery to {deliveryInfo.place} by {deliveryInfo.days} Days</p>}
            </div>
         </div>
 
-        {/* 6. Specifications */}
         <div className="space-y-4">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Specifications</p>
           <div className="grid grid-cols-2 gap-4">
@@ -252,18 +264,21 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* 7. Similar Items */}
+        {/* Similar Items with Small Image Style */}
         {similar.length > 0 && (
           <div className="space-y-4">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">More from Jembee Kart</p>
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
               {similar.map((p) => (
-                <div key={p.id} onClick={() => router.push(`/product/${p.id}`)} className="min-w-[150px] space-y-2 group">
-                  <div className="relative overflow-hidden rounded-2xl aspect-[3/4]">
-                     <img src={p.variations?.[0]?.images?.main} className="w-full h-full object-cover group-active:scale-110 transition-transform" />
+                <div key={p.id} onClick={() => router.push(`/product/${p.id}`)} className="min-w-[130px] space-y-2 group">
+                  <div className="relative overflow-hidden rounded-2xl aspect-[3/4] bg-slate-50">
+                     <img src={p.variations?.[0]?.images?.main} className="w-full h-full object-contain p-2 group-active:scale-105 transition-transform" />
+                     {p.stock === 0 && <div className="absolute inset-0 bg-white/60 flex items-center justify-center text-[8px] font-black uppercase text-red-600 italic">Out of Stock</div>}
                   </div>
-                  <p className="text-[10px] font-black uppercase truncate">{p.name}</p>
-                  <p className="text-xs font-black text-blue-600 italic leading-none">₹{p.price}</p>
+                  <div className="px-1">
+                    <p className="text-[9px] font-black uppercase truncate text-slate-700">{p.name}</p>
+                    <p className="text-xs font-black text-blue-600 italic leading-none mt-1">₹{p.price}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -275,15 +290,14 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* 8. Sticky Bottom Bar */}
       <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t p-4 flex gap-3 z-50">
         <button disabled={stock === 0} onClick={() => handleAction('cart')}
-          className="flex-1 py-4 rounded-2xl font-black text-xs uppercase border-2 border-slate-900 tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+          className="flex-1 py-4 rounded-2xl font-black text-xs uppercase border-2 border-slate-900 tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:border-slate-300">
           <ShoppingCart size={18} /> Bag
         </button>
         <button disabled={stock === 0} onClick={() => handleAction('buy')}
-          className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-blue-600 text-white shadow-xl shadow-blue-200 tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
-          <Zap size={18} fill="white" /> {stock === 0 ? "Sold Out" : "Buy Now"}
+          className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-blue-600 text-white shadow-xl shadow-blue-200 tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all disabled:bg-slate-300 disabled:shadow-none">
+          <Zap size={18} fill={white} /> {stock === 0 ? "Out of Stock" : "Buy Now"}
         </button>
       </div>
     </div>
