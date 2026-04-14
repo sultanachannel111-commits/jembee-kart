@@ -15,15 +15,14 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Package, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, AlertCircle, X, MessageSquare } from "lucide-react";
+import { ShoppingBag, Package, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, AlertCircle, X, MessageSquare, ChevronRight } from "lucide-react";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   
-  // States for Help Form
   const [reason, setReason] = useState("");
   const [issue, setIssue] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -44,7 +43,7 @@ export default function OrdersPage() {
       );
 
       const unsubscribeOrders = onSnapshot(q, (snap) => {
-        const arr: any[] = [];
+        const arr = [];
         snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
         setOrders(arr);
         setLoading(false);
@@ -59,14 +58,13 @@ export default function OrdersPage() {
     return () => unsubAuth();
   }, [router]);
 
-  const getDeliveryDate = (order: any) => {
+  const getDeliveryDate = (order) => {
     if (!order.createdAt) return "TBD";
     const date = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
     date.setDate(date.getDate() + 5);
     return date.toDateString();
   };
 
-  // ✅ FIX: Reset states when closing modal
   const closeHelpModal = () => {
     setShowHelp(false);
     setSelectedOrder(null);
@@ -75,11 +73,8 @@ export default function OrdersPage() {
     setIsProcessing(false);
   };
 
-  // ✅ FIX: Order Cancellation Logic
   const handleCancelOrder = async () => {
     if (!selectedOrder) return;
-    
-    // Safety check for status
     const status = selectedOrder.orderStatus;
     if (status !== "PLACED" && status !== "PENDING") {
       alert("Order process ya ship ho chuka hai, ab cancel nahi ho sakta ❌");
@@ -96,16 +91,15 @@ export default function OrdersPage() {
         alert("Order Cancelled Successfully ✅");
         closeHelpModal();
       } catch (err) {
-        alert("Cancellation failed. Please try again.");
+        alert("Cancellation failed.");
       } finally {
         setIsProcessing(false);
       }
     }
   };
 
-  // ✅ FIX: Return Request with State Reset
   const handleReturnRequest = async () => {
-    if (!reason) return alert("Please select a reason ❌");
+    if (!reason || !issue) return alert("Please select a reason and describe the issue ❌");
     
     setIsProcessing(true);
     try {
@@ -117,11 +111,10 @@ export default function OrdersPage() {
         status: "REQUESTED",
         createdAt: serverTimestamp()
       });
-
-      alert("Return Request Sent Successfully! Hum aapse jaldi sampark karenge. ✅");
+      alert("Return Request Sent! ✅");
       closeHelpModal();
     } catch (err) {
-      alert("Request failed. Please check your internet.");
+      alert("Request failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -130,13 +123,12 @@ export default function OrdersPage() {
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-white">
       <Loader2 className="animate-spin text-slate-900" size={32} />
-      <p className="text-[10px] font-black uppercase mt-4 tracking-widest text-slate-400">Syncing Orders...</p>
+      <p className="text-[10px] font-black uppercase mt-4 tracking-widest text-slate-400">Syncing Your Orders...</p>
     </div>
   );
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50">
-      {/* 📱 HEADER */}
       <div className="p-8 rounded-b-[45px] shadow-2xl relative bg-black">
         <button onClick={() => router.push("/")} className="absolute left-6 top-9 text-white/70">
           <ArrowLeft size={24}/>
@@ -144,7 +136,7 @@ export default function OrdersPage() {
         <h1 className="text-xl font-black text-white text-center italic uppercase tracking-widest">Order History</h1>
       </div>
 
-      <div className="max-w-md mx-auto px-5 -mt-8 space-y-4">
+      <div className="max-w-md mx-auto px-5 -mt-8 space-y-6">
         {orders.length === 0 ? (
           <div className="bg-white p-12 rounded-[40px] shadow-xl text-center border border-slate-50">
             <ShoppingBag className="text-slate-200 mx-auto mb-6" size={60} />
@@ -154,42 +146,53 @@ export default function OrdersPage() {
         ) : (
           orders.map((o) => {
             const total = Number(o.total) || (Number(o.itemsTotal || 0) + Number(o.shippingCharge || 0));
-            
             return (
-              <div key={o.id} className="bg-white p-5 rounded-[35px] shadow-lg border border-slate-50 overflow-hidden transition-transform active:scale-[0.98]">
-                <div className="flex justify-between items-start mb-4">
+              <div key={o.id} className="bg-white p-6 rounded-[35px] shadow-lg border border-slate-50 overflow-hidden">
+                <div className="flex justify-between items-start mb-5">
                   <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                    o.orderStatus === 'CANCELLED' ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-600'
+                    o.orderStatus === 'CANCELLED' ? 'bg-red-50 text-red-500' : 'bg-orange-100 text-orange-600'
                   }`}>
                     {o.orderStatus || "PENDING"}
                   </div>
                   <p className="text-[9px] font-bold text-slate-300 uppercase">#{o.id.slice(-8)}</p>
                 </div>
 
-                <div className="flex gap-4">
-                  <img src={o.items?.[0]?.image} alt="" className="w-20 h-20 rounded-2xl object-cover shadow-sm border border-slate-50" />
-                  <div className="flex-1">
-                    <p className="text-xs font-black text-slate-800 line-clamp-1 italic uppercase">{o.items?.[0]?.name}</p>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">Qty: {o.items?.[0]?.qty} | Total: ₹{total}</p>
-                    {o.orderStatus !== 'CANCELLED' && (
-                      <div className="flex items-center gap-1 mt-2 text-[10px] font-black text-indigo-600 uppercase">
-                        <Truck size={12} /> {getDeliveryDate(o)}
+                {/* --- Multiple Items Loop Fix --- */}
+                <div className="space-y-4">
+                  {o.items?.map((item, idx) => (
+                    <div key={idx} className="flex gap-4 items-center">
+                      <img src={item.image} alt="" className="w-16 h-16 rounded-2xl object-cover shadow-sm border border-slate-100" />
+                      <div className="flex-1">
+                        <p className="text-xs font-black text-slate-800 line-clamp-1 italic uppercase">{item.name}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">Qty: {item.qty} | Price: ₹{item.price}</p>
                       </div>
-                    )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-50 flex justify-between items-end">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-300 uppercase">Total Amount</p>
+                    <p className="text-lg font-black text-slate-900">₹{total}</p>
                   </div>
+                  {o.orderStatus !== 'CANCELLED' && (
+                    <div className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase">
+                      <Truck size={12} /> Est: {getDeliveryDate(o)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mt-5">
                   <button 
                     disabled={o.orderStatus === 'CANCELLED'}
                     onClick={() => router.push(`/track/${o.id}`)}
-                    className="py-3 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg disabled:opacity-50 disabled:bg-slate-200"
+                    className="py-3 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg disabled:opacity-50"
                   >
                     Track Order
                   </button>
                   <button 
                     onClick={() => { setSelectedOrder(o); setShowHelp(true); }}
-                    className="py-3 bg-white border border-slate-100 text-slate-400 rounded-2xl font-black text-[9px] uppercase tracking-widest"
+                    className="py-3 bg-white border border-slate-100 text-slate-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-50"
                   >
                     Help & Return
                   </button>
@@ -200,67 +203,37 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* 🔥 HELP & RETURN MODAL (FIXED) */}
+      {/* HELP MODAL */}
       {showHelp && selectedOrder && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white p-8 rounded-[40px] w-full max-w-md shadow-2xl relative animate-in fade-in slide-in-from-bottom-10 max-h-[90vh] overflow-y-auto">
-            <button onClick={closeHelpModal} className="absolute right-6 top-6 text-slate-300 hover:text-slate-900"><X size={24}/></button>
-            
-            <h2 className="text-xl font-black text-slate-900 uppercase italic mb-2 tracking-tight">Need Help?</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mb-6 tracking-widest">Order #{(selectedOrder.id).slice(-8)}</p>
+          <div className="bg-white p-8 rounded-[40px] w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onClick={closeHelpModal} className="absolute right-6 top-6 text-slate-300"><X size={24}/></button>
+            <h2 className="text-xl font-black text-slate-900 uppercase italic mb-2">Need Help?</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mb-6">Order #{(selectedOrder.id).slice(-8)}</p>
 
             <div className="space-y-4">
-              {/* CANCEL SECTION */}
-              {selectedOrder.orderStatus === "PLACED" || selectedOrder.orderStatus === "PENDING" ? (
-                <button
-                  disabled={isProcessing}
-                  onClick={handleCancelOrder}
-                  className="w-full flex items-center justify-between p-5 bg-red-50 text-red-600 rounded-3xl border border-red-100 active:scale-95 transition-all disabled:opacity-50"
-                >
+              {/* Cancel Button Logic */}
+              {(selectedOrder.orderStatus === "PLACED" || selectedOrder.orderStatus === "PENDING") ? (
+                <button disabled={isProcessing} onClick={handleCancelOrder} className="w-full flex items-center justify-between p-5 bg-red-50 text-red-600 rounded-3xl border border-red-100">
                   <span className="text-xs font-black uppercase">{isProcessing ? "Processing..." : "Cancel Order"}</span>
                   <AlertCircle size={18} />
                 </button>
               ) : (
-                <div className="p-4 bg-slate-50 rounded-3xl text-[9px] font-bold text-slate-400 uppercase text-center border border-slate-100">
-                  This order cannot be cancelled anymore.
-                </div>
+                <div className="p-4 bg-slate-50 rounded-3xl text-[9px] font-bold text-slate-400 uppercase text-center">Cannot be cancelled anymore.</div>
               )}
 
-              {/* RETURN SECTION */}
+              {/* Return Section */}
               <div className="p-1 bg-slate-50 rounded-[30px] border border-slate-100">
                 <div className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MessageSquare size={14} className="text-slate-400" />
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Return Request</h3>
-                  </div>
-                  
-                  <select
-                    disabled={isProcessing}
-                    className="w-full bg-white border border-slate-100 p-4 rounded-2xl text-xs font-bold outline-none mb-3 shadow-sm focus:border-indigo-300 transition-colors"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
+                  <select disabled={isProcessing} className="w-full bg-white border border-slate-100 p-4 rounded-2xl text-xs font-bold mb-3" value={reason} onChange={(e) => setReason(e.target.value)}>
                     <option value="">Select Reason</option>
                     <option>Wrong Product Sent</option>
                     <option>Damaged in Transit</option>
                     <option>Size/Fitting Issue</option>
-                    <option>Quality not as expected</option>
                   </select>
-
-                  <textarea
-                    disabled={isProcessing}
-                    placeholder="Briefly describe the issue..."
-                    className="w-full bg-white border border-slate-100 p-4 rounded-2xl text-xs font-bold outline-none h-24 resize-none shadow-sm focus:border-indigo-300 transition-colors"
-                    value={issue}
-                    onChange={(e) => setIssue(e.target.value)}
-                  />
-
-                  <button
-                    disabled={isProcessing}
-                    onClick={handleReturnRequest}
-                    className="w-full mt-4 bg-indigo-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 transition-all"
-                  >
-                    {isProcessing ? "Submitting..." : "Submit Return Request"}
+                  <textarea disabled={isProcessing} placeholder="Describe the issue..." className="w-full bg-white border border-slate-100 p-4 rounded-2xl text-xs font-bold h-24 resize-none mb-3" value={issue} onChange={(e) => setIssue(e.target.value)} />
+                  <button disabled={isProcessing} onClick={handleReturnRequest} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase">
+                    {isProcessing ? "Submitting..." : "Submit Request"}
                   </button>
                 </div>
               </div>
