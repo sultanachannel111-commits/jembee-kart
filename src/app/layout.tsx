@@ -1,4 +1,4 @@
-import "./globals.css"; // 'i' chota rakhein
+import "./globals.css";
 import { Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -7,7 +7,7 @@ import Footer from "@/components/home/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ThemeLoader from "@/components/ThemeLoader";
 import { Toaster } from "react-hot-toast";
-import ClientWrapper from "@/components/ClientWrapper"; // Ensure this file exists in src/components/
+import ClientWrapper from "@/components/ClientWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,7 +29,6 @@ export default function RootLayout({
       >
         <ClientWrapper /> 
         <ThemeLoader />
-
         <AuthProvider>
           <CartProvider>
             <main className="pb-24 min-h-[80vh]">
