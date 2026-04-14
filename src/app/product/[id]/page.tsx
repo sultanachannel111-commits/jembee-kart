@@ -7,34 +7,36 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import ReviewSection from "@/components/product/ReviewSection";
 import toast from "react-hot-toast";
-import { ShoppingCart, Zap, MapPin, Share2, X, Heart, Star, ShieldCheck, Eye, Flame, ChevronRight, Truck } from "lucide-react";
+import { ShoppingCart, Zap, Share2, X, Heart, ShieldCheck, Eye, Flame, ChevronRight, Truck } from "lucide-react";
 
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
   const searchParams = useSearchParams();
+  
+  // Safe ID extraction for Next.js 13/14/15
+  const id = params?.id;
   const ref = searchParams.get("ref");
-  const reviewRef = useRef<HTMLDivElement>(null);
+  const reviewRef = useRef(null);
 
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [similar, setSimilar] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [similar, setSimilar] = useState([]);
 
   const [selectedColor, setSelectedColor] = useState(0);
-  const [selectedSize, setSelectedSize] = useState<any>(null);
+  const [selectedSize, setSelectedSize] = useState(null);
   const [currentImage, setCurrentImage] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [pincode, setPincode] = useState("");
-  const [deliveryInfo, setDeliveryInfo] = useState<any>(null);
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
   const [checkingPin, setCheckingPin] = useState(false);
   const [viewCount, setViewCount] = useState(0);
 
   useEffect(() => {
     if (ref) localStorage.setItem("affiliate", ref);
-    setViewCount(Math.floor(Math.random() * 15) + 5); // Fake view count for urgency
+    setViewCount(Math.floor(Math.random() * 15) + 5);
   }, [ref]);
 
   useEffect(() => {
@@ -42,33 +44,35 @@ export default function ProductPage() {
     return () => unsub();
   }, []);
 
-  // Load Product, Similar items & Active Offers
   useEffect(() => {
     const fetchData = async () => {
+      if (!id) return;
       try {
         const snap = await getDoc(doc(db, "products", id));
         if (snap.exists()) {
-          const data: any = { id: snap.id, ...snap.data() };
+          const data = { id: snap.id, ...snap.data() };
           setProduct(data);
           setSelectedSize(data?.variations?.[selectedColor]?.sizes?.[0] || null);
           
-          // Similar items
           const q = query(collection(db, "products"), where("category", "==", data.category), limit(6));
           const similarSnap = await getDocs(q);
           setSimilar(similarSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.id !== id));
 
-          // Fetch Active Offers
           const offerSnap = await getDocs(collection(db, "offers"));
           const activeOffer = offerSnap.docs
             .map(d => d.data())
             .find(o => o.active && (o.productId === id || o.category === data.category));
           if (activeOffer) setDiscount(Number(activeOffer.discount));
         }
-      } catch (err) { toast.error("Failed to load"); }
-      finally { setLoading(false); }
+      } catch (err) { 
+        console.error(err);
+        toast.error("Failed to load"); 
+      } finally { 
+        setLoading(false); 
+      }
     };
-    if (id) fetchData();
-  }, [id]);
+    fetchData();
+  }, [id, selectedColor]);
 
   const handleShare = () => {
     const shareUrl = `${window.location.origin}/product/${id}${ref ? `?ref=${ref}` : ""}`;
@@ -103,7 +107,7 @@ export default function ProductPage() {
   const finalPrice = Math.max(1, Math.round(originalPrice - (originalPrice * discount) / 100));
   const stock = Number(selectedSize?.stock) || 0;
 
-  const handleAction = async (type: 'cart' | 'buy') => {
+  const handleAction = async (type) => {
     if (!user) return router.push(`/login?redirect=/product/${id}`);
     if (!selectedSize) return toast.error("Please select a size");
 
@@ -139,7 +143,7 @@ export default function ProductPage() {
              <span className="text-white font-bold text-sm uppercase tracking-widest">{currentImage + 1} / {images.length}</span>
              <button onClick={() => setShowViewer(false)} className="text-white"><X size={32}/></button>
           </div>
-          <img src={images[currentImage]} className="flex-1 object-contain" />
+          <img src={images[currentImage]} className="flex-1 object-contain" alt="viewer" />
         </div>
       )}
 
@@ -150,7 +154,6 @@ export default function ProductPage() {
           <button className="p-3 bg-white/90 rounded-full shadow-xl text-red-500"><Heart size={18} /></button>
         </div>
         
-        {/* Hot Badge */}
         {stock < 5 && stock > 0 && (
           <div className="absolute top-6 left-6 z-10 bg-orange-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 animate-bounce">
             <Flame size={12} fill="white" /> Selling Fast
@@ -158,9 +161,9 @@ export default function ProductPage() {
         )}
 
         <div className="flex h-full overflow-x-auto snap-x snap-mandatory no-scrollbar" 
-             onScroll={(e: any) => setCurrentImage(Math.round(e.target.scrollLeft / e.target.clientWidth))}>
+             onScroll={(e) => setCurrentImage(Math.round(e.target.scrollLeft / e.target.clientWidth))}>
           {images.map((img, i) => (
-            <img key={i} src={img} onClick={() => setShowViewer(true)} className="min-w-full h-full object-cover snap-center" />
+            <img key={i} src={img} onClick={() => setShowViewer(true)} className="min-w-full h-full object-cover snap-center" alt={`product-${i}`} />
           ))}
         </div>
         
@@ -172,7 +175,6 @@ export default function ProductPage() {
       </div>
 
       <div className="p-6 space-y-8">
-        {/* Urgency Text */}
         <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-tighter">
           <Eye size={14} /> {viewCount} people are looking at this right now
         </div>
@@ -181,10 +183,10 @@ export default function ProductPage() {
         <div className="space-y-3">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Colors</p>
           <div className="flex gap-3 overflow-x-auto no-scrollbar">
-            {product?.variations?.map((v: any, i: number) => (
-              <button key={i} onClick={() => { setSelectedColor(i); setSelectedSize(v?.sizes?.[0] || null); }}
+            {product?.variations?.map((v, i) => (
+              <button key={i} onClick={() => setSelectedColor(i)}
                 className={`w-16 h-16 rounded-2xl border-2 transition-all p-1 flex-shrink-0 ${selectedColor === i ? "border-blue-600 bg-blue-50" : "border-slate-100"}`}>
-                <img src={v?.images?.main} className="w-full h-full object-cover rounded-xl" />
+                <img src={v?.images?.main} className="w-full h-full object-cover rounded-xl" alt="color" />
               </button>
             ))}
           </div>
@@ -211,7 +213,7 @@ export default function ProductPage() {
             <button className="text-[10px] font-black text-blue-600 uppercase flex items-center">Size Guide <ChevronRight size={12} /></button>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {variant?.sizes?.map((s: any, i: number) => (
+            {variant?.sizes?.map((s, i) => (
               <button key={i} onClick={() => setSelectedSize(s)}
                 className={`py-4 rounded-2xl font-black text-sm border-2 transition-all ${selectedSize?.size === s.size ? "bg-black text-white border-black" : "bg-white text-slate-900 border-slate-100"}`}>
                 {s.size}
@@ -237,7 +239,7 @@ export default function ProductPage() {
                <input type="number" placeholder="Enter PIN" value={pincode} onChange={(e)=>setPincode(e.target.value)} className="flex-1 bg-white rounded-xl px-4 py-3 text-xs font-bold shadow-sm" />
                <button onClick={checkPincode} className="bg-slate-900 text-white px-6 rounded-xl font-black text-[10px] uppercase">{checkingPin ? '...' : 'Check'}</button>
              </div>
-             {deliveryInfo && <p className="text-[11px] text-green-600 font-black italic uppercase italic">🚀 Fast Delivery to {deliveryInfo.place} by Wednesday</p>}
+             {deliveryInfo && <p className="text-[11px] text-green-600 font-black italic uppercase">🚀 Fast Delivery to {deliveryInfo.place} by Wednesday</p>}
            </div>
         </div>
 
@@ -260,7 +262,7 @@ export default function ProductPage() {
               {similar.map((p) => (
                 <div key={p.id} onClick={() => router.push(`/product/${p.id}`)} className="min-w-[150px] space-y-2 group">
                   <div className="relative overflow-hidden rounded-2xl aspect-[3/4]">
-                     <img src={p.variations?.[0]?.images?.main} className="w-full h-full object-cover group-active:scale-110 transition-transform" />
+                     <img src={p.variations?.[0]?.images?.main} className="w-full h-full object-cover group-active:scale-110 transition-transform" alt="similar" />
                   </div>
                   <p className="text-[10px] font-black uppercase truncate">{p.name}</p>
                   <p className="text-xs font-black text-blue-600 italic leading-none">₹{p.price}</p>
