@@ -23,12 +23,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        id="theme-body"
-        className={`${inter.className} min-h-screen transition-colors duration-300`}
-      >
+      <body id="theme-body" className={`${inter.className} min-h-screen`}>
+        {/* Saara client-side logic iske andar hai */}
         <ClientWrapper /> 
+        
         <ThemeLoader />
+
         <AuthProvider>
           <CartProvider>
             <main className="pb-24 min-h-[80vh]">
